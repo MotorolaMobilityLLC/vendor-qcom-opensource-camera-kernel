@@ -38,6 +38,10 @@ ifeq ($(CONFIG_ARCH_DIWALI), y)
 include $(CAMERA_KERNEL_ROOT)/config/diwali.mk
 endif
 
+ifneq (,$(filter hiphic hiphi, $(TARGET_PRODUCT)))
+include $(CAMERA_KERNEL_ROOT)/config/hiphi.mk
+endif
+
 # List of all camera-kernel headers
 cam_include_dirs := $(shell dirname `find $(CAMERA_KERNEL_ROOT) -name '*.h'` | uniq)
 
@@ -221,6 +225,8 @@ camera-$(CONFIG_SPECTRA_SENSOR) += \
 	drivers/cam_sensor_module/cam_sensor_io/cam_sensor_spi.o \
 	drivers/cam_sensor_module/cam_sensor_utils/cam_sensor_util.o \
 	drivers/cam_sensor_module/cam_res_mgr/cam_res_mgr.o
+
+camera-$(CONFIG_CCI_DEBUG_INTF) += drivers/cam_sensor_module/cam_cci/cci_intf.o
 
 camera-$(CONFIG_LEDS_QPNP_FLASH_V2) += \
 	drivers/cam_sensor_module/cam_flash/cam_flash_dev.o \
