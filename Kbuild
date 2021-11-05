@@ -52,6 +52,8 @@ endif
 
 ifneq (,$(filter hiphid hiphic hiphi hiphid_factory hiphic_factory hiphi_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/hiphi.mk
+else ifneq (,$(filter li li_factory, $(TARGET_PRODUCT)))
+include $(CAMERA_KERNEL_ROOT)/config/li.mk
 endif
 
 ifdef ($(KBUILD_EXTRA_CONFIGS))
