@@ -66,6 +66,15 @@ int cam_csiphy_register_baseaddress(struct csiphy_device *csiphy_dev);
  */
 int cam_csiphy_util_update_aon_ops(bool get_access, uint32_t phy_idx);
 
+
+/**
+ * @csiphy_dev : CSIPhy device structure
+ *
+ * This API sets the aux settings required property in the global variable.
+ *
+ */
+void cam_csiphy_apply_aux_settings(struct csiphy_device *csiphy_dev);
+
 /**
  * @csiphy_dev: CSIPhy device structure
  *
