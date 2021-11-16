@@ -43,12 +43,34 @@ struct g_csiphy_data {
 	void __iomem *base_address;
 	uint8_t is_3phase;
 	uint32_t cpas_handle;
+	uint32_t need_aux_settings;
 	bool enable_aon_support;
+	bool is_aux_sett_reqrd;
 	struct cam_csiphy_aon_sel_params_t *aon_sel_param;
 };
 
 static struct g_csiphy_data g_phy_data[MAX_CSIPHY] = {{0, 0}};
 static int active_csiphy_hw_cnt;
+
+void cam_csiphy_apply_aux_settings(struct csiphy_device *csiphy_dev)
+{
+	if (!csiphy_dev) {
+		CAM_ERR(CAM_CSIPHY, "Invalid param.");
+		return;
+	}
+
+	if (g_phy_data[csiphy_dev->soc_info.index].is_3phase) {
+		g_phy_data[csiphy_dev->soc_info.index].is_aux_sett_reqrd = true;
+		g_phy_data[csiphy_dev->soc_info.index].need_aux_settings |=
+			(1 << csiphy_dev->curr_data_rate_idx);
+	}
+
+	CAM_DBG(CAM_CSIPHY,
+		"Aux Settings Required: %s for [data_rate_idx: %u rate: %llu aux_mask: %u]",
+		CAM_BOOL_TO_YESNO(g_phy_data[csiphy_dev->soc_info.index].is_aux_sett_reqrd),
+		csiphy_dev->curr_data_rate_idx, csiphy_dev->current_data_rate,
+		g_phy_data[csiphy_dev->soc_info.index].need_aux_settings);
+}
 
 int32_t cam_csiphy_get_instance_offset(
 	struct csiphy_device *csiphy_dev,
@@ -859,8 +881,7 @@ static int cam_csiphy_cphy_data_rate_config(
 		struct data_rate_reg_info_t *drate_settings =
 			settings_table->data_rate_settings;
 		uint64_t supported_phy_bw = drate_settings[data_rate_idx].bandwidth;
-		ssize_t  num_reg_entries =
-			drate_settings[data_rate_idx].data_rate_reg_array_size;
+		ssize_t  num_reg_entries = drate_settings[data_rate_idx].data_rate_reg_array_size;
 
 		if ((required_phy_data_rate > supported_phy_bw) &&
 			(data_rate_idx < (num_data_rates - 1))) {
@@ -891,27 +912,21 @@ static int cam_csiphy_cphy_data_rate_config(
 			per_lane = &drate_settings[data_rate_idx].per_lane_info[lane_idx];
 
 			for (i = 0; i < num_reg_entries; i++) {
-				reg_addr = per_lane->csiphy_data_rate_regs[i]
-					.reg_addr;
-				reg_data = per_lane->csiphy_data_rate_regs[i]
-					.reg_data;
+				reg_addr = per_lane->csiphy_data_rate_regs[i].reg_addr;
+				reg_data = per_lane->csiphy_data_rate_regs[i].reg_data;
 				reg_param_type =
-					per_lane->csiphy_data_rate_regs[i]
-					.csiphy_param_type;
-				delay = per_lane->csiphy_data_rate_regs[i]
-					.delay;
+					per_lane->csiphy_data_rate_regs[i].csiphy_param_type;
+				delay = per_lane->csiphy_data_rate_regs[i].delay;
 				CAM_DBG(CAM_CSIPHY,
 					"param_type: %d writing reg : %x val : %x delay: %dus",
-					reg_param_type, reg_addr, reg_data,
-					delay);
+					reg_param_type, reg_addr, reg_data, delay);
+
 				switch (reg_param_type) {
 				case CSIPHY_DEFAULT_PARAMS:
-					cam_io_w_mb(reg_data,
-						csiphybase + reg_addr);
+					cam_io_w_mb(reg_data, csiphybase + reg_addr);
 				break;
 				case CSIPHY_SETTLE_CNT_LOWER_BYTE:
-					cam_io_w_mb(settle_cnt & 0xFF,
-						csiphybase + reg_addr);
+					cam_io_w_mb(settle_cnt & 0xFF, csiphybase + reg_addr);
 				break;
 				case CSIPHY_SETTLE_CNT_HIGHER_BYTE:
 					cam_io_w_mb((settle_cnt >> 8) & 0xFF,
@@ -919,17 +934,30 @@ static int cam_csiphy_cphy_data_rate_config(
 				break;
 				case CSIPHY_SKEW_CAL:
 				if (skew_cal_enable)
-					cam_io_w_mb(reg_data,
-						csiphybase + reg_addr);
+					cam_io_w_mb(reg_data, csiphybase + reg_addr);
+				break;
+				case CSIPHY_AUXILLARY_SETTING: {
+					uint32_t phy_idx = csiphy_device->soc_info.index;
+
+					/*
+					 * Configure aux settings if this data rate failed previously failed
+					 */
+					if ((g_phy_data[phy_idx].is_aux_sett_reqrd) &&
+						(g_phy_data[phy_idx].need_aux_settings &
+						(1 << data_rate_idx)))
+						cam_io_w_mb(reg_data, csiphybase + reg_addr);
+				}
 				break;
 				default:
 					CAM_DBG(CAM_CSIPHY, "Do Nothing");
 				break;
 				}
+
 				if (delay > 0)
 					usleep_range(delay, delay + 5);
 			}
 		}
+		csiphy_device->curr_data_rate_idx = data_rate_idx;
 		break;
 	}
 
@@ -1930,9 +1958,9 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 			g_phy_data[csiphy_dev->soc_info.index].is_3phase =
 					csiphy_acq_params.csiphy_3phase;
 			CAM_DBG(CAM_CSIPHY,
-					"g_csiphy data is updated for index: %d is_3phase: %u",
-					csiphy_dev->soc_info.index,
-					g_phy_data[csiphy_dev->soc_info.index].is_3phase);
+				"g_csiphy data is updated for index: %d is_3phase: %u",
+				csiphy_dev->soc_info.index,
+				g_phy_data[csiphy_dev->soc_info.index].is_3phase);
 		}
 
 		if (g_phy_data[csiphy_dev->soc_info.index].enable_aon_support) {
@@ -2394,6 +2422,8 @@ int cam_csiphy_register_baseaddress(struct csiphy_device *csiphy_dev)
 	g_phy_data[phy_idx].aon_sel_param =
 		csiphy_dev->ctrl_reg->csiphy_reg.aon_sel_params;
 	g_phy_data[phy_idx].enable_aon_support = false;
+	g_phy_data[phy_idx].is_aux_sett_reqrd = false;
+	g_phy_data[phy_idx].need_aux_settings = 0x0;
 
 	return 0;
 }
