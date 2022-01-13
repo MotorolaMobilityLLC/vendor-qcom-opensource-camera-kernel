@@ -163,6 +163,7 @@ struct cam_sensor_ctrl_t {
 	uint64_t                       req_table[MAX_PER_FRAME_ARRAY];
 	struct list_head               read_buf_list;
 	struct mutex                   read_buf_lock;
+#ifdef CONFIG_CCI_ADDR_SWITCH
 	/* add i2c addr switch support*/
 	uint8_t                        i2c_addr_switch;
 	uint16_t                       second_i2c_address;
@@ -171,6 +172,7 @@ struct cam_sensor_ctrl_t {
 	uint16_t                       i2c_switch_reg_addr;
 	uint16_t                       i2c_switch_reg_data;
 	uint16_t                       i2c_switch_reg_delayMs;
+#endif
 };
 
 /**
