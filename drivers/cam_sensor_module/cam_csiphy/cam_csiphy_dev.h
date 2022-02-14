@@ -367,6 +367,9 @@ struct csiphy_device {
 	bool                           en_lane_status_reg_dump;
 	bool                           en_full_phy_reg_dump;
 	uint16_t                       preamble_enable;
+#ifdef CONFIG_CAM_CSI_CONDITIONAL_AUX
+	bool                           aux_setting_allowed;
+#endif
 };
 
 /**

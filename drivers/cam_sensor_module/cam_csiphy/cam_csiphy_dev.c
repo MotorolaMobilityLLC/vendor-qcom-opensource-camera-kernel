@@ -24,7 +24,11 @@ static void cam_csiphy_subdev_handle_message(
 	switch (message_type) {
 	case CAM_SUBDEV_MESSAGE_IRQ_ERR:
 		if (msg->hw_idx == csiphy_dev->soc_info.index) {
+#ifdef CONFIG_CAM_CSI_CONDITIONAL_AUX
+			if (msg->priv_data && csiphy_dev->aux_setting_allowed)
+#else
 			if (msg->priv_data)
+#endif
 				is_aux_setting_required = *(bool *)(msg->priv_data);
 
 			CAM_INFO(CAM_CSIPHY, "subdev index : %d CSIPHY index: %d Aux_setting_reqrd: %s",
@@ -218,6 +222,30 @@ static const struct v4l2_subdev_internal_ops csiphy_subdev_intern_ops = {
 	.close = cam_csiphy_subdev_close,
 };
 
+#ifdef CONFIG_CAM_CSI_CONDITIONAL_AUX
+static bool cam_csiphy_aux_setting_allowed(void) {
+	struct device_node *of_chosen;
+	const char* val;
+
+	of_chosen = of_find_node_by_path("/chosen");
+	if (of_chosen == NULL)
+		of_chosen = of_find_node_by_path("/chosen@0");
+
+	if (of_chosen == NULL)
+		return false;
+
+	if (of_property_read_string(of_chosen, "mmi,camera_disable_radio", &val)) {
+		pr_err("%s: Failed to get mmi,camera_disable_radio", __func__);
+		return false;
+	}
+
+	if (!strcmp(val, "false"))
+		return true;
+
+	return false;
+}
+#endif
+
 static int cam_csiphy_component_bind(struct device *dev,
 	struct device *master_dev, void *data)
 {
@@ -254,6 +282,13 @@ static int cam_csiphy_component_bind(struct device *dev,
 		CAM_ERR(CAM_CSIPHY, "DT parsing failed: %d", rc);
 		goto csiphy_no_resource;
 	}
+
+#ifdef CONFIG_CAM_CSI_CONDITIONAL_AUX
+	new_csiphy_dev->aux_setting_allowed = cam_csiphy_aux_setting_allowed();
+	CAM_INFO(CAM_CSIPHY, "Aux Setting %s be applied for %s",
+		new_csiphy_dev->aux_setting_allowed ? "will" : "won't",
+		pdev->name);
+#endif
 
 	new_csiphy_dev->v4l2_dev_str.internal_ops =
 		&csiphy_subdev_intern_ops;
