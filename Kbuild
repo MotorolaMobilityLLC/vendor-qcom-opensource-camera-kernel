@@ -105,6 +105,8 @@ ifneq (,$(filter hiphid hiphic hiphi hiphid_factory hiphic_factory hiphi_factory
 include $(CAMERA_KERNEL_ROOT)/config/hiphi.mk
 else ifneq (,$(filter li li_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/li.mk
+else ifneq (,$(filter eqs eqs_factory, $(TARGET_PRODUCT)))
+include $(CAMERA_KERNEL_ROOT)/config/eqs.mk
 endif
 
 ifneq ($(KBUILD_EXTRA_CONFIGS),)
