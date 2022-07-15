@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 
@@ -477,6 +477,7 @@ static enum cam_vfe_bus_ver3_packer_format
 	case CAM_FORMAT_NV21:
 		if ((wm_index == 1) || (wm_index == 3) || (wm_index == 5))
 			return PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10_ODD_EVEN;
+		fallthrough;
 	case CAM_FORMAT_NV12:
 	case CAM_FORMAT_UBWC_NV12:
 	case CAM_FORMAT_UBWC_NV12_4R:
@@ -505,6 +506,7 @@ static enum cam_vfe_bus_ver3_packer_format
 	default:
 		return PACKER_FMT_VER3_MAX;
 	}
+	return PACKER_FMT_VER3_MAX;
 }
 
 static int cam_vfe_bus_ver3_handle_rup_top_half(uint32_t evt_id,
@@ -982,6 +984,7 @@ static int cam_vfe_bus_ver3_acquire_wm(
 			break;
 		case CAM_FORMAT_UBWC_NV12:
 			rsrc_data->en_ubwc = 1;
+			fallthrough;
 			/* Fall through for NV12 */
 		case CAM_FORMAT_NV21:
 		case CAM_FORMAT_NV12:
