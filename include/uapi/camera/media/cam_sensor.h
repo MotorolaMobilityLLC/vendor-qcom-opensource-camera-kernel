@@ -307,6 +307,8 @@ struct cam_cmd_i2c_info {
 	__u16    reserved;
 } __attribute__((packed));
 
+#define CAM_SENSOR_BATCH_NUMBER BIT(0)
+
 /**
  * struct cam_cmd_sensor_res_info - Contains sensor res info
  *
