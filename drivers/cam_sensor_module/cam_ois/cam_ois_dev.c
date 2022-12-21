@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "cam_ois_dev.h"
@@ -306,12 +307,19 @@ static int cam_ois_i2c_driver_probe(struct i2c_client *client,
 	return rc;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+void cam_ois_i2c_driver_remove(struct i2c_client *client)
+{
+	component_del(&client->dev, &cam_ois_i2c_component_ops);
+}
+#else
 static int cam_ois_i2c_driver_remove(struct i2c_client *client)
 {
 	component_del(&client->dev, &cam_ois_i2c_component_ops);
 
 	return 0;
 }
+#endif
 
 static int cam_ois_component_bind(struct device *dev,
 	struct device *master_dev, void *data)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -828,12 +828,20 @@ static int32_t cam_flash_i2c_driver_probe(struct i2c_client *client,
 	return rc;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+void cam_flash_i2c_driver_remove(struct i2c_client *client)
+{
+	component_del(&client->dev, &cam_flash_i2c_component_ops);
+}
+
+#else
 static int32_t cam_flash_i2c_driver_remove(struct i2c_client *client)
 {
 	component_del(&client->dev, &cam_flash_i2c_component_ops);
 
 	return 0;
 }
+#endif
 
 MODULE_DEVICE_TABLE(of, cam_flash_dt_match);
 
