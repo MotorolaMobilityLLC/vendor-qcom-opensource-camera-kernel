@@ -288,7 +288,7 @@ static struct platform_driver pm6125_flash_gpio_platform_driver = {
 	},
 };
 
-static int __init pm6125_flash_gpio_init_module(void)
+int pm6125_flash_gpio_init_module(void)
 {
 	if (platform_driver_register(&pm6125_flash_gpio_platform_driver)) {
 		PM6125_FLASH_PRINT("[pm6125_flash_gpio]Failed to register pm6125_flash_gpio_platform_driver!\n");
@@ -297,13 +297,11 @@ static int __init pm6125_flash_gpio_init_module(void)
 	return 0;
 }
 
-static void __exit pm6125_flash_gpio_exit_module(void)
+void pm6125_flash_gpio_exit_module(void)
 {
 	platform_driver_unregister(&pm6125_flash_gpio_platform_driver);
 }
 
-module_init(pm6125_flash_gpio_init_module);
-module_exit(pm6125_flash_gpio_exit_module);
 MODULE_AUTHOR("liyang <liyang14@huaqin.com>");
 MODULE_DESCRIPTION("CONTROL PM6125 FLASH GPIO Driver");
 MODULE_LICENSE("GPL");

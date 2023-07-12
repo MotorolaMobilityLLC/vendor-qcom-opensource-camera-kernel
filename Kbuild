@@ -38,6 +38,10 @@ ifeq ($(CONFIG_ARCH_SHIMA), y)
 include $(CAMERA_KERNEL_ROOT)/config/shima.mk
 endif
 
+ifneq (,$(filter fogona fogona_factory, $(TARGET_PRODUCT)))
+include $(CAMERA_KERNEL_ROOT)/config/fogona.mk
+endif
+
 # List of all camera-kernel headers
 cam_include_dirs := $(shell dirname `find $(CAMERA_KERNEL_ROOT) -name '*.h'` | uniq)
 
@@ -192,6 +196,11 @@ camera-$(CONFIG_LEDS_QTI_FLASH) += \
 	drivers/cam_sensor_module/cam_flash/cam_flash_dev.o \
 	drivers/cam_sensor_module/cam_flash/cam_flash_core.o \
 	drivers/cam_sensor_module/cam_flash/cam_flash_soc.o
+
+ifneq (,$(filter $(CONFIG_CAMERA_FLASH_PWM), y))
+camera-$(CONFIG_SPECTRA_SENSOR) += \
+	drivers/cam_sensor_module/cam_flash_pm6125_gpio/pm6125_flash_gpio.o
+endif
 
 camera-$(CONFIG_SPECTRA_CUSTOM) += \
 	drivers/cam_cust/cam_custom_hw_mgr/cam_custom_hw1/cam_custom_sub_mod_soc.o \

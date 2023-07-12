@@ -39,4 +39,6 @@ extern void pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE s, enum camer
 extern int pm6125_flash_control_create_device(struct device* dev);
 extern int pm6125_flash_control_remove_device(struct device* dev);
 #endif
+int pm6125_flash_gpio_init_module(void);
+void pm6125_flash_gpio_exit_module(void);
 #endif /* _PM6125_FLASH_GPIO_H_*/

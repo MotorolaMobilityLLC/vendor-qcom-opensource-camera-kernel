@@ -24,6 +24,10 @@
 #include "cam_eeprom_dev.h"
 #include "cam_ois_dev.h"
 #include "cam_flash_dev.h"
+#ifdef CONFIG_CAMERA_FLASH_PWM
+#include "pm6125_flash_gpio.h"
+#endif
+
 #include "a5_core.h"
 #include "ipe_core.h"
 #include "bps_core.h"
@@ -95,6 +99,9 @@ static const struct camera_submodule_component camera_sensor[] = {
 	{&cam_eeprom_driver_init, &cam_eeprom_driver_exit},
 	{&cam_ois_driver_init, &cam_ois_driver_exit},
 	{&cam_flash_init_module, &cam_flash_exit_module},
+#ifdef CONFIG_CAMERA_FLASH_PWM
+	{&pm6125_flash_gpio_init_module, &pm6125_flash_gpio_exit_module},
+#endif
 #endif
 };
 
