@@ -27,6 +27,9 @@
 #ifdef CONFIG_CAMERA_FLASH_PWM
 #include "pm6125_flash_gpio.h"
 #endif
+#ifdef CONFIG_CCI_DEBUG_INTF
+#include "cci_intf.h"
+#endif
 
 #include "a5_core.h"
 #include "ipe_core.h"
@@ -151,6 +154,12 @@ static const struct camera_submodule_component camera_custom[] = {
 #endif
 };
 
+#ifdef CONFIG_CCI_DEBUG_INTF
+static const struct camera_submodule_component camera_cci_debug[] = {
+	{&cam_cci_debug_sub_module_init, &cam_cci_debug_sub_module_exit},
+};
+#endif
+
 static const struct camera_submodule submodule_table[] = {
 	{
 		.name = "Camera BASE",
@@ -201,6 +210,13 @@ static const struct camera_submodule submodule_table[] = {
 		.name = "Camera CUSTOM",
 		.num_component = ARRAY_SIZE(camera_custom),
 		.component = camera_custom,
+#ifdef CONFIG_CCI_DEBUG_INTF
+	},
+	{
+		.name = "Camera CCI Debug",
+		.num_component = ARRAY_SIZE(camera_cci_debug),
+		.component = camera_cci_debug,
+#endif
 	}
 };
 

@@ -202,6 +202,8 @@ camera-$(CONFIG_SPECTRA_SENSOR) += \
 	drivers/cam_sensor_module/cam_flash_pm6125_gpio/pm6125_flash_gpio.o
 endif
 
+camera-$(CONFIG_CCI_DEBUG_INTF) += drivers/cam_sensor_module/cam_cci/cci_intf.o
+
 camera-$(CONFIG_SPECTRA_CUSTOM) += \
 	drivers/cam_cust/cam_custom_hw_mgr/cam_custom_hw1/cam_custom_sub_mod_soc.o \
 	drivers/cam_cust/cam_custom_hw_mgr/cam_custom_hw1/cam_custom_sub_mod_dev.o \
