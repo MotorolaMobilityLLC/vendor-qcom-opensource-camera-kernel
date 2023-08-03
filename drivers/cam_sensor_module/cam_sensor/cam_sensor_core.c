@@ -13,6 +13,9 @@
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
 
+#ifdef CONFIG_CAM_SENSOR_PROBE_RETRY
+#define MAX_RETRY_TIMES 5
+#endif
 
 static void cam_sensor_update_req_mgr(
 	struct cam_sensor_ctrl_t *s_ctrl,
@@ -618,7 +621,7 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 {
 	int rc = 0;
 #ifdef CONFIG_CAM_SENSOR_PROBE_RETRY
-	int retries = 5;
+	int retries = MAX_RETRY_TIMES;
 	bool matched = false;
 #endif
 	uint32_t chipid = 0;
@@ -640,8 +643,8 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 			s_ctrl->sensor_probe_addr_type,
 			s_ctrl->sensor_probe_data_type);
 
-		CAM_INFO(CAM_SENSOR, "read id: 0x%x expected id 0x%x:",
-			chipid, slave_info->sensor_id);
+		CAM_INFO(CAM_SENSOR, "read id: 0x%x expected id: 0x%x times: %d",
+			chipid, slave_info->sensor_id, MAX_RETRY_TIMES - retries);
 
 		if (cam_sensor_id_by_mask(s_ctrl, chipid) == slave_info->sensor_id)
 			matched = true;
