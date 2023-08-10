@@ -60,11 +60,19 @@ void pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE s, enum camera_flash
 		switch (opcode)
 		{
 		case CAMERA_SENSOR_FLASH_OP_FIRELOW:
+#ifdef CONFIG_FOGONA_CAMERA_FLASH
+			real_current = (flash_current > FLASH_FIRE_LOW_MAXREALCURRENT?FLASH_FIRE_LOW_MAXREALCURRENT:flash_current);
+#else
 			real_current = (flash_current > FLASH_FIRE_LOW_MAXCURRENT?FLASH_FIRE_LOW_MAXCURRENT:flash_current);
+#endif
 			pstate.duty_cycle = PM6125_PWM_PERIOD * real_current / FLASH_FIRE_LOW_MAXCURRENT;
 			break;
 		case CAMERA_SENSOR_FLASH_OP_FIREHIGH:
+#ifdef CONFIG_FOGONA_CAMERA_FLASH
+			real_current = (flash_current > FLASH_FIRE_HIGH_MAXREALCURRENT?FLASH_FIRE_HIGH_MAXREALCURRENT:flash_current);
+#else
 			real_current = (flash_current > FLASH_FIRE_HIGH_MAXCURRENT?FLASH_FIRE_HIGH_MAXCURRENT:flash_current);
+#endif
 			pstate.duty_cycle = PM6125_PWM_PERIOD * real_current / FLASH_FIRE_HIGH_MAXCURRENT;
 			break;
 		default:
