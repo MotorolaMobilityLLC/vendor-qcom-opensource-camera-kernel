@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef CAMERA_MAIN_H
@@ -46,7 +47,8 @@ extern struct i2c_driver cam_ois_i2c_driver;
 extern struct i2c_driver cam_eeprom_i2c_driver;
 extern struct i2c_driver cam_sensor_i2c_driver;
 #if IS_REACHABLE(CONFIG_LEDS_QPNP_FLASH_V2) || \
-	IS_REACHABLE(CONFIG_LEDS_QTI_FLASH)
+	IS_REACHABLE(CONFIG_LEDS_QTI_FLASH) || \
+	IS_REACHABLE(CONFIG_LEDS_QCOM_FLASH)
 extern struct platform_driver cam_flash_platform_driver;
 #endif
 #endif
@@ -121,7 +123,8 @@ static struct platform_driver *const cam_component_platform_drivers[] = {
 	&cam_ois_platform_driver,
 	&cam_tpg_driver,
 #if IS_REACHABLE(CONFIG_LEDS_QPNP_FLASH_V2) || \
-	IS_REACHABLE(CONFIG_LEDS_QTI_FLASH)
+	IS_REACHABLE(CONFIG_LEDS_QTI_FLASH) || \
+	IS_REACHABLE(CONFIG_LEDS_QCOM_FLASH)
 	&cam_flash_platform_driver,
 #endif
 #endif
