@@ -111,6 +111,9 @@ struct cam_sensor_ctrl_t {
 	bool bob_pwm_switch;
 	uint32_t last_flush_req;
 	uint16_t pipeline_delay;
+#ifdef CONFIG_MOT_SENSOR_PRE_POWERUP
+	bool sensor_power_up_done;
+#endif
 };
 
 /**
