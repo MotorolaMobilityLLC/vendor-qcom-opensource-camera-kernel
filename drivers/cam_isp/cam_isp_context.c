@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -172,7 +172,7 @@ static int __cam_isp_ctx_print_event_record(struct cam_isp_context *ctx_isp)
 			record = &ctx_isp->event_record[i][index];
 			ts = ktime_to_timespec64(record->timestamp);
 			len += scnprintf(buf + len, CAM_ISP_CONTEXT_DBG_BUF_LEN - len,
-				"%llu[%lld:%06lld] ", record->req_id, ts.tv_sec,
+				"%llu[%lld:%06ld] ", record->req_id, ts.tv_sec,
 				ts.tv_nsec / NSEC_PER_USEC);
 			index = (index + 1) %
 				CAM_ISP_CTX_EVENT_RECORD_MAX_ENTRIES;
