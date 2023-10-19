@@ -34,6 +34,15 @@ int32_t cam_actuator_parse_dt(struct cam_actuator_ctrl_t *a_ctrl,
 		return rc;
 	}
 
+#ifdef CONFIG_MOT_OIS_AF_USE_SAME_IC
+	if (!of_property_read_bool(of_node, "af-ois-use-same-ic")) {
+		a_ctrl->af_ois_use_same_ic = false;
+	} else {
+		a_ctrl->af_ois_use_same_ic = true;
+	}
+	CAM_DBG(CAM_ACTUATOR, "af_ois_use_same_ic %d", a_ctrl->af_ois_use_same_ic);
+#endif
+
 	if (!soc_info->gpio_data) {
 		CAM_DBG(CAM_ACTUATOR, "No GPIO found");
 		rc = 0;
