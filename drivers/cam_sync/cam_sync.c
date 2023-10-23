@@ -1059,7 +1059,11 @@ static int cam_sync_probe(struct platform_device *pdev)
 	int rc;
 	int idx;
 
+#ifdef CONFIG_CAM_SYNC_MEMORY
+	sync_dev = kzalloc(sizeof(*sync_dev), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+#else
 	sync_dev = kzalloc(sizeof(*sync_dev), GFP_KERNEL);
+#endif
 	if (!sync_dev)
 		return -ENOMEM;
 
