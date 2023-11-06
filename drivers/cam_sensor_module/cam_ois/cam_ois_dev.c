@@ -425,6 +425,9 @@ static int cam_ois_component_bind(struct device *dev,
 	}
 	o_ctrl->soc_info.soc_private = soc_private;
 	soc_private->power_info.dev  = &pdev->dev;
+#ifdef CONFIG_MOT_OIS_AF_DRIFT
+	INIT_LIST_HEAD(&(o_ctrl->i2c_af_drift_data.list_head));
+#endif
 	mutex_init(&(o_ctrl->ois_mutex));
 #ifdef CONFIG_MOT_OIS_EARLY_UPGRADE_FW
 	mutex_init(&(o_ctrl->ois_early_fw_mutex));
