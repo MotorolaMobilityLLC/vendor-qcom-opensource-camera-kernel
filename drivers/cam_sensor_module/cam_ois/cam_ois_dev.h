@@ -133,6 +133,9 @@ struct cam_ois_ctrl_t {
 	struct i2c_settings_array i2c_init_data;
 	struct i2c_settings_array i2c_calib_data;
 	struct i2c_settings_array i2c_mode_data;
+#ifdef CONFIG_MOT_OIS_AF_DRIFT
+	struct i2c_settings_array i2c_af_drift_data;
+#endif
 	struct i2c_settings_array i2c_time_data;
 	enum cam_ois_state cam_ois_state;
 	char ois_name[32];
