@@ -486,7 +486,10 @@ static int cam_ois_component_bind(struct device *dev,
 	cam_record_bind_latency(pdev->name, microsec);
 
 #ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
-	g_o_ctrl = o_ctrl;
+	if (o_ctrl->af_drift_supported == true)
+	{
+		g_o_ctrl = o_ctrl;
+	}
 #endif
 
 	CAM_DBG(CAM_OIS, "Component bound successfully");

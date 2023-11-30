@@ -157,7 +157,12 @@ struct cam_ois_ctrl_t {
 	struct i2c_settings_array i2c_fw_version_data;
 	struct list_head read_buf_list;
 	struct mutex read_buf_lock;
+
+#ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
+        bool af_drift_supported;
+#endif
 };
+
 
 /**
  * @brief : API to register OIS hw to platform framework.
