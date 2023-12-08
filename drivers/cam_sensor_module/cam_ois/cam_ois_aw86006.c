@@ -34,7 +34,6 @@
 #include <asm/arch_timer.h>
 #include <linux/file.h>
 #include <linux/fcntl.h>
-#include <linux/dma-contiguous.h>
 #include <cam_sensor_cmn_header.h>
 #include "cam_ois_core.h"
 #include "cam_ois_soc.h"
