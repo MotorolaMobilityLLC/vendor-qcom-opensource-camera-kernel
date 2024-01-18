@@ -62,7 +62,10 @@ ifeq ($(CONFIG_ARCH_PARROT), y)
 include $(CAMERA_KERNEL_ROOT)/config/parrot.mk
 endif
 
-ifneq (,$(filter malmo malmo_factory, $(TARGET_PRODUCT)))
+# Reserve "product" & "product_factory"
+CAMERA_KERNEL_TARGET_PRODUCT := $(shell echo $(TARGET_PRODUCT) | sed s/_$(findstring factory, $(TARGET_PRODUCT)).*/$(findstring _factory, $(TARGET_PRODUCT))/)
+
+ifneq (,$(filter malmo malmo_factory, $(CAMERA_KERNEL_TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/malmo.mk
 endif
 
