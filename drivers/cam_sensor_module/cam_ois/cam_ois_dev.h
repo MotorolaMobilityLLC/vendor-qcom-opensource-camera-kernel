@@ -193,6 +193,9 @@ struct cam_ois_ctrl_t {
 	int ring_buff_size;
 	bool is_video_mode;
 	bool is_need_eis_data;
+#ifdef CONFIG_MOT_OIS_EARLY_UPGRADE_FW
+	uint8_t ois_early_fw_flag;
+#endif
 };
 
 /**

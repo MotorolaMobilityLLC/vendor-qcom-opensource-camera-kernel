@@ -5,3 +5,5 @@ ifneq (,$(filter userdebug eng, $(TARGET_BUILD_VARIANT)))
 CONFIG_CCI_DEBUG_INTF := y
 ccflags-y += -DCONFIG_CCI_DEBUG_INTF=1
 endif
+
+ccflags-y += -DCONFIG_MOT_OIS_EARLY_UPGRADE_FW=1
