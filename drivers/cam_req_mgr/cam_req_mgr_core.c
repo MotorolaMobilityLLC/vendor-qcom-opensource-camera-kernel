@@ -21,6 +21,9 @@
 #include "cam_mem_mgr.h"
 #include "cam_mem_mgr_api.h"
 #include "cam_cpas_api.h"
+#ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
+#include "cam_sensor.h"
+#endif
 
 static struct cam_req_mgr_core_device *g_crm_core_dev;
 static struct cam_req_mgr_core_link g_links[MAXIMUM_LINKS_CAPACITY];
@@ -97,6 +100,9 @@ void cam_req_mgr_core_link_reset(struct cam_req_mgr_core_link *link)
 	link->exp_time_for_resume = 0;
 	atomic_set(&link->eof_event_cnt, 0);
 	link->cont_empty_slots = 0;
+#ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
+	link->reapply_req = false;
+#endif
 	__cam_req_mgr_reset_apply_data(link);
 	__cam_req_mgr_reset_state_monitor_array(link);
 
@@ -1278,6 +1284,12 @@ static int __cam_req_mgr_send_req(struct cam_req_mgr_core_link *link,
 			apply_req.re_apply = true;
 	}
 
+#ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
+	if (link->reapply_req) {
+		apply_req.re_apply = true;
+	}
+#endif
+
 	if (link->state == CAM_CRM_LINK_STATE_ERR)
 		apply_req.recovery = true;
 	else
@@ -1522,6 +1534,10 @@ static int __cam_req_mgr_send_req(struct cam_req_mgr_core_link *link,
 				(in_q->slot[idx].mismatched_frame_mode == CRM_NOTIFY_MISMATCHED_FRMAE))
 				apply_req.last_applied_done_timestamp = link->last_applied_done_timestamp;
 
+#ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
+			apply_req.op_code = slot->op_code;
+			apply_req.sof_timestamp_jiffies = link->sof_timestamp_jiffies;
+#endif
 			CAM_DBG(CAM_REQ,
 				"SEND: link_hdl %x dev %s pd %d req_id %lld frame_duration_changing %d",
 				link->link_hdl, dev->dev_info.name,
@@ -1531,6 +1547,14 @@ static int __cam_req_mgr_send_req(struct cam_req_mgr_core_link *link,
 				rc = dev->ops->apply_req(&apply_req);
 				if (rc < 0) {
 					*failed_dev = dev;
+#ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
+					//reapply req
+					if (rc == -EAGAIN && apply_req.op_code ==
+						CAM_SENSOR_PACKET_OPCODE_SENSOR_UPDATE_STRICT_PERFRAMECONTROL20ms)
+					{
+						link->reapply_req = true;
+					}
+#endif
 					break;
 				} else
 					slot->req_apply_map |= BIT(dev->dev_bit);
@@ -2465,6 +2489,10 @@ static int __cam_req_mgr_process_req(struct cam_req_mgr_core_link *link,
 	} else {
 		if (link->retry_cnt)
 			link->retry_cnt = 0;
+
+#ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
+		link->reapply_req = false;
+#endif
 
 		/* Check for any long exposure settings */
 		__cam_req_mgr_validate_crm_wd_timer(link);
@@ -3512,6 +3540,9 @@ int cam_req_mgr_process_add_req(void *priv, void *data)
 
 	link_slot = &link->req.in_q->slot[idx];
 	slot = &tbl->slot[idx];
+#ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
+	slot->op_code = add_req->op_code;
+#endif
 
 	if ((add_req->skip_at_sof & 0xFF) > slot->inject_delay_at_sof) {
 		slot->inject_delay_at_sof = (add_req->skip_at_sof & 0xFF);
@@ -4118,6 +4149,10 @@ static int cam_req_mgr_cb_add_req(struct cam_req_mgr_add_request *add_req)
 	dev_req->trigger_eof = add_req->trigger_eof;
 	dev_req->skip_at_sof = add_req->skip_at_sof;
 	dev_req->skip_at_eof = add_req->skip_at_eof;
+#ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
+	dev_req->op_code = add_req->op_code;
+#endif
+
 	if (dev_req->trigger_eof) {
 		atomic_inc(&link->eof_event_cnt);
 		CAM_DBG(CAM_REQ, "Req_id: %llu, eof_event_cnt: %d, link 0x%x",
@@ -4499,6 +4534,9 @@ static int cam_req_mgr_cb_notify_trigger(
 	notify_trigger->trigger = trigger_data->trigger;
 	notify_trigger->req_id = trigger_data->req_id;
 	notify_trigger->sof_timestamp_val = trigger_data->sof_timestamp_val;
+#ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
+	link->sof_timestamp_jiffies = jiffies;
+#endif
 	task->process_cb = &cam_req_mgr_process_trigger;
 	rc = cam_req_mgr_workq_enqueue_task(task, link, CRM_TASK_PRIORITY_0);
 
