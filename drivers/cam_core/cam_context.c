@@ -465,7 +465,6 @@ int cam_context_handle_release_dev(struct cam_context *ctx,
 	}
 
 	mutex_lock(&ctx->ctx_mutex);
-	CAM_ERR(CAM_CORE, "ctx id %d ctx->ctx_mutex lock", ctx->ctx_id);
 	if (ctx->state_machine[ctx->state].ioctl_ops.release_dev) {
 		rc = ctx->state_machine[ctx->state].ioctl_ops.release_dev(
 			ctx, cmd);
@@ -475,7 +474,6 @@ int cam_context_handle_release_dev(struct cam_context *ctx,
 		rc = -EPROTO;
 	}
 	mutex_unlock(&ctx->ctx_mutex);
-	CAM_ERR(CAM_CORE, "ctx id %d ctx->ctx_mutex unlock", ctx->ctx_id);
 
 	return rc;
 }
