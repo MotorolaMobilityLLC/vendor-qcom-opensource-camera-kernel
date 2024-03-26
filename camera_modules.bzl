@@ -245,7 +245,7 @@ def _define_module(target, variant):
     )
 
     copy_to_dist_dir(
-        name = "{}_camera_dist".format(tv),
+        name = "{}_camera_dist".format(target),
         data = [":{}_camera".format(tv)],
         dist_dir = "out/target/product/{}/dlkm/lib/modules/".format(target),
         flat = True,
