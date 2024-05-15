@@ -7,4 +7,6 @@ CONFIG_CCI_DEBUG_INTF := y
 ccflags-y += -DCONFIG_CCI_DEBUG_INTF=1
 endif
 
+ccflags-y += -DCONFIG_MOT_OIS_EARLY_UPGRADE_FW=1
+
 # Flags to pass into C preprocessor
