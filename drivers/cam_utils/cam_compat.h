@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_COMPAT_H_
@@ -14,6 +14,7 @@
 #include <linux/qcom_scm.h>
 #include <linux/list_sort.h>
 #include <linux/dma-iommu.h>
+#include <linux/spi/spi.h>
 
 #include "cam_csiphy_dev.h"
 #include "cam_cpastop_hw.h"
@@ -67,5 +68,11 @@ int cam_req_mgr_ordered_list_cmp(void *priv,
 #endif
 
 int cam_get_subpart_info(uint32_t *part_info, uint32_t max_num_cam);
+
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+void cam_eeprom_spi_driver_remove(struct spi_device *sdev);
+#else
+int cam_eeprom_spi_driver_remove(struct spi_device *sdev);
+#endif
 
 #endif /* _CAM_COMPAT_H_ */
