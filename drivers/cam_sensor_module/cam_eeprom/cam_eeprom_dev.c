@@ -10,6 +10,7 @@
 #include "cam_eeprom_core.h"
 #include "cam_debug_util.h"
 #include "camera_main.h"
+#include "cam_compat.h"
 
 static int cam_eeprom_subdev_close_internal(struct v4l2_subdev *sd,
 	struct v4l2_subdev_fh *fh)
