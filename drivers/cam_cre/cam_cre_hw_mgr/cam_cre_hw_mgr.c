@@ -136,7 +136,7 @@ static int cam_cre_mgr_process_cmd_io_buf_req(struct cam_cre_hw_mgr *hw_mgr,
 	struct   cam_buf_io_cfg *io_cfg_ptr = NULL;
 	struct   cam_cre_io_buf_info *acq_io_buf;
 
-	io_cfg_ptr = (struct cam_buf_io_cfg *)((uint32_t *)&packet->payload +
+	io_cfg_ptr = (struct cam_buf_io_cfg *)((uint32_t *)&packet->payload_flex +
 			packet->io_configs_offset / 4);
 
 	cre_request = ctx_data->req_list[req_idx];
@@ -1440,7 +1440,7 @@ static bool cam_cre_mgr_is_valid_inconfig(struct cam_packet *packet)
 	bool in_config_valid = false;
 	struct cam_buf_io_cfg *io_cfg_ptr = NULL;
 
-	io_cfg_ptr = (struct cam_buf_io_cfg *) ((uint32_t *) &packet->payload +
+	io_cfg_ptr = (struct cam_buf_io_cfg *) ((uint32_t *) &packet->payload_flex +
 					packet->io_configs_offset/4);
 
 	for (i = 0 ; i < packet->num_io_configs; i++)
@@ -1467,7 +1467,7 @@ static bool cam_cre_mgr_is_valid_outconfig(struct cam_packet *packet)
 	bool out_config_valid = false;
 	struct cam_buf_io_cfg *io_cfg_ptr = NULL;
 
-	io_cfg_ptr = (struct cam_buf_io_cfg *) ((uint32_t *) &packet->payload +
+	io_cfg_ptr = (struct cam_buf_io_cfg *) ((uint32_t *) &packet->payload_flex +
 					packet->io_configs_offset/4);
 
 	for (i = 0 ; i < packet->num_io_configs; i++)
@@ -2142,7 +2142,7 @@ static int cam_cre_process_generic_cmd_buffer(
 	cmd_generic_blob.io_buf_addr = io_buf_addr;
 
 	cmd_desc = (struct cam_cmd_buf_desc *)
-		((uint32_t *) &packet->payload + packet->cmd_buf_offset/4);
+		((uint32_t *) &packet->payload_flex + packet->cmd_buf_offset/4);
 
 	for (i = 0; i < packet->num_cmd_buf; i++) {
 		rc = cam_packet_util_validate_cmd_desc(&cmd_desc[i]);
