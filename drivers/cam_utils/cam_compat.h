@@ -42,6 +42,11 @@
 MODULE_IMPORT_NS(DMA_BUF);
 #endif
 
+
+#if IS_REACHABLE(CONFIG_INTERCONNECT_QCOM)
+#include <linux/interconnect.h>
+#endif
+
 struct cam_fw_alloc_info {
 	struct device *fw_dev;
 	void          *fw_kva;
@@ -99,4 +104,10 @@ int16_t cam_get_gpio_counts(struct cam_hw_soc_info *soc_info);
 
 uint16_t cam_get_named_gpio(struct cam_hw_soc_info *soc_info,
 	int index);
+
+#if IS_REACHABLE(CONFIG_INTERCONNECT_QCOM)
+inline struct icc_path *cam_icc_get_path(struct device *dev,
+	const int src_id, const int dst_id, const char *path_name, bool use_path_name);
+#endif
+
 #endif /* _CAM_COMPAT_H_ */
