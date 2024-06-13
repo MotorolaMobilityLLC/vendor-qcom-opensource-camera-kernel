@@ -96,7 +96,7 @@ else ifneq (,$(filter tank, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/tank.mk
 else ifneq (,$(filter tank_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/tank_factory.mk
-else ifneq (,$(filter paro paros, $(TARGET_PRODUCT)))
+else ifneq (,$(filter paro paros paros_cn, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/paro.mk
 else ifneq (,$(filter paro_factory paros_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/paro_factory.mk
