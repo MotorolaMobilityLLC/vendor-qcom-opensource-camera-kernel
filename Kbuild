@@ -100,6 +100,10 @@ else ifneq (,$(filter paro paros paros_cn, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/paro.mk
 else ifneq (,$(filter paro_factory paros_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/paro_factory.mk
+else ifneq (,$(filter kobe, $(TARGET_PRODUCT)))
+include $(CAMERA_KERNEL_ROOT)/config/kobe.mk
+else ifneq (,$(filter kobe_factory, $(TARGET_PRODUCT)))
+include $(CAMERA_KERNEL_ROOT)/config/kobe_factory.mk
 endif
 
 ifdef ($(KBUILD_EXTRA_CONFIGS))
