@@ -112,10 +112,6 @@ static struct platform_driver *const cam_component_platform_drivers[] = {
 	&cam_eeprom_platform_driver,
 	&cam_ois_platform_driver,
 	&cam_tpg_driver,
-#if IS_REACHABLE(CONFIG_LEDS_QPNP_FLASH_V2) || \
-	IS_REACHABLE(CONFIG_LEDS_QTI_FLASH)
-	&cam_flash_platform_driver,
-#endif
 #endif
 #ifdef CONFIG_SPECTRA_ICP
 	&cam_a5_driver,
@@ -156,7 +152,6 @@ static struct platform_driver *const cam_component_platform_drivers[] = {
 static struct i2c_driver *const cam_component_i2c_drivers[] = {
 #ifdef CONFIG_SPECTRA_SENSOR
 	&cam_actuator_i2c_driver,
-	&cam_flash_i2c_driver,
 	&cam_ois_i2c_driver,
 	&cam_eeprom_i2c_driver,
 	&cam_sensor_i2c_driver,
