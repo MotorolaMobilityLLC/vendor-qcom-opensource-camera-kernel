@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of.h>
@@ -15,6 +15,7 @@
 #include "cam_cx_ipeak.h"
 #include "cam_mem_mgr.h"
 #include "cam_presil_hw_access.h"
+#include "cam_compat.h"
 
 #define CAM_TO_MASK(bitn)          (1 << (int)(bitn))
 #define CAM_IS_BIT_SET(mask, bit)  ((mask) & CAM_TO_MASK(bit))
@@ -1138,12 +1139,12 @@ int cam_soc_util_irq_enable(struct cam_hw_soc_info *soc_info)
 		return -EINVAL;
 	}
 
-	if (!soc_info->irq_line) {
+	if (soc_info->irq_num < 0) {
 		CAM_ERR(CAM_UTIL, "No IRQ line available");
 		return -ENODEV;
 	}
 
-	enable_irq(soc_info->irq_line->start);
+	enable_irq(soc_info->irq_num);
 
 	return 0;
 }
@@ -1155,12 +1156,12 @@ int cam_soc_util_irq_disable(struct cam_hw_soc_info *soc_info)
 		return -EINVAL;
 	}
 
-	if (!soc_info->irq_line) {
+	if (soc_info->irq_num < 0) {
 		CAM_ERR(CAM_UTIL, "No IRQ line available");
 		return -ENODEV;
 	}
 
-	disable_irq(soc_info->irq_line->start);
+	disable_irq(soc_info->irq_num);
 
 	return 0;
 }
@@ -2185,7 +2186,7 @@ static int cam_soc_util_get_gpio_info(struct cam_hw_soc_info *soc_info)
 		return -EINVAL;
 	}
 
-	gpio_array_size = of_gpio_count(of_node);
+	gpio_array_size = cam_get_gpio_counts(soc_info);
 
 	if (gpio_array_size <= 0)
 		return 0;
@@ -2197,7 +2198,7 @@ static int cam_soc_util_get_gpio_info(struct cam_hw_soc_info *soc_info)
 		goto free_gpio_conf;
 
 	for (i = 0; i < gpio_array_size; i++) {
-		gpio_array[i] = of_get_gpio(of_node, i);
+		gpio_array[i] = cam_get_named_gpio(soc_info, i);
 		CAM_DBG(CAM_UTIL, "gpio_array[%d] = %d", i, gpio_array[i]);
 	}
 
@@ -2429,13 +2430,10 @@ int cam_soc_util_get_dt_properties(struct cam_hw_soc_info *soc_info)
 			soc_info->dev_name);
 		rc = 0;
 	} else {
-		soc_info->irq_line =
-			platform_get_resource_byname(soc_info->pdev,
-			IORESOURCE_IRQ, soc_info->irq_name);
-		if (!soc_info->irq_line) {
-			CAM_ERR(CAM_UTIL, "no irq resource");
+		rc = cam_compat_util_get_irq(soc_info);
+		if (rc < 0) {
+			CAM_ERR(CAM_UTIL, "get irq resource failed: %d", rc);
 #ifndef CONFIG_CAM_PRESIL
-			rc = -ENODEV;
 			return rc;
 #else
 			/* Pre-sil for new devices not present on old */
@@ -3010,10 +3008,10 @@ int cam_soc_util_request_platform_resource(
 			goto put_regulator;
 	}
 
-	if (soc_info->irq_line) {
+	if (soc_info->irq_num > 0) {
 
 		rc = cam_soc_util_request_irq(soc_info->dev,
-			soc_info->irq_line->start,
+			soc_info->irq_num,
 			handler, IRQF_TRIGGER_RISING,
 			soc_info->irq_name, irq_data,
 			soc_info->mem_block[0]->start);
@@ -3142,10 +3140,10 @@ put_clk:
 		}
 	}
 
-	if (soc_info->irq_line) {
-		disable_irq(soc_info->irq_line->start);
+	if (soc_info->irq_num > 0) {
+		disable_irq(soc_info->irq_num);
 		devm_free_irq(soc_info->dev,
-			soc_info->irq_line->start, irq_data);
+			soc_info->irq_num, irq_data);
 	}
 
 put_regulator:
@@ -3215,7 +3213,7 @@ int cam_soc_util_release_platform_resource(struct cam_hw_soc_info *soc_info)
 		soc_info->reg_map[i].size = 0;
 	}
 
-	if (soc_info->irq_line) {
+	if (soc_info->irq_num > 0) {
 		if (cam_presil_mode_enabled()) {
 			if (cam_soc_util_is_presil_address_space(soc_info->mem_block[0]->start)) {
 				b_ret = cam_presil_unsubscribe_device_irq(
@@ -3225,9 +3223,9 @@ int cam_soc_util_release_platform_resource(struct cam_hw_soc_info *soc_info)
 			}
 		}
 
-		disable_irq(soc_info->irq_line->start);
+		disable_irq(soc_info->irq_num);
 		devm_free_irq(soc_info->dev,
-			soc_info->irq_line->start, soc_info->irq_data);
+			soc_info->irq_num, soc_info->irq_data);
 	}
 
 	cam_soc_util_release_pinctrl(soc_info);
@@ -3373,9 +3371,9 @@ static int cam_soc_util_dump_cont_reg_range(
 			goto end;
 		}
 
-		dump_out_buf->dump_data[write_idx++] = reg_read->offset +
+		dump_out_buf->dump_data_flex[write_idx++] = reg_read->offset +
 			(i * sizeof(uint32_t));
-		dump_out_buf->dump_data[write_idx++] =
+		dump_out_buf->dump_data_flex[write_idx++] =
 			cam_soc_util_r(soc_info, base_idx,
 			(reg_read->offset + (i * sizeof(uint32_t))));
 		dump_out_buf->bytes_written += (2 * sizeof(uint32_t));
@@ -3729,7 +3727,7 @@ static int cam_soc_util_user_reg_dump(
 	}
 	for (i = 0; i < reg_dump_desc->num_read_range; i++) {
 
-		reg_read_info = &reg_dump_desc->read_range[i];
+		reg_read_info = &reg_dump_desc->read_range_flex[i];
 		if (reg_read_info->type ==
 				CAM_REG_DUMP_READ_TYPE_CONT_RANGE) {
 			rc = cam_soc_util_dump_cont_reg_range_user_buf(
@@ -3867,10 +3865,10 @@ int cam_soc_util_reg_dump_to_cmd_buf(void *ctx,
 		req_id, ctx, reg_input_info->num_dump_sets);
 	for (i = 0; i < reg_input_info->num_dump_sets; i++) {
 		if ((cmd_in_data_end - cmd_buf_start) <= (uintptr_t)
-			reg_input_info->dump_set_offsets[i]) {
+			reg_input_info->dump_set_offsets_flex[i]) {
 			CAM_ERR(CAM_UTIL,
 				"Invalid dump set offset: [%pK], cmd_buf_start: [%pK] cmd_in_data_end: [%pK]",
-				(uintptr_t)reg_input_info->dump_set_offsets[i],
+				(uintptr_t)reg_input_info->dump_set_offsets_flex[i],
 				cmd_buf_start, cmd_in_data_end);
 			rc = -EINVAL;
 			goto end;
@@ -3878,7 +3876,7 @@ int cam_soc_util_reg_dump_to_cmd_buf(void *ctx,
 
 		reg_dump_desc = (struct cam_reg_dump_desc *)
 			(cmd_buf_start +
-			(uintptr_t)reg_input_info->dump_set_offsets[i]);
+			(uintptr_t)reg_input_info->dump_set_offsets_flex[i]);
 		if ((reg_dump_desc->num_read_range > 1) &&
 			(sizeof(struct cam_reg_read_info) > ((U32_MAX -
 			sizeof(struct cam_reg_dump_desc)) /
@@ -3973,7 +3971,7 @@ int cam_soc_util_reg_dump_to_cmd_buf(void *ctx,
 			CAM_DBG(CAM_UTIL,
 				"Number of bytes written to cmd buffer: %u req_id: %llu",
 				dump_out_buf->bytes_written, req_id);
-			reg_read_info = &reg_dump_desc->read_range[j];
+			reg_read_info = &reg_dump_desc->read_range_flex[j];
 			if (reg_read_info->type ==
 				CAM_REG_DUMP_READ_TYPE_CONT_RANGE) {
 				rc = cam_soc_util_dump_cont_reg_range(soc_info,
