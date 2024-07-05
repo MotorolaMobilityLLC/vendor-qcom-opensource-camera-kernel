@@ -905,8 +905,8 @@ static long mot_actuator_ioctl(struct v4l2_subdev *sd,
 	case MOT_ACTUATOR_RELEASE:
 		return mot_actuator_handle_cmd(sd, *(int *)arg, cmd);
 	default:
-		pr_err("%s Unsupported cmd=%x, arg=%x\n", __func__, cmd, arg);
-		pr_debug("%s supported cmd: %x, %x, %x, %x, %x\n", __func__,
+		pr_err("%s Unsupported cmd=%x, arg=%x\n", __func__, cmd, *(int *)arg);
+		pr_debug("%s supported cmd: %lx, %lx, %lx, %lx, %lx\n", __func__,
 		        MOT_ACTUATOR_READ,
 		        MOT_ACTUATOR_WRITE,
 		        MOT_ACTUATOR_INIT,
@@ -929,7 +929,7 @@ static long mot_actuator_ioctl32(struct v4l2_subdev *sd,
 		return -EFAULT;
 	}
 
-	pr_debug("%s cmd=%x, arg=%x\n", __func__, cmd, arg);
+	pr_debug("%s cmd=%x, arg=%x\n", __func__, cmd, *(int *)arg);
 
 	switch (cmd) {
 		case MOT_ACTUATOR_READ32:
@@ -948,8 +948,8 @@ static long mot_actuator_ioctl32(struct v4l2_subdev *sd,
 			cmd = MOT_ACTUATOR_RELEASE;
 			break;
 		default:
-			pr_err("%s Unsupported cmd=%x, arg=%x\n", __func__, cmd, arg);
-			pr_debug("%s supported cmd: %x, %x, %x, %x, %x\n", __func__,
+			pr_err("%s Unsupported cmd=%x, arg=%x\n", __func__, cmd, *(int *)arg);
+			pr_debug("%s supported cmd: %lx, %lx, %lx, %lx, %lx\n", __func__,
 			        MOT_ACTUATOR_READ32,
 			        MOT_ACTUATOR_WRITE32,
 			        MOT_ACTUATOR_INIT32,
@@ -1452,4 +1452,3 @@ void mot_actuator_driver_exit(void)
 
 MODULE_DESCRIPTION("mot_actuator_driver");
 MODULE_LICENSE("GPL v2");
-
