@@ -403,7 +403,12 @@ static int cam_ois_slaveInfo_pkt_parser(struct cam_ois_ctrl_t *o_ctrl,
 		CAM_DBG(CAM_OIS, "Slave addr: 0x%x Freq Mode: %d",
 			ois_info->slave_addr, ois_info->i2c_freq_mode);
 	} else if (o_ctrl->io_master_info.master_type == I2C_MASTER) {
-		o_ctrl->io_master_info.client->addr = ois_info->slave_addr;
+		if (!o_ctrl->io_master_info.qup_client) {
+			CAM_ERR(CAM_OIS, "io_master_info.qup_client is NULL");
+			return -EINVAL;
+		}
+		o_ctrl->io_master_info.qup_client->i2c_client->addr =
+			ois_info->slave_addr;
 		CAM_DBG(CAM_OIS, "Slave addr: 0x%x", ois_info->slave_addr);
 	} else {
 		CAM_ERR(CAM_OIS, "Invalid Master type : %d",
@@ -1083,8 +1088,8 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		CAM_ERR(CAM_OIS,
 			"Inval cam_packet strut size: %zu, len_of_buff: %zu",
 			 sizeof(struct cam_packet), pkt_len);
-		cam_mem_put_cpu_buf(dev_config.packet_handle);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto put_ref;
 	}
 
 	remain_len -= (size_t)dev_config.offset;
@@ -1127,8 +1132,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			rc = cam_packet_util_validate_cmd_desc(&cmd_desc[i]);
 			if (rc) {
 				CAM_ERR(CAM_OIS, "Invalid cmd desc");
-				cam_mem_put_cpu_buf(dev_config.packet_handle);
-				return rc;
+				goto end;
 			}
 
 			total_cmd_buf_in_bytes = cmd_desc[i].length;
@@ -1475,8 +1479,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		rc = cam_sensor_util_get_current_qtimer_ns(&qtime_ns);
 		if (rc < 0) {
 			CAM_ERR(CAM_OIS, "failed to get qtimer rc:%d");
-			cam_mem_put_cpu_buf(dev_config.packet_handle);
-			return rc;
+			goto end;
 		}
 
 		rc = cam_sensor_i2c_read_data(
@@ -1563,13 +1566,10 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		goto end;
 	}
 
-	if (!rc) {
-		cam_common_mem_free(csl_packet);
-		cam_mem_put_cpu_buf(dev_config.packet_handle);
-		return rc;
-	}
+	if (!rc)
+		goto end;
+
 pwr_dwn:
-	cam_mem_put_cpu_buf(dev_config.packet_handle);
 	cam_ois_power_down(o_ctrl);
 end:
 	cam_common_mem_free(csl_packet);

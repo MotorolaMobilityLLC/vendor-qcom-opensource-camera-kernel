@@ -572,7 +572,7 @@ static int cam_sensor_handle_slave_info(
 		break;
 
 	case I2C_MASTER:
-		io_master->client->addr = i2c_info->slave_addr;
+		io_master->qup_client->i2c_client->addr = i2c_info->slave_addr;
 		break;
 
 	case SPI_MASTER:
@@ -2657,4 +2657,17 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 	ctrl->cam_pinctrl_status = 0;
 
 	return 0;
+}
+
+void cam_sensor_utils_parse_pm_ctrl_flag(struct device_node *of_node,
+	struct camera_io_master *io_master_info)
+{
+	struct device_node *of_parent = of_get_next_parent(of_node);
+
+	if ((of_parent != NULL) &&
+		(io_master_info != NULL) &&
+		(io_master_info->qup_client != NULL)) {
+		io_master_info->qup_client->pm_ctrl_client_enable =
+			of_property_read_bool(of_parent, "qcom,pm-ctrl-client");
+	}
 }

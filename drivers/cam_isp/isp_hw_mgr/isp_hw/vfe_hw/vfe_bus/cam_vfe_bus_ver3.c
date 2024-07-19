@@ -2401,16 +2401,22 @@ static int cam_vfe_bus_ver3_out_done_top_half_util(uint32_t evt_id,
 	evt_payload->evt_id = evt_id;
 	wm_rsrc_data = out_rsrc_data->wm_res[PLANE_Y].res_priv;
 
-	for (i = 0; i < th_payload->num_registers; i++) {
-		evt_payload->irq_reg_val[i] = th_payload->evt_status_arr[i];
-		CAM_DBG(CAM_ISP, "VFE:%u Bus IRQ status_%d: 0x%X",
-			out_rsrc_data->common_data->core_index, i, th_payload->evt_status_arr[i]);
+	if (th_payload->num_registers <= CAM_IFE_BUS_IRQ_REGISTERS_MAX) {
+		for (i = 0; i < th_payload->num_registers; i++) {
+			evt_payload->irq_reg_val[i] = th_payload->evt_status_arr[i];
+			CAM_DBG(CAM_ISP, "VFE:%u Bus IRQ status_%d: 0x%X",
+				out_rsrc_data->common_data->core_index,
+				i, th_payload->evt_status_arr[i]);
+		}
+	} else {
+		CAM_ERR(CAM_ISP, "Index out of bounds for num of registers %d, max allowed is %d",
+			th_payload->num_registers, CAM_IFE_BUS_IRQ_REGISTERS_MAX);
+		return -EINVAL;
 	}
 
 	th_payload->evt_payload_priv = evt_payload;
 
 	status_0 = th_payload->evt_status_arr[CAM_IFE_IRQ_BUS_VER3_REG_STATUS0];
-	status_1 = th_payload->evt_status_arr[CAM_IFE_IRQ_BUS_VER3_REG_STATUS1];
 
 	if (evt_payload->is_hw_ctxt_comp_done && (!comp_rsrc_data->mc_comp_done_mask)) {
 		CAM_ERR(CAM_ISP, "Invalid configuration for hw ctxt comp buf done");
@@ -2425,10 +2431,13 @@ static int cam_vfe_bus_ver3_out_done_top_half_util(uint32_t evt_id,
 			status_0, comp_rsrc_data->comp_grp_type);
 	}
 
-	if (status_1 & out_rsrc_data->early_done_mask) {
-		evt_payload->is_early_done = true;
-		trace_cam_log_event("earlydone", "earlydone_IRQ",
-			status_1, out_rsrc_data->wm_res[PLANE_Y].res_id);
+	if (th_payload->num_registers >= 2) {
+		status_1 = th_payload->evt_status_arr[CAM_IFE_IRQ_BUS_VER3_REG_STATUS1];
+		if (status_1 & out_rsrc_data->early_done_mask) {
+			evt_payload->is_early_done = true;
+			trace_cam_log_event("earlydone", "earlydone_IRQ",
+				status_1, out_rsrc_data->wm_res[PLANE_Y].res_id);
+		}
 	}
 
 	if (status_0 & 0x1)

@@ -655,7 +655,12 @@ static int32_t cam_flash_slaveInfo_pkt_parser(struct cam_flash_ctrl *fctrl,
 		CAM_DBG(CAM_FLASH, "Slave addr: 0x%x Freq Mode: %d",
 			i2c_info->slave_addr, i2c_info->i2c_freq_mode);
 	} else if (fctrl->io_master_info.master_type == I2C_MASTER) {
-		fctrl->io_master_info.client->addr = i2c_info->slave_addr;
+		if (!fctrl->io_master_info.qup_client) {
+			CAM_ERR(CAM_FLASH, "io_master_info.qup_client is NULL");
+			return -EINVAL;
+		}
+		fctrl->io_master_info.qup_client->i2c_client->addr =
+			i2c_info->slave_addr;
 		CAM_DBG(CAM_FLASH, "Slave addr: 0x%x", i2c_info->slave_addr);
 	} else {
 		CAM_ERR(CAM_FLASH, "Invalid Master type: %d",
@@ -1033,8 +1038,7 @@ int cam_flash_i2c_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 			rc = cam_packet_util_validate_cmd_desc(&cmd_desc[i]);
 			if (rc) {
 				CAM_ERR(CAM_FLASH, "Invalid cmd desc");
-				cam_mem_put_cpu_buf(config.packet_handle);
-				return rc;
+				goto end;
 			}
 
 			total_cmd_buf_in_bytes = cmd_desc[i].length;

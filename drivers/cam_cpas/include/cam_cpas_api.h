@@ -88,6 +88,7 @@ enum cam_cpas_camera_version {
 	CAM_CPAS_CAMERA_VERSION_640  = 0x00060400,
 	CAM_CPAS_CAMERA_VERSION_880  = 0x00080800,
 	CAM_CPAS_CAMERA_VERSION_980  = 0x00090800,
+	CAM_CPAS_CAMERA_VERSION_1080 = 0x000100800,
 	CAM_CPAS_CAMERA_VERSION_MAX
 };
 
@@ -125,6 +126,7 @@ enum cam_cpas_camera_version_map_id {
 	CAM_CPAS_CAMERA_VERSION_ID_640  = 0xC,
 	CAM_CPAS_CAMERA_VERSION_ID_880  = 0xD,
 	CAM_CPAS_CAMERA_VERSION_ID_980  = 0xE,
+	CAM_CPAS_CAMERA_VERSION_ID_1080 = 0xF,
 	CAM_CPAS_CAMERA_VERSION_ID_MAX
 };
 
@@ -147,29 +149,30 @@ enum cam_cpas_version_map_id {
  */
 enum cam_cpas_hw_version {
 	CAM_CPAS_TITAN_NONE = 0,
-	CAM_CPAS_TITAN_150_V100 = 0x150100,
-	CAM_CPAS_TITAN_165_V100 = 0x165100,
-	CAM_CPAS_TITAN_170_V100 = 0x170100,
-	CAM_CPAS_TITAN_170_V110 = 0x170110,
-	CAM_CPAS_TITAN_170_V120 = 0x170120,
-	CAM_CPAS_TITAN_170_V200 = 0x170200,
-	CAM_CPAS_TITAN_175_V100 = 0x175100,
-	CAM_CPAS_TITAN_175_V101 = 0x175101,
-	CAM_CPAS_TITAN_175_V120 = 0x175120,
-	CAM_CPAS_TITAN_175_V130 = 0x175130,
-	CAM_CPAS_TITAN_480_V100 = 0x480100,
-	CAM_CPAS_TITAN_580_V100 = 0x580100,
-	CAM_CPAS_TITAN_540_V100 = 0x540100,
-	CAM_CPAS_TITAN_520_V100 = 0x520100,
-	CAM_CPAS_TITAN_545_V100 = 0x545100,
-	CAM_CPAS_TITAN_570_V100 = 0x570100,
-	CAM_CPAS_TITAN_570_V200 = 0x570200,
-	CAM_CPAS_TITAN_680_V100 = 0x680100,
-	CAM_CPAS_TITAN_680_V110 = 0x680110,
-	CAM_CPAS_TITAN_780_V100 = 0x780100,
-	CAM_CPAS_TITAN_640_V200 = 0x640200,
-	CAM_CPAS_TITAN_880_V100 = 0x880100,
-	CAM_CPAS_TITAN_980_V100 = 0x980100,
+	CAM_CPAS_TITAN_150_V100  = 0x150100,
+	CAM_CPAS_TITAN_165_V100  = 0x165100,
+	CAM_CPAS_TITAN_170_V100  = 0x170100,
+	CAM_CPAS_TITAN_170_V110  = 0x170110,
+	CAM_CPAS_TITAN_170_V120  = 0x170120,
+	CAM_CPAS_TITAN_170_V200  = 0x170200,
+	CAM_CPAS_TITAN_175_V100  = 0x175100,
+	CAM_CPAS_TITAN_175_V101  = 0x175101,
+	CAM_CPAS_TITAN_175_V120  = 0x175120,
+	CAM_CPAS_TITAN_175_V130  = 0x175130,
+	CAM_CPAS_TITAN_480_V100  = 0x480100,
+	CAM_CPAS_TITAN_580_V100  = 0x580100,
+	CAM_CPAS_TITAN_540_V100  = 0x540100,
+	CAM_CPAS_TITAN_520_V100  = 0x520100,
+	CAM_CPAS_TITAN_545_V100  = 0x545100,
+	CAM_CPAS_TITAN_570_V100  = 0x570100,
+	CAM_CPAS_TITAN_570_V200  = 0x570200,
+	CAM_CPAS_TITAN_680_V100  = 0x680100,
+	CAM_CPAS_TITAN_680_V110  = 0x680110,
+	CAM_CPAS_TITAN_780_V100  = 0x780100,
+	CAM_CPAS_TITAN_640_V200  = 0x640200,
+	CAM_CPAS_TITAN_880_V100  = 0x880100,
+	CAM_CPAS_TITAN_980_V100  = 0x980100,
+	CAM_CPAS_TITAN_1080_V100 = 0x1080100,
 	CAM_CPAS_TITAN_MAX
 };
 
@@ -241,6 +244,9 @@ enum cam_camnoc_slave_error_codes {
  * @CAM_CAMNOC_IRQ_TFE_UBWC_ENCODE_ERROR    : Triggered if any error detected
  *                                            in the TFE UBWC encoder
  *                                            instance
+ * @CAM_CAMNOC_IRQ_TFE_UBWC_1_ENCODE_ERROR  : Triggered if any error detected
+ *                                            in the TFE UBWC encoder
+ *                                            instance
  * @CAM_CAMNOC_IRQ_AHB_TIMEOUT              : Triggered when the QHS_ICP slave
  *                                            times out after 4000 AHB cycles
  */
@@ -263,6 +269,7 @@ enum cam_camnoc_irq_type {
 	CAM_CAMNOC_IRQ_OFE_WR_UBWC_ENCODE_ERROR,
 	CAM_CAMNOC_IRQ_OFE_RD_UBWC_DECODE_ERROR,
 	CAM_CAMNOC_IRQ_TFE_UBWC_ENCODE_ERROR,
+	CAM_CAMNOC_IRQ_TFE_UBWC_1_ENCODE_ERROR,
 	CAM_CAMNOC_IRQ_AHB_TIMEOUT,
 };
 
@@ -575,6 +582,58 @@ struct cam_cpas_addr_trans_data {
 	uint32_t                     val_offset2;
 	uint32_t                     val_base3;
 	uint32_t                     val_offset3;
+};
+
+/**
+ * enum cam_device_type - Enum for camera HW device types
+ */
+enum cam_device_type {
+	CAM_CPAS_HW_TYPE_IFE,
+	CAM_CPAS_HW_TYPE_TFE,
+	CAM_CPAS_HW_TYPE_IFE_LITE,
+	CAM_CPAS_HW_TYPE_IPE,
+	CAM_CPAS_HW_TYPE_BPS,
+	CAM_CPAS_HW_TYPE_OFE,
+	CAM_CPAS_HW_TYPE_MAX
+};
+
+#define CAM_CPAS_IS_VALID_CAM_DEV_TYPE(type)                          \
+({                                                                  \
+	((type) >= CAM_CPAS_HW_TYPE_IFE) && ((type) < CAM_CPAS_HW_TYPE_MAX); \
+})
+#define CAM_MAX_OUTPUT_PORTS_PER_DEVICE 65
+
+enum cam_ipe_out_port_type {
+	CAM_CPAS_IPE_OUTPUT_IMAGE_DISPLAY,
+	CAM_CPAS_IPE_OUTPUT_IMAGE_VIDEO,
+	CAM_CPAS_IPE_OUTPUT_IMAGE_FULL_REF,
+	CAM_CPAS_IPE_OUTPUT_IMAGE_DS4_REF,
+	CAM_CPAS_IPE_OUTPUT_IMAGE_DS16_REF,
+	CAM_CPAS_IPE_OUTPUT_IMAGE_DS64_REF,
+	CAM_CPAS_IPE_OUTPUT_IMAGE_FD,
+	CAM_CPAS_IPE_OUTPUT_IMAGE_STATS_IHIST,
+	CAM_CPAS_IPE_OUTPUT_MAX
+};
+
+/**
+ * struct cam_cpas_cp_mapping_config_info : CP CTRL config info
+ *
+ * @device_type: HW device type (IFE, IPE, OFE etc.)
+ * @hw_instance_id_mask: Mask of the Indices of the devices to configure
+ * @protect: Whether to configure the ports as secure or non secure
+ * @phy_id: Index of the PHY that is used for this stream
+ *          Applicable for only real time devices
+ * @num_ports: Number of ports to be configured
+ * @port_ids: IDs of the ports to be configured
+ *
+ */
+struct cam_cpas_cp_mapping_config_info {
+	enum cam_device_type device_type;
+	uint32_t             hw_instance_id_mask;
+	bool                 protect;
+	uint32_t             phy_id;
+	uint32_t             num_ports;
+	uint32_t             port_ids[CAM_MAX_OUTPUT_PORTS_PER_DEVICE];
 };
 
 /**
@@ -1083,5 +1142,14 @@ int cam_cpas_dump_state_monitor_info(struct cam_req_mgr_dump_info *info);
  * @return true or false
  */
 bool cam_cpas_is_fw_based_sys_caching_supported(void);
+
+/**
+ * cam_cpas_config_cp_mapping_ctrl()
+ *
+ * @config: CP Mapping CTRL config info
+ * @return 0 on success
+ */
+int cam_cpas_config_cp_mapping_ctrl(
+	struct cam_cpas_cp_mapping_config_info *config);
 
 #endif /* _CAM_CPAS_API_H_ */
