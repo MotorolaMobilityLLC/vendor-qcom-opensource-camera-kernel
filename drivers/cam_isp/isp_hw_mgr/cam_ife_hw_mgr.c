@@ -2160,7 +2160,7 @@ static int cam_ife_mgr_csid_change_halt_mode(struct cam_ife_hw_mgr_ctx *ctx,
 
 static int cam_ife_mgr_csid_stop_hw(
 	struct cam_ife_hw_mgr_ctx *ctx, struct list_head  *stop_list,
-		uint32_t  base_idx, uint32_t stop_cmd, bool standby_en)
+		uint32_t  base_idx, uint32_t stop_cmd, bool standby_en, bool is_internal_stop)
 {
 	struct cam_isp_hw_mgr_res      *hw_mgr_res;
 	struct cam_isp_resource_node   *isp_res;
@@ -2194,6 +2194,7 @@ static int cam_ife_mgr_csid_stop_hw(
 		stop.node_res = stop_res;
 		stop.stop_cmd = stop_cmd;
 		stop.standby_en = standby_en;
+		stop.is_internal_stop = is_internal_stop;
 		hw_intf->hw_ops.stop(hw_intf->hw_priv, &stop, sizeof(stop));
 		for (i = 0; i < cnt; i++)
 			stop_res[i]->is_rdi_primary_res = false;
@@ -8008,7 +8009,7 @@ static int cam_ife_mgr_stop_hw_in_overflow(void *stop_hw_args)
 
 	/* stop the master CSID path first */
 	cam_ife_mgr_csid_stop_hw(ctx, &ctx->res_list_ife_csid,
-		master_base_idx, CAM_CSID_HALT_IMMEDIATELY, false);
+		master_base_idx, CAM_CSID_HALT_IMMEDIATELY, false, false);
 
 	/* Stop rest of the CSID paths  */
 	for (i = 0; i < ctx->num_base; i++) {
@@ -8016,7 +8017,7 @@ static int cam_ife_mgr_stop_hw_in_overflow(void *stop_hw_args)
 			continue;
 
 		cam_ife_mgr_csid_stop_hw(ctx, &ctx->res_list_ife_csid,
-			ctx->base[i].idx, CAM_CSID_HALT_IMMEDIATELY, false);
+			ctx->base[i].idx, CAM_CSID_HALT_IMMEDIATELY, false, false);
 	}
 
 	/* IFE mux in resources */
@@ -8187,7 +8188,7 @@ static int cam_ife_mgr_stop_hw(void *hw_mgr_priv, void *stop_hw_args)
 
 	/* Stop the master CSID path first */
 	cam_ife_mgr_csid_stop_hw(ctx, &ctx->res_list_ife_csid,
-		master_base_idx, csid_halt_type, stop_isp->standby_en);
+		master_base_idx, csid_halt_type, stop_isp->standby_en, stop_isp->is_internal_stop);
 
 	/* stop rest of the CSID paths  */
 	for (i = 0; i < ctx->num_base; i++) {
@@ -8197,7 +8198,8 @@ static int cam_ife_mgr_stop_hw(void *hw_mgr_priv, void *stop_hw_args)
 			ctx->base[i].idx, i, master_base_idx, ctx->ctx_index);
 
 		cam_ife_mgr_csid_stop_hw(ctx, &ctx->res_list_ife_csid,
-			ctx->base[i].idx, csid_halt_type, stop_isp->standby_en);
+			ctx->base[i].idx, csid_halt_type, stop_isp->standby_en,
+			stop_isp->is_internal_stop);
 	}
 
 	/* Ensure HW layer does not reset any clk data since it's

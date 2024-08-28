@@ -323,6 +323,7 @@ struct cam_ife_csid_hw_halt_args {
  * @node_res :  reource pointer array( ie cid or CSID)
  * @num_res :   number of resources to be stopped
  * @standby_en: Sensor Standby is enabled
+ * @is_internal_stop: Stop is issued during internal recovery
  *
  */
 struct cam_csid_hw_stop_args {
@@ -330,6 +331,7 @@ struct cam_csid_hw_stop_args {
 	struct cam_isp_resource_node            **node_res;
 	uint32_t                                  num_res;
 	bool                                      standby_en;
+	bool                                      is_internal_stop;
 };
 
 /**

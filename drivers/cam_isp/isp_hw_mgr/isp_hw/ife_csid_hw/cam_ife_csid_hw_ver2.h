@@ -332,7 +332,7 @@ struct cam_ife_csid_ver2_path_cfg {
 	bool                                 handle_camif_irq;
 	bool                                 ts_comb_vcdt_en;
 	bool                                 is_aeb_en;
-	bool                                 allow_epoch_cb;
+	bool                                 allow_epoch_eof_cb;
 };
 
 struct cam_ife_csid_ver2_top_reg_info {

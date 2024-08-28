@@ -3060,8 +3060,11 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 	}
 
 	if (irq_status_ipp & eof_irq_mask) {
-		cam_ife_csid_ver2_update_event_ts(&path_cfg->eof_ts, &payload->timestamp);
-		csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_EOF, (void *)&evt_info);
+		if ((!csid_hw->flags.last_exp_valid) ||
+			(csid_hw->flags.last_exp_valid && path_cfg->allow_epoch_eof_cb)) {
+			cam_ife_csid_ver2_update_event_ts(&path_cfg->eof_ts, &payload->timestamp);
+			csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_EOF, (void *)&evt_info);
+		}
 	}
 
 	if (irq_status_ipp & sof_irq_mask) {
@@ -3074,7 +3077,7 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 
 	if (irq_status_ipp & epoch0_irq_mask) {
 		if ((!csid_hw->flags.last_exp_valid) ||
-			(csid_hw->flags.last_exp_valid && path_cfg->allow_epoch_cb)) {
+			(csid_hw->flags.last_exp_valid && path_cfg->allow_epoch_eof_cb)) {
 			cam_ife_csid_ver2_update_event_ts(&path_cfg->epoch_ts, &payload->timestamp);
 			csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_EPOCH,
 				(void *)&evt_info);
@@ -3327,8 +3330,11 @@ static int cam_ife_csid_ver2_rdi_bottom_half(
 	}
 
 	if (irq_status_rdi & rdi_reg->eof_irq_mask) {
-		cam_ife_csid_ver2_update_event_ts(&path_cfg->eof_ts, &payload->timestamp);
-		csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_EOF, (void *)&evt_info);
+		if ((!csid_hw->flags.last_exp_valid) ||
+			(csid_hw->flags.last_exp_valid && path_cfg->allow_epoch_eof_cb)) {
+			cam_ife_csid_ver2_update_event_ts(&path_cfg->eof_ts, &payload->timestamp);
+			csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_EOF, (void *)&evt_info);
+		}
 	}
 
 	if ((irq_status_rdi & rdi_reg->sof_irq_mask)) {
@@ -3350,7 +3356,7 @@ static int cam_ife_csid_ver2_rdi_bottom_half(
 		}
 
 		if ((!csid_hw->flags.last_exp_valid) ||
-			(csid_hw->flags.last_exp_valid && path_cfg->allow_epoch_cb)) {
+			(csid_hw->flags.last_exp_valid && path_cfg->allow_epoch_eof_cb)) {
 			cam_ife_csid_ver2_update_event_ts(&path_cfg->epoch_ts, &payload->timestamp);
 			csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_EPOCH,
 				(void *)&evt_info);
@@ -3779,7 +3785,8 @@ static inline void cam_ife_csid_ver2_disable_path_irqs_evts(
 static int cam_ife_csid_ver2_disable_path(
 	bool                             maskout_irqs,
 	struct cam_ife_csid_ver2_hw     *csid_hw,
-	struct cam_isp_resource_node    *res)
+	struct cam_isp_resource_node    *res,
+	bool                             is_internal_stop)
 {
 	struct cam_ife_csid_ver2_path_cfg       *path_cfg;
 	int                                      rc = 0;
@@ -3807,12 +3814,14 @@ static int cam_ife_csid_ver2_disable_path(
 		cam_ife_csid_ver2_disable_path_irqs_evts(res->res_id,
 			csid_hw, path_cfg);
 
+	if (!is_internal_stop)
+		path_cfg->allow_epoch_eof_cb = false;
+
 	/* Reset frame drop fields at stream off */
 	path_cfg->discard_init_frames = false;
 	path_cfg->skip_discard_frame_cfg = false;
 	path_cfg->num_frames_discard = 0;
 	path_cfg->sof_cnt = 0;
-	path_cfg->allow_epoch_cb = false;
 	atomic_set(&path_cfg->switch_out_of_sync_cnt, 0);
 	return rc;
 }
@@ -5212,7 +5221,7 @@ static int cam_ife_csid_ver2_program_rdi_path(
 
 	if ((csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_MULTI_CTXT) &&
 		path_cfg->is_aeb_en && (res->res_id > CAM_IFE_PIX_PATH_RES_RDI_0))
-		dbg_frm_irq_mask |= path_reg->epoch0_irq_mask;
+		dbg_frm_irq_mask |= (path_reg->epoch0_irq_mask | path_reg->eof_irq_mask);
 
 	res->res_state = CAM_ISP_RESOURCE_STATE_STREAMING;
 	path_cfg->irq_reg_idx =  cam_ife_csid_convert_res_to_irq_reg(res->res_id);
@@ -6583,7 +6592,7 @@ int cam_ife_csid_ver2_deinit_hw(void *hw_priv,
 	case CAM_IFE_PIX_PATH_RES_RDI_2:
 	case CAM_IFE_PIX_PATH_RES_RDI_3:
 	case CAM_IFE_PIX_PATH_RES_RDI_4:
-		rc = cam_ife_csid_ver2_disable_path(true, csid_hw, res);
+		rc = cam_ife_csid_ver2_disable_path(true, csid_hw, res, false);
 		break;
 	default:
 		CAM_ERR(CAM_ISP, "CSID:%u Invalid res type%d",
@@ -7047,7 +7056,8 @@ int cam_ife_csid_ver2_stop(void *hw_priv,
 
 	for (i = 0; i < csid_stop->num_res; i++) {
 		res = csid_stop->node_res[i];
-		rc = cam_ife_csid_ver2_disable_path(false, csid_hw, res);
+		rc = cam_ife_csid_ver2_disable_path(false, csid_hw, res,
+			csid_stop->is_internal_stop);
 		res->res_state = CAM_ISP_RESOURCE_STATE_INIT_HW;
 		CAM_DBG(CAM_ISP, "CSID:%u res_type %d Resource[id:%d name:%s]",
 			csid_hw->hw_intf->hw_idx,
@@ -7105,10 +7115,12 @@ int cam_ife_csid_ver2_stop(void *hw_priv,
 	if (csid_hw->debug_info.test_bus_enabled)
 		cam_ife_csid_ver2_testbus_config(csid_hw, 0x0);
 
+	if (!csid_stop->is_internal_stop)
+		csid_hw->flags.last_exp_valid = false;
+
 	csid_hw->debug_info.test_bus_enabled = false;
 	csid_hw->flags.pf_err_detected = false;
 	csid_hw->flags.rdi_lcr_en = false;
-	csid_hw->flags.last_exp_valid = false;
 	mutex_unlock(&csid_hw->hw_info->hw_mutex);
 
 	return rc;
@@ -8455,11 +8467,20 @@ static int cam_ife_csid_ver2_path_exp_info_update(
 	struct cam_ife_csid_exp_info_update_args *exp_info)
 {
 	struct cam_ife_csid_ver2_path_cfg *path_cfg = NULL;
+	int i;
 
 	if (!csid_hw || !exp_info) {
 		CAM_ERR(CAM_ISP, "Invalid params, csid_hw is null: %s, exp_info is null: %s",
 			CAM_IS_NULL_TO_STR(csid_hw), CAM_IS_NULL_TO_STR(exp_info));
 		return -EINVAL;
+	}
+
+	for (i = 0; i < CAM_IFE_PIX_PATH_RES_MAX; i++) {
+		path_cfg =  (struct cam_ife_csid_ver2_path_cfg *)
+				csid_hw->path_res[i].res_priv;
+		if ((csid_hw->path_res[i].res_state == CAM_ISP_RESOURCE_STATE_STREAMING) &&
+			path_cfg)
+			path_cfg->allow_epoch_eof_cb = false;
 	}
 
 	if ((exp_info->num_sensor_out_exp > 1) &&
@@ -8476,7 +8497,7 @@ static int cam_ife_csid_ver2_path_exp_info_update(
 	}
 
 	csid_hw->flags.last_exp_valid = exp_info->last_exp_valid;
-	path_cfg->allow_epoch_cb = true;
+	path_cfg->allow_epoch_eof_cb = true;
 
 	return 0;
 }
