@@ -15,6 +15,7 @@
 #include "cam_res_mgr_api.h"
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
+#include "cam_ois_aw86006.h"
 
 #define OIS_COEF_CHUNK_SIZE (256)
 #define DW9784_IF_SIZE (512)
@@ -190,6 +191,38 @@ static int cam_ois_power_up(struct cam_ois_ctrl_t *o_ctrl)
 	if (rc) {
 		CAM_ERR(CAM_OIS, "cci_init failed: rc: %d", rc);
 		goto cci_failure;
+	}
+
+	if (strstr(o_ctrl->ois_name, "aw86006")) {
+		uint8_t standby_flag = 0;
+		uint8_t m = 0;
+		uint8_t temp_addr = 0;
+
+		for(m = 0; m < 7; m++)
+		{
+			temp_addr = o_ctrl->io_master_info.cci_client->sid;
+			o_ctrl->io_master_info.cci_client->sid = AW_SHUTDOWN_I2C_ADDR;
+
+			rc = camera_io_dev_read_seq(&(o_ctrl->io_master_info),  0xFF11, &standby_flag,
+								CAMERA_SENSOR_I2C_TYPE_WORD, CAMERA_SENSOR_I2C_TYPE_BYTE, 1);
+			if (rc < 0) {
+				CAM_ERR(CAM_OIS, "failed: seq read I2C settings: %d", rc);
+			}
+
+			o_ctrl->io_master_info.cci_client->sid = temp_addr;
+
+			CAM_INFO(CAM_OIS, "aw86006 standby flag = %d, retry num = %d", standby_flag, m);
+
+			if(standby_flag == 1)
+			{
+				CAM_INFO(CAM_OIS, "OIS transport program loaded successfully");
+				break;
+			}
+			else
+			{
+				mdelay(10);
+			}
+		}
 	}
 
 	return rc;
