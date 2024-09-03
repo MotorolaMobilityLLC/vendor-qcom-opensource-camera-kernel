@@ -251,6 +251,8 @@ static int cam_ois_i2c_component_bind(struct device *dev,
 
 	cam_sensor_module_add_i2c_device((void *) o_ctrl, CAM_SENSOR_OIS);
 
+	o_ctrl->bridge_intf.device_hdl = -1;
+
 	mutex_init(&(o_ctrl->ois_mutex));
 	o_ctrl->cam_ois_state = CAM_OIS_INIT;
 	CAM_GET_TIMESTAMP(ts_end);
