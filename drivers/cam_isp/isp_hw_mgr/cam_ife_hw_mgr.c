@@ -17078,8 +17078,28 @@ static int cam_ife_hw_mgr_handle_hw_buf_done(
 		CAM_BOOL_TO_YESNO(bufdone_evt_info->is_hw_ctxt_comp),
 		CAM_BOOL_TO_YESNO(bufdone_evt_info->is_early_done));
 
-	if (unlikely(debug_cfg->perf_cnt_res_id == event_info->res_id))
-		cam_ife_mgr_read_perf_cnts(ife_hw_mgr_ctx);
+	if (unlikely(debug_cfg->perf_cnt_res_id)) {
+		uint32_t                               trunc_res_id;
+		int                                    outmap_idx;
+		struct cam_isp_hw_mgr_res             *hw_mgr_res = NULL;
+
+		trunc_res_id = (debug_cfg->perf_cnt_res_id & 0xFF);
+		if (event_info->hw_type == CAM_ISP_HW_TYPE_SFE) {
+			outmap_idx = ife_hw_mgr_ctx->sfe_out_map[trunc_res_id];
+			if (outmap_idx != 0xFF)
+				hw_mgr_res = &ife_hw_mgr_ctx->res_list_sfe_out[outmap_idx];
+
+		} else if (event_info->hw_type == CAM_ISP_HW_TYPE_VFE) {
+			outmap_idx = ife_hw_mgr_ctx->vfe_out_map[trunc_res_id];
+			if (outmap_idx != 0xFF)
+				hw_mgr_res = &ife_hw_mgr_ctx->res_list_ife_out[outmap_idx];
+
+		}
+
+		if (hw_mgr_res && (hw_mgr_res->comp_grp_id == bufdone_evt_info->comp_grp_id))
+			cam_ife_mgr_read_perf_cnts(ife_hw_mgr_ctx);
+
+	}
 
 	/* Check scratch for sHDR/FS use-cases */
 	if (ife_hw_mgr_ctx->flags.is_sfe_fs || ife_hw_mgr_ctx->flags.is_sfe_shdr) {
