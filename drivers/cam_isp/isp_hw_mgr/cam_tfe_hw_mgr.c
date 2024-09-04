@@ -1941,6 +1941,14 @@ static int cam_tfe_mgr_acquire_get_unified_structure_v2(
 		goto err;
 	}
 
+	in_port->epd_supported  =  in->feature_flag &
+					CAM_ISP_TFE_FLAG_EPD_SUPPORT;
+	if ((in_port->epd_supported) && (in_port->lane_type == CAM_ISP_LANE_TYPE_DPHY)) {
+		CAM_ERR(CAM_ISP, "EPD mode not supported with DPHY");
+		rc = -EINVAL;
+		goto err;
+	}
+
 	in_port->core_cfg        =  in->core_cfg;
 	in_port->num_out_res     =  in->num_out_res;
 
