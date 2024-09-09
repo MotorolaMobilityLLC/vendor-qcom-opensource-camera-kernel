@@ -287,10 +287,8 @@ struct cam_vfe_bus_ver3_hw_info {
 	uint32_t num_cons_err;
 	struct cam_vfe_constraint_error_info
 		constraint_error_list[CAM_VFE_BUS_VER3_CONS_ERR_MAX];
-	uint32_t num_bus_errors_0;
-	uint32_t num_bus_errors_1;
-	struct cam_vfe_bus_ver3_err_irq_desc *bus_err_desc_0;
-	struct cam_vfe_bus_ver3_err_irq_desc *bus_err_desc_1;
+	uint32_t *num_bus_errors;
+	struct cam_vfe_bus_ver3_err_irq_desc (*bus_err_desc)[][32];
 	uint32_t num_comp_grp;
 	uint32_t comp_done_mask[CAM_VFE_BUS_VER3_COMP_GRP_MAX];
 	uint32_t mc_comp_done_mask[CAM_VFE_BUS_VER3_COMP_GRP_MAX];

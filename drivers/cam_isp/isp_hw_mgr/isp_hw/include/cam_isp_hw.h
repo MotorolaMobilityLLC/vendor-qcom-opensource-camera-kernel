@@ -29,6 +29,11 @@
 #define CAM_ISP_RES_NAME_LEN      16
 
 /*
+ * Shift to differentiate ranges of isp regs
+ */
+#define REG_SHIFT 100
+
+/*
  * MAX len of line_buffer
  */
 #define LINE_BUFFER_LEN      1500
@@ -66,6 +71,16 @@ enum cam_isp_multi_ctxt_idx {
 	CAM_ISP_MULTI_CTXT_1,
 	CAM_ISP_MULTI_CTXT_2,
 	CAM_ISP_MULTI_CTXT_MAX
+};
+
+enum cam_isp_irq_regs {
+	CAM_IFE_CSID_IRQ_REG,
+	CAM_VFE_IRQ_TOP_REG,
+	CAM_VFE_IRQ_BUS_VER3_REG,
+	CAM_SFE_IRQ_TOP_REG,
+	CAM_SFE_IRQ_BUS_WR_REG,
+	CAM_SFE_IRQ_BUS_RD_REG,
+	CAM_ISP_IRQ_REG_MAX
 };
 
 /*
@@ -708,23 +723,6 @@ struct cam_isp_hw_overflow_info {
 	bool                    is_bus_overflow;
 };
 
-enum cam_isp_irq_inject_reg_unit_type {
-	CAM_ISP_CSID_TOP_REG,
-	CAM_ISP_CSID_RX_REG,
-	CAM_ISP_CSID_PATH_IPP_REG,
-	CAM_ISP_CSID_PATH_PPP_REG,
-	CAM_ISP_CSID_PATH_RDI0_REG,
-	CAM_ISP_CSID_PATH_RDI1_REG,
-	CAM_ISP_CSID_PATH_RDI2_REG,
-	CAM_ISP_CSID_PATH_RDI3_REG,
-	CAM_ISP_CSID_PATH_RDI4_REG,
-	CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG,
-	CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_1_REG,
-	CAM_ISP_SFE_0_BUS_RD_INPUT_IF_IRQ_SET_REG,
-	CAM_ISP_SFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG,
-	CAM_ISP_REG_UNIT_MAX
-};
-
 /*
  * struct cam_isp_irq_inject_param:
  *
@@ -736,7 +734,7 @@ enum cam_isp_irq_inject_reg_unit_type {
  * @irq_mask :  IRQ to be triggered
  * @req_id   :  Req to trigger the IRQ
  * @is_valid :  Flag to indicate current set of params is valid or not
- * @line_buf :  Buffer to temporarily keep log
+ * @line_buf :  Buffer ptr to temporarily keep log
  */
 struct cam_isp_irq_inject_param {
 	int32_t  hw_type;
@@ -745,22 +743,7 @@ struct cam_isp_irq_inject_param {
 	int32_t  irq_mask;
 	uint64_t req_id;
 	bool     is_valid;
-	char     line_buf[LINE_BUFFER_LEN];
-};
-
-/*
- * struct cam_isp_params_injection:
- *
- * @Brief: args for irq injection or irq desc dump
- *
- * @param        :  Params for isp irq injection
- * @vfe_hw_info  :  Vfe hw info
- * @sfe_hw_info  :  Sfe hw info
- */
-struct cam_isp_params_injection {
-	struct cam_isp_irq_inject_param *param;
-	void                            *vfe_hw_info;
-	void                            *sfe_hw_info;
+	char    *line_buf;
 };
 
 #endif /* _CAM_ISP_HW_H_ */

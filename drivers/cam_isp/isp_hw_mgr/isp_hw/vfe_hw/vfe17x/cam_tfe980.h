@@ -1154,11 +1154,13 @@ static struct cam_irq_register_set tfe980_bus_irq_reg[2] = {
 		.mask_reg_offset   = 0x00000818,
 		.clear_reg_offset  = 0x00000820,
 		.status_reg_offset = 0x00000828,
+		.set_reg_offset    = 0x00000850,
 	},
 	{
 		.mask_reg_offset   = 0x0000081C,
 		.clear_reg_offset  = 0x00000824,
 		.status_reg_offset = 0x0000082C,
+		.set_reg_offset    = 0x00000854,
 	},
 };
 
@@ -1299,6 +1301,53 @@ static uint32_t tfe980_out_port_mid[][12] = {
 	{50, 51},
 	{12},
 	{13},
+};
+
+static struct cam_vfe_bus_ver3_err_irq_desc tfe980_bus_irq_err_desc[][32] = {
+	{
+		{
+			.bitmask = BIT(26),
+			.err_name = "IPCC_FENCE_DATA_ERR",
+			.desc = "IPCC or FENCE Data was not available in the Input Fifo",
+		},
+		{
+			.bitmask = BIT(27),
+			.err_name = "IPCC_FENCE_ADDR_ERR",
+			.desc = "IPCC or FENCE address fifo was empty and read was attempted",
+		},
+		{
+			.bitmask = BIT(28),
+			.err_name = "CONS_VIOLATION",
+			.desc = "Programming of software registers violated the constraints",
+		},
+		{
+			.bitmask = BIT(30),
+			.err_name = "VIOLATION",
+			.desc = "Client has a violation in ccif protocol at input",
+		},
+		{
+			.bitmask = BIT(31),
+			.err_name = "IMAGE_SIZE_VIOLATION",
+			.desc = "Programmed image size is not same as image size from the CCIF",
+		},
+	},
+	{
+		{
+			.bitmask = BIT(28),
+			.err_name = "EARLY_DONE",
+			.desc = "Early Buf done irq for client 20 (STATS_BAF)",
+		},
+		{
+			.bitmask = BIT(29),
+			.err_name = "EARLY_DONE",
+			.desc = "Early Buf done irq for client 21 (DUAL_PD)",
+		},
+	},
+};
+
+static uint32_t tfe980_num_bus_irq_err_desc[] = {
+	ARRAY_SIZE(tfe980_bus_irq_err_desc[0]),
+	ARRAY_SIZE(tfe980_bus_irq_err_desc[1]),
 };
 
 static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
@@ -2914,6 +2963,8 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 			.error_description = "Meta Stride unalign",
 		},
 	},
+	.num_bus_errors        = tfe980_num_bus_irq_err_desc,
+	.bus_err_desc          = &tfe980_bus_irq_err_desc,
 	.num_comp_grp          = 10,
 	.support_consumed_addr = true,
 	.mc_comp_done_mask = {

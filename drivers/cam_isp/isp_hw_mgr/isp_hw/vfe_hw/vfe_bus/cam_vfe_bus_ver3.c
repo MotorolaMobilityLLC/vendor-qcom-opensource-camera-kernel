@@ -4750,6 +4750,7 @@ static int cam_vfe_bus_ver3_mc_ctxt_sel(
 static int cam_vfe_bus_ver3_irq_inject(
 	void *priv, void *cmd_args, uint32_t arg_size)
 {
+	int32_t                            reg_idx;
 	struct cam_vfe_bus_ver3_priv      *bus_priv = NULL;
 	struct cam_hw_soc_info            *soc_info = NULL;
 	struct cam_vfe_bus_ver3_hw_info   *bus_hw_info = NULL;
@@ -4766,17 +4767,16 @@ static int cam_vfe_bus_ver3_irq_inject(
 	bus_hw_info = (struct cam_vfe_bus_ver3_hw_info *)bus_priv->bus_hw_info;
 	inject_params = (struct cam_isp_irq_inject_param *)cmd_args;
 
-	if (inject_params->reg_unit ==
-		CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG)
-		inject_reg = &bus_hw_info->common_reg.irq_reg_info.irq_reg_set[0];
-	else if (inject_params->reg_unit ==
-		CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_1_REG)
-		inject_reg = &bus_hw_info->common_reg.irq_reg_info.irq_reg_set[1];
-	else
+	reg_idx = inject_params->reg_unit - (CAM_VFE_IRQ_BUS_VER3_REG * REG_SHIFT);
+	if (reg_idx < CAM_IFE_IRQ_BUS_VER3_REG_STATUS0 ||
+		reg_idx >= CAM_IFE_IRQ_BUS_VER3_REG_MAX) {
+		CAM_WARN(CAM_ISP, "Invalid reg_unit %d", inject_params->reg_unit);
 		return -EINVAL;
+	}
 
+	inject_reg = &bus_hw_info->common_reg.irq_reg_info.irq_reg_set[reg_idx];
 	if (!inject_reg) {
-		CAM_INFO(CAM_ISP, "Invalid inject_reg");
+		CAM_ERR(CAM_ISP, "Invalid inject_reg");
 		return -EINVAL;
 	}
 
@@ -4796,6 +4796,7 @@ static int cam_vfe_bus_ver3_dump_irq_desc(
 {
 	int                                   i, offset = 0;
 	int                                   num_irq_desc = 0;
+	int32_t                               reg_idx;
 	struct cam_vfe_bus_ver3_priv         *bus_priv = NULL;
 	struct cam_vfe_bus_ver3_hw_info      *bus_hw_info = NULL;
 	struct cam_isp_irq_inject_param      *inject_params = NULL;
@@ -4810,28 +4811,31 @@ static int cam_vfe_bus_ver3_dump_irq_desc(
 	bus_hw_info = (struct cam_vfe_bus_ver3_hw_info *)bus_priv->bus_hw_info;
 	inject_params = (struct cam_isp_irq_inject_param *)cmd_args;
 
-	if (inject_params->reg_unit ==
-			CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG) {
-		err_irq_desc = bus_hw_info->bus_err_desc_0;
-		num_irq_desc = bus_hw_info->num_bus_errors_0;
-	} else if (inject_params->reg_unit ==
-			CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_1_REG) {
-		err_irq_desc = bus_hw_info->bus_err_desc_1;
-		num_irq_desc = bus_hw_info->num_bus_errors_1;
-	} else
+	reg_idx = inject_params->reg_unit - (CAM_VFE_IRQ_BUS_VER3_REG * REG_SHIFT);
+	if (reg_idx < CAM_IFE_IRQ_BUS_VER3_REG_STATUS0 ||
+		reg_idx >= CAM_IFE_IRQ_BUS_VER3_REG_MAX) {
+		CAM_WARN(CAM_ISP, "Invalid reg_unit %d", inject_params->reg_unit);
 		return -EINVAL;
+	}
+
+	err_irq_desc = (*bus_hw_info->bus_err_desc)[reg_idx];
+	num_irq_desc = bus_hw_info->num_bus_errors[reg_idx];
 
 	offset += scnprintf(inject_params->line_buf + offset,
 		LINE_BUFFER_LEN - offset,
 		"Printing executable IRQ for hw_type: VFE reg_unit: %d\n",
 		inject_params->reg_unit);
 
-	for (i = 0; i < num_irq_desc; i++)
+	for (i = 0; i < num_irq_desc; i++) {
+		if (!err_irq_desc[i].bitmask)
+			break;
+
 		offset += scnprintf(inject_params->line_buf + offset,
 			LINE_BUFFER_LEN - offset, "%#12x : %s - %s\n",
 			err_irq_desc[i].bitmask,
 			err_irq_desc[i].err_name,
 			err_irq_desc[i].desc);
+	}
 
 	return 0;
 }

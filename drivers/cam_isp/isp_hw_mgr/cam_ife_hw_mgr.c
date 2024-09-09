@@ -29,6 +29,7 @@
 #include "cam_mem_mgr_api.h"
 #include "cam_common_util.h"
 #include "cam_presil_hw_access.h"
+#include "cam_ife_csid_common.h"
 
 #define CAM_IFE_SAFE_DISABLE 0
 #define CAM_IFE_SAFE_ENABLE 1
@@ -91,6 +92,7 @@ static uint32_t g_num_ife_available, g_num_ife_lite_available, g_num_sfe_availab
 static uint32_t g_num_ife_functional, g_num_ife_lite_functional, g_num_sfe_functional;
 static uint32_t max_ife_out_res, max_sfe_out_res;
 
+static char  reg_str[64];
 static char *irq_inject_display_buf;
 
 
@@ -122,6 +124,8 @@ static int cam_ife_mgr_cmd_get_sof_timestamp(struct cam_ife_hw_mgr_ctx *ife_ctx,
 	struct timespec64 *boot_ts, bool get_curr_timestamp);
 
 static int cam_convert_rdi_out_res_id_to_src(int res_id);
+
+static inline char *__cam_isp_irq_inject_hw_type_to_name(int32_t hw_type);
 
 static int cam_ife_mgr_get_src_hw_ctxt_from_csid_path(uint32_t path_id)
 {
@@ -7288,10 +7292,10 @@ static void cam_isp_irq_inject_clear_params(
 	param->irq_mask = -1;
 	param->req_id   = 0;
 	param->is_valid = false;
-	memset(param->line_buf, '\0', LINE_BUFFER_LEN);
+	param->line_buf = NULL;
 }
 
-static int cam_ife_hw_mgr_sfe_irq_inject_or_dump_desc(
+static int cam_ife_hw_mgr_irq_inject_or_dump_desc(
 	struct cam_ife_hw_mgr *hw_mgr,
 	struct cam_isp_irq_inject_param *params,
 	bool dump_irq_desc)
@@ -7304,146 +7308,73 @@ static int cam_ife_hw_mgr_sfe_irq_inject_or_dump_desc(
 	if (!line_buf)
 		return -ENOMEM;
 
-	for (i = 0; i < CAM_SFE_HW_NUM_MAX; i++) {
-		if ((!hw_mgr->sfe_devices[i]) ||
-			(hw_mgr->sfe_devices[i]->hw_intf->hw_idx != params->hw_idx))
-			continue;
+	params->line_buf = line_buf;
 
-		hw_intf = hw_mgr->sfe_devices[i]->hw_intf;
+	switch (params->hw_type) {
+	case CAM_ISP_HW_TYPE_CSID:
+		for (i = 0; i < CAM_IFE_CSID_HW_NUM_MAX; i++) {
+			if ((!hw_mgr->csid_devices[i]) ||
+				(hw_mgr->csid_devices[i]->hw_idx != params->hw_idx))
+				continue;
 
-		if (dump_irq_desc) {
-			rc = hw_intf->hw_ops.process_cmd(hw_intf->hw_priv,
-				CAM_ISP_HW_CMD_DUMP_IRQ_DESCRIPTION, params,
-				sizeof(struct cam_isp_irq_inject_param));
-			goto clear_param;
+			hw_intf = hw_mgr->csid_devices[i];
+			break;
 		}
+		break;
+	case CAM_ISP_HW_TYPE_VFE:
+		for (i = 0; i < CAM_IFE_HW_NUM_MAX; i++) {
+			if ((!hw_mgr->ife_devices[i]) ||
+				(hw_mgr->ife_devices[i]->hw_intf->hw_idx != params->hw_idx))
+				continue;
 
+			hw_intf = hw_mgr->ife_devices[i]->hw_intf;
+			break;
+		}
+		break;
+	case CAM_ISP_HW_TYPE_SFE:
+		for (i = 0; i < CAM_SFE_HW_NUM_MAX; i++) {
+			if ((!hw_mgr->sfe_devices[i]) ||
+				(hw_mgr->sfe_devices[i]->hw_intf->hw_idx != params->hw_idx))
+				continue;
+
+			hw_intf = hw_mgr->sfe_devices[i]->hw_intf;
+			break;
+		}
+		break;
+	default:
+		scnprintf(line_buf, LINE_BUFFER_LEN, "No matched HW_TYPE\n");
+		rc = -EINVAL;
+		goto end;
+	}
+
+	if (dump_irq_desc) {
+		rc = hw_intf->hw_ops.process_cmd(hw_intf->hw_priv,
+			CAM_ISP_HW_CMD_DUMP_IRQ_DESCRIPTION, params,
+			sizeof(struct cam_isp_irq_inject_param));
+		if (rc)
+			scnprintf(line_buf, LINE_BUFFER_LEN,
+				"Failed to dump irq description for %s\n",
+				__cam_isp_irq_inject_hw_type_to_name(params->hw_type));
+	} else {
 		rc = hw_intf->hw_ops.process_cmd(hw_intf->hw_priv,
 			CAM_ISP_HW_CMD_IRQ_INJECTION, params,
 			sizeof(struct cam_isp_irq_inject_param));
 		if (rc)
 			scnprintf(line_buf, LINE_BUFFER_LEN,
-				"Injecting IRQ %x failed for SFE at req: %lld\n",
-				params->irq_mask, params->req_id);
+				"Injecting IRQ %#x failed at req: %lld for %s\n",
+				params->irq_mask, params->req_id,
+				__cam_isp_irq_inject_hw_type_to_name(params->hw_type));
 		else
 			scnprintf(line_buf, LINE_BUFFER_LEN,
-				"IRQ %#x injected for SFE at req: %lld\n",
-				params->irq_mask, params->req_id);
-		break;
+				"IRQ %#x injected at req: %lld for %s\n",
+				params->irq_mask, params->req_id,
+				__cam_isp_irq_inject_hw_type_to_name(params->hw_type));
 	}
 
-clear_param:
-	if (irq_inject_display_buf) {
-		strlcat(irq_inject_display_buf, params->line_buf, IRQ_INJECT_DISPLAY_BUF_LEN);
+	if (irq_inject_display_buf)
 		strlcat(irq_inject_display_buf, line_buf, IRQ_INJECT_DISPLAY_BUF_LEN);
-	}
 
-	/* Clear the param injected */
-	cam_isp_irq_inject_clear_params(params);
-	CAM_MEM_FREE(line_buf);
-	return rc;
-}
-
-static int cam_ife_hw_mgr_vfe_irq_inject_or_dump_desc(
-	struct cam_ife_hw_mgr *hw_mgr,
-	struct cam_isp_irq_inject_param *params,
-	bool dump_irq_desc)
-{
-	int i, rc = 0;
-	char *line_buf = NULL;
-	struct cam_hw_intf *hw_intf = NULL;
-
-	line_buf = CAM_MEM_ZALLOC(sizeof(char) * LINE_BUFFER_LEN, GFP_KERNEL);
-	if (!line_buf)
-		return -ENOMEM;
-
-	for (i = 0; i < CAM_IFE_HW_NUM_MAX; i++) {
-		if ((!hw_mgr->ife_devices[i]) ||
-			(hw_mgr->ife_devices[i]->hw_intf->hw_idx != params->hw_idx))
-			continue;
-
-		hw_intf = hw_mgr->ife_devices[i]->hw_intf;
-
-		if (dump_irq_desc) {
-			rc = hw_intf->hw_ops.process_cmd(hw_intf->hw_priv,
-				CAM_ISP_HW_CMD_DUMP_IRQ_DESCRIPTION, params,
-				sizeof(struct cam_isp_irq_inject_param));
-			goto clear_param;
-		}
-
-		rc = hw_intf->hw_ops.process_cmd(hw_intf->hw_priv,
-			CAM_ISP_HW_CMD_IRQ_INJECTION, params,
-			sizeof(struct cam_isp_irq_inject_param));
-		if (rc)
-			scnprintf(line_buf, LINE_BUFFER_LEN,
-				"Injecting IRQ %x failed for IFE at req: %lld\n",
-				params->irq_mask, params->req_id);
-		else
-			scnprintf(line_buf, LINE_BUFFER_LEN,
-				"IRQ %#x injected for IFE at req: %lld\n",
-				params->irq_mask, params->req_id);
-		break;
-	}
-
-clear_param:
-	if (irq_inject_display_buf) {
-		strlcat(irq_inject_display_buf, params->line_buf, IRQ_INJECT_DISPLAY_BUF_LEN);
-		strlcat(irq_inject_display_buf, line_buf, IRQ_INJECT_DISPLAY_BUF_LEN);
-	}
-
-	/* Clear the param injected */
-	cam_isp_irq_inject_clear_params(params);
-	CAM_MEM_FREE(line_buf);
-	return rc;
-}
-
-static int cam_ife_hw_mgr_csid_irq_inject_or_dump_desc(
-	struct cam_ife_hw_mgr *hw_mgr,
-	struct cam_isp_irq_inject_param *params,
-	bool dump_irq_desc)
-{
-	int i, rc = 0;
-	char *line_buf = NULL;
-	struct cam_hw_intf *hw_intf = NULL;
-
-	line_buf = CAM_MEM_ZALLOC(sizeof(char) * LINE_BUFFER_LEN, GFP_KERNEL);
-	if (!line_buf)
-		return -ENOMEM;
-
-	for (i = 0; i < CAM_IFE_CSID_HW_NUM_MAX; i++) {
-		if ((!hw_mgr->csid_devices[i]) ||
-			(hw_mgr->csid_devices[i]->hw_idx != params->hw_idx))
-			continue;
-
-		hw_intf = hw_mgr->csid_devices[i];
-
-		if (dump_irq_desc) {
-			rc = hw_intf->hw_ops.process_cmd(hw_intf->hw_priv,
-				CAM_ISP_HW_CMD_DUMP_IRQ_DESCRIPTION, params,
-				sizeof(struct cam_isp_irq_inject_param));
-			goto clear_param;
-		}
-
-		rc = hw_intf->hw_ops.process_cmd(hw_intf->hw_priv,
-			CAM_ISP_HW_CMD_IRQ_INJECTION, params,
-			sizeof(struct cam_isp_irq_inject_param));
-		if (rc)
-			scnprintf(line_buf, LINE_BUFFER_LEN,
-				"Injecting IRQ %x failed for CSID at req: %lld\n",
-				params->irq_mask, params->req_id);
-		else
-			scnprintf(line_buf, LINE_BUFFER_LEN,
-				"IRQ %#x injected for CSID at req: %lld\n",
-				params->irq_mask, params->req_id);
-		break;
-	}
-
-clear_param:
-	if (irq_inject_display_buf) {
-		strlcat(irq_inject_display_buf, params->line_buf, IRQ_INJECT_DISPLAY_BUF_LEN);
-		strlcat(irq_inject_display_buf, line_buf, IRQ_INJECT_DISPLAY_BUF_LEN);
-	}
-
+end:
 	/* Clear the param injected */
 	cam_isp_irq_inject_clear_params(params);
 	CAM_MEM_FREE(line_buf);
@@ -7461,29 +7392,13 @@ static int cam_ife_hw_mgr_irq_injection(struct cam_ife_hw_mgr *hw_mgr,
 			(hw_mgr->irq_inject_param[i].req_id != 0xFFFFFFFF)))
 			continue;
 
-		switch (hw_mgr->irq_inject_param[i].hw_type) {
-		case CAM_ISP_HW_TYPE_CSID:
-			rc = cam_ife_hw_mgr_csid_irq_inject_or_dump_desc(
-				hw_mgr, &hw_mgr->irq_inject_param[i], false);
-			break;
-		case CAM_ISP_HW_TYPE_VFE:
-			rc = cam_ife_hw_mgr_vfe_irq_inject_or_dump_desc(
-				hw_mgr, &hw_mgr->irq_inject_param[i], false);
-			break;
-		case CAM_ISP_HW_TYPE_SFE:
-			rc = cam_ife_hw_mgr_sfe_irq_inject_or_dump_desc(
-				hw_mgr, &hw_mgr->irq_inject_param[i], false);
-			break;
-		default:
-			if (irq_inject_display_buf)
-				strlcat(irq_inject_display_buf, "No matched HW_TYPE\n",
-					IRQ_INJECT_DISPLAY_BUF_LEN);
-			rc = -EINVAL;
+		rc = cam_ife_hw_mgr_irq_inject_or_dump_desc(
+			hw_mgr, &hw_mgr->irq_inject_param[i], false);
+		if (rc)
 			return rc;
-		}
 	}
 
-	return rc;
+	return 0;
 }
 
 static int cam_isp_blob_fcg_update(
@@ -17873,33 +17788,11 @@ DEFINE_DEBUGFS_ATTRIBUTE(cam_ife_csid_testbus_debug,
 	cam_ife_get_csid_testbus_debug,
 	cam_ife_set_csid_testbus_debug, "%16llu");
 
-static int cam_ife_hw_mgr_dump_irq_desc(struct cam_ife_hw_mgr *hw_mgr,
+static inline int cam_ife_hw_mgr_dump_irq_desc(
+	struct cam_ife_hw_mgr *hw_mgr,
 	struct cam_isp_irq_inject_param *param)
 {
-	int rc = 0;
-
-	switch (param->hw_type) {
-	case CAM_ISP_HW_TYPE_CSID:
-		rc = cam_ife_hw_mgr_csid_irq_inject_or_dump_desc(
-			hw_mgr, param, true);
-		break;
-	case CAM_ISP_HW_TYPE_VFE:
-		rc = cam_ife_hw_mgr_vfe_irq_inject_or_dump_desc(
-			hw_mgr, param, true);
-		break;
-	case CAM_ISP_HW_TYPE_SFE:
-		rc = cam_ife_hw_mgr_sfe_irq_inject_or_dump_desc(
-			hw_mgr, param, true);
-		break;
-	default:
-		if (irq_inject_display_buf)
-			strlcat(irq_inject_display_buf,
-				"No matched HW_TYPE\n", IRQ_INJECT_DISPLAY_BUF_LEN);
-		rc = -EINVAL;
-		return rc;
-	}
-
-	return rc;
+	return cam_ife_hw_mgr_irq_inject_or_dump_desc(hw_mgr, param, true);
 }
 
 static void cam_ife_hw_mgr_dump_active_hw(char *buffer, int *offset)
@@ -17943,7 +17836,9 @@ static void cam_ife_hw_mgr_dump_active_hw(char *buffer, int *offset)
 
 				*offset += scnprintf(buffer + *offset,
 					LINE_BUFFER_LEN - *offset,
-					"hw_type:IFE hw_idx:%d ctx id:%u res: %s\n",
+					"hw_type:%s hw_idx:%d ctx id:%u res: %s\n",
+					(g_ife_hw_mgr.isp_device_type == CAM_TFE_MC_DEVICE_TYPE) ?
+						"MC_TFE" : "VFE",
 					hw_mgr_res->hw_res[i]->hw_intf->hw_idx, ctx->ctx_index,
 					hw_mgr_res->hw_res[i]->res_name);
 			}
@@ -17966,38 +17861,52 @@ static void cam_ife_hw_mgr_dump_active_hw(char *buffer, int *offset)
 	mutex_unlock(&g_ife_hw_mgr.ctx_mutex);
 }
 
-static inline char *__cam_isp_irq_inject_reg_unit_to_name(int32_t reg_unit)
+static inline char *__cam_isp_irq_inject_reg_unit_to_name(
+	int32_t hw_type, int32_t reg_unit)
 {
-	switch (reg_unit) {
-	case CAM_ISP_CSID_TOP_REG:
-		return "CAM_ISP_CSID_TOP_REG";
-	case CAM_ISP_CSID_RX_REG:
-		return "CAM_ISP_CSID_RX_REG";
-	case CAM_ISP_CSID_PATH_IPP_REG:
-		return "CAM_ISP_CSID_PATH_IPP_REG";
-	case CAM_ISP_CSID_PATH_PPP_REG:
-		return "CAM_ISP_CSID_PATH_PPP_REG";
-	case CAM_ISP_CSID_PATH_RDI0_REG:
-		return "CAM_ISP_CSID_PATH_RDI0_REG";
-	case CAM_ISP_CSID_PATH_RDI1_REG:
-		return "CAM_ISP_CSID_PATH_RDI1_REG";
-	case CAM_ISP_CSID_PATH_RDI2_REG:
-		return "CAM_ISP_CSID_PATH_RDI2_REG";
-	case CAM_ISP_CSID_PATH_RDI3_REG:
-		return "CAM_ISP_CSID_PATH_RDI3_REG";
-	case CAM_ISP_CSID_PATH_RDI4_REG:
-		return "CAM_ISP_CSID_PATH_RDI4_REG";
-	case CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG:
-		return "CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG";
-	case CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_1_REG:
-		return "CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_1_REG";
-	case CAM_ISP_SFE_0_BUS_RD_INPUT_IF_IRQ_SET_REG:
-		return "CAM_ISP_SFE_0_BUS_RD_INPUT_IF_IRQ_SET_REG";
-	case CAM_ISP_SFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG:
-		return "CAM_ISP_SFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG";
-	default:
-		return "Invalid reg_unit";
+	int32_t reg_idx;
+	const uint8_t **irq_reg_tag;
+
+	if (hw_type == CAM_ISP_HW_TYPE_CSID) {
+		reg_idx = reg_unit - (CAM_IFE_CSID_IRQ_REG * REG_SHIFT);
+		if (reg_idx >= CAM_IFE_CSID_IRQ_REG_TOP &&
+			reg_idx < CAM_IFE_CSID_IRQ_REG_MAX) {
+			irq_reg_tag = cam_ife_csid_get_irq_reg_tag_ptr();
+			scnprintf(reg_str, sizeof(reg_str),
+				"CAM_IFE_CSID_IRQ_REG_%s", irq_reg_tag[reg_idx]);
+			return reg_str;
+		}
+	} else if (hw_type == CAM_ISP_HW_TYPE_VFE) {
+		reg_idx = reg_unit - (CAM_VFE_IRQ_BUS_VER3_REG * REG_SHIFT);
+		if (reg_idx >= CAM_IFE_IRQ_BUS_VER3_REG_STATUS0 &&
+			reg_idx < CAM_IFE_IRQ_BUS_VER3_REG_MAX) {
+			if (g_ife_hw_mgr.isp_device_type == CAM_TFE_MC_DEVICE_TYPE)
+				scnprintf(reg_str, sizeof(reg_str),
+					"CAM_MC_TFE_IRQ_BUS_REG_STATUS%u", reg_idx);
+			else
+				scnprintf(reg_str, sizeof(reg_str),
+					"CAM_IFE_IRQ_BUS_VER3_REG_STATUS%u", reg_idx);
+			return reg_str;
+		}
+	} else if (hw_type == CAM_ISP_HW_TYPE_SFE) {
+		reg_idx = reg_unit - (CAM_SFE_IRQ_BUS_WR_REG * REG_SHIFT);
+		if (reg_idx >= CAM_SFE_IRQ_BUS_WR_REG_STATUS0 &&
+			reg_idx < CAM_SFE_BUS_WR_IRQ_REGISTERS_MAX) {
+			scnprintf(reg_str, sizeof(reg_str),
+				"CAM_SFE_IRQ_BUS_WR_REG_STATUS%u", reg_idx);
+			return reg_str;
+		}
+
+		reg_idx = reg_unit - (CAM_SFE_IRQ_BUS_RD_REG * REG_SHIFT);
+		if (reg_idx >= CAM_SFE_IRQ_BUS_RD_REG_STATUS0 &&
+			reg_idx < CAM_SFE_BUS_RD_IRQ_REGISTERS_MAX) {
+			scnprintf(reg_str, sizeof(reg_str),
+				"CAM_SFE_IRQ_BUS_RD_REG_STATUS%u", reg_idx);
+			return reg_str;
+		}
 	}
+
+	return "Invalid reg_unit";
 }
 
 static inline char *__cam_isp_irq_inject_hw_type_to_name(int32_t hw_type)
@@ -18006,7 +17915,8 @@ static inline char *__cam_isp_irq_inject_hw_type_to_name(int32_t hw_type)
 	case CAM_ISP_HW_TYPE_CSID:
 		return "CSID";
 	case CAM_ISP_HW_TYPE_VFE:
-		return "VFE";
+		return (g_ife_hw_mgr.isp_device_type == CAM_TFE_MC_DEVICE_TYPE) ?
+			"MC_TFE" : "VFE";
 	case CAM_ISP_HW_TYPE_SFE:
 		return "SFE";
 	default:
@@ -18017,11 +17927,12 @@ static inline char *__cam_isp_irq_inject_hw_type_to_name(int32_t hw_type)
 static inline int cam_isp_irq_inject_get_hw_type(
 	int32_t *hw_type, char *token)
 {
-	if (strcmp(token, "CSID") == 0)
+	if (strcmp(token, "CSID") == 0 || strcmp(token, "csid") == 0)
 		*hw_type = CAM_ISP_HW_TYPE_CSID;
-	else if (strcmp(token, "VFE") == 0)
+	else if (strcmp(token, "VFE") == 0 || strcmp(token, "vfe") == 0 ||
+		strcmp(token, "MC_TFE") == 0 || strcmp(token, "mc_tfe") == 0)
 		*hw_type = CAM_ISP_HW_TYPE_VFE;
-	else if (strcmp(token, "SFE") == 0)
+	else if (strcmp(token, "SFE") == 0 || strcmp(token, "sfe") == 0)
 		*hw_type = CAM_ISP_HW_TYPE_SFE;
 	else
 		return -EINVAL;
@@ -18045,7 +17956,7 @@ static int cam_isp_irq_inject_parse_common_params(
 		if (strnstr(token, "?", 1)) {
 			*is_query = true;
 			offset += scnprintf(line_buf + offset, LINE_BUFFER_LEN - offset,
-				"Interruptable HW : CSID | IFE | SFE\n");
+				"Interruptable HW : CSID | VFE | MC_TFE | SFE\n");
 			break;
 		}
 		rc = cam_isp_irq_inject_get_hw_type(&irq_inject_param->hw_type, token);
@@ -18081,7 +17992,9 @@ static int cam_isp_irq_inject_parse_common_params(
 				}
 				offset += scnprintf(line_buf + offset,
 					LINE_BUFFER_LEN - offset,
-					"Max index of VFE : %d\n", i - 1);
+					"Max index of %s : %d\n",
+					(g_ife_hw_mgr.isp_device_type == CAM_TFE_MC_DEVICE_TYPE) ?
+						"MC_TFE" : "VFE", i - 1);
 				break;
 			case CAM_ISP_HW_TYPE_SFE:
 				for (i = 0; i < CAM_SFE_HW_NUM_MAX; i++) {
@@ -18115,24 +18028,45 @@ static int cam_isp_irq_inject_parse_common_params(
 				"Printing available res for hw_type: %s\n",
 				__cam_isp_irq_inject_hw_type_to_name(
 					irq_inject_param->hw_type));
-			for (i = 0; i < CAM_ISP_REG_UNIT_MAX; i++) {
-				if ((irq_inject_param->hw_type == CAM_ISP_HW_TYPE_CSID) &&
-					i > CAM_ISP_CSID_PATH_RDI4_REG)
-					continue;
-				else if ((irq_inject_param->hw_type == CAM_ISP_HW_TYPE_VFE) &&
-					((i < CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG) ||
-					(i > CAM_ISP_IFE_0_BUS_WR_INPUT_IF_IRQ_SET_1_REG)))
-					continue;
-				else if ((irq_inject_param->hw_type == CAM_ISP_HW_TYPE_SFE) &&
-					((i < CAM_ISP_SFE_0_BUS_RD_INPUT_IF_IRQ_SET_REG) ||
-					(i > CAM_ISP_SFE_0_BUS_WR_INPUT_IF_IRQ_SET_0_REG)))
-					continue;
 
-				offset += scnprintf(line_buf + offset,
-					LINE_BUFFER_LEN - offset, "%d : %s\n", i,
-					__cam_isp_irq_inject_reg_unit_to_name(i));
+			switch (irq_inject_param->hw_type) {
+			case CAM_ISP_HW_TYPE_CSID:
+				for (i = 0; i < CAM_IFE_CSID_IRQ_REG_MAX; i++)
+					offset += scnprintf(line_buf + offset,
+						LINE_BUFFER_LEN - offset, "%d : %s\n",
+						i + (CAM_IFE_CSID_IRQ_REG * REG_SHIFT),
+						__cam_isp_irq_inject_reg_unit_to_name(
+						irq_inject_param->hw_type,
+						i + (CAM_IFE_CSID_IRQ_REG * REG_SHIFT)));
+				break;
+			case CAM_ISP_HW_TYPE_VFE:
+				for (i = 0; i < CAM_IFE_IRQ_BUS_VER3_REG_MAX; i++)
+					offset += scnprintf(line_buf + offset,
+						LINE_BUFFER_LEN - offset, "%d : %s\n",
+						i + (CAM_VFE_IRQ_BUS_VER3_REG * REG_SHIFT),
+						__cam_isp_irq_inject_reg_unit_to_name(
+						irq_inject_param->hw_type,
+						i + (CAM_VFE_IRQ_BUS_VER3_REG * REG_SHIFT)));
+				break;
+			case CAM_ISP_HW_TYPE_SFE:
+				for (i = 0; i < CAM_SFE_BUS_WR_IRQ_REGISTERS_MAX; i++)
+					offset += scnprintf(line_buf + offset,
+						LINE_BUFFER_LEN - offset, "%d : %s\n",
+						i + (CAM_SFE_IRQ_BUS_WR_REG * REG_SHIFT),
+						__cam_isp_irq_inject_reg_unit_to_name(
+						irq_inject_param->hw_type,
+						i + (CAM_SFE_IRQ_BUS_WR_REG * REG_SHIFT)));
+				for (i = 0; i < CAM_SFE_BUS_RD_IRQ_REGISTERS_MAX; i++)
+					offset += scnprintf(line_buf + offset,
+						LINE_BUFFER_LEN - offset, "%d : %s\n",
+						i + (CAM_SFE_IRQ_BUS_RD_REG * REG_SHIFT),
+						__cam_isp_irq_inject_reg_unit_to_name(
+						irq_inject_param->hw_type,
+						i + (CAM_SFE_IRQ_BUS_RD_REG * REG_SHIFT)));
+				break;
+			default:
+				break;
 			}
-
 		} else if (kstrtou32(token, 0, &irq_inject_param->reg_unit)) {
 			offset += scnprintf(line_buf + offset, LINE_BUFFER_LEN - offset,
 				"Invalid register %s\n", token);
@@ -18149,8 +18083,7 @@ static int cam_isp_irq_inject_parse_common_params(
 					"IRQ_MASK : Enter hw_type and reg_unit first\n");
 				break;
 			}
-			if (cam_ife_hw_mgr_dump_irq_desc(&g_ife_hw_mgr,
-				irq_inject_param)) {
+			if (cam_ife_hw_mgr_dump_irq_desc(&g_ife_hw_mgr, irq_inject_param)) {
 				offset += scnprintf(line_buf + offset,
 					LINE_BUFFER_LEN - offset,
 					"Dump irq description failed\n");
