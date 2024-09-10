@@ -15,6 +15,7 @@
 #include "cam_res_mgr_api.h"
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
+#include "cam_ois_aw86006.h"
 
 #define OIS_COEF_CHUNK_SIZE (256)
 #define DW9784_IF_SIZE (512)
@@ -24,6 +25,7 @@ extern void dw9781_post_firmware_download(struct camera_io_master * io_master_in
 extern int dw9784_check_fw_download(struct camera_io_master * io_master_info, const uint8_t *fwData, uint32_t fwSize);
 extern void dw9784_post_firmware_download(struct camera_io_master * io_master_info);
 extern int dw9784_check_if_download(struct camera_io_master * io_master_info);
+extern int aw86006_firmware_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware *fw);
 
 #ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
 atomic_t m_ois_init = ATOMIC_INIT(0);
@@ -191,6 +193,37 @@ static int cam_ois_power_up(struct cam_ois_ctrl_t *o_ctrl)
 		goto cci_failure;
 	}
 
+	if (strstr(o_ctrl->ois_name, "aw86006")) {
+		uint8_t standby_flag = 0;
+		uint8_t m = 0;
+		uint8_t temp_addr = 0;
+
+		for(m = 0; m < 7; m++)
+		{
+			temp_addr = o_ctrl->io_master_info.cci_client->sid;
+			o_ctrl->io_master_info.cci_client->sid = AW_SHUTDOWN_I2C_ADDR;
+
+			rc = camera_io_dev_read_seq(&(o_ctrl->io_master_info),  0xFF11, &standby_flag,
+								CAMERA_SENSOR_I2C_TYPE_WORD, CAMERA_SENSOR_I2C_TYPE_BYTE, 1);
+			if (rc < 0) {
+				CAM_ERR(CAM_OIS, "failed: seq read I2C settings: %d", rc);
+			}
+
+			o_ctrl->io_master_info.cci_client->sid = temp_addr;
+
+			CAM_INFO(CAM_OIS, "aw86006 standby flag = %d, retry num = %d", standby_flag, m);
+
+			if(standby_flag == 1)
+			{
+				CAM_INFO(CAM_OIS, "OIS transport program loaded successfully");
+				break;
+			}
+			else
+			{
+				mdelay(10);
+			}
+		}
+	}
 	return rc;
 cci_failure:
 	if (cam_sensor_util_power_down(power_info, soc_info))
@@ -502,6 +535,12 @@ static int cam_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 		}
 		CAM_INFO(CAM_OIS, "Firmware download started.");
 	}
+	else if (strstr(o_ctrl->ois_name, "aw86006")) {
+		mutex_lock(&o_ctrl->aw_ois_mutex);
+		rc = aw86006_firmware_update(o_ctrl, fw);
+		mutex_unlock(&o_ctrl->aw_ois_mutex);
+		return rc;
+	}
 
 	total_bytes = fw->size;
 	if(o_ctrl->ois_fw_txn_data_sz == 0)
@@ -623,8 +662,8 @@ static int cam_ois_fw_coeff_download(struct cam_ois_ctrl_t *o_ctrl)
 		return -EINVAL;
 	}
 
-	if (strstr(o_ctrl->ois_name, "dw9781") || strstr(o_ctrl->ois_name, "dw9784")) {
-		CAM_DBG(CAM_OIS, "not need download coeff fw!");
+	if (strstr(o_ctrl->ois_name, "dw9781") || strstr(o_ctrl->ois_name, "dw9784") || strstr(o_ctrl->ois_name, "aw86006")) {
+		CAM_DBG(CAM_OIS, "not need download coeff fw for %s.", o_ctrl->ois_name);
 		return 0;
 	}
 
