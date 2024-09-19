@@ -95,6 +95,7 @@
 /* Feature Flag indicators */
 #define CAM_ISP_TFE_FLAG_QCFA_BIN                        BIT(0)
 #define CAM_ISP_TFE_FLAG_BAYER_BIN                       BIT(1)
+#define CAM_ISP_TFE_FLAG_EPD_SUPPORT                     BIT(2)
 
 /* Query devices */
 /**
