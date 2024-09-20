@@ -2977,8 +2977,8 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 		0x0, 0x0, 0x0, 0x0,
 	},
 	.comp_done_mask = {
-		0x7, BIT(3), 0x70, BIT(7), BIT(8), BIT(16),
-		BIT(17), BIT(18), BIT(19), BIT(20),
+		(BIT(0) | BIT(1) | BIT(2)), BIT(3), (BIT(4) | BIT(5) | BIT(6)), BIT(7),
+		BIT(8), BIT(16), BIT(17), BIT(18), BIT(19), BIT(20),
 	},
 	.top_irq_shift         = 0,
 	.max_out_res           = CAM_ISP_IFE_OUT_RES_BASE + 43,
