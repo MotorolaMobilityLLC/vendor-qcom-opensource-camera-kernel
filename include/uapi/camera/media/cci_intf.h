@@ -39,6 +39,12 @@ struct msm_cci_intf_xfer {
 	struct msm_cci_intf_data      data;
 };
 
+#define MSM_I2C_INTF_READ \
+	_IOWR('X', BASE_VIDIOC_PRIVATE + 40, struct msm_cci_intf_xfer)
+
+#define MSM_I2C_INTF_WRITE \
+	_IOWR('X', BASE_VIDIOC_PRIVATE + 41, struct msm_cci_intf_xfer)
+
 #define MSM_CCI_INTF_READ \
 	_IOWR('X', BASE_VIDIOC_PRIVATE + 50, struct msm_cci_intf_xfer)
 #define MSM_CCI_INTF_READ32 \
