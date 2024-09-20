@@ -18,8 +18,11 @@
 #include <linux/miscdevice.h>
 #include <linux/version.h>
 #include <cam_cci_dev.h>
+#include <cam_sensor_i2c.h>
 #include <media/v4l2-ioctl.h>
 #include <media/cci_intf.h>
+
+extern struct camera_io_master *common_io_master_info;
 
 static int32_t cci_intf_xfer(
 		struct msm_cci_intf_xfer *xfer,
@@ -27,6 +30,10 @@ static int32_t cci_intf_xfer(
 {
 	int32_t rc, rc2;
 	uint16_t addr;
+	uint16_t i2c_addr;
+	struct cam_sensor_i2c_reg_setting write_setting;
+	uint8_t temp;
+
 	struct cam_sensor_cci_client cci_info = {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
 		.cci_subdev     = cam_cci_get_subdev(xfer->cci_device),
@@ -42,9 +49,9 @@ static int32_t cci_intf_xfer(
 	int i;
 	struct cam_sensor_i2c_reg_array *reg_conf_tbl;
 
-	pr_debug("%s cmd:%d bus:%d devaddr:%02x regw:%d rega:%04x count:%d\n",
+	printk("%s cmd:%d bus:%d devaddr:%02x regw:%d rega:%04x count:%d master_type:%d\n",
 			__func__, cmd, xfer->cci_bus, xfer->slave_addr,
-			xfer->reg.width, xfer->reg.addr, xfer->data.count);
+			xfer->reg.width, xfer->reg.addr, xfer->data.count, common_io_master_info->master_type);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
 	if (xfer->cci_device > 1 || xfer->cci_bus > 1 || xfer->slave_addr > 0x7F ||
@@ -55,19 +62,28 @@ static int32_t cci_intf_xfer(
 			xfer->reg.addr > ((1<<(8*xfer->reg.width))-1) ||
 			xfer->data.count < 1 ||
 			xfer->data.count > MSM_CCI_INTF_MAX_XFER)
-		return -EINVAL;
+	{
+		if (common_io_master_info->master_type == CCI_MASTER)
+		{
+			printk("%s: cci/i2c bus mismatch!!!\n", __func__);
+			return -EINVAL;
+		}
+	}
 
-	/* init */
-	cci_ctrl.cmd = MSM_CCI_INIT;
+	if(common_io_master_info->master_type == CCI_MASTER)
+	{
+		/* init */
+		cci_ctrl.cmd = MSM_CCI_INIT;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
-	rc = v4l2_subdev_call(cam_cci_get_subdev(xfer->cci_device),
+		rc = v4l2_subdev_call(cam_cci_get_subdev(xfer->cci_device),
 #else
-	rc = v4l2_subdev_call(cam_cci_get_subdev(),
+		rc = v4l2_subdev_call(cam_cci_get_subdev(),
 #endif
-			core, ioctl, VIDIOC_MSM_CCI_CFG, &cci_ctrl);
-	if (rc < 0) {
-		pr_err("%s: cci init fail (%d)\n", __func__, rc);
-		return rc;
+				core, ioctl, VIDIOC_MSM_CCI_CFG, &cci_ctrl);
+		if (rc < 0) {
+			printk("%s: cci init fail (%d)\n", __func__, rc);
+			return rc;
+		}
 	}
 
 	switch (cmd) {
@@ -88,10 +104,12 @@ static int32_t cci_intf_xfer(
 #endif
 			core, ioctl, VIDIOC_MSM_CCI_CFG, &cci_ctrl);
 		if (rc < 0) {
-			pr_err("%s: cci read fail (%d)\n", __func__, rc);
+			printk("%s: cci read fail (%d)\n", __func__, rc);
 			goto release;
 		}
 		rc = cci_ctrl.status;
+		for(int i = 0; i< xfer->data.count; i++)
+			printk("%s: i2c read success (0x%x)\n", __func__, xfer->data.buf[i]);
 		break;
 	case MSM_CCI_INTF_WRITE:
 		/* write */
@@ -112,7 +130,7 @@ static int32_t cci_intf_xfer(
 					((uint32_t)(xfer->data.buf[i+1]) << 16) |
 					((uint32_t)(xfer->data.buf[i+2]) << 8) |
 					((uint32_t)(xfer->data.buf[i+3]));
-				pr_err("%s: cci writing %x", __func__, reg_conf_tbl[i].reg_data);
+				printk("%s: cci writing %x", __func__, reg_conf_tbl[i].reg_data);
 			} else if(xfer->data.width == 2) {
 				reg_conf_tbl[i].reg_data =
 					((uint32_t)(xfer->data.buf[i]) << 8) |
@@ -121,6 +139,7 @@ static int32_t cci_intf_xfer(
 				reg_conf_tbl[i].reg_data = xfer->data.buf[i];
 			}
 			reg_conf_tbl[i].delay = 0;
+			printk("%s: cci writing %x", __func__, reg_conf_tbl[i].reg_data);
 		}
 #else
 		for (i = 0; i < xfer->data.count; i += 1) {
@@ -150,31 +169,120 @@ static int32_t cci_intf_xfer(
 				core, ioctl, VIDIOC_MSM_CCI_CFG, &cci_ctrl);
 		kfree(reg_conf_tbl);
 		if (rc < 0) {
-			pr_err("%s: cci write fail (%d)\n", __func__, rc);
+			printk("%s: cci write fail (%d)\n", __func__, rc);
 			goto release;
 		}
 		rc = cci_ctrl.status;
 		break;
+	case MSM_I2C_INTF_READ:
+		if ((common_io_master_info->qup_client != NULL) &&
+			(common_io_master_info->qup_client->i2c_client != NULL) &&
+			(common_io_master_info->qup_client->i2c_client->adapter != NULL) &&
+			(common_io_master_info->qup_client->pm_ctrl_client_enable)) {
+			i2c_addr = common_io_master_info->qup_client->i2c_client->addr;
+			common_io_master_info->qup_client->i2c_client->addr = xfer->slave_addr << 1;
+			rc = cam_qup_i2c_read(common_io_master_info->qup_client->i2c_client, xfer->reg.addr ,
+					(uint32_t*)xfer->data.buf, xfer->reg.width == 1 ? CAMERA_SENSOR_I2C_TYPE_BYTE : CAMERA_SENSOR_I2C_TYPE_WORD, xfer->data.count);
+			common_io_master_info->qup_client->i2c_client->addr = i2c_addr;
+			if(rc < 0)
+			{
+				printk("%s: i2c read fail (%d)\n", __func__, rc);
+				goto release;
+			}
+
+			for(int i = 0; i < xfer->data.count/2; i++)
+			{
+				temp = xfer->data.buf[i];
+				xfer->data.buf[i] = xfer->data.buf[xfer->data.count -i -1];
+				xfer->data.buf[xfer->data.count -i -1] = temp;
+			}
+
+			for(int i = 0; i< xfer->data.count; i++)
+				printk("%s: i2c read success (0x%x)\n", __func__, xfer->data.buf[i]);
+		}
+		break;
+	case MSM_I2C_INTF_WRITE:
+		if ((common_io_master_info->qup_client != NULL) &&
+			(common_io_master_info->qup_client->i2c_client != NULL) &&
+			(common_io_master_info->qup_client->i2c_client->adapter != NULL) &&
+			(common_io_master_info->qup_client->pm_ctrl_client_enable)) {
+			reg_conf_tbl = kzalloc(xfer->data.count *
+					sizeof(struct cam_sensor_i2c_reg_array),
+					GFP_KERNEL);
+			if (!reg_conf_tbl) {
+				rc = -ENOMEM;
+				goto release;
+			}
+			addr = xfer->reg.addr;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
+			for (i = 0; i < xfer->data.count; i += xfer->data.width) {
+				reg_conf_tbl[i].reg_addr = addr++;
+				if(xfer->data.width == 4) {
+					reg_conf_tbl[i].reg_data =
+						((uint32_t)(xfer->data.buf[i]) << 24) |
+						((uint32_t)(xfer->data.buf[i+1]) << 16) |
+						((uint32_t)(xfer->data.buf[i+2]) << 8) |
+						((uint32_t)(xfer->data.buf[i+3]));
+					printk("%s: cci writing %x", __func__, reg_conf_tbl[i].reg_data);
+				} else if(xfer->data.width == 2) {
+					reg_conf_tbl[i].reg_data =
+						((uint32_t)(xfer->data.buf[i]) << 8) |
+						((uint32_t)(xfer->data.buf[i+1]));
+				} else {
+					reg_conf_tbl[i].reg_data = xfer->data.buf[i];
+				}
+				reg_conf_tbl[i].delay = 0;
+				printk("%s: cci writing %x", __func__, reg_conf_tbl[i].reg_data);
+			}
+#else
+			for (i = 0; i < xfer->data.count; i += 1) {
+				reg_conf_tbl[i].reg_addr = addr++;
+				reg_conf_tbl[i].reg_data = xfer->data.buf[i];
+				reg_conf_tbl[i].delay = 0;
+			}
+#endif
+			write_setting.reg_setting = reg_conf_tbl;
+			write_setting.addr_type =
+				(xfer->reg.width == 1 ?
+					CAMERA_SENSOR_I2C_TYPE_BYTE :
+					CAMERA_SENSOR_I2C_TYPE_WORD);
+			write_setting.data_type = xfer->data.width;
+			write_setting.size = xfer->data.count;
+
+			i2c_addr = common_io_master_info->qup_client->i2c_client->addr;
+			common_io_master_info->qup_client->i2c_client->addr = xfer->slave_addr << 1;
+			rc = cam_qup_i2c_write_table(common_io_master_info, &write_setting);
+			common_io_master_info->qup_client->i2c_client->addr = i2c_addr;
+			kfree(reg_conf_tbl);
+			if (rc < 0)
+			{
+				printk("%s: i2c write fail (%d)\n", __func__, rc);
+				goto release;
+			}
+		}
+		break;
 	default:
-		pr_err("%s: Unknown command (%d)\n", __func__, cmd);
+		printk("%s: Unknown command (%d)\n", __func__, cmd);
 		rc = -EINVAL;
 		break;
 	}
 
 release:
-	/* release */
-	cci_ctrl.cmd = MSM_CCI_RELEASE;
+	if(common_io_master_info->master_type == CCI_MASTER)
+	{
+		/* release */
+		cci_ctrl.cmd = MSM_CCI_RELEASE;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
-	rc2 = v4l2_subdev_call(cam_cci_get_subdev(xfer->cci_device),
+		rc2 = v4l2_subdev_call(cam_cci_get_subdev(xfer->cci_device),
 #else
-	rc2 = v4l2_subdev_call(cam_cci_get_subdev(),
+		rc2 = v4l2_subdev_call(cam_cci_get_subdev(),
 #endif
-			core, ioctl, VIDIOC_MSM_CCI_CFG, &cci_ctrl);
-	if (rc2 < 0) {
-		pr_err("%s: cci release fail (%d)\n", __func__, rc2);
-		return rc2;
+				core, ioctl, VIDIOC_MSM_CCI_CFG, &cci_ctrl);
+		if (rc2 < 0) {
+			printk("%s: cci release fail (%d)\n", __func__, rc2);
+			return rc2;
+		}
 	}
-
 	return rc;
 }
 
@@ -184,11 +292,13 @@ static long cci_intf_ioctl(struct file *file, unsigned int cmd,
 	struct msm_cci_intf_xfer xfer;
 	int rc;
 
-	pr_debug("%s cmd=%x arg=%lx\n", __func__, cmd, arg);
+	printk("%s cmd=%x arg=%lx\n", __func__, cmd, arg);
 
 	switch (cmd) {
 	case MSM_CCI_INTF_READ:
 	case MSM_CCI_INTF_WRITE:
+	case MSM_I2C_INTF_READ:
+	case MSM_I2C_INTF_WRITE:
 		if (copy_from_user(&xfer, (void __user *)arg, sizeof(xfer)))
 			return -EFAULT;
 		rc = cci_intf_xfer(&xfer, cmd);
@@ -204,7 +314,7 @@ static long cci_intf_ioctl(struct file *file, unsigned int cmd,
 static long cci_intf_ioctl_compat(struct file *file, unsigned int cmd,
 		unsigned long arg)
 {
-	pr_debug("%s cmd=%x\n", __func__, cmd);
+	printk("%s cmd=%x\n", __func__, cmd);
 
 	switch (cmd) {
 	case MSM_CCI_INTF_READ32:
@@ -238,11 +348,11 @@ int cam_cci_debug_sub_module_init(void)
 {
 	int rc;
 
-	pr_debug("%s\n", __func__);
+	printk("%s\n", __func__);
 
 	rc = misc_register(&cci_intf_misc);
 	if (unlikely(rc)) {
-		pr_err("failed to register misc device %s\n", cci_intf_misc.name);
+		printk("failed to register misc device %s\n", cci_intf_misc.name);
 		return rc;
 	}
 
@@ -251,7 +361,7 @@ int cam_cci_debug_sub_module_init(void)
 
 void cam_cci_debug_sub_module_exit(void)
 {
-	pr_debug("%s\n", __func__);
+	printk("%s\n", __func__);
 
 	misc_deregister(&cci_intf_misc);
 }
