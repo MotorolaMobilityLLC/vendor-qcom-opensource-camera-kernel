@@ -664,13 +664,8 @@ static int32_t cam_cci_set_clk_param(struct cci_device *cci_dev,
 		CAM_DBG(CAM_CCI, "CCI%d_I2C_M%d, curr_freq: %d", cci_dev->soc_info.index, master,
 			i2c_freq_mode);
 		spin_lock(&cci_master->freq_cnt_lock);
-		if (cci_master->freq_ref_cnt == 0){
-			if(down_trylock(&cci_master->master_sem)){
-				spin_unlock(&cci_master->freq_cnt_lock);
-				mutex_unlock(&cci_master->mutex);
-			return -EBUSY;
-			}
-		}
+		if (cci_master->freq_ref_cnt == 0)
+			down(&cci_master->master_sem);
 		cci_master->freq_ref_cnt++;
 		spin_unlock(&cci_master->freq_cnt_lock);
 		mutex_unlock(&cci_master->mutex);
@@ -678,10 +673,7 @@ static int32_t cam_cci_set_clk_param(struct cci_device *cci_dev,
 	}
 	CAM_DBG(CAM_CCI, "CCI%d_I2C_M%d, curr_freq: %d, req_freq: %d",
 		cci_dev->soc_info.index, master, cci_dev->i2c_freq_mode[master], i2c_freq_mode);
-	if(down_trylock(&cci_master->master_sem)){
-		mutex_unlock(&cci_master->mutex);
-	return -EBUSY;
-	}
+	down(&cci_master->master_sem);
 
 	spin_lock(&cci_master->freq_cnt_lock);
 	cci_master->freq_ref_cnt++;
