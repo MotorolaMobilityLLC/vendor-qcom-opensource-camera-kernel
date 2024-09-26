@@ -4313,9 +4313,15 @@ static int cam_cpas_get_slice_id(
 		(struct cam_cpas_private_soc *)cpas_hw->soc_info.soc_private;
 	uint32_t num_caches = soc_private->num_caches;
 	int scid = -1, i;
+	int rc = 0;
 
-	if (cam_cpas_validate_cache_type(num_caches, type))
-		goto end;
+	rc = cam_cpas_validate_cache_type(num_caches, type);
+	if (rc) {
+		CAM_ERR(CAM_CPAS,
+			"Invalid num_cache: %d or Invalid Cache Type: %d rc: %d",
+			num_caches, type, rc);
+		return scid;
+	}
 
 	for (i = 0; i < num_caches; i++) {
 		if (type == soc_private->llcc_info[i].type) {
@@ -4326,7 +4332,6 @@ static int cam_cpas_get_slice_id(
 		}
 	}
 
-end:
 	return scid;
 }
 static int cam_cpas_activate_cache_slice(
@@ -4339,8 +4344,13 @@ static int cam_cpas_activate_cache_slice(
 	int rc = 0, i;
 
 	CAM_DBG(CAM_CPAS, "Activate type: %d", type);
-	if (cam_cpas_validate_cache_type(num_caches, type))
-		goto end;
+	rc = cam_cpas_validate_cache_type(num_caches, type);
+	if (rc) {
+		CAM_ERR(CAM_CPAS,
+			"Invalid num_cache: %d or Invalid Cache Type: %d rc: %d",
+			num_caches, type, rc);
+		return rc;
+	}
 
 	for (i = 0; i < num_caches; i++) {
 		if (type == soc_private->llcc_info[i].type)
@@ -4348,7 +4358,6 @@ static int cam_cpas_activate_cache_slice(
 				&soc_private->llcc_info[i]);
 	}
 
-end:
 	return rc;
 }
 
@@ -4362,8 +4371,13 @@ static int cam_cpas_deactivate_cache_slice(
 	int rc = 0, i;
 
 	CAM_DBG(CAM_CPAS, "De-activate type: %d", type);
-	if (cam_cpas_validate_cache_type(num_caches, type))
-		goto end;
+	rc = cam_cpas_validate_cache_type(num_caches, type);
+	if (rc) {
+		CAM_ERR(CAM_CPAS,
+			"Invalid num_cache: %d or Invalid Cache Type: %d rc: %d",
+			num_caches, type, rc);
+		return rc;
+	}
 
 	for (i = 0; i < num_caches; i++) {
 		if (type == soc_private->llcc_info[i].type)
@@ -4371,7 +4385,6 @@ static int cam_cpas_deactivate_cache_slice(
 				&soc_private->llcc_info[i]);
 	}
 
-end:
 	return rc;
 }
 
@@ -4421,8 +4434,13 @@ static int cam_cpas_configure_staling_cache_slice(
 	bool allow;
 
 	CAM_DBG(CAM_CPAS, "configuring cache type: %d", sys_cache_info.type);
-	if (cam_cpas_validate_cache_type(num_caches, sys_cache_info.type))
-		goto end;
+	rc = cam_cpas_validate_cache_type(num_caches, sys_cache_info.type);
+	if (rc) {
+		CAM_ERR(CAM_CPAS,
+			"Invalid num_cache: %d or Invalid Cache Type: %d rc: %d",
+			num_caches, sys_cache_info.type, rc);
+		return rc;
+	}
 
 	for (i = 0; i < num_caches; i++) {
 		if (sys_cache_info.type == soc_private->llcc_info[i].type) {
@@ -4440,7 +4458,6 @@ static int cam_cpas_configure_staling_cache_slice(
 		}
 	}
 
-end:
 	return rc;
 }
 
@@ -4454,8 +4471,13 @@ static int cam_cpas_notif_stalling_inc_cache_slice(
 	int rc = 0, i;
 
 	CAM_DBG(CAM_CPAS, "notification cache type: %d", type);
-	if (cam_cpas_validate_cache_type(num_caches, type))
-		goto end;
+	rc = cam_cpas_validate_cache_type(num_caches, type);
+	if (rc) {
+		CAM_ERR(CAM_CPAS,
+			"Invalid num_cache: %d or Invalid Cache Type: %d rc: %d",
+			num_caches, type, rc);
+		return rc;
+	}
 
 	for (i = 0; i < num_caches; i++) {
 		if (type == soc_private->llcc_info[i].type)
@@ -4463,7 +4485,6 @@ static int cam_cpas_notif_stalling_inc_cache_slice(
 				&soc_private->llcc_info[i]);
 	}
 
-end:
 	return rc;
 }
 
