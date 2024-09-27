@@ -104,9 +104,9 @@ else ifneq (,$(filter kobe, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/kobe.mk
 else ifneq (,$(filter kobe_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/kobe_factory.mk
-else ifneq (,$(filter mona, $(TARGET_PRODUCT)))
+else ifneq (,$(filter mona monai, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/mona.mk
-else ifneq (,$(filter mona_factory, $(TARGET_PRODUCT)))
+else ifneq (,$(filter mona_factory monai_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/mona_factory.mk
 endif
 
