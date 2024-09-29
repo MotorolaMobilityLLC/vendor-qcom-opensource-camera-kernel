@@ -690,8 +690,9 @@ int cam_i3c_driver_remove(struct i3c_device *client)
 }
 #endif
 
-#if (KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE && \
-	KERNEL_VERSION(6, 6, 0) > LINUX_VERSION_CODE)
+//#if (KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE && \
+//	KERNEL_VERSION(6, 6, 0) > LINUX_VERSION_CODE)
+#if 1
 long cam_dma_buf_set_name(struct dma_buf *dmabuf, const char *name)
 {
 	long ret = 0;
