@@ -2750,7 +2750,7 @@ static int cam_icp_mgr_process_msg_frame_process(
 {
 	struct hfi_msg_dev_async_ack *ioconfig_ack = NULL;
 	struct hfi_msg_frame_process_done *frame_done;
-	int rc = 0, flag = ICP_FRAME_PROCESS_SUCCESS;
+	int flag = ICP_FRAME_PROCESS_SUCCESS;
 
 	if (!msg_ptr) {
 		CAM_ERR(CAM_ICP, "msg ptr is NULL");
@@ -2760,18 +2760,12 @@ static int cam_icp_mgr_process_msg_frame_process(
 	ioconfig_ack = (struct hfi_msg_dev_async_ack *)msg_ptr;
 	if (ioconfig_ack->err_type != CAMERAICP_SUCCESS) {
 		flag = ICP_FRAME_PROCESS_FAILURE;
-		if (ioconfig_ack->err_type == CAMERAICP_EABORTED)
-			rc = 0;
-		else
-			rc = -EIO;
 		goto end;
 	}
 
-	frame_done =
-		(struct hfi_msg_frame_process_done *)ioconfig_ack->msg_data_flex;
+	frame_done = (struct hfi_msg_frame_process_done *)ioconfig_ack->msg_data_flex;
 	if (!frame_done) {
 		flag = ICP_FRAME_PROCESS_FAILURE;
-		rc = -EINVAL;
 		goto end;
 	}
 
@@ -2780,7 +2774,7 @@ static int cam_icp_mgr_process_msg_frame_process(
 
 end:
 	cam_icp_mgr_handle_frame_process(hw_mgr, msg_ptr, flag);
-	return rc;
+	return 0;
 }
 
 static int cam_icp_mgr_process_msg_config_io(
@@ -2828,7 +2822,6 @@ static int cam_icp_mgr_process_msg_config_io(
 				ioconfig_ack->err_type,
 				cam_icp_error_handle_id_to_type(
 				ioconfig_ack->err_type));
-			rc = -EIO;
 			goto end;
 		}
 
@@ -2850,7 +2843,6 @@ static int cam_icp_mgr_process_msg_config_io(
 		if (bps_config_ack->rc) {
 			CAM_ERR(CAM_ICP, "rc : %u, opcode :%u",
 				bps_config_ack->rc, ioconfig_ack->opcode);
-			rc = -EIO;
 			goto end;
 		}
 
@@ -2984,15 +2976,11 @@ static int cam_icp_mgr_process_ipebps_indirect_ack_msg(
 	case HFI_IPEBPS_CMD_OPCODE_BPS_CONFIG_IO:
 		CAM_DBG(CAM_ICP, "received IPE/BPS_CONFIG_IO:");
 		rc = cam_icp_mgr_process_msg_config_io(hw_mgr, msg_ptr);
-		if (rc)
-			return rc;
 		break;
 	case HFI_IPEBPS_CMD_OPCODE_IPE_FRAME_PROCESS:
 	case HFI_IPEBPS_CMD_OPCODE_BPS_FRAME_PROCESS:
 		CAM_DBG(CAM_ICP, "received IPE/BPS_FRAME_PROCESS:");
 		rc = cam_icp_mgr_process_msg_frame_process(hw_mgr, msg_ptr);
-		if (rc)
-			return rc;
 		break;
 	default:
 		CAM_ERR(CAM_ICP, "Invalid opcode : %u",
@@ -3044,7 +3032,6 @@ static inline int cam_icp_mgr_process_msg_ofe_config_io(
 			ofe_config_ack->rc, ioconfig_ack->err_type,
 			cam_icp_error_handle_id_to_type(ioconfig_ack->err_type),
 			ioconfig_ack->opcode);
-		rc = -EIO;
 		goto end;
 	}
 
@@ -3063,8 +3050,6 @@ static int cam_icp_mgr_process_ofe_direct_ack_msg(
 	struct cam_icp_hw_mgr *hw_mgr,
 	uint32_t *msg_ptr)
 {
-	int rc = 0;
-
 	switch (msg_ptr[ICP_PACKET_OPCODE]) {
 	case HFI_OFE_CMD_OPCODE_ABORT: {
 		struct hfi_msg_dev_async_ack *ioconfig_ack = NULL;
@@ -3111,7 +3096,7 @@ static int cam_icp_mgr_process_ofe_direct_ack_msg(
 		return -EINVAL;
 	}
 
-	return rc;
+	return 0;
 }
 
 static int cam_icp_mgr_process_ofe_indirect_ack_msg(
@@ -3123,15 +3108,11 @@ static int cam_icp_mgr_process_ofe_indirect_ack_msg(
 	switch (msg_ptr[ICP_PACKET_OPCODE]) {
 	case HFI_OFE_CMD_OPCODE_CONFIG_IO: {
 		rc = cam_icp_mgr_process_msg_ofe_config_io(hw_mgr, msg_ptr);
-		if (rc)
-			return rc;
 		break;
 	}
 	case HFI_OFE_CMD_OPCODE_FRAME_PROCESS:
 		CAM_DBG(CAM_ICP, "received OFE_FRAME_PROCESS:");
 		rc = cam_icp_mgr_process_msg_frame_process(hw_mgr, msg_ptr);
-		if (rc)
-			return rc;
 		break;
 	default:
 		CAM_ERR(CAM_ICP, "Invalid opcode : %u",
@@ -3148,7 +3129,6 @@ static int cam_icp_mgr_process_direct_ack_msg(
 {
 	struct cam_icp_hw_ctx_data *ctx_data = NULL;
 	struct hfi_msg_dev_async_ack *ioconfig_ack = NULL;
-	int rc = 0;
 
 	if (!msg_ptr)
 		return -EINVAL;
@@ -3219,9 +3199,10 @@ static int cam_icp_mgr_process_direct_ack_msg(
 	default:
 		CAM_ERR(CAM_ICP, "Invalid opcode : %u",
 			msg_ptr[ICP_PACKET_OPCODE]);
-		rc = -EINVAL;
+		return -EINVAL;
 	}
-	return rc;
+
+	return 0;
 }
 
 static int cam_icp_mgr_trigger_recovery(struct cam_icp_hw_mgr *hw_mgr)
@@ -3442,7 +3423,8 @@ static int cam_icp_process_msg_pkt_type(
 		CAM_DBG(CAM_ICP, "[%s] received EVENT_NOTIFY", hw_mgr->hw_mgr_name);
 		rc = cam_icp_mgr_process_fatal_error(hw_mgr, msg_ptr);
 		if (rc)
-			CAM_ERR(CAM_ICP, "[%s] failed in processing evt notify",
+			CAM_ERR(CAM_ICP,
+				"[%s] failed in processing evt notify and failed in triggering recovery",
 				hw_mgr->hw_mgr_name);
 		break;
 
