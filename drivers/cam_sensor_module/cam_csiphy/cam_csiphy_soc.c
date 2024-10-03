@@ -98,10 +98,6 @@ int32_t cam_csiphy_common_status_reg_dump(struct csiphy_device *csiphy_dev,
 	size = dump_to_log ? csiphy_reg->csiphy_num_common_status_regs :
 		CSIPHY_QMARGIN_CMN_STATUS_REG_COUNT;
 
-	if (dump_to_log)
-		CAM_INFO(CAM_CSIPHY, "PHY base addr=%pK offset=0x%x size=%d",
-			phy_base, status_reg, size);
-
 	if (unlikely(!phy_base)) {
 		CAM_ERR(CAM_CSIPHY, "phy base is NULL  %s", CAM_BOOL_TO_YESNO(phy_base));
 		return -EINVAL;
@@ -112,6 +108,10 @@ int32_t cam_csiphy_common_status_reg_dump(struct csiphy_device *csiphy_dev,
 			CAM_BOOL_TO_YESNO(!buffer), size);
 		return -EINVAL;
 	}
+
+	if (dump_to_log)
+		CAM_INFO(CAM_CSIPHY, "PHY base addr=%pK offset=0x%x size=%d",
+			phy_base, status_reg, size);
 
 	for (reg_id = 0; reg_id < size; reg_id++) {
 		val = cam_io_r(phy_base + status_reg + (0x4 * reg_id));
