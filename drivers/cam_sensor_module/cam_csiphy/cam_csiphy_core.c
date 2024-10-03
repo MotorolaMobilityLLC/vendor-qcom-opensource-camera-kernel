@@ -1443,11 +1443,23 @@ irqreturn_t cam_csiphy_irq(int irq_num, void *data)
 static inline void __cam_csiphy_compute_cdr_value(
 	int32_t *cdr_val, struct csiphy_device *csiphy_device)
 {
+	int32_t computed_cdr = *cdr_val;
+
 	if (csiphy_device->cdr_params.tolerance_op_type ==
 		CAM_CSIPHY_CDR_ADD_TOLERANCE)
-		*cdr_val += csiphy_device->cdr_params.cdr_tolerance;
+		computed_cdr += csiphy_device->cdr_params.cdr_tolerance;
 	else
-		*cdr_val -= csiphy_device->cdr_params.cdr_tolerance;
+		computed_cdr -= csiphy_device->cdr_params.cdr_tolerance;
+
+	if (computed_cdr <= 0) {
+		computed_cdr = 0;
+		CAM_WARN(CAM_CSIPHY, "CSIPHY%u invalid cdr: %u tolerance: %u op_type: %u",
+			csiphy_device->soc_info.index, *cdr_val,
+			csiphy_device->cdr_params.cdr_tolerance,
+			csiphy_device->cdr_params.tolerance_op_type);
+	}
+
+	*cdr_val = computed_cdr;
 }
 
 static int cam_csiphy_cphy_data_rate_config(struct csiphy_device *csiphy_device, int32_t idx,

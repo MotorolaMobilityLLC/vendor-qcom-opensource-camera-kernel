@@ -16145,6 +16145,7 @@ static int cam_ife_hw_mgr_handle_csid_error(
 	struct cam_isp_hw_error_event_info      *err_evt_info;
 	struct cam_isp_hw_error_event_data       error_event_data = {0};
 	struct cam_ife_hw_event_recovery_data    recovery_data = {0};
+	struct cam_ife_hw_mgr                   *hw_mgr;
 	bool                                     is_bus_overflow = false, force_recover = false;
 
 	if (!event_info->event_data) {
@@ -16156,6 +16157,7 @@ static int cam_ife_hw_mgr_handle_csid_error(
 
 	err_evt_info = (struct cam_isp_hw_error_event_info *)event_info->event_data;
 	err_type = err_evt_info->err_type;
+	hw_mgr = ctx->hw_mgr;
 	CAM_DBG(CAM_ISP, "Entry CSID[%u] error %d ctx_idx: %u",
 		event_info->hw_idx, err_type, ctx->ctx_index);
 
@@ -16195,6 +16197,11 @@ static int cam_ife_hw_mgr_handle_csid_error(
 		recovery_data.error_type = err_type;
 		recoverable = false;
 	}
+
+	/* For cdr sweep, packet crc is made fatal */
+	if (unlikely((hw_mgr->debug_cfg.enable_cdr_sweep_debug) &&
+		(err_type & CAM_ISP_HW_ERROR_CSID_PKT_PAYLOAD_CORRUPTED)))
+		recoverable = false;
 
 	if (recoverable && (is_bus_overflow ||
 		(err_type & CAM_ISP_RECOVERABLE_CSID_ERRORS))) {
@@ -18377,6 +18384,7 @@ static int cam_ife_hw_mgr_debug_register(void)
 	debugfs_create_bool("enable_cdr_sweep_debug", 0644,
 		g_ife_hw_mgr.debug_cfg.dentry,
 		&g_ife_hw_mgr.debug_cfg.enable_cdr_sweep_debug);
+
 end:
 	g_ife_hw_mgr.debug_cfg.enable_csid_recovery = 1;
 	return rc;

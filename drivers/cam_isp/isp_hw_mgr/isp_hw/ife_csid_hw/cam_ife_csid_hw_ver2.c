@@ -1486,8 +1486,11 @@ static inline int cam_ife_csid_ver2_rx_err_process_top_half(
 					csid_hw->crc_error_threshold);
 		}
 
+		/* Treat CRC as fatal immediately if sweep is enabled */
 		if ((csid_hw->counters.error_irq_count > CAM_IFE_CSID_MAX_ERR_COUNT) ||
-			(csid_hw->counters.crc_error_irq_count > csid_hw->crc_error_threshold)) {
+			(csid_hw->counters.crc_error_irq_count > csid_hw->crc_error_threshold) ||
+			(csid_hw->counters.crc_error_irq_count &&
+			csid_hw->debug_info.cdr_sweep_debug_enabled)) {
 			csid_hw->flags.fatal_err_detected = true;
 			cam_ife_csid_ver2_stop_csi2_in_err(csid_hw);
 		}
@@ -2203,8 +2206,10 @@ static int cam_ife_csid_ver2_rx_err_process_bottom_half(
 			(irq_status & BIT(bit_pos[CAM_IFE_CSID_RX_ERROR_CRC]))) {
 			event_type |= CAM_ISP_HW_ERROR_CSID_PKT_PAYLOAD_CORRUPTED;
 
-			/* Only print the CRC error logs when reaching the threshold */
-			if (csid_hw->counters.crc_error_irq_count > csid_hw->crc_error_threshold) {
+			/* Only print the CRC error logs when reaching the threshold/sweep test */
+			if (csid_hw->debug_info.cdr_sweep_debug_enabled ||
+				(csid_hw->counters.crc_error_irq_count >
+				csid_hw->crc_error_threshold)) {
 				long_pkt_ftr_val = cam_io_r_mb(soc_info->reg_map[0].mem_base +
 					csi2_reg->captured_long_pkt_ftr_addr);
 				total_crc = cam_io_r_mb(soc_info->reg_map[0].mem_base +
