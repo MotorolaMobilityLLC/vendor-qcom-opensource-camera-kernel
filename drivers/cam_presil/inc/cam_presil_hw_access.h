@@ -9,7 +9,8 @@
 
 #include <linux/interrupt.h>
 
-#define CAM_PRESIL_CLIENT_ID_CAMERA 0x1
+#define CAM_PRESIL_CLIENT_ID_CAMERA_IPE 0x0
+#define CAM_PRESIL_CLIENT_ID_CAMERA_OFE 0x1
 #define CAM_PRESIL_CLIENT_ID_EVA    0x2
 
 #define CAM_SS_START_PRESIL    0x08000000

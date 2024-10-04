@@ -22,7 +22,7 @@
 static struct cam_common_mini_dump_dev_info g_minidump_dev_info;
 #endif
 
-#define CAM_PRESIL_POLL_DELAY 20
+#define CAM_PRESIL_POLL_DELAY 100
 
 static struct cam_common_inject_evt_info g_inject_evt_info;
 

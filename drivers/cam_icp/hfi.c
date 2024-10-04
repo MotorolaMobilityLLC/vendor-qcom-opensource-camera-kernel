@@ -47,17 +47,14 @@ struct hfi_top_info {
 struct hfi_top_info g_hfi;
 static DEFINE_MUTEX(g_hfi_lock);
 
-
 static int cam_hfi_presil_setup(struct hfi_mem_info *hfi_mem);
-static int cam_hfi_presil_set_init_request(void);
+static int cam_hfi_presil_set_init_request(uint32_t client_handle);
 
-#ifndef CONFIG_CAM_PRESIL
 static void hfi_irq_raise(struct hfi_info *hfi)
 {
 	if (hfi->ops.irq_raise)
 		hfi->ops.irq_raise(hfi->priv);
 }
-#endif
 
 static void hfi_irq_enable(struct hfi_info *hfi)
 {
@@ -210,7 +207,6 @@ void cam_hfi_queue_dump(int client_handle, bool dump_queue_data)
 		hfi_queue_dump(dwords, num_dwords);
 }
 
-#ifndef CONFIG_CAM_PRESIL
 int hfi_write_cmd(int client_handle, void *cmd_ptr)
 {
 	uint32_t size_in_words, empty_space, new_write_idx, read_idx, temp;
@@ -218,6 +214,9 @@ int hfi_write_cmd(int client_handle, void *cmd_ptr)
 	struct hfi_info *hfi;
 	struct hfi_qtbl *q_tbl;
 	struct hfi_q_hdr *q;
+	uint32_t buf_start_iova, q_start_iova;
+	uint64_t read_index_iova, write_index_iova;
+	uint32_t write_q_iova, write_ptr_iova;
 	int rc = 0;
 
 	rc = hfi_get_client_info(client_handle, &hfi);
@@ -246,39 +245,110 @@ int hfi_write_cmd(int client_handle, void *cmd_ptr)
 	q_tbl = (struct hfi_qtbl *)hfi->map.qtbl.kva;
 	q = &q_tbl->q_hdr[Q_CMD];
 
-	write_q = (uint32_t *)hfi->map.cmd_q.kva;
+	if (!cam_presil_mode_enabled()) {
+		/* Regular logic */
+		write_q = (uint32_t *)hfi->map.cmd_q.kva;
 
-	size_in_words = (*(uint32_t *)cmd_ptr) >> BYTE_WORD_SHIFT;
-	if (!size_in_words) {
-		CAM_DBG(CAM_HFI, "[%s] hfi hdl: %u word size is NULL",
-			hfi->client_name, client_handle);
-		rc = -EINVAL;
-		goto err;
-	}
+		size_in_words = (*(uint32_t *)cmd_ptr) >> BYTE_WORD_SHIFT;
+		if (!size_in_words) {
+			CAM_DBG(CAM_HFI, "[%s] hfi hdl: %u word size is NULL",
+				hfi->client_name, client_handle);
+			rc = -EINVAL;
+			goto err;
+		}
 
-	read_idx = q->qhdr_read_idx;
-	empty_space = (q->qhdr_write_idx >= read_idx) ?
-		(q->qhdr_q_size - (q->qhdr_write_idx - read_idx)) :
-		(read_idx - q->qhdr_write_idx);
-	if (empty_space <= size_in_words) {
-		CAM_ERR(CAM_HFI, "[%s] hfi hdl: %u failed: empty space %u, size_in_words %u",
-			hfi->client_name, client_handle, empty_space, size_in_words);
-		rc = -EIO;
-		goto err;
-	}
+		read_idx = q->qhdr_read_idx;
+		empty_space = (q->qhdr_write_idx >= read_idx) ?
+			(q->qhdr_q_size - (q->qhdr_write_idx - read_idx)) :
+			(read_idx - q->qhdr_write_idx);
+		if (empty_space <= size_in_words) {
+			CAM_ERR(CAM_HFI,
+				"[%s] hfi hdl: %u failed: empty space %u, size_in_words %u",
+				hfi->client_name, client_handle, empty_space, size_in_words);
+			rc = -EIO;
+			goto err;
+		}
 
-	new_write_idx = q->qhdr_write_idx + size_in_words;
-	write_ptr = (uint32_t *)(write_q + q->qhdr_write_idx);
+		new_write_idx = q->qhdr_write_idx + size_in_words;
+		write_ptr = (uint32_t *)(write_q + q->qhdr_write_idx);
 
-	if (new_write_idx < q->qhdr_q_size) {
-		memcpy(write_ptr, (uint8_t *)cmd_ptr,
-			size_in_words << BYTE_WORD_SHIFT);
+		if (new_write_idx < q->qhdr_q_size) {
+			memcpy(write_ptr, (uint8_t *)cmd_ptr,
+				size_in_words << BYTE_WORD_SHIFT);
+		} else {
+			new_write_idx -= q->qhdr_q_size;
+			temp = (size_in_words - new_write_idx) << BYTE_WORD_SHIFT;
+			memcpy(write_ptr, (uint8_t *)cmd_ptr, temp);
+			memcpy(write_q, (uint8_t *)cmd_ptr + temp,
+				new_write_idx << BYTE_WORD_SHIFT);
+		}
+
 	} else {
-		new_write_idx -= q->qhdr_q_size;
-		temp = (size_in_words - new_write_idx) << BYTE_WORD_SHIFT;
-		memcpy(write_ptr, (uint8_t *)cmd_ptr, temp);
-		memcpy(write_q, (uint8_t *)cmd_ptr + temp,
-			new_write_idx << BYTE_WORD_SHIFT);
+		/* Presil logic */
+		/* Calculations for iova */
+		buf_start_iova = hfi->map.qtbl.iova;
+		q_start_iova = buf_start_iova + (((void *)q) - ((void *)q_tbl));
+		read_index_iova = q_start_iova + (((void *)&q->qhdr_read_idx) - ((void *)q));
+		write_index_iova = q_start_iova + (((void *)&q->qhdr_write_idx) - ((void *)q));
+
+		write_q = (uint32_t *)hfi->map.cmd_q.kva;
+		write_q_iova = hfi->map.cmd_q.iova;
+
+		cam_presil_retrieve_buffer(0, 0, 0, sizeof(q->qhdr_read_idx),
+			(uint32_t)read_index_iova, (unsigned long)&q->qhdr_read_idx, true);
+		cam_presil_retrieve_buffer(0, 0, 0, sizeof(q->qhdr_write_idx),
+			(uint32_t)write_index_iova, (unsigned long)&q->qhdr_write_idx, true);
+
+		size_in_words = (*(uint32_t *)cmd_ptr) >> BYTE_WORD_SHIFT;
+		if (!size_in_words) {
+			CAM_DBG(CAM_HFI, "[%s] hfi hdl: %u word size is NULL",
+				hfi->client_name, client_handle);
+			rc = -EINVAL;
+			goto err;
+		}
+
+		read_idx = q->qhdr_read_idx;
+		empty_space = (q->qhdr_write_idx >= read_idx) ?
+			(q->qhdr_q_size - (q->qhdr_write_idx - read_idx)) :
+			(read_idx - q->qhdr_write_idx);
+
+		if (empty_space <= size_in_words) {
+			CAM_ERR(CAM_HFI, "failed: empty space %u, size_in_words %u",
+				empty_space, size_in_words);
+			rc = -EIO;
+			goto err;
+		}
+
+		new_write_idx = q->qhdr_write_idx + size_in_words;
+		write_ptr_iova = (write_q_iova + (q->qhdr_write_idx << BYTE_WORD_SHIFT));
+		write_ptr = (uint32_t *)(write_q + q->qhdr_write_idx);
+
+		if (new_write_idx < q->qhdr_q_size) {
+			memcpy(write_ptr, (uint8_t *)cmd_ptr,
+				size_in_words << BYTE_WORD_SHIFT);
+			cam_presil_send_buffer(0, 0, 0, size_in_words << BYTE_WORD_SHIFT,
+				write_ptr_iova, (unsigned long)cmd_ptr, true);
+
+		} else {
+			new_write_idx -= q->qhdr_q_size;
+			temp = (size_in_words - new_write_idx) << BYTE_WORD_SHIFT;
+			memcpy(write_ptr, (uint8_t *)cmd_ptr, temp);
+			cam_presil_send_buffer(0, 0, 0, temp, write_ptr_iova,
+				(unsigned long)cmd_ptr, true);
+
+			memcpy(write_q, (uint8_t *)cmd_ptr + temp,
+				new_write_idx << BYTE_WORD_SHIFT);
+			cam_presil_send_buffer(0, 0, 0, new_write_idx << BYTE_WORD_SHIFT,
+				write_q_iova, (unsigned long)cmd_ptr + temp, true);
+
+		}
+
+		q->qhdr_write_idx = new_write_idx;
+
+		cam_presil_send_buffer(0, 0, 0, sizeof(q->qhdr_write_idx),
+			write_index_iova, (unsigned long)&q->qhdr_write_idx, true);
+		cam_presil_send_buffer(0, 0, 0, hfi->map.cmd_q.len,
+			(uint32_t)hfi->map.cmd_q.kva, (unsigned long)&hfi->map.cmd_q.kva, true);
 	}
 
 	/*
@@ -294,6 +364,7 @@ int hfi_write_cmd(int client_handle, void *cmd_ptr)
 	 * firmware to process
 	 */
 	wmb();
+
 	hfi_irq_raise(hfi);
 
 	/* Ensure HOST2ICP trigger is received by FW */
@@ -312,6 +383,10 @@ int hfi_read_message(int client_handle, uint32_t *pmsg, uint8_t q_id,
 	uint32_t new_read_idx, size_in_words, word_diff, temp;
 	uint32_t *read_q, *read_ptr, *write_ptr;
 	struct mutex *q_lock;
+	uint32_t buf_start_iova, q_start_iova;
+	uint64_t read_index_iova, write_index_iova;
+	uint64_t read_q_iova, read_ptr_iova;
+	uint64_t write_ptr_iova;
 	int rc = 0;
 
 	rc = hfi_get_client_info(client_handle, &hfi);
@@ -342,9 +417,9 @@ int hfi_read_message(int client_handle, uint32_t *pmsg, uint8_t q_id,
 	mutex_lock(q_lock);
 	if (hfi->hfi_state != HFI_READY ||
 		!hfi->msg_q_state) {
-		CAM_ERR(CAM_HFI, "[%s] Invalid hfi state:%u msg q state: %u hfi hdl: %d",
+		CAM_ERR(CAM_HFI, "[%s] Invalid hfi state:%u msg q state: %u hfi hdl: %d q_id: %d",
 			hfi->client_name, hfi->hfi_state, hfi->msg_q_state,
-			client_handle);
+			client_handle, q_id);
 		rc = -ENODEV;
 		goto err;
 	}
@@ -352,54 +427,155 @@ int hfi_read_message(int client_handle, uint32_t *pmsg, uint8_t q_id,
 	q_tbl_ptr = (struct hfi_qtbl *)hfi->map.qtbl.kva;
 	q = &q_tbl_ptr->q_hdr[q_id];
 
-	if (q_id == Q_MSG)
-		read_q = (uint32_t *)hfi->map.msg_q.kva;
-	else
-		read_q = (uint32_t *)hfi->map.dbg_q.kva;
+	if (!cam_presil_mode_enabled()) {
+		/* Regular logic */
+		if (q->qhdr_read_idx == q->qhdr_write_idx) {
+			CAM_DBG(CAM_HFI,
+				"[%s] hfi hdl: %d Q not ready, state:%u, r idx:%u, w idx:%u",
+				hfi->client_name, client_handle, hfi->hfi_state,
+				q->qhdr_read_idx, q->qhdr_write_idx);
+			rc = -EIO;
+			goto err;
+		}
 
-	read_ptr = (uint32_t *)(read_q + q->qhdr_read_idx);
-	write_ptr = (uint32_t *)(read_q + q->qhdr_write_idx);
+		if (q_id == Q_MSG)
+			read_q = (uint32_t *)hfi->map.msg_q.kva;
+		else
+			read_q = (uint32_t *)hfi->map.dbg_q.kva;
 
-	if (write_ptr >= read_ptr)
-		size_in_words = write_ptr - read_ptr;
-	else {
-		word_diff = read_ptr - write_ptr;
-		size_in_words =  q->qhdr_q_size -  word_diff;
-	}
+		read_ptr = (uint32_t *)(read_q + q->qhdr_read_idx);
+		write_ptr = (uint32_t *)(read_q + q->qhdr_write_idx);
 
-	if (size_in_words == 0) {
-		CAM_DBG(CAM_HFI, "[%s] hfi hdl: %d Q is empty, state:%u, r idx:%u, w idx:%u",
-			hfi->client_name, client_handle, hfi->hfi_state,
-			q->qhdr_read_idx, q->qhdr_write_idx);
-		rc = -ENOMSG;
-		goto err;
-	} else if (size_in_words > q->qhdr_q_size) {
-		CAM_ERR(CAM_HFI, "[%s] Invalid HFI message packet size - 0x%08x hfi hdl:%d",
-			hfi->client_name, size_in_words << BYTE_WORD_SHIFT,
-			client_handle);
-		q->qhdr_read_idx = q->qhdr_write_idx;
-		rc = -EIO;
-		goto err;
-	}
+		if (write_ptr >= read_ptr)
+			size_in_words = write_ptr - read_ptr;
+		else {
+			word_diff = read_ptr - write_ptr;
+			size_in_words = q->qhdr_q_size - word_diff;
+		}
 
-	/* size to read from q is bounded by size of buffer */
-	if (size_in_words > buf_words_size)
-		size_in_words = buf_words_size;
+		if (size_in_words == 0) {
+			CAM_DBG(CAM_HFI,
+				"[%s] hfi hdl: %d Q is empty, state:%u, r idx:%u, w idx:%u",
+				hfi->client_name, client_handle, hfi->hfi_state,
+				q->qhdr_read_idx, q->qhdr_write_idx);
+			rc = -ENOMSG;
+			goto err;
+		} else if (size_in_words > q->qhdr_q_size) {
+			CAM_ERR(CAM_HFI,
+				"[%s] Invalid HFI message packet size - 0x%08x hfi hdl:%d",
+				hfi->client_name, size_in_words << BYTE_WORD_SHIFT,
+				client_handle);
+			q->qhdr_read_idx = q->qhdr_write_idx;
+			rc = -EIO;
+			goto err;
+		}
 
-	new_read_idx = q->qhdr_read_idx + size_in_words;
+		/* size to read from q is bounded by size of buffer */
+		if (size_in_words > buf_words_size)
+			size_in_words = buf_words_size;
 
-	if (new_read_idx < q->qhdr_q_size) {
-		memcpy(pmsg, read_ptr, size_in_words << BYTE_WORD_SHIFT);
+		new_read_idx = q->qhdr_read_idx + size_in_words;
+
+		if (new_read_idx < q->qhdr_q_size) {
+			memcpy(pmsg, read_ptr, size_in_words << BYTE_WORD_SHIFT);
+		} else {
+			new_read_idx -= q->qhdr_q_size;
+			temp = (size_in_words - new_read_idx) << BYTE_WORD_SHIFT;
+			memcpy(pmsg, read_ptr, temp);
+			memcpy((uint8_t *)pmsg + temp, read_q,
+				new_read_idx << BYTE_WORD_SHIFT);
+		}
+
+		q->qhdr_read_idx = new_read_idx;
+		*words_read = size_in_words;
+
 	} else {
-		new_read_idx -= q->qhdr_q_size;
-		temp = (size_in_words - new_read_idx) << BYTE_WORD_SHIFT;
-		memcpy(pmsg, read_ptr, temp);
-		memcpy((uint8_t *)pmsg + temp, read_q,
-			new_read_idx << BYTE_WORD_SHIFT);
+		/* Presil logic */
+		/* Calculations for iova */
+		buf_start_iova = hfi->map.qtbl.iova;
+		q_start_iova = buf_start_iova + (((void *)q) - ((void *)q_tbl_ptr));
+		read_index_iova = q_start_iova + (((void *)&q->qhdr_read_idx) - ((void *)q));
+		write_index_iova = q_start_iova + (((void *)&q->qhdr_write_idx) - ((void *)q));
+
+		if (q_id == Q_MSG)
+			read_q_iova = hfi->map.msg_q.iova;
+		else
+			read_q_iova = hfi->map.dbg_q.iova;
+
+		cam_presil_retrieve_buffer(0, 0, 0, sizeof(q->qhdr_write_idx),
+			(uint32_t)write_index_iova, (unsigned long)&q->qhdr_write_idx, true);
+
+		if (q->qhdr_read_idx == q->qhdr_write_idx) {
+			CAM_DBG(CAM_HFI, "Q not ready q_id %d state:%u, r idx:%u, w idx:%u",
+				q_id, hfi->hfi_state, q->qhdr_read_idx, q->qhdr_write_idx);
+			rc = -EIO;
+			goto err;
+		}
+
+		read_ptr_iova = (read_q_iova + (q->qhdr_read_idx << BYTE_WORD_SHIFT));
+		write_ptr_iova = (read_q_iova + (q->qhdr_write_idx << BYTE_WORD_SHIFT));
+
+		read_q = (uint32_t *)hfi->map.msg_q.kva;
+		read_ptr = (uint32_t *)(read_q + q->qhdr_read_idx);
+		write_ptr = (uint32_t *)(read_q + q->qhdr_write_idx);
+
+		if (q_id != Q_MSG)
+			CAM_DBG(CAM_HFI, "DBG Q read_ptr: 0x%08x write_ptr: 0x%08x", read_ptr_iova,
+				write_ptr_iova);
+
+		if (write_ptr_iova >= read_ptr_iova)
+			size_in_words = ((write_ptr_iova - read_ptr_iova) >> BYTE_WORD_SHIFT);
+		else {
+			word_diff = (read_ptr_iova - write_ptr_iova) >> BYTE_WORD_SHIFT;
+			if (q_id == Q_MSG)
+				size_in_words = (ICP_MSG_Q_SIZE_IN_BYTES >>
+					BYTE_WORD_SHIFT) - word_diff;
+			else
+				size_in_words = (ICP_DBG_Q_SIZE_IN_BYTES >>
+					BYTE_WORD_SHIFT) - word_diff;
+		}
+
+		if (size_in_words == 0) {
+			CAM_DBG(CAM_HFI,
+				"[%s] hfi hdl: %d Q is empty, state:%u, r idx:%u, w idx:%u",
+				hfi->client_name, client_handle, hfi->hfi_state,
+				q->qhdr_read_idx, q->qhdr_write_idx);
+			rc = -ENOMSG;
+			goto err;
+		} else if (size_in_words > q->qhdr_q_size) {
+			CAM_ERR(CAM_HFI, "[%s] Invalid HFI message packet size - 0x%08x hfi hdl:%d",
+				hfi->client_name, size_in_words << BYTE_WORD_SHIFT,
+				client_handle);
+			q->qhdr_read_idx = q->qhdr_write_idx;
+			rc = -EIO;
+			goto err;
+		}
+
+		if (size_in_words > buf_words_size)
+			size_in_words = buf_words_size;
+
+		new_read_idx = q->qhdr_read_idx + size_in_words;
+
+		if (new_read_idx < q->qhdr_q_size) {
+			cam_presil_retrieve_buffer(0, 0, 0, size_in_words << BYTE_WORD_SHIFT,
+				read_ptr_iova, (unsigned long)pmsg, true);
+		} else {
+			new_read_idx -= q->qhdr_q_size;
+			temp = (size_in_words - new_read_idx) << BYTE_WORD_SHIFT;
+
+			cam_presil_retrieve_buffer(0, 0, 0, temp << BYTE_WORD_SHIFT, read_ptr_iova,
+				(unsigned long)pmsg, true);
+			cam_presil_retrieve_buffer(0, 0, 0, new_read_idx << BYTE_WORD_SHIFT,
+				read_q_iova, (unsigned long)pmsg + temp, true);
+		}
+
+		q->qhdr_read_idx = new_read_idx;
+		*words_read = size_in_words;
+
+		cam_presil_send_buffer(0, 0, 0, sizeof(q->qhdr_read_idx), (uint32_t)read_index_iova,
+			(unsigned long)&q->qhdr_read_idx, true);
 	}
 
-	q->qhdr_read_idx = new_read_idx;
-	*words_read = size_in_words;
 	/* Memory Barrier to make sure message
 	 * queue parameters are updated after read
 	 */
@@ -408,8 +584,6 @@ err:
 	mutex_unlock(q_lock);
 	return rc;
 }
-
-#endif /* #ifndef CONFIG_CAM_PRESIL */
 
 int hfi_cmd_ubwc_config(int client_handle, uint32_t *ubwc_cfg)
 {
@@ -595,6 +769,7 @@ int hfi_set_fw_dump_levels(int client_handle, uint32_t hang_dump_lvl,
 	prop_ref_data[1] = ram_dump_lvl;
 
 	hfi_write_cmd(client_handle, prop);
+
 	CAM_DBG(CAM_HFI,
 		"[%s] hfi hdl: %d prop->size = %d prop->pkt_type = %d prop->num_prop = %d hang_dump_lvl = %u ram_dump_lvl = %u",
 		hfi->client_name, client_handle, fw_dump_level_switch_prop->size,
@@ -1108,14 +1283,23 @@ int cam_hfi_init(int client_handle, struct hfi_mem_info *hfi_mem,
 		hfi_mem->sfr_buf.iova, hfi_mem->sfr_buf.len,
 		hfi_mem->device_mem.iova, hfi_mem->device_mem.len);
 
-	if (cam_presil_mode_enabled())
+	if (cam_presil_mode_enabled()) {
 		cam_hfi_presil_setup(hfi_mem);
+
+		cam_presil_send_buffer(0, 0, 0, hfi_mem->qtbl.len, hfi_mem->qtbl.iova,
+			hfi_mem->qtbl.kva, true);
+	}
 
 	cam_io_w_mb((uint32_t)ICP_INIT_REQUEST_SET,
 		icp_base + HFI_REG_HOST_ICP_INIT_REQUEST);
 
-	if (cam_presil_mode_enabled())
-		cam_hfi_presil_set_init_request();
+	if (cam_presil_mode_enabled()) {
+		if (!strcmp(hfi->client_name, "icp")) {
+			cam_hfi_presil_set_init_request(CAM_PRESIL_CLIENT_ID_CAMERA_IPE);
+		} else {
+			cam_hfi_presil_set_init_request(CAM_PRESIL_CLIENT_ID_CAMERA_OFE);
+		}
+	}
 
 	if (cam_common_read_poll_timeout(icp_base +
 		HFI_REG_ICP_HOST_INIT_RESPONSE,
@@ -1298,7 +1482,6 @@ int cam_hfi_unregister(int *client_handle)
 	return 0;
 }
 
-
 #ifdef CONFIG_CAM_PRESIL
 static int cam_hfi_presil_setup(struct hfi_mem_info *hfi_mem)
 {
@@ -1319,104 +1502,14 @@ static int cam_hfi_presil_setup(struct hfi_mem_info *hfi_mem)
 	return 0;
 }
 
-static int cam_hfi_presil_set_init_request(void)
+static int cam_hfi_presil_set_init_request(uint32_t client_handle)
 {
-	CAM_DBG(CAM_PRESIL, "notifying pchost to start HFI init...");
-	cam_presil_send_event(CAM_PRESIL_EVENT_HFI_REG_ICP_V1_HW_VERSION_TO_START_HFI_INIT, 0xFF);
-	CAM_DBG(CAM_PRESIL, "got done with PCHOST HFI init...");
+	CAM_DBG(CAM_PRESIL, "Notifying pchost to start HFI init");
+	cam_presil_send_event(CAM_PRESIL_EVENT_HFI_REG_ICP_V1_HW_VERSION_TO_START_HFI_INIT,
+		client_handle);
+	CAM_DBG(CAM_PRESIL, "Got done with PCHOST HFI init");
 
 	return 0;
-}
-
-int hfi_write_cmd(int client_handle, void *cmd_ptr)
-{
-	struct hfi_info *hfi;
-	int presil_rc = CAM_PRESIL_BLOCKED;
-	int rc = 0;
-
-	rc = hfi_get_client_info(client_handle, &hfi);
-	if (rc) {
-		CAM_ERR(CAM_HFI, "Failed to get hfi info rc: %d for hdl:%d",
-			rc, client_handle);
-		return rc;
-	}
-
-	if (!cmd_ptr) {
-		CAM_ERR(CAM_HFI, "[%s] command is null for hfi hdl:%d",
-			hfi->client_name, client_handle);
-		return -EINVAL;
-	}
-
-	mutex_lock(&hfi->cmd_q_lock);
-
-	presil_rc = cam_presil_hfi_write_cmd(cmd_ptr, (*(uint32_t *)cmd_ptr),
-		CAM_PRESIL_CLIENT_ID_CAMERA);
-
-	if ((presil_rc != CAM_PRESIL_SUCCESS) && (presil_rc != CAM_PRESIL_BLOCKED)) {
-		CAM_ERR(CAM_HFI, "[%s] hfi hdl: %d failed presil rc %d",
-			hfi->client_name, client_handle, presil_rc);
-		rc = -EINVAL;
-	} else {
-		CAM_DBG(CAM_HFI, "[%s] hfi hdl: %d presil rc %d",
-			hfi->client_name, client_handle, presil_rc);
-	}
-
-	mutex_unlock(&hfi->cmd_q_lock);
-	return rc;
-}
-
-int hfi_read_message(int client_handle, uint32_t *pmsg, uint8_t q_id,
-	size_t buf_words_size, uint32_t *words_read)
-{
-	struct hfi_info *hfi;
-	int presil_rc = CAM_PRESIL_BLOCKED;
-	struct mutex *q_lock = NULL;
-	int rc = 0;
-
-	rc = hfi_get_client_info(client_handle, &hfi);
-	if (rc) {
-		CAM_ERR(CAM_HFI, "Failed to get hfi info rc: %d for hdl: %d",
-			rc, client_handle);
-		return rc;
-	}
-
-	if (!pmsg) {
-		CAM_ERR(CAM_HFI, "[%s] Invalid msg for hdl: %d",
-			hfi->client_name, client_handle);
-		return -EINVAL;
-	}
-
-	switch (q_id) {
-	case Q_MSG:
-		q_lock = &hfi->msg_q_lock;
-		break;
-	case Q_DBG:
-		q_lock = &hfi->dbg_q_lock;
-		break;
-	default:
-		CAM_ERR(CAM_HFI, "Invalid q_id: %u for read", q_id);
-		return -EINVAL;
-	}
-
-	mutex_lock(q_lock);
-
-	memset(pmsg, 0x0, sizeof(uint32_t) * 256 /* ICP_MSG_BUF_SIZE */);
-	*words_read = 0;
-
-	presil_rc = cam_presil_hfi_read_message(pmsg, q_id, words_read,
-		CAM_PRESIL_CLIENT_ID_CAMERA);
-
-	if ((presil_rc != CAM_PRESIL_SUCCESS) && (presil_rc != CAM_PRESIL_BLOCKED)) {
-		CAM_ERR(CAM_HFI, "[%s] hfi hdl: %d failed presil rc %d",
-			hfi->client_name, client_handle, presil_rc);
-		rc = -EINVAL;
-	} else {
-		CAM_DBG(CAM_HFI, "[%s] hfi hdl: %d presil rc %d",
-		hfi->client_name, client_handle, presil_rc);
-	}
-
-	mutex_unlock(q_lock);
-	return rc;
 }
 #else
 /* when presil mode not enabled */
@@ -1425,7 +1518,7 @@ static int cam_hfi_presil_setup(struct hfi_mem_info *hfi_mem)
 	return 0;
 }
 
-static int cam_hfi_presil_set_init_request(void)
+static int cam_hfi_presil_set_init_request(uint32_t client_handle)
 {
 	return 0;
 }
