@@ -715,7 +715,9 @@ int cam_irq_controller_disable_irq(void *irq_controller, uint32_t handle)
 	if (!controller)
 		return rc;
 
-	flags = cam_irq_controller_lock_irqsave(controller);
+	/* Since disable irq comes from error top half with lock already */
+	if (!cam_presil_mode_enabled())
+		flags = cam_irq_controller_lock_irqsave(controller);
 
 	rc = cam_irq_controller_find_event_handle(controller, handle,
 		&evt_handler);
@@ -727,8 +729,8 @@ int cam_irq_controller_disable_irq(void *irq_controller, uint32_t handle)
 	cam_irq_controller_clear_irq(controller, evt_handler);
 
 end:
-	cam_irq_controller_unlock_irqrestore(controller, flags);
-
+	if (!cam_presil_mode_enabled())
+		cam_irq_controller_unlock_irqrestore(controller, flags);
 	return rc;
 }
 
