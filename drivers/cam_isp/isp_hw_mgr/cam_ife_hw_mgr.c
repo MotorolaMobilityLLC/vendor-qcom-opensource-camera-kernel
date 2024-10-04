@@ -7279,6 +7279,8 @@ static void cam_ife_mgr_send_frame_event(uint64_t request_id, uint32_t ctx_index
 		CAM_DBG(CAM_PRESIL, "PRESIL FRAME req_id=%llu ctx_index %u",
 			request_id, ctx_index);
 		cam_presil_send_event(CAM_PRESIL_EVENT_IFE_FRAME_RUN, request_id);
+		CAM_DBG(CAM_PRESIL, "PRESIL FRAME FINISHED req_id=%llu ctx_index %u",
+			request_id, ctx_index);
 	}
 }
 
@@ -7873,7 +7875,12 @@ skip_bw_clk_update:
 				if (rc < 0) {
 					cam_cdm_dump_debug_registers(
 						ctx->cdm_handle);
-					rc = -ETIMEDOUT;
+					if (cam_presil_mode_enabled()) {
+						CAM_DBG(CAM_MEM, "PRESIL-HACK for CSIM config_hw always times out",
+							cmd->flags);
+						rc = 0;
+					} else
+						rc = -ETIMEDOUT;
 				} else {
 					CAM_DBG(CAM_ISP,
 						"Wq delayed but IRQ CDM done, ctx_index %u",
@@ -7905,7 +7912,7 @@ skip_bw_clk_update:
 		CAM_ERR(CAM_ISP, "No commands to config, ctx_index %u", ctx->ctx_index);
 	}
 
-	CAM_DBG(CAM_ISP, "Exit: Config Done: %llu, ctx_index %u",  cfg->request_id, ctx->ctx_index);
+	CAM_DBG(CAM_ISP, "Exit: Config Done: %llu, ctx_index %u rc %d",  cfg->request_id, ctx->ctx_index, rc);
 	return rc;
 }
 
