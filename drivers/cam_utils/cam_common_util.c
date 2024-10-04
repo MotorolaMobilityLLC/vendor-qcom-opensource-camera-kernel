@@ -167,6 +167,30 @@ void cam_common_util_thread_switch_delay_detect(char *wq_name, const char *state
 	}
 }
 
+inline uint64_t cam_common_util_mul_then_div(uint64_t node_bw,
+	uint64_t multiply_factor, uint64_t div_factor)
+{
+	uint64_t intermediate_val;
+
+	if (!div_factor) {
+		CAM_ERR(CAM_UTIL, "Invalid div_factor %llu, node_bw: %llu, mul_factor: %llu",
+			div_factor, node_bw, multiply_factor);
+		return node_bw;
+	}
+
+	if ((node_bw != 0) && (multiply_factor > (ULLONG_MAX / node_bw))) {
+		CAM_ERR(CAM_UTIL,
+			"Multiplication Overflow: div_factor: %llu node_bw: %llu mul_factor: %llu",
+			div_factor, node_bw, multiply_factor);
+		return node_bw;
+	}
+
+	intermediate_val = node_bw * multiply_factor;
+	do_div(intermediate_val, div_factor);
+
+	return intermediate_val;
+}
+
 #if IS_REACHABLE(CONFIG_QCOM_VA_MINIDUMP)
 static void cam_common_mini_dump_handler(void *dst, unsigned long len)
 {

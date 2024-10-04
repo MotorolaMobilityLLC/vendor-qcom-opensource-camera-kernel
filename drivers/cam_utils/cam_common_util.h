@@ -349,6 +349,21 @@ void cam_common_util_thread_switch_delay_detect(char *wq_name, const char *state
 	void *cb, ktime_t scheduled_time, uint32_t threshold);
 
 /**
+ * cam_soc_util_calc_adjusted_bw()
+ *
+ * @brief:               Calculate intermediate value using
+ *                       node bw and margin
+ *
+ * @node_bw:             Curr node bandwidth
+ * @multiply_factor:     Bandwidth multiply factor
+ * @div_factor           Divide Factor
+ *
+ * @return:              integer value
+ */
+inline uint64_t cam_common_util_mul_then_div(uint64_t node_bw,
+	uint64_t multiply_factor, uint64_t div_factor);
+
+/**
  * cam_common_register_mini_dump_cb()
  *
  * @brief                  common interface to register mini dump cb

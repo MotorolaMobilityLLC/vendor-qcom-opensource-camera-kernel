@@ -235,6 +235,12 @@ bool cam_is_crmb_supported(struct cam_hw_soc_info *soc_info)
 {
 	return false;
 }
+
+#else
+bool cam_is_crmb_supported(struct cam_hw_soc_info *soc_info)
+{
+	return false;
+}
 #endif
 
 static inline int cam_wrapper_clk_set_rate(struct clk *clk, unsigned long rate, const char *name)
@@ -1929,6 +1935,72 @@ int cam_soc_util_set_src_clk_rate(struct cam_hw_soc_info *soc_info, int cesta_cl
 end:
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_QCOM_CRM_V2)
+int cam_soc_util_set_cesta_crmb_sw_client_clk_rate(struct cam_hw_soc_info *soc_info,
+	int client_idx, int64_t ab_rate, int64_t ib_rate)
+{
+	int rc = 0;
+	int64_t rounded_ib_rate = 0;
+	int32_t src_clk_idx;
+	struct clk *clk = NULL;
+	const char *clk_name;
+
+	if (!soc_info || (soc_info->src_clk_idx < 0) ||
+		(soc_info->src_clk_idx >= CAM_SOC_MAX_CLK)) {
+		CAM_ERR(CAM_UTIL, "Invalid src_clk_idx: %d",
+			soc_info ? soc_info->src_clk_idx : -1);
+		return -EINVAL;
+	}
+
+	if (client_idx > 0) {
+		CAM_ERR(CAM_UTIL, "Invalid client index for SW client idx: %d",
+			client_idx);
+		return -EINVAL;
+	}
+
+	/* Only CRMB clocks setting SW client vote are supported by this API*/
+	src_clk_idx = soc_info->src_clk_idx;
+	clk = soc_info->clk[src_clk_idx];
+	clk_name = soc_info->clk_name[src_clk_idx];
+
+	if (ib_rate > 0) {
+		rounded_ib_rate = cam_wrapper_clk_round_rate(clk, ib_rate, clk_name);
+		CAM_DBG(CAM_UTIL, "new IB rate %d", rounded_ib_rate);
+
+		if (rounded_ib_rate < 0) {
+			CAM_ERR(CAM_UTIL, "round failed for clock %s rc = %d",
+				clk_name, rounded_ib_rate);
+			return rounded_ib_rate;
+		}
+	}
+
+	CAM_DBG(CAM_UTIL, "Voting %s clk through crmb AB rate [%d] IB rate [%d]",
+		soc_info->clk_name[src_clk_idx], ab_rate, rounded_ib_rate);
+
+	/* For CRMB, we pass 0 for nd_idx as we only need a single node for CESTA */
+
+	rc = cam_wrapper_qcom_clk_crmb_set_rate(
+			clk, CRM_SW_DRV, CAM_CRMB_SW_CLIENT_IDX, 0, CRM_ACTIVE_STATE,
+			ab_rate, rounded_ib_rate, soc_info->clk_name[src_clk_idx]);
+	if (rc) {
+		CAM_ERR(CAM_UTIL,
+			"Failed in setting crmb AB/IB clk rate, client idx: %u pwr state: %u AB_rate: %llu IB_rate: %llu rc: %d",
+			client_idx, CRM_ACTIVE_STATE, ab_rate, rounded_ib_rate, rc);
+		return rc;
+	}
+
+	return rc;
+}
+
+#else
+int cam_soc_util_set_cesta_crmb_sw_client_clk_rate(struct cam_hw_soc_info *soc_info, int client_idx,
+	int64_t ab_rate, int64_t ib_rate)
+{
+	CAM_ERR(CAM_UTIL, "CRMB API is NOT Supported");
+	return -EOPNOTSUPP;
+}
+#endif
 
 int cam_soc_util_put_optional_clk(struct cam_hw_soc_info *soc_info,
 	int32_t clk_indx)

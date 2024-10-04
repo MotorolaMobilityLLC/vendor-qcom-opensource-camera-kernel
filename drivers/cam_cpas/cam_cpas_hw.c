@@ -1412,45 +1412,72 @@ static int cam_cpas_util_set_camnoc_axi_drv_clk_rate(struct cam_hw_soc_info *soc
 static int cam_cpas_util_set_max_camnoc_axi_clk_rate(struct cam_cpas *cpas_core,
 	struct cam_hw_soc_info *soc_info)
 {
-	int rc, highest_level = 0;
-	int64_t applied_rate = 0;
+	int rc, highest_full_tree_clk_lvl = 0, highest_nrt_tree_lvl = 0;
+	int64_t applied_full_tree_rate = 0, applied_nrt_tree_rate = 0;
 	const struct camera_debug_settings *cam_debug = NULL;
 	struct cam_cpas_private_soc *soc_private =
 		(struct cam_cpas_private_soc *) soc_info->soc_private;
 
 	CAM_DBG(CAM_CPAS, "Finding max of hlos axi floor lvl: %d and hlos axi lvl: %d",
-		cpas_core->hlos_axi_floor_lvl, cpas_core->hlos_axi_bw_calc_lvl);
+		cpas_core->hlos_axi_floor_lvl, cpas_core->hlos_full_tree_axi_clk_lvl);
 
-	highest_level = max(cpas_core->hlos_axi_floor_lvl, cpas_core->hlos_axi_bw_calc_lvl);
-	rc = cam_soc_util_get_valid_clk_rate(soc_info, highest_level, &applied_rate);
+	highest_full_tree_clk_lvl =
+		max(cpas_core->hlos_axi_floor_lvl, cpas_core->hlos_full_tree_axi_clk_lvl);
+
+	rc = cam_soc_util_get_valid_clk_rate(soc_info, highest_full_tree_clk_lvl,
+		&applied_full_tree_rate);
+
 	if (rc) {
 		CAM_ERR(CAM_CPAS,
-			"Failed in getting valid clk rate to apply rc: %d", rc);
+			"Failed in getting valid total clk rate to apply rc: %d", rc);
+		return rc;
+	}
+
+	highest_nrt_tree_lvl =
+		max(cpas_core->hlos_axi_floor_lvl, cpas_core->hlos_nrt_tree_axi_clk_lvl);
+
+	rc = cam_soc_util_get_valid_clk_rate(soc_info, highest_nrt_tree_lvl,
+		&applied_nrt_tree_rate);
+
+	if (rc) {
+		CAM_ERR(CAM_CPAS,
+			"Failed in getting valid NRT/ICP clk rate to apply rc: %d", rc);
 		return rc;
 	}
 
 	cam_debug = cam_debug_get_settings();
 	if (cam_debug && cam_debug->cpas_settings.camnoc_bw) {
-		uint64_t intermediate_hlos_result = 0;
-
-		intermediate_hlos_result = cam_debug->cpas_settings.camnoc_bw;
-		do_div(intermediate_hlos_result, soc_private->camnoc_bus_width);
-		applied_rate = intermediate_hlos_result;
+		applied_full_tree_rate =
+			cam_common_util_mul_then_div(cam_debug->cpas_settings.camnoc_bw,
+				1, soc_private->camnoc_bus_width);
 	}
 
 	CAM_DBG(CAM_CPAS, "Highest valid lvl: %d, applying corresponding rate %lld",
-		highest_level, applied_rate);
+		highest_full_tree_clk_lvl, applied_full_tree_rate);
 
-	rc = cam_soc_util_set_src_clk_rate(soc_info, CAM_CLK_SW_CLIENT_IDX, applied_rate, 0);
-	if (rc) {
-		CAM_ERR(CAM_CPAS,
-			"Failed in setting camnoc axi clk applied rate:[%lld] rc:%d",
-			applied_rate, rc);
-		return rc;
+
+	if (cam_is_crmb_supported(soc_info)) {
+		rc = cam_soc_util_set_cesta_crmb_sw_client_clk_rate(soc_info, CAM_CLK_SW_CLIENT_IDX,
+				cpas_core->hlos_rt_tree_axi_clk_rate, applied_nrt_tree_rate);
+		if (rc) {
+			CAM_ERR(CAM_CPAS,
+				"Failed in setting camnoc axi clk RT[%lld], ICP/NRT[%lld], rc:%d",
+				cpas_core->hlos_rt_tree_axi_clk_rate, applied_nrt_tree_rate, rc);
+			return rc;
+		}
+
+	} else {
+		rc = cam_soc_util_set_src_clk_rate(soc_info, CAM_CLK_SW_CLIENT_IDX,
+				applied_full_tree_rate, 0);
+		if (rc) {
+			CAM_ERR(CAM_CPAS,
+				"Failed in setting camnoc axi clk applied rate:[%lld] rc:%d",
+				applied_full_tree_rate, rc);
+			return rc;
+		}
 	}
 
-	cpas_core->applied_camnoc_axi_rate.sw_client = applied_rate;
-
+	cpas_core->applied_camnoc_axi_rate.sw_client = applied_full_tree_rate;
 	return rc;
 }
 
@@ -1458,11 +1485,11 @@ static int cam_cpas_util_set_camnoc_axi_hlos_clk_rate(struct cam_hw_soc_info *so
 	struct cam_cpas_private_soc *soc_private, struct cam_cpas *cpas_core)
 {
 	struct cam_cpas_tree_node *tree_node = NULL;
-	uint64_t req_hlos_camnoc_bw = 0, req_rt_hlos_camnoc_bw = 0,
-		intermediate_hlos_result = 0, intermediate_rt_hlos_result = 0;
-	int64_t hlos_clk_rate = 0, rt_hlos_clk_rate = 0;
+	uint64_t req_full_tree_hlos_camnoc_bw = 0, req_rt_tree_hlos_camnoc_bw = 0,
+		req_nrt_tree_hlos_camnoc_bw = 0, curr_node_camnoc_bw = 0;
+	int64_t hlos_full_tree_clk_rate = 0, rt_tree_hlos_clk_rate = 0, nrt_tree_hlos_clk_rate = 0;
 	struct cam_soc_util_clk_rates rt_clk_rates = {0};
-	int32_t clk_lvl = 0;
+	int32_t full_tree_clk_lvl = 0, nrt_tree_clk_lvl = 0;
 	int i, rc = 0;
 	const struct camera_debug_settings *cam_debug = NULL;
 
@@ -1471,75 +1498,105 @@ static int cam_cpas_util_set_camnoc_axi_hlos_clk_rate(struct cam_hw_soc_info *so
 		if (!tree_node || !tree_node->camnoc_max_needed)
 			continue;
 
-		if (req_hlos_camnoc_bw <
-			(tree_node->bw_info[CAM_CPAS_PORT_HLOS_DRV].hlos_vote.camnoc *
-			tree_node->bus_width_factor)) {
-			req_hlos_camnoc_bw =
-				(tree_node->bw_info[CAM_CPAS_PORT_HLOS_DRV].hlos_vote.camnoc *
-				tree_node->bus_width_factor);
-		}
+		curr_node_camnoc_bw =
+			tree_node->bw_info[CAM_CPAS_PORT_HLOS_DRV].hlos_vote.camnoc *
+			tree_node->bus_width_factor;
 
-		if (tree_node->is_rt_node && (req_rt_hlos_camnoc_bw <
-			(tree_node->bw_info[CAM_CPAS_PORT_HLOS_DRV].hlos_vote.camnoc *
-			tree_node->bus_width_factor))) {
-			req_rt_hlos_camnoc_bw =
-				(tree_node->bw_info[CAM_CPAS_PORT_HLOS_DRV].hlos_vote.camnoc *
-				tree_node->bus_width_factor);
-		}
+		if (req_full_tree_hlos_camnoc_bw < curr_node_camnoc_bw)
+			req_full_tree_hlos_camnoc_bw = curr_node_camnoc_bw;
+
+		if (tree_node->is_rt_node &&
+			(req_rt_tree_hlos_camnoc_bw < curr_node_camnoc_bw))
+			req_rt_tree_hlos_camnoc_bw = curr_node_camnoc_bw;
+
+		if (!tree_node->is_rt_node &&
+			(req_nrt_tree_hlos_camnoc_bw < curr_node_camnoc_bw))
+			req_nrt_tree_hlos_camnoc_bw = curr_node_camnoc_bw;
 	}
 
-	intermediate_hlos_result = req_hlos_camnoc_bw * soc_private->camnoc_axi_clk_bw_margin;
-	do_div(intermediate_hlos_result, 100);
-	req_hlos_camnoc_bw += intermediate_hlos_result;
+	req_full_tree_hlos_camnoc_bw +=
+		cam_common_util_mul_then_div(req_full_tree_hlos_camnoc_bw,
+			soc_private->camnoc_axi_clk_bw_margin, 100);
 
-	intermediate_rt_hlos_result = req_rt_hlos_camnoc_bw * soc_private->camnoc_axi_clk_bw_margin;
-	do_div(intermediate_rt_hlos_result, 100);
-	req_rt_hlos_camnoc_bw += intermediate_rt_hlos_result;
+	req_rt_tree_hlos_camnoc_bw +=
+		cam_common_util_mul_then_div(req_rt_tree_hlos_camnoc_bw,
+			soc_private->camnoc_axi_clk_bw_margin, 100);
 
-	if (cpas_core->streamon_clients && (req_hlos_camnoc_bw == 0)) {
+	req_nrt_tree_hlos_camnoc_bw +=
+		cam_common_util_mul_then_div(req_nrt_tree_hlos_camnoc_bw,
+			soc_private->camnoc_axi_clk_bw_margin, 100);
+
+	if (cpas_core->streamon_clients && (req_full_tree_hlos_camnoc_bw == 0)) {
 		CAM_DBG(CAM_CPAS,
 			"Set min vote if streamon_clients is non-zero : streamon_clients=%d",
 			cpas_core->streamon_clients);
-		req_hlos_camnoc_bw = CAM_CPAS_DEFAULT_AXI_BW;
+		req_full_tree_hlos_camnoc_bw = CAM_CPAS_DEFAULT_AXI_BW;
 	}
 
-	if ((req_hlos_camnoc_bw > 0) && (req_hlos_camnoc_bw < soc_private->camnoc_axi_min_ib_bw))
-		req_hlos_camnoc_bw = soc_private->camnoc_axi_min_ib_bw;
+	if ((req_full_tree_hlos_camnoc_bw > 0)
+		&& (req_full_tree_hlos_camnoc_bw < soc_private->camnoc_axi_min_ib_bw))
+		req_full_tree_hlos_camnoc_bw = soc_private->camnoc_axi_min_ib_bw;
+
+	if ((req_rt_tree_hlos_camnoc_bw > 0)
+		&& (req_rt_tree_hlos_camnoc_bw < soc_private->camnoc_axi_min_ib_bw))
+		req_rt_tree_hlos_camnoc_bw = soc_private->camnoc_axi_min_ib_bw;
+
+	if ((req_nrt_tree_hlos_camnoc_bw > 0)
+		&& (req_nrt_tree_hlos_camnoc_bw < soc_private->camnoc_axi_min_ib_bw))
+		req_nrt_tree_hlos_camnoc_bw = soc_private->camnoc_axi_min_ib_bw;
 
 	cam_debug = cam_debug_get_settings();
 	if (cam_debug && cam_debug->cpas_settings.camnoc_bw) {
-		if (cam_debug->cpas_settings.camnoc_bw < soc_private->camnoc_bus_width)
-			req_hlos_camnoc_bw = soc_private->camnoc_bus_width;
+		if (cam_debug->cpas_settings.camnoc_bw < soc_private->camnoc_bus_width) {
+			req_full_tree_hlos_camnoc_bw = soc_private->camnoc_bus_width;
+			req_nrt_tree_hlos_camnoc_bw = soc_private->camnoc_bus_width;
 
-		else
-			req_hlos_camnoc_bw = cam_debug->cpas_settings.camnoc_bw;
+		} else {
+			req_full_tree_hlos_camnoc_bw = cam_debug->cpas_settings.camnoc_bw;
+			req_nrt_tree_hlos_camnoc_bw = soc_private->camnoc_bus_width;
+		}
 
-		CAM_INFO(CAM_CPAS, "Overriding camnoc bw: %llu", req_hlos_camnoc_bw);
+		CAM_INFO(CAM_CPAS, "Overriding camnoc full tree bw: %llu, NRT/ICP tree bw: %llu",
+			req_full_tree_hlos_camnoc_bw, req_nrt_tree_hlos_camnoc_bw);
 	}
 
-	intermediate_hlos_result = req_hlos_camnoc_bw;
-	do_div(intermediate_hlos_result, soc_private->camnoc_bus_width);
-	hlos_clk_rate = intermediate_hlos_result;
+	hlos_full_tree_clk_rate =
+		cam_common_util_mul_then_div(req_full_tree_hlos_camnoc_bw,
+			1, soc_private->camnoc_bus_width);
 
-	intermediate_rt_hlos_result = req_rt_hlos_camnoc_bw;
-	do_div(intermediate_rt_hlos_result, soc_private->camnoc_bus_width);
-	rt_hlos_clk_rate = intermediate_rt_hlos_result;
+	rt_tree_hlos_clk_rate =
+		cam_common_util_mul_then_div(req_rt_tree_hlos_camnoc_bw,
+			1, soc_private->camnoc_bus_width);
+
+	nrt_tree_hlos_clk_rate =
+		cam_common_util_mul_then_div(req_nrt_tree_hlos_camnoc_bw,
+			1, soc_private->camnoc_bus_width);
 
 	CAM_DBG(CAM_PERF, "Setting camnoc axi HLOS clk rate[BW Clk RT_only_Clk] : [%llu %lld %lld]",
-		req_hlos_camnoc_bw, hlos_clk_rate, rt_hlos_clk_rate);
+		req_full_tree_hlos_camnoc_bw, hlos_full_tree_clk_rate, rt_tree_hlos_clk_rate);
 
-	rt_clk_rates.sw_client = (unsigned long) rt_hlos_clk_rate;
+	rt_clk_rates.sw_client = (unsigned long) rt_tree_hlos_clk_rate;
 	cam_cpas_util_validate_rt_camnoc_clk_rate(cpas_core, soc_info, rt_clk_rates, -1);
 
-	rc = cam_soc_util_get_clk_level(soc_info, hlos_clk_rate,
-		soc_info->src_clk_idx, &clk_lvl);
+	rc = cam_soc_util_get_clk_level(soc_info, hlos_full_tree_clk_rate,
+		soc_info->src_clk_idx, &full_tree_clk_lvl);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "failed to get clk lvl: %d, src clk idx: %d, hlos clk rate %lld",
-			rc, soc_info->src_clk_idx, hlos_clk_rate);
+			rc, soc_info->src_clk_idx, hlos_full_tree_clk_rate);
 		return rc;
 	}
 
-	cpas_core->hlos_axi_bw_calc_lvl = clk_lvl;
+	rc = cam_soc_util_get_clk_level(soc_info, nrt_tree_hlos_clk_rate,
+		soc_info->src_clk_idx, &nrt_tree_clk_lvl);
+	if (rc) {
+		CAM_ERR(CAM_CPAS, "failed to get clk lvl: %d, src clk idx: %d, hlos clk rate %lld",
+			rc, soc_info->src_clk_idx, nrt_tree_hlos_clk_rate);
+		return rc;
+	}
+
+	cpas_core->hlos_full_tree_axi_clk_lvl = full_tree_clk_lvl;
+	cpas_core->hlos_rt_tree_axi_clk_rate = rt_tree_hlos_clk_rate;
+	cpas_core->hlos_nrt_tree_axi_clk_lvl = nrt_tree_clk_lvl;
 
 	/*
 	 * CPAS hw is not powered on for the first client.
@@ -1551,29 +1608,29 @@ static int cam_cpas_util_set_camnoc_axi_hlos_clk_rate(struct cam_hw_soc_info *so
 	if (cpas_core->streamon_clients) {
 		if (cam_vmrm_proxy_clk_rgl_voting_enable()) {
 			rc = cam_vmrm_set_clk_rate_level(soc_info->hw_id, CAM_CLK_SW_CLIENT_IDX,
-				cpas_core->hlos_axi_floor_lvl, 0, false, hlos_clk_rate);
+				cpas_core->hlos_axi_floor_lvl, 0, false, hlos_full_tree_clk_rate);
 			if (rc) {
 				CAM_ERR(CAM_CPAS,
 					"Failed in setting camnoc axi clk applied rate:[%lld] rc:%d",
-					hlos_clk_rate, rc);
+					hlos_full_tree_clk_rate, rc);
 				return rc;
 			}
 			/*
 			 * Since actual clk frequencies are not available,
-			 * saving hlos_clk_rate here.
+			 * saving hlos_full_tree_clk_rate here.
 			 */
-			cpas_core->applied_camnoc_axi_rate.sw_client = hlos_clk_rate;
+			cpas_core->applied_camnoc_axi_rate.sw_client = hlos_full_tree_clk_rate;
 		} else {
 			rc = cam_cpas_util_set_max_camnoc_axi_clk_rate(cpas_core, soc_info);
 			if (rc) {
 				CAM_ERR(CAM_CPAS,
 					"Failed in setting camnoc axi clk [BW Clk]:[%llu %lld] rc:%d",
-					req_hlos_camnoc_bw, hlos_clk_rate, rc);
+					req_full_tree_hlos_camnoc_bw, hlos_full_tree_clk_rate, rc);
 				return rc;
 			}
 		}
 
-		cpas_core->applied_hlos_rt_camnoc_axi_rate = (unsigned long) rt_hlos_clk_rate;
+		cpas_core->applied_hlos_rt_camnoc_axi_rate = (unsigned long) rt_tree_hlos_clk_rate;
 	}
 
 	return rc;
@@ -3165,7 +3222,7 @@ static int cam_cpas_hw_stop(void *hw_priv, void *stop_args,
 			CAM_ERR(CAM_CPAS, "Invalid applied bw at stop rc: %d", rc);
 
 		CAM_DBG(CAM_CPAS, "hlos axi floor lvl: %d, hlos axi clk lvl: %d",
-			cpas_core->hlos_axi_floor_lvl, cpas_core->hlos_axi_bw_calc_lvl);
+			cpas_core->hlos_axi_floor_lvl, cpas_core->hlos_full_tree_axi_clk_lvl);
 
 		cpas_hw->hw_state = CAM_HW_STATE_POWER_DOWN;
 	}

@@ -449,7 +449,9 @@ struct cam_cpas_monitor {
  * @force_cesta_sw_client: Whether to force voting through cesta sw client
  * @force_core_secure: Whether to force ife and cdm core to secure access mode
  * @hlos_axi_floor_lvl: Determined hlos axi floor level across all clients
- * @hlos_axi_clk_lvl: Determined/applied hlos axi clk level
+ * @hlos_full_tree_axi_clk_lvl: Determined/applied hlos full tree axi clk level
+ * @hlos_rt_tree_axi_clk_lvl: Determined/applied hlos axi RT clk rate
+ * @hlos_nrt_tree_axi_clk_lvl: Determined/applied hlos axi NRT / ICP clk level
  */
 struct cam_cpas {
 	struct cam_cpas_hw_caps hw_caps;
@@ -490,7 +492,9 @@ struct cam_cpas {
 	bool force_cesta_sw_client;
 	bool force_core_secure;
 	enum cam_vote_level hlos_axi_floor_lvl;
-	enum cam_vote_level hlos_axi_bw_calc_lvl;
+	enum cam_vote_level hlos_full_tree_axi_clk_lvl;
+	int64_t             hlos_rt_tree_axi_clk_rate;
+	enum cam_vote_level hlos_nrt_tree_axi_clk_lvl;
 };
 
 int cam_camsstop_get_internal_ops(struct cam_cpas_internal_ops *internal_ops);

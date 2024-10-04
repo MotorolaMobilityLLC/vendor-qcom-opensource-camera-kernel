@@ -80,6 +80,9 @@
 /* Client index to be used to vote clk frequency through sw client */
 #define CAM_CLK_SW_CLIENT_IDX -1
 
+/* CESTA CRMB SW Client index to be used to vote through crmb API */
+#define CAM_CRMB_SW_CLIENT_IDX 0
+
 #define CAM_SAVE_START_TIMESTAMP_IF(ts1)                            \
 ({                                                                  \
 	if (clk_rgltr_bus_ops_profiling)                            \
@@ -585,6 +588,33 @@ long cam_soc_util_get_clk_round_rate(struct cam_hw_soc_info *soc_info,
 int cam_soc_util_set_src_clk_rate(struct cam_hw_soc_info *soc_info, int cesta_client_idx,
 	unsigned long clk_rate_high, unsigned long clk_rate_low);
 
+/**
+ * cam_is_crmb_supported()
+ *
+ * @brief:              Check whether CRMB API is supported or not
+ *
+ * @soc_info:           Device soc information
+ *
+ * @return:             True or False
+ */
+bool cam_is_crmb_supported(struct cam_hw_soc_info *soc_info);
+
+/**
+ * cam_soc_util_set_cesta_crmb_sw_client_clk_rate()
+ *
+ * @brief:              Set the rate on CRMB source clocks for sw clients. Requires both
+ *                      Ab rate and IB rate to vote properly.
+ *
+ * @soc_info:           Device soc information
+ * @client_idx:         SW client index only
+ * @ab_rate:            AB rate needed to vote RT nodes only as sw client
+ * @ib_rate:            IB rate needed to vote NRT/ICPLow clock rate associated with
+ *                      the src clk, only applies to cesta based
+ *
+ * @return:             success or failure
+ */
+int cam_soc_util_set_cesta_crmb_sw_client_clk_rate(struct cam_hw_soc_info *soc_info, int client_idx,
+	int64_t ab_rate, int64_t ib_rate);
 
 /**
  * cam_soc_util_get_option_clk_by_name()
