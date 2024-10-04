@@ -4267,7 +4267,6 @@ static void cam_ope_mgr_dump_pf_data(
 		CAM_INFO(CAM_OPE,
 			"PID:%d  is not matching with any OPE HW PIDs ctx id:%d",
 			pf_args->pf_smmu_info->pid, ctx_data->ctx_id);
-		cam_packet_util_put_packet_addr(pf_req_info->packet_handle);
 		return;
 	}
 
@@ -4280,7 +4279,6 @@ static void cam_ope_mgr_dump_pf_data(
 	if (rc) {
 		CAM_ERR(CAM_OPE,
 			"CAM_OPE_CMD_MATCH_PID_MID failed %d", rc);
-		cam_packet_util_put_packet_addr(pf_req_info->packet_handle);
 		return;
 	}
 
@@ -4332,5 +4330,4 @@ iodump:
 			}
 		}
 	}
-	cam_packet_util_put_packet_addr(pf_req_info->packet_handle);
 }

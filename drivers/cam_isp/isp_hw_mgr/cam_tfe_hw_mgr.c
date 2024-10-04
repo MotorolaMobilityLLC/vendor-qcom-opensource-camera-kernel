@@ -5118,7 +5118,6 @@ static void cam_tfe_mgr_dump_pf_data(
 		CAM_INFO(CAM_ISP,
 			"PID:%d  is not matching with any TFE HW PIDs ctx id:%d",
 			pf_cmd_args->pf_args->pf_smmu_info->pid,  ctx->ctx_index);
-		cam_packet_util_put_packet_addr(pf_cmd_args->pf_req_info->packet_handle);
 		return;
 	}
 
@@ -5133,7 +5132,6 @@ static void cam_tfe_mgr_dump_pf_data(
 		CAM_INFO(CAM_ISP,
 			"This context does not cause pf:pid:%d hw id:%d ctx_id:%d",
 			pf_cmd_args->pf_args->pf_smmu_info->pid, hw_id, ctx->ctx_index);
-		cam_packet_util_put_packet_addr(pf_cmd_args->pf_req_info->packet_handle);
 		return;
 	}
 
@@ -5148,7 +5146,6 @@ static void cam_tfe_mgr_dump_pf_data(
 		CAM_ERR(CAM_ISP,
 			"NO valid outport resources ctx id:%d req id:%lld",
 			ctx->ctx_index, packet->header.request_id);
-		cam_packet_util_put_packet_addr(pf_cmd_args->pf_req_info->packet_handle);
 		return;
 	}
 
@@ -5166,7 +5163,6 @@ static void cam_tfe_mgr_dump_pf_data(
 		CAM_ERR(CAM_ISP,
 			"getting mid port resource id failed ctx id:%d req id:%lld",
 			ctx->ctx_index, packet->header.request_id);
-		cam_packet_util_put_packet_addr(pf_cmd_args->pf_req_info->packet_handle);
 		return;
 	}
 	CAM_ERR(CAM_ISP,
@@ -5179,8 +5175,6 @@ static void cam_tfe_mgr_dump_pf_data(
 outportlog:
 	cam_packet_util_dump_io_bufs(packet, hw_mgr->mgr_common.img_iommu_hdl,
 		hw_mgr->mgr_common.img_iommu_hdl_secure, pf_cmd_args->pf_args, true);
-	cam_packet_util_put_packet_addr(pf_cmd_args->pf_req_info->packet_handle);
-
 }
 
 static void *cam_tfe_mgr_user_dump_stream_info(
