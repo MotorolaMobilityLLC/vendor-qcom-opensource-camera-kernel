@@ -1853,7 +1853,7 @@ int cam_sensor_publish_dev_info(struct cam_req_mgr_device_info *info)
 	info->trigger = CAM_TRIGGER_POINT_SOF;
 	info->resume_sync_on = true;
 
-	CAM_DBG(CAM_REQ, "num batched frames %d p_delay is %d",
+	CAM_DBG(CAM_REQ|CAM_SENSOR, "num batched frames %d p_delay is %d",
 		s_ctrl->num_batched_frames, info->p_delay);
 
 	return rc;
@@ -2168,13 +2168,13 @@ int cam_sensor_apply_settings(struct cam_sensor_ctrl_t *s_ctrl,
 		current_ts = ktime_to_timespec64(current_time);
 		s_ctrl->last_applied_done_timestamp = current_ts.tv_sec * NSEC_PER_SEC +
 			current_ts.tv_nsec;
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_SENSOR,
 			"Apply req:%lld done on %ld:%06ld last_applied_done_timestamp:0x%llx",
 			req_id, current_ts.tv_sec,
 			current_ts.tv_nsec/NSEC_PER_USEC, s_ctrl->last_applied_done_timestamp);
 
 		s_ctrl->last_applied_req = req_id;
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_SENSOR,
 			"Sensor[%d] updating last_applied [req id: %lld last_applied: %lld] with opcode:%d",
 			s_ctrl->soc_info.index, req_id, s_ctrl->last_applied_req, opcode);
 
@@ -2254,7 +2254,7 @@ int32_t cam_sensor_apply_request(struct cam_req_mgr_apply_request *apply)
 			curr_idx = apply->request_id % MAX_PER_FRAME_ARRAY;
 			last_applied_idx = s_ctrl->last_applied_req % MAX_PER_FRAME_ARRAY;
 			opcode = CAM_SENSOR_PACKET_OPCODE_SENSOR_BUBBLE_UPDATE;
-			CAM_INFO(CAM_REQ,
+			CAM_INFO(CAM_REQ|CAM_SENSOR,
 				"Sensor[%d] update req id: %lld [last_applied: %lld] with opcode:%d recovery: %d last_applied_res_idx: %u current_res_idx: %u",
 				s_ctrl->soc_info.index, apply->request_id,
 				s_ctrl->last_applied_req, opcode, apply->recovery,
@@ -2263,7 +2263,7 @@ int32_t cam_sensor_apply_request(struct cam_req_mgr_apply_request *apply)
 		}
 	}
 
-	CAM_DBG(CAM_REQ,
+	CAM_DBG(CAM_REQ|CAM_SENSOR,
 		"Sensor[%d] update req id: %lld [last_applied: %lld] with opcode:%d recovery: %d",
 		s_ctrl->soc_info.index, apply->request_id,
 		s_ctrl->last_applied_req, opcode, apply->recovery);
@@ -2294,7 +2294,7 @@ int32_t cam_sensor_notify_frame_skip(struct cam_req_mgr_apply_request *apply)
 		return -EINVAL;
 	}
 
-	CAM_DBG(CAM_REQ, "Sensor[%d] handle frame skip for req id: %lld",
+	CAM_DBG(CAM_REQ|CAM_SENSOR, "Sensor[%d] handle frame skip for req id: %lld",
 		s_ctrl->soc_info.index, apply->request_id);
 	trace_cam_notify_frame_skip("Sensor", apply->request_id);
 	mutex_lock(&(s_ctrl->cam_sensor_mutex));

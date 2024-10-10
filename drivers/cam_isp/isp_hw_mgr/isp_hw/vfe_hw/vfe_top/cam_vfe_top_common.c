@@ -32,7 +32,8 @@ static int cam_vfe_top_set_axi_bw_vote(struct cam_vfe_top_priv_common *top_commo
 	soc_info = top_common->soc_info;
 	soc_private = (struct cam_vfe_soc_private *)soc_info->soc_private;
 
-	CAM_DBG(CAM_PERF, "VFE:%d Sending final BW to cpas bw_state:%s bw_vote:%llu req_id:%ld",
+	CAM_DBG(CAM_PERF|CAM_ISP,
+		"VFE:%d Sending final BW to cpas bw_state:%s bw_vote:%llu req_id:%ld",
 		top_common->hw_idx, cam_vfe_top_clk_bw_state_to_string(top_common->bw_state),
 		total_bw_new_vote, (start_stop ? -1 : request_id));
 	rc = cam_cpas_update_axi_vote(soc_private->cpas_handle,
@@ -111,7 +112,7 @@ static int cam_vfe_top_set_hw_clk_rate(struct cam_vfe_top_priv_common *top_commo
 			cesta_clk_rate_low = final_clk_rate;
 	}
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"Applying VFE:%d Clock name=%s idx=%d cesta_client_idx:%d req clk[high low]=[%lu %lu] req_id=%ld",
 		top_common->hw_idx, soc_info->clk_name[soc_info->src_clk_idx],
 		soc_info->src_clk_idx, cesta_client_idx, cesta_clk_rate_high, cesta_clk_rate_low,
@@ -201,7 +202,7 @@ static int cam_vfe_top_calc_hw_clk_rate(
 	else
 		top_common->clk_state = CAM_CLK_BW_STATE_DECREASE;
 
-	CAM_DBG(CAM_PERF, "VFE:%d Clock state:%s applied_clk_rate:%llu req_id:%ld",
+	CAM_DBG(CAM_PERF|CAM_ISP, "VFE:%d Clock state:%s applied_clk_rate:%llu req_id:%ld",
 		top_common->hw_idx, cam_vfe_top_clk_bw_state_to_string(top_common->clk_state),
 		top_common->applied_clk_rate, (start_stop ? -1 : request_id));
 
@@ -308,7 +309,7 @@ static int cam_vfe_top_calc_axi_bw_vote(
 	top_common->agg_incoming_vote.num_paths = num_paths;
 
 	for (i = 0; i < top_common->agg_incoming_vote.num_paths; i++) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"ife[%d] : New BW Vote : counter[%d] [%s][%s][%s] [%llu %llu %llu]",
 			top_common->hw_idx,
 			top_common->last_bw_counter,
@@ -334,13 +335,13 @@ static int cam_vfe_top_calc_axi_bw_vote(
 	if (*total_bw_new_vote != top_common->total_bw_applied)
 		bw_unchanged = false;
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"ife[%d] : applied_total=%lld, new_total=%lld unchanged=%d, start_stop=%d req_id=%ld",
 		top_common->hw_idx, top_common->total_bw_applied,
 		*total_bw_new_vote, bw_unchanged, start_stop, (start_stop ? -1 : request_id));
 
 	if (bw_unchanged) {
-		CAM_DBG(CAM_PERF, "BW config unchanged");
+		CAM_DBG(CAM_PERF|CAM_ISP, "BW config unchanged");
 		*to_be_applied_axi_vote = NULL;
 		top_common->bw_state = CAM_CLK_BW_STATE_UNCHANGED;
 		goto end;
@@ -371,7 +372,7 @@ static int cam_vfe_top_calc_axi_bw_vote(
 	}
 
 	for (i = 0; i < final_bw_vote->num_paths; i++) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"ife[%d] : Apply BW Vote : [%s][%s][%s] [%llu %llu %llu]",
 			top_common->hw_idx,
 			cam_cpas_axi_util_path_type_to_string(
@@ -386,7 +387,8 @@ static int cam_vfe_top_calc_axi_bw_vote(
 	}
 
 	if (*total_bw_new_vote == top_common->total_bw_applied) {
-		CAM_DBG(CAM_PERF, "VFE:%d Final BW Unchanged after delay", top_common->hw_idx);
+		CAM_DBG(CAM_PERF|CAM_ISP, "VFE:%d Final BW Unchanged after delay",
+			top_common->hw_idx);
 		top_common->bw_state = CAM_CLK_BW_STATE_UNCHANGED;
 		*to_be_applied_axi_vote = NULL;
 		goto end;
@@ -396,7 +398,7 @@ static int cam_vfe_top_calc_axi_bw_vote(
 		top_common->bw_state = CAM_CLK_BW_STATE_DECREASE;
 	}
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"ife[%d] : Delayed update: applied_total=%lld new_total=%lld start_stop=%d bw_state=%s req_id=%ld",
 		top_common->hw_idx, top_common->total_bw_applied,
 		*total_bw_new_vote, start_stop,
@@ -463,7 +465,7 @@ int cam_vfe_top_bw_update(struct cam_vfe_soc_private *soc_private,
 		return -EINVAL;
 
 
-	CAM_DBG(CAM_PERF, "res_id=%d, BW=[%lld %lld]",
+	CAM_DBG(CAM_PERF|CAM_ISP, "res_id=%d, BW=[%lld %lld]",
 		res->res_id, bw_update->camnoc_bw_bytes,
 		bw_update->external_bw_bytes);
 
@@ -578,7 +580,7 @@ int cam_vfe_top_apply_clk_bw_update(struct cam_vfe_top_priv_common *top_common,
 
 	hw_info = hw_intf->hw_priv;
 	if (hw_info->hw_state != CAM_HW_STATE_POWER_UP) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"VFE:%d Not ready to set clocks yet :%d",
 			hw_intf->hw_idx, hw_info->hw_state);
 		goto end;
@@ -613,7 +615,7 @@ int cam_vfe_top_apply_clk_bw_update(struct cam_vfe_top_priv_common *top_common,
 		goto end;
 	}
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"VFE:%d APPLY CLK/BW req_id:%ld clk_state:%s bw_state:%s is_drv_config_en:%s",
 		hw_intf->hw_idx, request_id,
 		cam_vfe_top_clk_bw_state_to_string(top_common->clk_state),

@@ -246,7 +246,7 @@ error:
 }
 
 static inline void __cam_print_to_buffer(char *buf, const size_t buf_size, size_t *len,
-	unsigned int tag, enum cam_debug_module_id module_id, const char *fmt, va_list args)
+	unsigned int tag, unsigned long long module_id, const char *fmt, va_list args)
 {
 	size_t buf_len = *len;
 
@@ -290,19 +290,21 @@ static void __cam_print_log(int type, const char *fmt, ...)
 	va_end(args);
 }
 
-void cam_print_log(int type, int module, int tag, const char *func,
+void cam_print_log(int type, unsigned long long module, int tag, const char *func,
 	int line, const char *fmt, ...)
 {
 	char buf[CAM_LOG_BUF_LEN] = {0,};
 	va_list args;
+	unsigned long module_id;
 
 	if (!type)
 		return;
 
+	module_id =  __ffs(module);
 	va_start(args, fmt);
 	vscnprintf(buf, CAM_LOG_BUF_LEN, fmt, args);
 	__cam_print_log(type, __CAM_LOG_FMT,
-		CAM_LOG_TAG_NAME(tag), CAM_DBG_MOD_NAME(module), func,
+		CAM_LOG_TAG_NAME(tag), CAM_DBG_MOD_NAME(module_id), func,
 		line, buf);
 	va_end(args);
 }

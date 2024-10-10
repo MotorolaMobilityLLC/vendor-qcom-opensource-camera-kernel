@@ -141,7 +141,7 @@ int cam_soc_bus_client_update_request(void *client, unsigned int idx)
 	ab = bus_client->common_data->bw_pair[idx].ab;
 	ib = bus_client->common_data->bw_pair[idx].ib;
 
-	CAM_DBG(CAM_PERF, "Bus client=[%s] index[%d] ab[%llu] ib[%llu]",
+	CAM_DBG(CAM_PERF|CAM_UTIL, "Bus client=[%s] index[%d] ab[%llu] ib[%llu]",
 		bus_client->common_data->name, idx, ab, ib);
 
 	if (cam_vmrm_proxy_icc_voting_enable()) {
@@ -177,7 +177,7 @@ int cam_soc_bus_client_update_bw(void *client, uint64_t ab, uint64_t ib,
 		(struct cam_soc_bus_client_data *) bus_client->client_data;
 	int rc = 0;
 
-	CAM_DBG(CAM_PERF, "Bus client=[%s] [%s] :ab[%llu] ib[%llu]",
+	CAM_DBG(CAM_PERF|CAM_UTIL, "Bus client=[%s] [%s] :ab[%llu] ib[%llu]",
 		bus_client->common_data->name, cam_soc_bus_path_data_to_str(bus_path_data),
 		ab, ib);
 
@@ -302,7 +302,7 @@ int cam_soc_bus_client_register(struct platform_device *pdev,
 		}
 	}
 
-	CAM_DBG(CAM_PERF, "Register Bus Client=[%s] : src=%d, dst=%d is_drv_port:%s",
+	CAM_DBG(CAM_PERF|CAM_UTIL, "Register Bus Client=[%s] : src=%d, dst=%d is_drv_port:%s",
 		bus_client->common_data->name, bus_client->common_data->src_id,
 		bus_client->common_data->dst_id,
 		CAM_BOOL_TO_YESNO(bus_client->common_data->is_drv_port));

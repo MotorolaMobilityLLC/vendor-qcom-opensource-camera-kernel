@@ -433,7 +433,7 @@ static int cam_isp_mgr_drv_config(struct cam_ife_hw_mgr_ctx         *ctx,
 	}
 
 	if (is_blob_config_valid)
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"DRV config blob valid:%s opcode:%u req_id:%llu disable_drv_override:%s ctx_idx:%u drv_en:%u path_idle_en:0x%x timeout_val:%u, ctx:%d",
 			CAM_BOOL_TO_YESNO(prepare_hw_data->drv_config_valid),
 			prepare_hw_data->packet_opcode_type, request_id,
@@ -441,7 +441,7 @@ static int cam_isp_mgr_drv_config(struct cam_ife_hw_mgr_ctx         *ctx,
 			ctx->ctx_index, drv_config->drv_en, drv_config->path_idle_en,
 			drv_config->timeout_val, ctx->ctx_index);
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"DRV per frame info: req:%llu is_valid:%s frame duration:%llu ns, vertical blanking duration:%llu ns, ctx:%d",
 		request_id, CAM_BOOL_TO_YESNO(drv_info->req_id == request_id),
 		drv_info->frame_duration, drv_info->blanking_duration, ctx->ctx_index);
@@ -456,7 +456,7 @@ static int cam_isp_mgr_drv_config(struct cam_ife_hw_mgr_ctx         *ctx,
 	}
 
 	if (!ctx->is_init_drv_cfg_received) {
-		CAM_DBG(CAM_PERF, "Init DRV cfg hasn't received, ctx:%d",
+		CAM_DBG(CAM_PERF|CAM_ISP, "Init DRV cfg hasn't received, ctx:%d",
 			ctx->ctx_index);
 
 		if (debug_drv)
@@ -606,7 +606,7 @@ static int cam_ife_mgr_finish_clk_bw_update(
 	for (i = 0; i < ctx->num_base; i++) {
 		clk_bw_args.hw_intf = NULL;
 		clk_bw_args.clock_updated = false;
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"Clock/BW Update for ctx:%u req:%d i:%d num_vfe_out:%d num_sfe_out:%d in_rd:%d",
 			ctx->ctx_index, request_id, i, ctx->num_acq_vfe_out, ctx->num_acq_sfe_out,
 			!list_empty(&ctx->res_list_ife_in_rd));
@@ -619,7 +619,7 @@ static int cam_ife_mgr_finish_clk_bw_update(
 		else
 			continue;
 
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"Apply Clock/BW for ctx:%u req:%d i:%d hw_idx=%d hw_type:%d inline:%s num_vfe_out:%d num_sfe_out:%d in_rd:%d",
 			ctx->ctx_index, request_id, i, clk_bw_args.hw_intf->hw_idx,
 			clk_bw_args.hw_intf->hw_type,
@@ -7033,7 +7033,7 @@ static int cam_isp_classify_vote_info(
 	}
 
 	for (i = 0; i < isp_vote->num_paths; i++) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"CLASSIFY_VOTE [%s] [%s] [%s] [%s] [%llu] [%llu] [%llu]",
 			cam_isp_util_usage_data_to_string(
 			isp_vote->axi_path[i].usage_data),
@@ -7066,7 +7066,7 @@ static int cam_isp_blob_bw_update_v2(
 	bool                                   is_sfe_shdr = false;
 
 	for (i = 0; i < bw_config->num_paths; i++) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"ctx_idx: %u ISP_BLOB usage_type=%u [%s] [%s] [%s] [%s] [%llu] [%llu] [%llu]",
 			ctx->ctx_index, bw_config->usage_type,
 			cam_isp_util_usage_data_to_string(
@@ -7190,7 +7190,7 @@ static int cam_isp_blob_bw_update(
 	bool                                   camif_l_bw_updated = false;
 	bool                                   camif_r_bw_updated = false;
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"ctx_idx: %u ISP_BLOB usage=%u left cam_bw_bps=%llu ext_bw_bps=%llu, right cam_bw_bps=%llu ext_bw_bps=%llu",
 		ctx->ctx_index, bw_config->usage_type,
 		bw_config->left_pix_vote.cam_bw_bps,
@@ -7632,7 +7632,7 @@ static int cam_ife_mgr_config_hw(
 		goto skip_bw_clk_update;
 	}
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"ctx_idx=%u, bw_config_version=%d config_valid[BW VFE_CLK SFE_CLK]:[%d %d %d]",
 		ctx->ctx_index, ctx->bw_config_version,
 		hw_update_data->bw_clk_config.bw_config_valid,
@@ -10559,7 +10559,7 @@ static int cam_isp_blob_ife_clock_update(
 	bool                                   camif_l_clk_updated = false;
 	bool                                   camif_r_clk_updated = false;
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"IFE clk update usage=%u left_clk= %lu right_clk=%lu ctx_idx: %u",
 		clock_config->usage_type, clock_config->left_pix_hz,
 		clock_config->right_pix_hz, ctx->ctx_index);
@@ -10607,7 +10607,7 @@ static int cam_isp_blob_ife_clock_update(
 			hw_intf = hw_mgr_res->hw_res[i]->hw_intf;
 			if (hw_intf && hw_intf->hw_ops.process_cmd) {
 				clock_upd_args.node_res = hw_mgr_res->hw_res[i];
-				CAM_DBG(CAM_PERF,
+				CAM_DBG(CAM_PERF|CAM_ISP,
 					"Update Clock value res_id=%u i= %d clk=%llu ctx_idx: %u",
 					hw_mgr_res->res_id, i, clk_rate, ctx->ctx_index);
 
@@ -10653,7 +10653,7 @@ static int cam_isp_blob_sfe_clock_update(
 	bool                                   r_clk_updated = false;
 
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"SFE clk update usage: %u left_clk: %lu right_clk: %lu ctx_idx: %u",
 		clock_config->usage_type, clock_config->left_pix_hz, clock_config->right_pix_hz,
 		ctx->ctx_index);
@@ -10690,7 +10690,7 @@ static int cam_isp_blob_sfe_clock_update(
 			if (hw_intf && hw_intf->hw_ops.process_cmd) {
 				clock_upd_args.node_res =
 					hw_mgr_res->hw_res[i];
-				CAM_DBG(CAM_PERF,
+				CAM_DBG(CAM_PERF|CAM_ISP,
 				"SFE res_id: %u i: %d clk: %llu ctx_idx: %u",
 				hw_mgr_res->res_id, i, clk_rate, ctx->ctx_index);
 
@@ -14432,7 +14432,7 @@ static int cam_ife_mgr_prepare_hw_update(void *hw_mgr_priv,
 	ctx = (struct cam_ife_hw_mgr_ctx *) prepare->ctxt_to_hw_map;
 	hw_mgr = (struct cam_ife_hw_mgr *)hw_mgr_priv;
 
-	CAM_DBG(CAM_REQ, "ctx[%pK][%u] Enter for req_id %lld",
+	CAM_DBG(CAM_REQ|CAM_ISP, "ctx[%pK][%u] Enter for req_id %lld",
 		ctx, ctx->ctx_index, prepare->packet->header.request_id);
 
 	rc = cam_packet_util_validate_packet(prepare->packet, prepare->remain_len);

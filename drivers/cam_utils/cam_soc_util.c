@@ -632,7 +632,7 @@ int cam_soc_util_cesta_channel_switch(uint32_t cesta_client_idx, const char *ide
 		return -EINVAL;
 	}
 
-	CAM_DBG(CAM_PERF, "CESTA Channel switch : hw client idx %d identifier=%s",
+	CAM_DBG(CAM_PERF|CAM_UTIL, "CESTA Channel switch : hw client idx %d identifier=%s",
 		cesta_client_idx, identifier);
 
 	rc = cam_wrapper_crm_write_pwr_states(cam_cesta_crm_dev, cesta_client_idx,

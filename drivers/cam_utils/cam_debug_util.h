@@ -26,49 +26,47 @@ extern unsigned int debug_bypass_drivers;
 #define DEFAULT_CLK_VALUE  19200000
 
 /* Module IDs used for debug logging */
-enum cam_debug_module_id {
-	CAM_CDM,                 /* bit 0 */
-	CAM_CORE,                /* bit 1 */
-	CAM_CPAS,                /* bit 2 */
-	CAM_ISP,                 /* bit 3 */
-	CAM_CRM,                 /* bit 4 */
-	CAM_SENSOR,              /* bit 5 */
-	CAM_SMMU,                /* bit 6 */
-	CAM_SYNC,                /* bit 7 */
-	CAM_ICP,                 /* bit 8 */
-	CAM_JPEG,                /* bit 9 */
-	CAM_FD,                  /* bit 10 */
-	CAM_LRME,                /* bit 11 */
-	CAM_FLASH,               /* bit 12 */
-	CAM_ACTUATOR,            /* bit 13 */
-	CAM_CCI,                 /* bit 14 */
-	CAM_CSIPHY,              /* bit 15 */
-	CAM_EEPROM,              /* bit 16 */
-	CAM_UTIL,                /* bit 17 */
-	CAM_HFI,                 /* bit 18 */
-	CAM_CTXT,                /* bit 19 */
-	CAM_OIS,                 /* bit 20 */
-	CAM_RES,                 /* bit 21 */
-	CAM_MEM,                 /* bit 22 */
-	CAM_IRQ_CTRL,            /* bit 23 */
-	CAM_REQ,                 /* bit 24 */
-	CAM_PERF,                /* bit 25 */
-	CAM_CUSTOM,              /* bit 26 */
-	CAM_PRESIL,              /* bit 27 */
-	CAM_OPE,                 /* bit 28 */
-	CAM_IO_ACCESS,           /* bit 29 */
-	CAM_SFE,                 /* bit 30 */
-	CAM_CRE,                 /* bit 31 */
-	CAM_PRESIL_CORE,         /* bit 32 */
-	CAM_TPG,                 /* bit 33 */
-	CAM_DMA_FENCE,           /* bit 34 */
-	CAM_SENSOR_UTIL,         /* bit 35 */
-	CAM_SYNX,                /* bit 36 */
-	CAM_VMRM,                /* bit 37 */
-	CAM_IO_DUMP,             /* bit 38 */
-	CAM_SENSOR_IO,           /* bit 39 */
-	CAM_DBG_MOD_MAX
-};
+#define CAM_CDM                 BIT_ULL(0)
+#define CAM_CORE                BIT_ULL(1)
+#define CAM_CPAS                BIT_ULL(2)
+#define CAM_ISP                 BIT_ULL(3)
+#define CAM_CRM                 BIT_ULL(4)
+#define CAM_SENSOR              BIT_ULL(5)
+#define CAM_SMMU                BIT_ULL(6)
+#define CAM_SYNC                BIT_ULL(7)
+#define CAM_ICP                 BIT_ULL(8)
+#define CAM_JPEG                BIT_ULL(9)
+#define CAM_FD                  BIT_ULL(10)
+#define CAM_LRME                BIT_ULL(11)
+#define CAM_FLASH               BIT_ULL(12)
+#define CAM_ACTUATOR            BIT_ULL(13)
+#define CAM_CCI                 BIT_ULL(14)
+#define CAM_CSIPHY              BIT_ULL(15)
+#define CAM_EEPROM              BIT_ULL(16)
+#define CAM_UTIL                BIT_ULL(17)
+#define CAM_HFI                 BIT_ULL(18)
+#define CAM_CTXT                BIT_ULL(19)
+#define CAM_OIS                 BIT_ULL(20)
+#define CAM_RES                 BIT_ULL(21)
+#define CAM_MEM                 BIT_ULL(22)
+#define CAM_IRQ_CTRL            BIT_ULL(23)
+#define CAM_REQ                 BIT_ULL(24)
+#define CAM_PERF                BIT_ULL(25)
+#define CAM_CUSTOM              BIT_ULL(26)
+#define CAM_PRESIL              BIT_ULL(27)
+#define CAM_OPE                 BIT_ULL(28)
+#define CAM_IO_ACCESS           BIT_ULL(29)
+#define CAM_SFE                 BIT_ULL(30)
+#define CAM_CRE                 BIT_ULL(31)
+#define CAM_PRESIL_CORE         BIT_ULL(32)
+#define CAM_TPG                 BIT_ULL(33)
+#define CAM_DMA_FENCE           BIT_ULL(34)
+#define CAM_SENSOR_UTIL         BIT_ULL(35)
+#define CAM_SYNX                BIT_ULL(36)
+#define CAM_VMRM                BIT_ULL(37)
+#define CAM_IO_DUMP             BIT_ULL(38)
+#define CAM_SENSOR_IO           BIT_ULL(39)
+#define CAM_DBG_MOD_MAX         40
 
 /* Log level types */
 enum cam_debug_log_level {
@@ -90,46 +88,46 @@ enum cam_debug_priority {
 };
 
 static const char *cam_debug_mod_name[CAM_DBG_MOD_MAX] = {
-	[CAM_CDM]         = "CAM-CDM",
-	[CAM_CORE]        = "CAM-CORE",
-	[CAM_CRM]         = "CAM-CRM",
-	[CAM_CPAS]        = "CAM-CPAS",
-	[CAM_ISP]         = "CAM-ISP",
-	[CAM_SENSOR]      = "CAM-SENSOR",
-	[CAM_SMMU]        = "CAM-SMMU",
-	[CAM_SYNC]        = "CAM-SYNC",
-	[CAM_ICP]         = "CAM-ICP",
-	[CAM_JPEG]        = "CAM-JPEG",
-	[CAM_FD]          = "CAM-FD",
-	[CAM_LRME]        = "CAM-LRME",
-	[CAM_FLASH]       = "CAM-FLASH",
-	[CAM_ACTUATOR]    = "CAM-ACTUATOR",
-	[CAM_CCI]         = "CAM-CCI",
-	[CAM_CSIPHY]      = "CAM-CSIPHY",
-	[CAM_EEPROM]      = "CAM-EEPROM",
-	[CAM_UTIL]        = "CAM-UTIL",
-	[CAM_CTXT]        = "CAM-CTXT",
-	[CAM_HFI]         = "CAM-HFI",
-	[CAM_OIS]         = "CAM-OIS",
-	[CAM_IRQ_CTRL]    = "CAM-IRQ-CTRL",
-	[CAM_MEM]         = "CAM-MEM",
-	[CAM_PERF]        = "CAM-PERF",
-	[CAM_REQ]         = "CAM-REQ",
-	[CAM_CUSTOM]      = "CAM-CUSTOM",
-	[CAM_OPE]         = "CAM-OPE",
-	[CAM_PRESIL]      = "CAM-PRESIL",
-	[CAM_RES]         = "CAM-RES",
-	[CAM_IO_ACCESS]   = "CAM-IO-ACCESS",
-	[CAM_SFE]         = "CAM-SFE",
-	[CAM_CRE]         = "CAM-CRE",
-	[CAM_PRESIL_CORE] = "CAM-CORE-PRESIL",
-	[CAM_TPG]         = "CAM-TPG",
-	[CAM_DMA_FENCE]   = "CAM-DMA-FENCE",
-	[CAM_SENSOR_UTIL] = "CAM-SENSOR-UTIL",
-	[CAM_SYNX]        = "CAM_SYNX",
-	[CAM_VMRM]        = "CAM-VMRM",
-	[CAM_IO_DUMP]     = "CAM-IO-DUMP",
-	[CAM_SENSOR_IO]   = "CAM-SENSOR-IO",
+	"CAM-CDM",
+	"CAM-CORE",
+	"CAM-CPAS",
+	"CAM-ISP",
+	"CAM-CRM",
+	"CAM-SENSOR",
+	"CAM-SMMU",
+	"CAM-SYNC",
+	"CAM-ICP",
+	"CAM-JPEG",
+	"CAM-FD",
+	"CAM-LRME",
+	"CAM-FLASH",
+	"CAM-ACTUATOR",
+	"CAM-CCI",
+	"CAM-CSIPHY",
+	"CAM-EEPROM",
+	"CAM-UTIL",
+	"CAM-HFI",
+	"CAM-CTXT",
+	"CAM-OIS",
+	"CAM-RES",
+	"CAM-MEM",
+	"CAM-IRQ-CTRL",
+	"CAM-REQ",
+	"CAM-PERF",
+	"CAM-CUSTOM",
+	"CAM-PRESIL",
+	"CAM-OPE",
+	"CAM-IO-ACCESS",
+	"CAM-SFE",
+	"CAM-CRE",
+	"CAM-CORE-PRESIL",
+	"CAM-TPG",
+	"CAM-DMA-FENCE",
+	"CAM-SENSOR-UTIL",
+	"CAM_SYNX",
+	"CAM-VMRM",
+	"CAM-IO-DUMP",
+	"CAM_SENSOR_IO",
 };
 
 #define ___CAM_DBG_MOD_NAME(module_id)                                      \
@@ -222,7 +220,7 @@ enum cam_log_print_type {
  * @fmt:       Formatting string
  */
 
-void cam_print_log(int type, int module, int tag, const char *func,
+void cam_print_log(int type, unsigned long long module, int tag, const char *func,
 	int line, const char *fmt, ...);
 
 #define __CAM_LOG(type, tag, module_id, fmt, args...)                               \
@@ -246,11 +244,11 @@ __CAM_LOG(CAM_PRINT_BOTH, tag, module_id, fmt, ##args)
 CAM_LOG_RL_CUSTOM(type, module_id, DEFAULT_RATELIMIT_INTERVAL, DEFAULT_RATELIMIT_BURST,  \
 fmt, ##args)
 
-#define __CAM_DBG(module_id, priority, fmt, args...)                                              \
-({                                                                                                \
-	if (unlikely((debug_mdl & BIT_ULL(module_id)) && (priority >= debug_priority))) {         \
-		CAM_LOG(CAM_TYPE_DBG, module_id, fmt, ##args);                                    \
-	}                                                                                         \
+#define __CAM_DBG(module_id, priority, fmt, args...)                                    \
+({                                                                                      \
+	if (unlikely((debug_mdl & (module_id)) && (priority >= debug_priority))) {      \
+		CAM_LOG(CAM_TYPE_DBG, (debug_mdl & (module_id)), fmt, ##args);         \
+	}                                                                               \
 })
 
 /**

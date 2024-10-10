@@ -1940,14 +1940,14 @@ static int __cam_isp_ctx_handle_buf_done_for_req_list(
 			}
 
 			__cam_isp_ctx_move_req_to_free_list(ctx, req);
-			CAM_DBG(CAM_REQ,
+			CAM_DBG(CAM_REQ|CAM_ISP,
 				"Move active request %lld to free list(cnt = %d) [flushed], ctx %u, link: 0x%x",
 				buf_done_req_id, ctx_isp->active_req_cnt,
 				ctx->ctx_id, ctx->link_hdl);
 			ctx_isp->last_bufdone_err_apply_req_id = 0;
 		} else {
 			list_add(&req->list, &ctx->pending_req_list);
-			CAM_DBG(CAM_REQ,
+			CAM_DBG(CAM_REQ|CAM_ISP,
 				"Move active request %lld to pending list(cnt = %d) [bubble recovery], ctx %u, link: 0x%x",
 				req->request_id, ctx_isp->active_req_cnt,
 				ctx->ctx_id, ctx->link_hdl);
@@ -1981,7 +1981,7 @@ static int __cam_isp_ctx_handle_buf_done_for_req_list(
 			req_isp->bubble_detected = false;
 		}
 
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_ISP,
 			"Move active request %lld to free list(cnt = %d) [all fences done], ctx %u link: 0x%x",
 			buf_done_req_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
 		ctx_isp->req_info.last_bufdone_req_id = req->request_id;
@@ -3292,7 +3292,7 @@ static int __cam_isp_ctx_apply_pending_req(
 		list);
 	spin_unlock_bh(&ctx->lock);
 
-	CAM_DBG(CAM_REQ, "Apply request %lld in substate %d ctx_idx: %u, link: 0x%x",
+	CAM_DBG(CAM_REQ|CAM_ISP, "Apply request %lld in substate %d ctx_idx: %u, link: 0x%x",
 		req->request_id, ctx_isp->substate_activated, ctx->ctx_id, ctx->link_hdl);
 	req_isp = (struct cam_isp_ctx_req *) req->req_priv;
 
@@ -3472,7 +3472,7 @@ static int __cam_isp_ctx_reg_upd_in_applied_state(
 		list_add_tail(&req->list, &ctx->active_req_list);
 		ctx_isp->active_req_cnt++;
 		request_id = req->request_id;
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_ISP,
 			"move request %lld to active list(cnt = %d), ctx %u, link: 0x%x",
 			req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
 		__cam_isp_ctx_update_event_record(ctx_isp,
@@ -3590,7 +3590,7 @@ static int __cam_isp_ctx_notify_sof_in_activated_state(
 				list_add(&req->list, &ctx->pending_req_list);
 				atomic_set(&ctx_isp->process_bubble, 0);
 				ctx_isp->active_req_cnt--;
-				CAM_DBG(CAM_REQ,
+				CAM_DBG(CAM_REQ|CAM_ISP,
 					"Move active req: %lld to pending list(cnt = %d) [bubble re-apply], ctx %u link: 0x%x",
 					req->request_id,
 					ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
@@ -3863,7 +3863,7 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 	list_del_init(&req->list);
 	list_add_tail(&req->list, &ctx->active_req_list);
 	ctx_isp->active_req_cnt++;
-	CAM_DBG(CAM_REQ, "move request %lld to active list(cnt = %d), ctx %u, link: 0x%x",
+	CAM_DBG(CAM_REQ|CAM_ISP, "move request %lld to active list(cnt = %d), ctx %u, link: 0x%x",
 		req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
 
 	/*
@@ -4869,8 +4869,9 @@ static int __cam_isp_ctx_fs2_reg_upd_in_applied_state(
 	if (req_isp->num_fence_map_out != 0) {
 		list_add_tail(&req->list, &ctx->active_req_list);
 		ctx_isp->active_req_cnt++;
-		CAM_DBG(CAM_REQ, "move request %lld to active list(cnt = %d), ctx:%u,link:0x%x",
-			 req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
+		CAM_DBG(CAM_REQ|CAM_ISP,
+			"move request %lld to active list(cnt = %d), ctx:%u,link:0x%x",
+			req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
 	} else {
 		cam_smmu_buffer_tracker_putref(&req->buf_tracker);
 		/* no io config, so the request is completed. */
@@ -5506,7 +5507,7 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 		goto end;
 	}
 
-	CAM_DBG(CAM_REQ, "Apply request %lld in Substate[%s] ctx %u, link: 0x%x",
+	CAM_DBG(CAM_REQ|CAM_ISP, "Apply request %lld in Substate[%s] ctx %u, link: 0x%x",
 		req->request_id,
 		__cam_isp_ctx_substate_val_to_type(ctx_isp->substate_activated),
 		ctx->ctx_id, ctx->link_hdl);
@@ -5636,7 +5637,7 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 		list_add(&req->list, &ctx->active_req_list);
 		ctx_isp->active_req_cnt++;
 		spin_unlock_bh(&ctx->lock);
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_ISP,
 			"move request %lld to active list(cnt = %d), ctx %u, link: 0x%x",
 			req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
 	} else {
@@ -6269,7 +6270,7 @@ static int __cam_isp_ctx_flush_req(struct cam_context *ctx,
 			return 0;
 	}
 
-	CAM_DBG(CAM_REQ, "Flush [%u] in progress for req_id %llu, ctx_id:%u link: 0x%x",
+	CAM_DBG(CAM_REQ|CAM_ISP, "Flush [%u] in progress for req_id %llu, ctx_id:%u link: 0x%x",
 		flush_req->type, flush_req->req_id, ctx->ctx_id, ctx->link_hdl);
 	list_for_each_entry_safe(req, req_temp, req_list, list) {
 		if (flush_req->type == CAM_REQ_MGR_FLUSH_TYPE_CANCEL_REQ) {
@@ -6882,7 +6883,7 @@ static int __cam_isp_ctx_rdi_only_sof_in_bubble_state(
 				list_add(&req->list, &ctx->pending_req_list);
 				atomic_set(&ctx_isp->process_bubble, 0);
 				ctx_isp->active_req_cnt--;
-				CAM_DBG(CAM_REQ,
+				CAM_DBG(CAM_REQ|CAM_ISP,
 					"Move active req: %lld to pending list(cnt = %d) [bubble re-apply],ctx %u link: 0x%x",
 					req->request_id,
 					ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
@@ -7711,7 +7712,7 @@ static int __cam_isp_ctx_config_dev_in_top_state(
 	if (isp_ctx_debug.enable_cdm_cmd_buff_dump)
 		cam_isp_ctx_dump_req(req_isp, 0, 0, NULL, false);
 
-	CAM_DBG(CAM_REQ,
+	CAM_DBG(CAM_REQ|CAM_ISP,
 		"Preprocessing Config req_id %lld successful on ctx %u, link: 0x%x",
 		req->request_id, ctx->ctx_id, ctx->link_hdl);
 
@@ -9036,18 +9037,18 @@ static int __cam_isp_ctx_start_dev_in_ready(struct cam_context *ctx,
 		cam_smmu_buffer_tracker_putref(&req->buf_tracker);
 		__cam_isp_ctx_move_req_to_free_list(ctx, req);
 		atomic_set(&ctx_isp->rxd_epoch, 1);
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_ISP,
 			"Move pending req: %lld to free list(cnt: %d) offline ctx %u link: 0x%x",
 			req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
 	} else if (ctx_isp->rdi_only_context || !req_isp->num_fence_map_out) {
 		list_add_tail(&req->list, &ctx->wait_req_list);
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_ISP,
 			"Move pending req: %lld to wait list(cnt: %d) ctx %u link: 0x%x",
 			req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
 	} else {
 		list_add_tail(&req->list, &ctx->active_req_list);
 		ctx_isp->active_req_cnt++;
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_ISP,
 			"Move pending req: %lld to active list(cnt: %d) ctx %u link: 0x%x offline %d",
 			req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl,
 			ctx_isp->offline_context);

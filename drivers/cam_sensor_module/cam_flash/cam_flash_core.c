@@ -753,7 +753,7 @@ int cam_flash_pmic_apply_setting(struct cam_flash_ctrl *fctrl,
 		if (fctrl->nrt_info.cmn_attr.cmd_type ==
 			CAMERA_SENSOR_FLASH_CMD_TYPE_INIT_FIRE) {
 			flash_data = &fctrl->nrt_info;
-			CAM_DBG(CAM_REQ,
+			CAM_DBG(CAM_REQ|CAM_FLASH,
 				"FLASH_INIT_FIRE req_id: %u flash_opcode: %d",
 				req_id, flash_data->opcode);
 
@@ -798,7 +798,7 @@ int cam_flash_pmic_apply_setting(struct cam_flash_ctrl *fctrl,
 		} else if (fctrl->nrt_info.cmn_attr.cmd_type ==
 			CAMERA_SENSOR_FLASH_CMD_TYPE_WIDGET) {
 			flash_data = &fctrl->nrt_info;
-			CAM_DBG(CAM_REQ,
+			CAM_DBG(CAM_REQ|CAM_FLASH,
 				"FLASH_WIDGET req_id: %u flash_opcode: %d",
 				req_id, flash_data->opcode);
 
@@ -831,7 +831,7 @@ int cam_flash_pmic_apply_setting(struct cam_flash_ctrl *fctrl,
 					goto nrt_del_req;
 				}
 			}
-			CAM_DBG(CAM_REQ, "FLASH_RER req_id: %u", req_id);
+			CAM_DBG(CAM_REQ|CAM_FLASH, "FLASH_RER req_id: %u", req_id);
 
 			num_iterations = flash_data->num_iterations;
 			for (i = 0; i < num_iterations; i++) {
@@ -866,7 +866,7 @@ int cam_flash_pmic_apply_setting(struct cam_flash_ctrl *fctrl,
 	} else {
 		frame_offset = req_id % MAX_PER_FRAME_ARRAY;
 		flash_data = &fctrl->per_frame[frame_offset];
-		CAM_DBG(CAM_REQ, "FLASH_RT req_id: %u flash_opcode: %d",
+		CAM_DBG(CAM_REQ|CAM_FLASH, "FLASH_RT req_id: %u flash_opcode: %d",
 			req_id, flash_data->opcode);
 
 		if ((flash_data->opcode == CAMERA_SENSOR_FLASH_OP_FIREHIGH) &&

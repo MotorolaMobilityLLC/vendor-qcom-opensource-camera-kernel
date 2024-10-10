@@ -300,7 +300,7 @@ static bool cam_icp_is_over_clk(struct cam_icp_hw_mgr *hw_mgr,
 	curr_clk_idx = cam_icp_get_actual_clk_rate_idx(ctx_data,
 		hw_mgr_clk_info->curr_clk);
 
-	CAM_DBG(CAM_PERF, "%s: bc_idx = %d cc_idx = %d %d %d",
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: bc_idx = %d cc_idx = %d %d %d",
 		ctx_data->ctx_id_string, base_clk_idx, curr_clk_idx,
 		hw_mgr_clk_info->base_clk, hw_mgr_clk_info->curr_clk);
 
@@ -320,7 +320,7 @@ static int cam_icp_get_lower_clk_rate(struct cam_icp_hw_mgr *hw_mgr,
 	if (i > 0)
 		return ctx_data->clk_info.clk_rate[i - 1];
 
-	CAM_DBG(CAM_PERF, "%s: Already clk at lower level", ctx_data->ctx_id_string);
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: Already clk at lower level", ctx_data->ctx_id_string);
 	return base_clk;
 }
 
@@ -334,7 +334,7 @@ static int cam_icp_get_next_clk_rate(struct cam_icp_hw_mgr *hw_mgr,
 	if (i < CAM_MAX_VOTE - 1)
 		return ctx_data->clk_info.clk_rate[i + 1];
 
-	CAM_DBG(CAM_PERF, "%s: Already clk at higher level", ctx_data->ctx_id_string);
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: Already clk at higher level", ctx_data->ctx_id_string);
 
 	return base_clk;
 }
@@ -371,7 +371,7 @@ static int cam_icp_get_supported_clk_rates(struct cam_icp_hw_ctx_data *ctx_data)
 	for (i = 0; i < CAM_MAX_VOTE; i++) {
 		ctx_data->clk_info.clk_rate[i] =
 			soc_info->clk_rate[i][soc_info->src_clk_idx];
-		CAM_DBG(CAM_PERF, "%s: clk_info[%d] = %d",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: clk_info[%d] = %d",
 			ctx_data->ctx_id_string, i, ctx_data->clk_info.clk_rate[i]);
 	}
 
@@ -422,7 +422,7 @@ static int cam_icp_ctx_timer_reset(struct cam_icp_hw_ctx_data *ctx_data)
 {
 	if (ctx_data && ctx_data->watch_dog) {
 		ctx_data->watch_dog_reset_counter++;
-		CAM_DBG(CAM_PERF, "%s: reset timer : counter=%d",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: reset timer : counter=%d",
 			ctx_data->ctx_id_string, ctx_data->watch_dog_reset_counter);
 		crm_timer_reset(ctx_data->watch_dog);
 	}
@@ -436,7 +436,7 @@ static void cam_icp_device_timer_reset(struct cam_icp_hw_mgr *hw_mgr,
 	struct cam_icp_clk_info *clk_info = &dev_info->clk_info;
 
 	if (clk_info->watch_dog) {
-		CAM_DBG(CAM_PERF, "[%s] reset timer for device: %s",
+		CAM_DBG(CAM_PERF|CAM_ICP, "[%s] reset timer for device: %s",
 			hw_mgr->hw_mgr_name, dev_info->dev_name);
 		crm_timer_reset(clk_info->watch_dog);
 		clk_info->watch_dog_reset_counter++;
@@ -491,7 +491,7 @@ static int32_t cam_icp_deinit_idle_clk(void *priv, void *data)
 
 	clk_upd_cmd.dev_pc_enable = hw_mgr->dev_pc_flag;
 
-	CAM_DBG(CAM_PERF, "[%s] Disable %d",
+	CAM_DBG(CAM_PERF|CAM_ICP, "[%s] Disable %d",
 		hw_mgr->hw_mgr_name, dev_info->dev_name);
 
 	for (i = 0; i < dev_info->hw_dev_cnt; i++) {
@@ -589,7 +589,7 @@ static int cam_icp_remove_ctx_bw(struct cam_icp_hw_mgr *hw_mgr,
 		return -EINVAL;
 	}
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ICP,
 		"%s: ubw = %lld cbw = %lld curr_fc = %u bc = %u",
 		ctx_data->ctx_id_string,
 		ctx_data->clk_info.uncompressed_bw,
@@ -597,7 +597,7 @@ static int cam_icp_remove_ctx_bw(struct cam_icp_hw_mgr *hw_mgr,
 		ctx_data->clk_info.curr_fc, ctx_data->clk_info.base_clk);
 
 	if (!ctx_data->clk_info.bw_included) {
-		CAM_DBG(CAM_PERF, "%s: BW vote already removed",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: BW vote already removed",
 			ctx_data->ctx_id_string);
 		return 0;
 	}
@@ -679,7 +679,7 @@ static int cam_icp_remove_ctx_bw(struct cam_icp_hw_mgr *hw_mgr,
 			total_ab_bw +=
 				clk_info->axi_path[path_index].mnoc_ab_bw;
 
-			CAM_DBG(CAM_PERF,
+			CAM_DBG(CAM_PERF|CAM_ICP,
 				"%s: Removing ctx bw from path_type: %s, transac_type: %s, camnoc_bw = %lld mnoc_ab_bw = %lld, mnoc_ib_bw = %lld",
 				ctx_data->ctx_id_string,
 				cam_cpas_axi_util_path_type_to_string(
@@ -690,7 +690,7 @@ static int cam_icp_remove_ctx_bw(struct cam_icp_hw_mgr *hw_mgr,
 				ctx_data->clk_info.axi_path[i].mnoc_ab_bw,
 				ctx_data->clk_info.axi_path[i].mnoc_ib_bw);
 
-			CAM_DBG(CAM_PERF,
+			CAM_DBG(CAM_PERF|CAM_ICP,
 				"%s: Final HW bw for path_type: %s, transac_type: %s, camnoc_bw = %lld mnoc_ab_bw = %lld, mnoc_ib_bw = %lld",
 				ctx_data->ctx_id_string,
 				cam_cpas_axi_util_path_type_to_string(
@@ -764,7 +764,7 @@ static int cam_icp_remove_ctx_bw(struct cam_icp_hw_mgr *hw_mgr,
 
 	ctx_data->clk_info.bw_included = false;
 
-	CAM_DBG(CAM_PERF, "%s: X :curr_fc = %u bc = %u", ctx_data->ctx_id_string,
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: X :curr_fc = %u bc = %u", ctx_data->ctx_id_string,
 		ctx_data->clk_info.curr_fc, ctx_data->clk_info.base_clk);
 
 	return rc;
@@ -799,7 +799,7 @@ static int32_t cam_icp_ctx_timer(void *priv, void *data)
 		goto end;
 	}
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ICP,
 		"%s: ubw = %lld cbw = %lld curr_fc = %u bc = %u",
 		ctx_data->ctx_id_string,
 		ctx_data->clk_info.uncompressed_bw,
@@ -809,7 +809,7 @@ static int32_t cam_icp_ctx_timer(void *priv, void *data)
 
 	if ((ctx_data->state != CAM_ICP_CTX_STATE_ACQUIRED) ||
 		(ctx_data->watch_dog_reset_counter == 0)) {
-		CAM_DBG(CAM_PERF, "%s: state %d, counter=%d",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: state %d, counter=%d",
 			ctx_data->ctx_id_string, ctx_data->state,
 			ctx_data->watch_dog_reset_counter);
 		goto end;
@@ -933,7 +933,8 @@ static int cam_icp_get_svs_clk_info(struct cam_icp_hw_mgr *hw_mgr)
 	if (hw_mgr->icp_svs_clk <= 0)
 		hw_mgr->icp_svs_clk = ICP_CLK_SVS_HZ;
 
-	CAM_DBG(CAM_PERF, "[%s] icp_svs_clk = %lld", hw_mgr->hw_mgr_name, hw_mgr->icp_svs_clk);
+	CAM_DBG(CAM_PERF|CAM_ICP, "[%s] icp_svs_clk = %lld",
+		hw_mgr->hw_mgr_name, hw_mgr->icp_svs_clk);
 	return 0;
 }
 
@@ -973,7 +974,7 @@ static int cam_icp_ctx_timer_start(struct cam_icp_hw_ctx_data *ctx_data)
 
 	ctx_data->watch_dog_reset_counter = 0;
 
-	CAM_DBG(CAM_PERF, "%s: start timer", ctx_data->ctx_id_string);
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: start timer", ctx_data->ctx_id_string);
 	return rc;
 }
 
@@ -1002,7 +1003,7 @@ static int cam_icp_device_timer_start(struct cam_icp_hw_mgr *hw_mgr)
 static int cam_icp_ctx_timer_stop(struct cam_icp_hw_ctx_data *ctx_data)
 {
 	if (ctx_data->watch_dog) {
-		CAM_DBG(CAM_PERF, "%s: stop timer", ctx_data->ctx_id_string);
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: stop timer", ctx_data->ctx_id_string);
 		ctx_data->watch_dog_reset_counter = 0;
 		crm_timer_exit(&ctx_data->watch_dog);
 		ctx_data->watch_dog = NULL;
@@ -1037,7 +1038,7 @@ static uint32_t cam_icp_mgr_calc_base_clk(uint32_t frame_cycles,
 	base_clk = frame_cycles * mul;
 	do_div(base_clk, budget);
 
-	CAM_DBG(CAM_PERF, "budget = %lld fc = %d ib = %lld base_clk = %lld",
+	CAM_DBG(CAM_PERF|CAM_ICP, "budget = %lld fc = %d ib = %lld base_clk = %lld",
 		budget, frame_cycles,
 		(long long)(frame_cycles * mul), base_clk);
 
@@ -1052,7 +1053,7 @@ static bool cam_icp_busy_prev_reqs(struct hfi_frame_process_info *frm_process,
 
 	for (i = 0, cnt = 0; i < CAM_FRAME_CMD_MAX; i++) {
 		if (frm_process->request_id[i] && frm_process->fw_process_flag[i]) {
-			CAM_DBG(CAM_PERF, "r id = %lld busy = %d",
+			CAM_DBG(CAM_PERF|CAM_ICP, "r id = %lld busy = %d",
 				frm_process->request_id[i],
 				frm_process->fw_process_flag[i]);
 			cnt++;
@@ -1235,7 +1236,7 @@ static bool cam_icp_debug_clk_update(struct cam_icp_hw_mgr *hw_mgr,
 		hw_mgr_clk_info->curr_clk = hw_mgr->icp_debug_clk;
 		hw_mgr_clk_info->uncompressed_bw = hw_mgr->icp_debug_clk;
 		hw_mgr_clk_info->compressed_bw = hw_mgr->icp_debug_clk;
-		CAM_DBG(CAM_PERF, "[%s] bc = %d cc = %d",
+		CAM_DBG(CAM_PERF|CAM_ICP, "[%s] bc = %d cc = %d",
 			hw_mgr->hw_mgr_name, hw_mgr_clk_info->base_clk,
 			hw_mgr_clk_info->curr_clk);
 		return true;
@@ -1252,7 +1253,7 @@ static bool cam_icp_default_clk_update(struct cam_icp_hw_mgr *hw_mgr,
 		hw_mgr_clk_info->curr_clk = hw_mgr->icp_default_clk;
 		hw_mgr_clk_info->uncompressed_bw = hw_mgr->icp_default_clk;
 		hw_mgr_clk_info->compressed_bw = hw_mgr->icp_default_clk;
-		CAM_DBG(CAM_PERF, "[%s] bc = %d cc = %d",
+		CAM_DBG(CAM_PERF|CAM_ICP, "[%s] bc = %d cc = %d",
 			hw_mgr->hw_mgr_name, hw_mgr_clk_info->base_clk,
 			hw_mgr_clk_info->curr_clk);
 		return true;
@@ -1277,7 +1278,7 @@ static bool cam_icp_update_bw_v2(struct cam_icp_hw_mgr *hw_mgr,
 	 */
 
 	for (i = 0; i < clk_info->num_paths; i++)
-		CAM_DBG(CAM_PERF, "%s: clk_info camnoc = %lld busy = %d",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: clk_info camnoc = %lld busy = %d",
 			ctx_data->ctx_id_string, clk_info->axi_path[i].camnoc_bw, busy);
 
 	if (clk_info->num_paths == ctx_data->clk_info.num_paths) {
@@ -1300,7 +1301,7 @@ static bool cam_icp_update_bw_v2(struct cam_icp_hw_mgr *hw_mgr,
 	}
 
 	if (!update_required) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ICP,
 			"%s: Incoming BW hasn't changed, no update required, num_paths=%d",
 			ctx_data->ctx_id_string, clk_info->num_paths);
 		return false;
@@ -1363,7 +1364,7 @@ static bool cam_icp_update_bw_v2(struct cam_icp_hw_mgr *hw_mgr,
 			ctx_data->clk_info.axi_path[i].mnoc_ab_bw;
 		hw_mgr_clk_info->axi_path[path_index].mnoc_ib_bw +=
 			ctx_data->clk_info.axi_path[i].mnoc_ib_bw;
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ICP,
 			"%s: Consolidate Path Vote: i[%d] path_idx[%d] : [%s %s] [%lld %lld]",
 			ctx_data->ctx_id_string,
 			i, path_index,
@@ -1396,14 +1397,14 @@ static bool cam_icp_update_bw(struct cam_icp_hw_mgr *hw_mgr,
 	 * recalculate bandwidth of all contexts of same hardware and update
 	 * voting of bandwidth
 	 */
-	CAM_DBG(CAM_PERF, "%s: ubw ctx = %lld clk_info ubw = %lld busy = %d",
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: ubw ctx = %lld clk_info ubw = %lld busy = %d",
 		ctx_data->ctx_id_string, ctx_data->clk_info.uncompressed_bw,
 		clk_info->uncompressed_bw, busy);
 
 	if ((clk_info->uncompressed_bw == ctx_data->clk_info.uncompressed_bw) &&
 		(ctx_data->clk_info.uncompressed_bw ==
 		hw_mgr_clk_info->uncompressed_bw)) {
-		CAM_DBG(CAM_PERF, "%s: Update not required bw=%lld",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: Update not required bw=%lld",
 			ctx_data->ctx_id_string, ctx_data->clk_info.uncompressed_bw);
 		return false;
 	}
@@ -1411,7 +1412,7 @@ static bool cam_icp_update_bw(struct cam_icp_hw_mgr *hw_mgr,
 	if (busy &&
 		(ctx_data->clk_info.uncompressed_bw >
 		clk_info->uncompressed_bw)) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ICP,
 			"%s: Busy, Update not required existing=%lld, new=%lld",
 			ctx_data->ctx_id_string,
 			ctx_data->clk_info.uncompressed_bw,
@@ -1431,7 +1432,7 @@ static bool cam_icp_update_bw(struct cam_icp_hw_mgr *hw_mgr,
 				ctx->clk_info.uncompressed_bw;
 			hw_mgr_clk_info->compressed_bw +=
 				ctx->clk_info.compressed_bw;
-			CAM_DBG(CAM_PERF,
+			CAM_DBG(CAM_PERF|CAM_ICP,
 				"%s: Current context=[%lld %lld] Total=[%lld %lld]",
 				ctx_data->ctx_id_string,
 				ctx->clk_info.uncompressed_bw,
@@ -1470,7 +1471,7 @@ static bool cam_icp_check_clk_update(struct cam_icp_hw_mgr *hw_mgr,
 	frame_info = &ctx_data->hfi_frame_process;
 	req_id = frame_info->request_id[idx];
 	busy = cam_icp_busy_prev_reqs(frame_info, req_id);
-	CAM_DBG(CAM_PERF, "%s: busy = %d req_id = %lld",
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: busy = %d req_id = %lld",
 		ctx_data->ctx_id_string, busy, req_id);
 
 	request_clk_info = &ctx_data->hfi_frame_process.clk_info[idx];
@@ -1494,7 +1495,7 @@ static bool cam_icp_check_clk_update(struct cam_icp_hw_mgr *hw_mgr,
 		rc = cam_icp_update_clk_free(hw_mgr, ctx_data,
 			dev_clk_info, request_clk_info, base_clk);
 
-	CAM_DBG(CAM_PERF, "%s: bc = %d cc = %d busy = %d overclk = %d uc = %d",
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: bc = %d cc = %d busy = %d overclk = %d uc = %d",
 		ctx_data->ctx_id_string, dev_clk_info->base_clk, dev_clk_info->curr_clk,
 		busy, dev_clk_info->over_clked, rc);
 
@@ -1520,7 +1521,7 @@ static bool cam_icp_check_bw_update(struct cam_icp_hw_mgr *hw_mgr,
 	if (ctx_data->bw_config_version == CAM_ICP_BW_CONFIG_V1) {
 		request_clk_info = &ctx_data->hfi_frame_process.clk_info[idx];
 
-		CAM_DBG(CAM_PERF, "%s: Req[%lld] Current camno=%lld, mnoc=%lld",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: Req[%lld] Current camno=%lld, mnoc=%lld",
 			ctx_data->ctx_id_string, req_id, dev_clk_info->uncompressed_bw,
 			dev_clk_info->compressed_bw);
 
@@ -1536,14 +1537,14 @@ static bool cam_icp_check_bw_update(struct cam_icp_hw_mgr *hw_mgr,
 			return false;
 		}
 
-		CAM_DBG(CAM_PERF, "%s: index=%d, num_paths=%d, ctx_data=%pK",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: index=%d, num_paths=%d, ctx_data=%pK",
 			ctx_data->ctx_id_string, idx, request_clk_info_v2->num_paths, ctx_data);
 
 		bw_updated = cam_icp_update_bw_v2(hw_mgr, ctx_data,
 			dev_clk_info, request_clk_info_v2, busy);
 
 		for (i = 0; i < dev_clk_info->num_paths; i++) {
-			CAM_DBG(CAM_PERF,
+			CAM_DBG(CAM_PERF|CAM_ICP,
 				"%s: Final path_type: %s, transac_type: %s, camnoc_bw = %lld mnoc_ab_bw = %lld, mnoc_ib_bw = %lld",
 				ctx_data->ctx_id_string,
 				cam_cpas_axi_util_path_type_to_string(
@@ -1624,7 +1625,7 @@ static int cam_icp_update_clk_rate(struct cam_icp_hw_mgr *hw_mgr,
 		curr_clk_rate);
 	cam_cpas_notify_event(tmp_buff, curr_clk_rate);
 
-	CAM_DBG(CAM_PERF, "%s: clk_rate %u",
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: clk_rate %u",
 		ctx_data->ctx_id_string, curr_clk_rate);
 
 	if (atomic_read(&hw_mgr->abort_in_process))
@@ -1870,7 +1871,7 @@ static int cam_icp_mgr_device_resume(struct cam_icp_hw_mgr *hw_mgr,
 			ctx_data->ctx_id_string, dev_info->dev_name, ctx_data->ctx_id, rc);
 	}
 
-	CAM_DBG(CAM_PERF, "%s core_info 0x%x",
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s core_info 0x%x",
 		ctx_data->ctx_id_string, core_info_mask);
 
 	size = sizeof(struct hfi_cmd_prop) + sizeof(struct hfi_dev_pc);
@@ -1931,7 +1932,7 @@ static int cam_icp_mgr_dev_power_collapse(struct cam_icp_hw_mgr *hw_mgr,
 
 	dev_info = ctx_data->device_info;
 
-	CAM_DBG(CAM_PERF, "%s: device %s ctx cnt: %u",
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: device %s ctx cnt: %u",
 		ctx_data->ctx_id_string, dev_info->dev_name,
 		dev_info->dev_ctx_info.dev_ctxt_cnt);
 
@@ -2577,7 +2578,7 @@ static void cam_icp_mgr_compute_fw_avg_response_time(struct cam_icp_hw_ctx_data 
 	perf_stats->total_resp_time += delta;
 	perf_stats->total_requests++;
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ICP,
 		"%s: Avg response time: current_req: %llu total_processed_requests: %llu avg_time: %llums",
 		ctx_data->ctx_id_string,
 		ctx_data->hfi_frame_process.request_id[request_idx], perf_stats->total_requests,
@@ -2628,7 +2629,7 @@ static int cam_icp_mgr_handle_frame_process(
 		goto end;
 	}
 
-	CAM_DBG(CAM_REQ,
+	CAM_DBG(CAM_REQ|CAM_ICP,
 		"%s: request_id: %lld",
 		ctx_data->ctx_id_string, request_id);
 
@@ -4488,7 +4489,7 @@ static int __power_collapse(struct cam_icp_hw_mgr *hw_mgr, struct cam_icp_mgr_hw
 			CAM_ERR(CAM_ICP, "[%s] Failed in hw close rc %d",
 				hw_mgr->hw_mgr_name, rc);
 	} else {
-		CAM_DBG(CAM_PERF, "[%s] Sending PC prep ICP PC enabled",
+		CAM_DBG(CAM_PERF|CAM_ICP, "[%s] Sending PC prep ICP PC enabled",
 			hw_mgr->hw_mgr_name);
 
 		if (pc_args->hfi_setup) {
@@ -4513,7 +4514,7 @@ static int cam_icp_mgr_icp_power_collapse(
 	int rc;
 	bool send_freq_info = true;
 
-	CAM_DBG(CAM_PERF, "[%s] ENTER", hw_mgr->hw_mgr_name);
+	CAM_DBG(CAM_PERF|CAM_ICP, "[%s] ENTER", hw_mgr->hw_mgr_name);
 	if (!icp_dev_intf) {
 		CAM_ERR(CAM_ICP, "[%s] ICP device interface is NULL", hw_mgr->hw_mgr_name);
 		return -EINVAL;
@@ -4531,7 +4532,7 @@ static int cam_icp_mgr_icp_power_collapse(
 			CAM_ERR(CAM_ICP, "[%s] Fail to deinit ICP", hw_mgr->hw_mgr_name);
 	}
 
-	CAM_DBG(CAM_PERF, "[%s] EXIT", hw_mgr->hw_mgr_name);
+	CAM_DBG(CAM_PERF|CAM_ICP, "[%s] EXIT", hw_mgr->hw_mgr_name);
 
 	return rc;
 }
@@ -5014,7 +5015,7 @@ static int cam_icp_mgr_release_ctx(
 	ctx_id = ctx_data->ctx_id;
 	mutex_lock(&hw_mgr->ctx_mutex[ctx_id]);
 	perf_stats = &ctx_data->perf_stats;
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ICP,
 		"Avg response time on %s: total_processed_requests: %llu avg_time: %llums",
 		ctx_data->ctx_id_string, perf_stats->total_requests,
 		perf_stats->total_requests ?
@@ -6126,7 +6127,7 @@ static int cam_icp_mgr_config_hw(void *hw_mgr_priv, void *config_hw_args)
 	if (rc)
 		goto config_err;
 
-	CAM_DBG(CAM_REQ, "%s: req_id = %lld queued to FW",
+	CAM_DBG(CAM_REQ|CAM_ICP, "%s: req_id = %lld queued to FW",
 		ctx_data->ctx_id_string, req_id);
 	mutex_unlock(&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
 	mutex_unlock(&hw_mgr->hw_mgr_mutex);
@@ -6400,7 +6401,7 @@ static int cam_icp_mgr_process_io_cfg(struct cam_icp_hw_mgr *hw_mgr,
 			return -EINVAL;
 		}
 
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_ICP,
 			"%s: req_id: %llu dir[%d]: %u, fence: %u resource_type = %u memh %x",
 			ctx_data->ctx_id_string, packet->header.request_id, i,
 			io_cfg_ptr[i].direction, io_cfg_ptr[i].fence,
@@ -6426,7 +6427,7 @@ static int cam_icp_mgr_process_io_cfg(struct cam_icp_hw_mgr *hw_mgr,
 			merged_sync_in_obj;
 		prepare_args->in_map_entries[0].sync_id = merged_sync_in_obj;
 		prepare_args->num_in_map_entries = 1;
-		CAM_DBG(CAM_REQ, "%s: req_id: %llu Merged Sync obj: %d",
+		CAM_DBG(CAM_REQ|CAM_ICP, "%s: req_id: %llu Merged Sync obj: %d",
 			ctx_data->ctx_id_string, packet->header.request_id,
 			merged_sync_in_obj);
 	} else if (prepare_args->num_in_map_entries == 1) {
@@ -6756,7 +6757,7 @@ static int cam_icp_packet_generic_blob_handler(void *user_data,
 
 		soc_req = (struct cam_icp_clk_bw_request *)blob_data;
 		*clk_info = *soc_req;
-		CAM_DBG(CAM_PERF, "%s: budget:%llu fc: %llu %d BW %lld %lld",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: budget:%llu fc: %llu %d BW %lld %lld",
 			ctx_data->ctx_id_string, clk_info->budget_ns, clk_info->frame_cycles,
 			clk_info->rt_flag, clk_info->uncompressed_bw,
 			clk_info->compressed_bw);
@@ -6843,14 +6844,14 @@ static int cam_icp_packet_generic_blob_handler(void *user_data,
 		clk_info->frame_cycles = clk_info_v2->frame_cycles;
 		clk_info->rt_flag = clk_info_v2->rt_flag;
 
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ICP,
 			"%s: budget=%llu, frame_cycle=%llu, rt_flag=%d, num_paths=%d, index=%d, ctx_data=%pK",
 			ctx_data->ctx_id_string, clk_info_v2->budget_ns,
 			clk_info_v2->frame_cycles, clk_info_v2->rt_flag, clk_info_v2->num_paths,
 			index, ctx_data);
 
 		for (i = 0; i < clk_info_v2->num_paths; i++) {
-			CAM_DBG(CAM_PERF,
+			CAM_DBG(CAM_PERF|CAM_ICP,
 				"%s: [%d] : path_type=%d, trans_type=%d, camnoc=%lld, mnoc_ab=%lld, mnoc_ib=%lld",
 				ctx_data->ctx_id_string,
 				i,
@@ -7224,7 +7225,7 @@ static int cam_icp_mgr_prepare_hw_update(void *hw_mgr_priv,
 	if (rc)
 		goto end;
 
-	CAM_DBG(CAM_REQ, "%s: req id = %lld", ctx_data->ctx_id_string,
+	CAM_DBG(CAM_REQ|CAM_ICP, "%s: req id = %lld", ctx_data->ctx_id_string,
 		packet->header.request_id);
 	/* Update Buffer Address from handles and patch information */
 	rc = cam_packet_util_process_patches(packet, prepare_args->buf_tracker,
@@ -7893,7 +7894,7 @@ static int cam_icp_mgr_hw_flush(void *hw_priv, void *hw_flush_args)
 	}
 
 	ctx_data->last_flush_req = flush_args->last_flush_req;
-	CAM_DBG(CAM_REQ, "%s: Flush type %d last_flush_req %u",
+	CAM_DBG(CAM_REQ|CAM_ICP, "%s: Flush type %d last_flush_req %u",
 		ctx_data->ctx_id_string, flush_args->flush_type,
 		ctx_data->last_flush_req);
 	switch (flush_args->flush_type) {

@@ -232,7 +232,7 @@ int cam_context_buf_done_from_hw(struct cam_context *ctx,
 	else
 		result = CAM_SYNC_STATE_SIGNALED_ERROR;
 
-	CAM_DBG(CAM_REQ,
+	CAM_DBG(CAM_REQ|CAM_CTXT,
 		"[%s][ctx_id %d] : req[%llu] : Signaling %d",
 		ctx->dev_name, ctx->ctx_id, req->request_id, result);
 
@@ -247,7 +247,7 @@ int cam_context_buf_done_from_hw(struct cam_context *ctx,
 			}
 		}
 
-		CAM_DBG(CAM_REQ, "fence %d signal with %d",
+		CAM_DBG(CAM_REQ|CAM_CTXT, "fence %d signal with %d",
 			req->out_map_entries[j].sync_id, result);
 		cam_sync_signal(req->out_map_entries[j].sync_id, result,
 			done->evt_param);

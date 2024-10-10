@@ -907,7 +907,8 @@ static bool cam_cpas_is_new_rt_bw_lower(
 			continue;
 
 		if (temp_axi_port->bus_client.common_data.is_drv_port) {
-			CAM_DBG(CAM_PERF, "Port %s DRV ab applied [%llu %llu] new [%llu %llu]",
+			CAM_DBG(CAM_PERF|CAM_CPAS,
+				"Port %s DRV ab applied [%llu %llu] new [%llu %llu]",
 				temp_axi_port->axi_port_name,
 				temp_axi_port->applied_bw.drv_vote.high.ab,
 				temp_axi_port->applied_bw.drv_vote.low.ab,
@@ -917,7 +918,7 @@ static bool cam_cpas_is_new_rt_bw_lower(
 			applied_total += temp_axi_port->applied_bw.drv_vote.high.ab;
 			new_total += temp_axi_port->curr_bw.drv_vote.high.ab;
 		} else {
-			CAM_DBG(CAM_PERF, "Port %s HLOS ab applied %llu new %llu",
+			CAM_DBG(CAM_PERF|CAM_CPAS, "Port %s HLOS ab applied %llu new %llu",
 				temp_axi_port->axi_port_name,
 				temp_axi_port->applied_bw.hlos_vote.ab,
 				temp_axi_port->curr_bw.hlos_vote.ab);
@@ -978,14 +979,14 @@ static bool cam_cpas_calculate_smart_qos(
 		if (max_bw_per_kb < bw_per_kb)
 			max_bw_per_kb = bw_per_kb;
 
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_CPAS,
 			"NIU[%d][%s]camnoc_bw %llu, niu_size %u, init_bw_per_kb %lld, remainder %lld, max_bw_per_kb %lld, total_bw_per_kb %lld",
 			i, niu_node->node_name, total_camnoc_bw, niu_node->niu_size,
 			bw_per_kb, remainder, max_bw_per_kb, total_bw_per_kb);
 	}
 
 	if (!max_bw_per_kb) {
-		CAM_DBG(CAM_PERF, "No valid bw on NIU nodes");
+		CAM_DBG(CAM_PERF|CAM_CPAS, "No valid bw on NIU nodes");
 		return false;
 	}
 
@@ -1008,7 +1009,7 @@ static bool cam_cpas_calculate_smart_qos(
 			(total_bw_per_kb *
 			soc_private->smart_qos_info->highstress_indicator_th)) {
 			clamp_threshold = soc_private->smart_qos_info->moststressed_clamp_th;
-			CAM_DBG(CAM_PERF, "Current niu clamp_threshold=%d",
+			CAM_DBG(CAM_PERF|CAM_CPAS, "Current niu clamp_threshold=%d",
 				clamp_threshold);
 		} else {
 			ramp_val = soc_private->smart_qos_info->bw_ratio_scale_factor *
@@ -1027,7 +1028,7 @@ static bool cam_cpas_calculate_smart_qos(
 				soc_private->smart_qos_info->lowstress_indicator_th) /
 				CAM_CPAS_MAX_STRESS_INDICATOR;
 
-			CAM_DBG(CAM_PERF, "ramp_val=%lld, total_bw_ramp_val=%lld",
+			CAM_DBG(CAM_PERF|CAM_CPAS, "ramp_val=%lld, total_bw_ramp_val=%lld",
 				ramp_val, total_bw_ramp_val);
 
 			remainder = do_div(ramp_val, total_bw_ramp_val);
@@ -1039,7 +1040,7 @@ static bool cam_cpas_calculate_smart_qos(
 			clamp_threshold =
 				soc_private->smart_qos_info->leaststressed_clamp_th - val;
 
-			CAM_DBG(CAM_PERF, "Current niu clamp_threshold=%d, val=%d",
+			CAM_DBG(CAM_PERF|CAM_CPAS, "Current niu clamp_threshold=%d, val=%d",
 				clamp_threshold, val);
 		}
 
@@ -1050,7 +1051,8 @@ static bool cam_cpas_calculate_smart_qos(
 			priority = priority << 4;
 			priority |= val;
 
-			CAM_DBG(CAM_PERF, "pos=%d, val=0x%x, priority=0x%llx", pos, val, priority);
+			CAM_DBG(CAM_PERF|CAM_CPAS, "pos=%d, val=0x%x, priority=0x%llx",
+				pos, val, priority);
 		}
 
 		for (pos = clamp_threshold - 1; pos >= 0; pos--) {
@@ -1068,7 +1070,7 @@ static bool cam_cpas_calculate_smart_qos(
 					CAM_CPAS_MAX_SLOPE_FACTOR;
 				remainder = do_div(ramp_val, max_bw_per_kb);
 
-				CAM_DBG(CAM_PERF,
+				CAM_DBG(CAM_PERF|CAM_CPAS,
 					"pos=%d, bw_per_kb=%lld, pos*bw_per_kb=%lld, ramp_val=%lld, remainder=%lld, max_bw_per_kb=%lld",
 					pos, bw_per_kb, pos * bw_per_kb, ramp_val, remainder,
 					max_bw_per_kb);
@@ -1085,7 +1087,8 @@ static bool cam_cpas_calculate_smart_qos(
 			priority = priority << 4;
 			priority |= val;
 
-			CAM_DBG(CAM_PERF, "pos=%d, val=0x%x, priority=0x%llx", pos, val, priority);
+			CAM_DBG(CAM_PERF|CAM_CPAS, "pos=%d, val=0x%x, priority=0x%llx",
+				pos, val, priority);
 		}
 
 		niu_node->curr_priority_low = (uint32_t)(priority & 0xFFFFFFFF);
@@ -1095,7 +1098,7 @@ static bool cam_cpas_calculate_smart_qos(
 			(niu_node->curr_priority_high != niu_node->applied_priority_high))
 			needs_update = true;
 
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_CPAS,
 			"Node[%d][%s]Priority applied high 0x%x low 0x%x, new high 0x%x low 0x%x, needs_update %d",
 			i, niu_node->node_name,
 			niu_node->applied_priority_high, niu_node->applied_priority_low,
@@ -1205,14 +1208,15 @@ static int cam_cpas_apply_smart_qos(
 	}
 
 	if (soc_private->enable_secure_qos_update && cam_qos_cnt) {
-		CAM_DBG(CAM_PERF, "Updating secure camera smartQoS count: %d", cam_qos_cnt);
+		CAM_DBG(CAM_PERF|CAM_CPAS, "Updating secure camera smartQoS count: %d",
+			cam_qos_cnt);
 		ret = cam_update_camnoc_qos_settings(CAM_QOS_UPDATE_TYPE_SMART,
 			cam_qos_cnt, scm_buf);
 		if (ret) {
 			CAM_ERR(CAM_PERF, "Secure camera smartQoS update failed: %d", ret);
 			return ret;
 		}
-		CAM_DBG(CAM_PERF, "Updated secure camera smartQoS");
+		CAM_DBG(CAM_PERF|CAM_CPAS, "Updated secure camera smartQoS");
 	}
 
 	if (cpas_core->smart_qos_dump) {
@@ -1367,7 +1371,7 @@ static int cam_cpas_util_set_camnoc_axi_drv_clk_rate(struct cam_hw_soc_info *soc
 				req_drv_high_camnoc_bw, drv_high_clk_rate, req_drv_low_camnoc_bw,
 				drv_low_clk_rate, cesta_drv_idx, hw_client_idx);
 		else
-			CAM_DBG(CAM_PERF,
+			CAM_DBG(CAM_PERF|CAM_CPAS,
 				"Setting camnoc axi cesta clk rate[BW Clk] : High [%llu %lld] Low [%llu %lld] cesta/hw_client_idx:[%d][%d]",
 				req_drv_high_camnoc_bw, drv_high_clk_rate, req_drv_low_camnoc_bw,
 				drv_low_clk_rate, cesta_drv_idx, hw_client_idx);
@@ -1395,7 +1399,7 @@ static int cam_cpas_util_set_camnoc_axi_drv_clk_rate(struct cam_hw_soc_info *soc
 			CAM_INFO(CAM_PERF, "Triggering channel switch for cesta client %d",
 				hw_client_idx);
 		else
-			CAM_DBG(CAM_PERF, "Triggering channel switch for cesta client %d",
+			CAM_DBG(CAM_PERF|CAM_CPAS, "Triggering channel switch for cesta client %d",
 				hw_client_idx);
 
 		rc = cam_soc_util_cesta_channel_switch(hw_client_idx, "cpas_update");
@@ -1572,7 +1576,8 @@ static int cam_cpas_util_set_camnoc_axi_hlos_clk_rate(struct cam_hw_soc_info *so
 		cam_common_util_mul_then_div(req_nrt_tree_hlos_camnoc_bw,
 			1, soc_private->camnoc_bus_width);
 
-	CAM_DBG(CAM_PERF, "Setting camnoc axi HLOS clk rate[BW Clk RT_only_Clk] : [%llu %lld %lld]",
+	CAM_DBG(CAM_PERF|CAM_CPAS,
+		"Setting camnoc axi HLOS clk rate[BW Clk RT_only_Clk] : [%llu %lld %lld]",
 		req_full_tree_hlos_camnoc_bw, hlos_full_tree_clk_rate, rt_tree_hlos_clk_rate);
 
 	rt_clk_rates.sw_client = (unsigned long) rt_tree_hlos_clk_rate;
@@ -1912,7 +1917,7 @@ static int cam_cpas_camnoc_set_bw_vote(struct cam_hw_info *cpas_hw,
 		else
 			continue;
 
-		CAM_DBG(CAM_PERF, "Port[%s] : camnoc_bw=%lld",
+		CAM_DBG(CAM_PERF|CAM_CPAS, "Port[%s] : camnoc_bw=%lld",
 			camnoc_axi_port->axi_port_name,
 			camnoc_axi_port->curr_bw.hlos_vote.camnoc);
 
@@ -2243,7 +2248,7 @@ update_l0_mnoc:
 	}
 
 	if (soc_private->enable_smart_qos) {
-		CAM_DBG(CAM_PERF, "Start QoS update for client[%s][%d]",
+		CAM_DBG(CAM_PERF|CAM_CPAS, "Start QoS update for client[%s][%d]",
 			cpas_client->data.identifier, cpas_client->data.cell_index);
 		for (i = 0; i < cpas_core->num_axi_ports; i++) {
 			if (mnoc_axi_port_updated[i] && cpas_core->axi_port[i].is_rt) {
@@ -2260,7 +2265,7 @@ update_l0_mnoc:
 				 * If new BW is low, apply QoS first and then vote,
 				 * otherwise vote first and then apply QoS
 				 */
-				CAM_DBG(CAM_PERF, "Apply Smart QoS first");
+				CAM_DBG(CAM_PERF|CAM_CPAS, "Apply Smart QoS first");
 				rc = cam_cpas_apply_smart_qos(cpas_hw);
 				if (rc) {
 					CAM_ERR(CAM_CPAS,
@@ -2283,7 +2288,7 @@ vote_start_clients:
 		memcpy(&curr_port_bw, &mnoc_axi_port->curr_bw, sizeof(struct cam_cpas_axi_bw_info));
 
 		if (mnoc_axi_port->bus_client.common_data.is_drv_port) {
-			CAM_DBG(CAM_PERF,
+			CAM_DBG(CAM_PERF|CAM_CPAS,
 				"Port[%s] :DRV high [%lld %lld] low [%lld %lld] streamon_clients=%d",
 				mnoc_axi_port->axi_port_name,
 				mnoc_axi_port->curr_bw.drv_vote.high.ab,
@@ -2373,7 +2378,7 @@ vote_start_clients:
 			}
 
 		} else {
-			CAM_DBG(CAM_PERF,
+			CAM_DBG(CAM_PERF|CAM_CPAS,
 				"Port[%s] :HLOS ab=%lld ib=%lld additional=%lld, streamon_clients=%d",
 				mnoc_axi_port->axi_port_name, mnoc_axi_port->curr_bw.hlos_vote.ab,
 				mnoc_axi_port->curr_bw.hlos_vote.ib, mnoc_axi_port->additional_bw,
@@ -2419,7 +2424,7 @@ vote_start_clients:
 	}
 
 	if (soc_private->enable_smart_qos && apply_smart_qos) {
-		CAM_DBG(CAM_PERF, "Apply Smart QoS after bw votes");
+		CAM_DBG(CAM_PERF|CAM_CPAS, "Apply Smart QoS after bw votes");
 
 		rc = cam_cpas_apply_smart_qos(cpas_hw);
 		if (rc) {
@@ -2742,7 +2747,7 @@ static int cam_cpas_hw_update_ahb_vote(struct cam_hw_info *cpas_hw,
 		goto unlock_client;
 	}
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_CPAS,
 		"client=[%d][%s][%d] : type[%d], level[%d], freq[%ld], applied[%d]",
 		client_indx, cpas_client->data.identifier,
 		cpas_client->data.cell_index, ahb_vote.type,

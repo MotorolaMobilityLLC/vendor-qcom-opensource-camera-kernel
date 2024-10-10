@@ -43,7 +43,7 @@ static bool cam_cre_debug_clk_update(struct cam_cre_clk_info *hw_mgr_clk_info)
 		hw_mgr_clk_info->curr_clk = cre_hw_mgr->cre_debug_clk;
 		hw_mgr_clk_info->uncompressed_bw = cre_hw_mgr->cre_debug_clk;
 		hw_mgr_clk_info->compressed_bw = cre_hw_mgr->cre_debug_clk;
-		CAM_DBG(CAM_PERF, "bc = %d cc = %d ub %d cb %d",
+		CAM_DBG(CAM_PERF|CAM_CRE, "bc = %d cc = %d ub %d cb %d",
 			hw_mgr_clk_info->base_clk, hw_mgr_clk_info->curr_clk,
 			hw_mgr_clk_info->uncompressed_bw,
 			hw_mgr_clk_info->compressed_bw);
@@ -1247,7 +1247,7 @@ static int cam_cre_mgr_update_clk_rate(struct cam_cre_hw_mgr *hw_mgr,
 
 	clk_upd_cmd.clk_rate = hw_mgr->clk_info.curr_clk;
 
-	CAM_DBG(CAM_PERF, "clk_rate %u for dev_type %d", clk_upd_cmd.clk_rate,
+	CAM_DBG(CAM_PERF|CAM_CRE, "clk_rate %u for dev_type %d", clk_upd_cmd.clk_rate,
 		ctx_data->cre_acquire.dev_type);
 
 	for (i = 0; i < cre_hw_mgr->num_cre; i++) {
@@ -2299,13 +2299,13 @@ static int cam_cre_mgr_prepare_hw_update(void *hw_priv,
 	ktime_get_boottime_ts64(&ts);
 	ctx_data->last_req_time = (uint64_t)((ts.tv_sec * 1000000000) +
 		ts.tv_nsec);
-	CAM_DBG(CAM_REQ, "req_id= %llu ctx_id= %d lrt=%llu",
+	CAM_DBG(CAM_REQ|CAM_CRE, "req_id= %llu ctx_id= %d lrt=%llu",
 		packet->header.request_id, ctx_data->ctx_id,
 		ctx_data->last_req_time);
 	set_bit(request_idx, ctx_data->bitmap);
 	mutex_unlock(&ctx_data->ctx_mutex);
 
-	CAM_DBG(CAM_REQ, "Prepare Hw update Successful request_id: %d  ctx: %d",
+	CAM_DBG(CAM_REQ|CAM_CRE, "Prepare Hw update Successful request_id: %d  ctx: %d",
 		packet->header.request_id, ctx_data->ctx_id);
 	return rc;
 
@@ -2404,7 +2404,7 @@ static int cam_cre_mgr_config_hw(void *hw_priv, void *hw_config_args)
 	if (rc)
 		goto config_err;
 
-	CAM_DBG(CAM_REQ, "req_id %llu, ctx_id %u io config",
+	CAM_DBG(CAM_REQ|CAM_CRE, "req_id %llu, ctx_id %u io config",
 		cre_req->request_id, ctx_data->ctx_id);
 
 	mutex_unlock(&ctx_data->ctx_mutex);
@@ -2622,7 +2622,7 @@ static int cam_cre_mgr_hw_flush(void *hw_priv, void *hw_flush_args)
 		mutex_lock(&hw_mgr->hw_mgr_mutex);
 		ctx_data->last_flush_req = flush_args->last_flush_req;
 
-		CAM_DBG(CAM_REQ, "ctx_id %d Flush type %d last_flush_req %u",
+		CAM_DBG(CAM_REQ|CAM_CRE, "ctx_id %d Flush type %d last_flush_req %u",
 				ctx_data->ctx_id, flush_args->flush_type,
 				ctx_data->last_flush_req);
 

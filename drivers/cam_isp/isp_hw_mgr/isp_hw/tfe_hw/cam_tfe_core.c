@@ -1100,7 +1100,7 @@ static int cam_tfe_top_set_axi_bw_vote(
 	agg_vote->num_paths = num_paths;
 
 	for (i = 0; i < agg_vote->num_paths; i++) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"tfe[%d] : New BW Vote : counter[%d] [%s][%s] [%llu %llu %llu]",
 			top_priv->common_data.hw_intf->hw_idx,
 			top_priv->last_counter,
@@ -1125,7 +1125,7 @@ static int cam_tfe_top_set_axi_bw_vote(
 		(total_bw_new_vote != top_priv->total_bw_applied))
 		bw_unchanged = false;
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"tfe[%d] : applied_total=%lld, new_total=%lld unchanged=%d, start_stop=%d",
 		top_priv->common_data.hw_intf->hw_idx,
 		top_priv->total_bw_applied, total_bw_new_vote,
@@ -1165,7 +1165,7 @@ static int cam_tfe_top_set_axi_bw_vote(
 	}
 
 	for (i = 0; i < to_be_applied_axi_vote->num_paths; i++) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"tfe[%d] : Apply BW Vote : [%s][%s] [%llu %llu %llu]",
 			top_priv->common_data.hw_intf->hw_idx,
 			cam_cpas_axi_util_path_type_to_string(
@@ -1182,7 +1182,7 @@ static int cam_tfe_top_set_axi_bw_vote(
 		(total_bw_new_vote != top_priv->total_bw_applied))
 		apply_bw_update = true;
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"tfe[%d] : Delayed update: applied_total=%lld, new_total=%lld apply_bw_update=%d, start_stop=%d",
 		top_priv->common_data.hw_intf->hw_idx,
 		top_priv->total_bw_applied, total_bw_new_vote,

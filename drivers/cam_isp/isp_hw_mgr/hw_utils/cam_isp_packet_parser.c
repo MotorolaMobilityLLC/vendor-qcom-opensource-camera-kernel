@@ -764,7 +764,7 @@ static int cam_isp_io_buf_get_entries_util(
 	struct cam_isp_hw_mgr_res              *hw_mgr_res_temp;
 	bool                                    found = false;
 
-	CAM_DBG(CAM_REQ,
+	CAM_DBG(CAM_REQ|CAM_ISP,
 		"req_id %llu resource_type:%d fence:%d direction %d format %d",
 		buf_info->prepare->packet->header.request_id,
 		io_cfg->resource_type, io_cfg->fence,

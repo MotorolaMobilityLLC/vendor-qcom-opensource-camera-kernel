@@ -2658,7 +2658,7 @@ static int cam_tfe_classify_vote_info(
 	}
 
 	for (i = 0; i < isp_vote->num_paths; i++) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"CLASSIFY_VOTE [%s] [%s] [%s] [%llu] [%llu] [%llu]",
 			cam_tfe_util_usage_data_to_string(
 			isp_vote->axi_path[i].usage_data),
@@ -2687,7 +2687,7 @@ static int cam_isp_tfe_blob_bw_update(
 	bool                                   camif_r_bw_updated = false;
 
 	for (i = 0; i < bw_config->num_paths; i++) {
-		CAM_DBG(CAM_PERF,
+		CAM_DBG(CAM_PERF|CAM_ISP,
 			"ISP_BLOB usage_type=%u [%s] [%s] [%s] [%llu] [%llu] [%llu]",
 			bw_config->usage_type,
 			cam_tfe_util_usage_data_to_string(
@@ -3985,7 +3985,7 @@ static int cam_isp_tfe_blob_clock_update(
 
 	ctx = prepare->ctxt_to_hw_map;
 
-	CAM_DBG(CAM_PERF,
+	CAM_DBG(CAM_PERF|CAM_ISP,
 		"usage=%u left_clk= %lu right_clk=%lu",
 		clock_config->usage_type,
 		clock_config->left_pix_hz,
@@ -4718,7 +4718,7 @@ static int cam_tfe_mgr_prepare_hw_update(void *hw_mgr_priv,
 		return -EINVAL;
 	}
 
-	CAM_DBG(CAM_REQ, "Enter for req_id %lld",
+	CAM_DBG(CAM_REQ|CAM_ISP, "Enter for req_id %lld",
 		prepare->packet->header.request_id);
 
 	prepare_hw_data = (struct cam_isp_prepare_hw_update_data  *)

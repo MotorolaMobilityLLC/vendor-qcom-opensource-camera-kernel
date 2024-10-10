@@ -258,7 +258,7 @@ static int cam_ofe_handle_pc(struct cam_hw_info *ofe_dev)
 		return rc;
 	}
 
-	CAM_DBG(CAM_PERF, "pwr_ctrl=%x pwr_status=%x", pwr_ctrl, pwr_status);
+	CAM_DBG(CAM_PERF|CAM_ICP, "pwr_ctrl=%x pwr_status=%x", pwr_ctrl, pwr_status);
 
 	return 0;
 }
@@ -288,7 +288,7 @@ static int cam_ofe_handle_resume(struct cam_hw_info *ofe_dev)
 	}
 
 	if (pwr_ctrl & OFE_COLLAPSE_MASK) {
-		CAM_DBG(CAM_PERF, "OFE: pwr_ctrl set(%x)", pwr_ctrl);
+		CAM_DBG(CAM_PERF|CAM_ICP, "OFE: pwr_ctrl set(%x)", pwr_ctrl);
 		cam_cpas_reg_write(core_info->cpas_handle,
 			CAM_CPAS_REGBASE_CPASTOP,
 			hw_info->pwr_ctrl, true, 0);
@@ -316,7 +316,7 @@ static int cam_ofe_handle_resume(struct cam_hw_info *ofe_dev)
 		return rc;
 	}
 
-	CAM_DBG(CAM_PERF, "pwr_ctrl=%x pwr_status=%x", pwr_ctrl, pwr_status);
+	CAM_DBG(CAM_PERF|CAM_ICP, "pwr_ctrl=%x pwr_status=%x", pwr_ctrl, pwr_status);
 
 	return rc;
 }
@@ -392,7 +392,7 @@ int cam_ofe_process_cmd(void *device_priv, uint32_t cmd_type,
 		uint32_t clk_rate = clk_upd_cmd->curr_clk_rate;
 		int32_t clk_level = 0, err = 0;
 
-		CAM_DBG(CAM_PERF, "ofe_src_clk rate = %d", (int)clk_rate);
+		CAM_DBG(CAM_PERF|CAM_ICP, "ofe_src_clk rate = %d", (int)clk_rate);
 
 		if (!core_info->clk_enable) {
 			if (clk_upd_cmd->dev_pc_enable) {
@@ -412,7 +412,7 @@ int cam_ofe_process_cmd(void *device_priv, uint32_t cmd_type,
 					CAM_ERR(CAM_ICP, "OFE resume failed");
 			}
 		}
-		CAM_DBG(CAM_PERF, "clock rate %d", clk_rate);
+		CAM_DBG(CAM_PERF|CAM_ICP, "clock rate %d", clk_rate);
 		rc = cam_ofe_update_clk_rate(soc_info, clk_rate);
 		if (rc)
 			CAM_ERR(CAM_PERF, "Failed to update clk %d", clk_rate);

@@ -1355,7 +1355,7 @@ static int cam_ope_mgr_update_clk_rate(struct cam_ope_hw_mgr *hw_mgr,
 
 	clk_upd_cmd.clk_rate = hw_mgr->clk_info.curr_clk;
 
-	CAM_DBG(CAM_PERF, "clk_rate %u for dev_type %d", clk_upd_cmd.clk_rate,
+	CAM_DBG(CAM_PERF|CAM_OPE, "clk_rate %u for dev_type %d", clk_upd_cmd.clk_rate,
 		ctx_data->ope_acquire.dev_type);
 
 	for (i = 0; i < ope_hw_mgr->num_ope; i++) {
@@ -1668,10 +1668,10 @@ static void cam_ope_ctx_cdm_callback(uint32_t handle, void *userdata,
 	ope_hw_mgr->last_callback_time = (uint64_t)((ts.tv_sec * 1000000000) +
 		ts.tv_nsec);
 
-	CAM_DBG(CAM_REQ,
+	CAM_DBG(CAM_REQ|CAM_OPE,
 		"hdl=%x, udata=%pK, status=%d, cookie=%u",
 		handle, userdata, status, req_id);
-	CAM_DBG(CAM_REQ, "req_id= %llu ctx_id= %d lcb=%llu",
+	CAM_DBG(CAM_REQ|CAM_OPE, "req_id= %llu ctx_id= %d lcb=%llu",
 		ope_req->request_id, ctx->ctx_id,
 		ope_hw_mgr->last_callback_time);
 
@@ -1883,11 +1883,11 @@ static int cam_ope_mgr_process_io_cfg(struct cam_ope_hw_mgr *hw_mgr,
 					}
 				}
 			}
-			CAM_DBG(CAM_REQ,
+			CAM_DBG(CAM_REQ|CAM_OPE,
 				"ctx_id: %u req_id: %llu dir[%d] %u, fence: %d",
 				ctx_data->ctx_id, packet->header.request_id, i,
 				io_buf->direction, io_buf->fence);
-			CAM_DBG(CAM_REQ, "rsc_type = %u fmt = %d",
+			CAM_DBG(CAM_REQ|CAM_OPE, "rsc_type = %u fmt = %d",
 				io_buf->resource_type,
 				io_buf->format);
 		}
@@ -1913,7 +1913,7 @@ static int cam_ope_mgr_process_io_cfg(struct cam_ope_hw_mgr *hw_mgr,
 
 		prep_arg->in_map_entries[0].sync_id = merged_sync_in_obj;
 		prep_arg->num_in_map_entries = 1;
-		CAM_DBG(CAM_REQ, "ctx_id: %u req_id: %llu Merged Sync obj: %d",
+		CAM_DBG(CAM_REQ|CAM_OPE, "ctx_id: %u req_id: %llu Merged Sync obj: %d",
 			ctx_data->ctx_id, packet->header.request_id,
 			merged_sync_in_obj);
 	} else if (prep_arg->num_in_map_entries == 1) {
@@ -3403,18 +3403,18 @@ static int cam_ope_mgr_prepare_hw_update(void *hw_priv,
 	prepare_args->hw_update_entries[0].addr   = (uintptr_t)ope_req->cdm_cmd;
 	prepare_args->priv                        = ope_req;
 
-	CAM_INFO(CAM_REQ, "OPE req %x num_batch %d", ope_req, ope_req->num_batch);
+	CAM_INFO(CAM_REQ|CAM_OPE, "OPE req %x num_batch %d", ope_req, ope_req->num_batch);
 
 	ktime_get_boottime_ts64(&ts);
 	ctx_data->last_req_time = (uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
-	CAM_DBG(CAM_REQ, "req_id= %llu ctx_id= %d lrt=%llu",
+	CAM_DBG(CAM_REQ|CAM_OPE, "req_id= %llu ctx_id= %d lrt=%llu",
 		packet->header.request_id, ctx_data->ctx_id,
 		ctx_data->last_req_time);
 	cam_ope_req_timer_modify(ctx_data, ctx_data->req_timer_timeout);
 	set_bit(request_idx, ctx_data->bitmap);
 	cam_ope_mgr_put_cmd_buf(packet);
 	mutex_unlock(&ctx_data->ctx_mutex);
-	CAM_DBG(CAM_REQ, "Prepare Hw update Successful request_id: %d  ctx: %d",
+	CAM_DBG(CAM_REQ|CAM_OPE, "Prepare Hw update Successful request_id: %d  ctx: %d",
 		packet->header.request_id, ctx_data->ctx_id);
 	return rc;
 
@@ -3549,7 +3549,7 @@ static int cam_ope_mgr_config_hw(void *hw_priv, void *hw_config_args)
 	if (rc)
 		goto config_err;
 
-	CAM_DBG(CAM_REQ, "req_id %llu, ctx_id %u io config",
+	CAM_DBG(CAM_REQ|CAM_OPE, "req_id %llu, ctx_id %u io config",
 		ope_req->request_id, ctx_data->ctx_id);
 
 	mutex_unlock(&ctx_data->ctx_mutex);
@@ -3800,7 +3800,7 @@ static int cam_ope_mgr_hw_flush(void *hw_priv, void *hw_flush_args)
 		mutex_lock(&hw_mgr->hw_mgr_mutex);
 		ctx_data->last_flush_req = flush_args->last_flush_req;
 
-		CAM_DBG(CAM_REQ, "ctx_id %d Flush type %d last_flush_req %u",
+		CAM_DBG(CAM_REQ|CAM_OPE, "ctx_id %d Flush type %d last_flush_req %u",
 				ctx_data->ctx_id, flush_args->flush_type,
 				ctx_data->last_flush_req);
 

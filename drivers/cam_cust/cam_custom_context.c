@@ -90,7 +90,7 @@ static int __cam_custom_ctx_reg_upd_in_sof(
 		} else {
 			list_add_tail(&req->list, &ctx->active_req_list);
 			custom_ctx->active_req_cnt++;
-			CAM_DBG(CAM_REQ,
+			CAM_DBG(CAM_REQ|CAM_CUSTOM,
 				"move request %lld to active list(cnt = %d), ctx %u",
 				req->request_id, custom_ctx->active_req_cnt,
 				ctx->ctx_id);
@@ -121,7 +121,7 @@ static int __cam_custom_ctx_reg_upd_in_applied_state(
 	if (req_custom->num_fence_map_out != 0) {
 		list_add_tail(&req->list, &ctx->active_req_list);
 		custom_ctx->active_req_cnt++;
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_CUSTOM,
 			"move request %lld to active list(cnt = %d), ctx %u",
 			req->request_id, custom_ctx->active_req_cnt,
 			ctx->ctx_id);
@@ -235,21 +235,21 @@ static int __cam_custom_ctx_frame_done(
 
 			list_add_tail(&req->list, &ctx->free_req_list);
 			atomic_set(&custom_ctx->process_bubble, 0);
-			CAM_DBG(CAM_REQ,
+			CAM_DBG(CAM_REQ|CAM_CUSTOM,
 				"Move active request %lld to free list(cnt = %d) [flushed], ctx %u",
 				frame_done_req_id, custom_ctx->active_req_cnt,
 				ctx->ctx_id);
 		} else {
 			list_add(&req->list, &ctx->pending_req_list);
 			atomic_set(&custom_ctx->process_bubble, 0);
-			CAM_DBG(CAM_REQ,
+			CAM_DBG(CAM_REQ|CAM_CUSTOM,
 				"Move active request %lld to pending list in ctx %u",
 				frame_done_req_id, ctx->ctx_id);
 		}
 	} else {
 		list_del_init(&req->list);
 		list_add_tail(&req->list, &ctx->free_req_list);
-		CAM_DBG(CAM_REQ,
+		CAM_DBG(CAM_REQ|CAM_CUSTOM,
 			"Move active request %lld to free list(cnt = %d) [all fences done], ctx %u",
 			frame_done_req_id,
 			custom_ctx->active_req_cnt,

@@ -217,14 +217,14 @@ void cam_req_mgr_debug_record_bind_latency(const char *driver_name, unsigned lon
 		CAM_MEM_ZALLOC(sizeof(struct camera_submodule_bind_time_node), GFP_KERNEL);
 
 	if (!new_node) {
-		CAM_WARN(CAM_REQ, "%s: %u usec: Failed to allocate Bind Time node",
+		CAM_WARN(CAM_REQ|CAM_CRM, "%s: %u usec: Failed to allocate Bind Time node",
 			driver_name, time_in_usec);
 		return;
 	}
-	CAM_DBG(CAM_REQ, "%s: bind latency: %u", driver_name, time_in_usec);
+	CAM_DBG(CAM_REQ|CAM_CRM, "%s: bind latency: %u", driver_name, time_in_usec);
 	new_node->name = kstrdup(driver_name, GFP_KERNEL);
 	if (!new_node->name) {
-		CAM_WARN(CAM_REQ, "%s: %u usec: Failed to create driver_name",
+		CAM_WARN(CAM_REQ|CAM_CRM, "%s: %u usec: Failed to create driver_name",
 			driver_name, time_in_usec);
 		CAM_MEM_FREE(new_node);
 		return;

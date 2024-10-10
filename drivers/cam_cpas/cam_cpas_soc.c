@@ -496,7 +496,8 @@ static int cam_cpas_parse_mnoc_node(struct cam_cpas *cpas_core,
 			curr_node_ptr->axi_port_idx_arr[i] = *mnoc_idx;
 			curr_axi_port->ib_bw_voting_needed = ib_voting_needed;
 			curr_axi_port->is_rt = curr_node_ptr->is_rt_node;
-			CAM_DBG(CAM_PERF, "Adding Bus Client=[%s] : src=%d, dst=%d mnoc_idx:%d",
+			CAM_DBG(CAM_PERF|CAM_CPAS,
+				"Adding Bus Client=[%s] : src=%d, dst=%d mnoc_idx:%d",
 				curr_axi_port->bus_client.common_data.name,
 				curr_axi_port->bus_client.common_data.src_id,
 				curr_axi_port->bus_client.common_data.dst_id,
