@@ -32,7 +32,7 @@ static int32_t cci_intf_xfer(
 	uint16_t addr;
 	uint16_t i2c_addr;
 	struct cam_sensor_i2c_reg_setting write_setting;
-	uint8_t temp;
+	unsigned char *buf = NULL;
 
 	struct cam_sensor_cci_client cci_info = {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
@@ -53,21 +53,14 @@ static int32_t cci_intf_xfer(
 			__func__, cmd, xfer->cci_bus, xfer->slave_addr,
 			xfer->reg.width, xfer->reg.addr, xfer->data.count, common_io_master_info->master_type);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
-	if (xfer->cci_device > 1 || xfer->cci_bus > 1 || xfer->slave_addr > 0x7F ||
-#else
-	if (xfer->cci_bus > 1 || xfer->slave_addr > 0x7F ||
-#endif
+	if (xfer->slave_addr > 0x7F ||
 			xfer->reg.width < 1 || xfer->reg.width > 2 ||
 			xfer->reg.addr > ((1<<(8*xfer->reg.width))-1) ||
 			xfer->data.count < 1 ||
 			xfer->data.count > MSM_CCI_INTF_MAX_XFER)
 	{
-		if (common_io_master_info->master_type == CCI_MASTER)
-		{
-			printk("%s: cci/i2c bus mismatch!!!\n", __func__);
-			return -EINVAL;
-		}
+		printk("%s: cci/i2c bus mismatch!!!\n", __func__);
+		return -EINVAL;
 	}
 
 	if(common_io_master_info->master_type == CCI_MASTER)
@@ -179,26 +172,52 @@ static int32_t cci_intf_xfer(
 			(common_io_master_info->qup_client->i2c_client != NULL) &&
 			(common_io_master_info->qup_client->i2c_client->adapter != NULL) &&
 			(common_io_master_info->qup_client->pm_ctrl_client_enable)) {
-			i2c_addr = common_io_master_info->qup_client->i2c_client->addr;
-			common_io_master_info->qup_client->i2c_client->addr = xfer->slave_addr << 1;
-			rc = cam_qup_i2c_read(common_io_master_info->qup_client->i2c_client, xfer->reg.addr ,
-					(uint32_t*)xfer->data.buf, xfer->reg.width == 1 ? CAMERA_SENSOR_I2C_TYPE_BYTE : CAMERA_SENSOR_I2C_TYPE_WORD, xfer->data.count);
-			common_io_master_info->qup_client->i2c_client->addr = i2c_addr;
+
+			buf = kzalloc((xfer->reg.width == 1 ? CAMERA_SENSOR_I2C_TYPE_BYTE : CAMERA_SENSOR_I2C_TYPE_WORD) + xfer->data.count, GFP_KERNEL);
+
+			if ((xfer->reg.width == 1 ? CAMERA_SENSOR_I2C_TYPE_BYTE : CAMERA_SENSOR_I2C_TYPE_WORD) == CAMERA_SENSOR_I2C_TYPE_BYTE) {
+				buf[0] = xfer->reg.addr;
+			} else if ((xfer->reg.width == 1 ? CAMERA_SENSOR_I2C_TYPE_BYTE : CAMERA_SENSOR_I2C_TYPE_WORD) == CAMERA_SENSOR_I2C_TYPE_WORD) {
+				buf[0] = xfer->reg.addr >> 8;
+				buf[1] = xfer->reg.addr;
+			} else if ((xfer->reg.width == 1 ? CAMERA_SENSOR_I2C_TYPE_BYTE : CAMERA_SENSOR_I2C_TYPE_WORD) == CAMERA_SENSOR_I2C_TYPE_3B) {
+				buf[0] = xfer->reg.addr >> 16;
+				buf[1] = xfer->reg.addr >> 8;
+				buf[2] = xfer->reg.addr;
+			} else {
+				buf[0] = xfer->reg.addr >> 24;
+				buf[1] = xfer->reg.addr >> 16;
+				buf[2] = xfer->reg.addr >> 8;
+				buf[3] = xfer->reg.addr;
+			}
+
+			struct i2c_msg msgs[] = {
+				{
+					.addr  = xfer->slave_addr,
+					.flags = 0,
+					.len   = xfer->reg.width == 1 ? CAMERA_SENSOR_I2C_TYPE_BYTE : CAMERA_SENSOR_I2C_TYPE_WORD,
+					.buf   = buf,
+				},
+				{
+					.addr  = xfer->slave_addr,
+					.flags = I2C_M_RD,
+					.len   = xfer->data.count,
+					.buf   = xfer->data.buf,
+				},
+			};
+
+			rc = i2c_transfer(common_io_master_info->qup_client->i2c_client->adapter, msgs, 2);
+
 			if(rc < 0)
 			{
 				printk("%s: i2c read fail (%d)\n", __func__, rc);
+				kfree(buf);
 				goto release;
 			}
 
-			for(int i = 0; i < xfer->data.count/2; i++)
-			{
-				temp = xfer->data.buf[i];
-				xfer->data.buf[i] = xfer->data.buf[xfer->data.count -i -1];
-				xfer->data.buf[xfer->data.count -i -1] = temp;
-			}
-
 			for(int i = 0; i< xfer->data.count; i++)
-				printk("%s: i2c read success (0x%x)\n", __func__, xfer->data.buf[i]);
+				printk("%s: i2c read success (0x%x)\n", __func__, msgs[1].buf[i]);
+			kfree(buf);
 		}
 		break;
 	case MSM_I2C_INTF_WRITE:
