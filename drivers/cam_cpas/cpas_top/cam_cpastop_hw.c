@@ -223,6 +223,8 @@ static char *cam_cpastop_get_camnoc_name(enum cam_camnoc_hw_type type)
 		return "CAMNOC_RT";
 	case CAM_CAMNOC_HW_NRT:
 		return "CAMNOC_NRT";
+	case CAM_CAMNOC_HW_PDX:
+		return "CAMNOC_PDX";
 	default:
 		return "Invalid CAMNOC";
 	}
@@ -481,6 +483,19 @@ static int cam_cpastop_setup_regbase_indices(struct cam_hw_soc_info *soc_info,
 		CAM_DBG(CAM_CPAS, "regbase not found for CAMNOC NRT, rc=%d, %d %d",
 			rc, index, num_reg_map);
 		regbase_index[CAM_CPAS_REG_CAMNOC_NRT] = -1;
+	}
+
+	/* optional - reg base for a target where pdx noc is present */
+	rc = cam_common_util_get_string_index(soc_info->mem_block_name,
+		soc_info->num_mem_block, "cam_camnoc_pdx", &index);
+	if ((rc == 0) &&  (index < num_reg_map)) {
+		regbase_index[CAM_CPAS_REG_CAMNOC_PDX] = index;
+		CAM_DBG(CAM_CPAS, "regbase found for CAMNOC PDX, rc=%d, %d %d",
+			rc, index, num_reg_map);
+	} else {
+		CAM_DBG(CAM_CPAS, "regbase not found for CAMNOC PDX, rc=%d, %d %d",
+			rc, index, num_reg_map);
+		regbase_index[CAM_CPAS_REG_CAMNOC_PDX] = -1;
 	}
 
 	/* optional - rpmh register map */
@@ -962,6 +977,11 @@ static irqreturn_t cam_cpastop_handle_irq(int irq_num, void *data)
 		goto done;
 	}
 
+	if (camnoc_info[camnoc_idx]->reg_base == CAM_CPAS_REG_CAMNOC_PDX) {
+		CAM_INFO(CAM_CPAS, "Unexpected IRQ from Noc = %d", camnoc_type);
+		goto done;
+	}
+
 	payload = CAM_MEM_ZALLOC(sizeof(struct cam_cpas_work_payload), GFP_ATOMIC);
 	if (!payload)
 		goto done;
@@ -1087,7 +1107,8 @@ static int cam_cpastop_poweron(struct cam_hw_info *cpas_hw)
 	int index;
 
 	for (i = 0; i < cpas_core->num_valid_camnoc; i++)
-		cam_cpastop_reset_irq(0x0, cpas_hw, i);
+		if (camnoc_info[i]->reg_base != CAM_CPAS_REG_CAMNOC_PDX)
+			cam_cpastop_reset_irq(0x0, cpas_hw, i);
 
 	if (!soc_private->enable_secure_qos_update) {
 		for (i = 0; i < cpas_core->num_valid_camnoc; i++) {
@@ -1337,6 +1358,9 @@ static int cam_cpastop_set_up_camnoc_info(struct cam_cpas *cpas_core,
 				break;
 			case CAM_CAMNOC_HW_NRT:
 				camnoc_info[camnoc_cnt]->reg_base = CAM_CPAS_REG_CAMNOC_NRT;
+				break;
+			case CAM_CAMNOC_HW_PDX:
+				camnoc_info[camnoc_cnt]->reg_base = CAM_CPAS_REG_CAMNOC_PDX;
 				break;
 			default:
 				CAM_ERR(CAM_CPAS, "Invalid camnoc type %u", i);
@@ -1589,6 +1613,7 @@ static int cam_cpastop_init_hw_version(struct cam_hw_info *cpas_hw,
 	case CAM_CPAS_TITAN_1080_V100:
 		alloc_camnoc_info[CAM_CAMNOC_HW_RT] = &cam1080_cpas100_camnoc_info_rt;
 		alloc_camnoc_info[CAM_CAMNOC_HW_NRT] = &cam1080_cpas100_camnoc_info_nrt;
+		alloc_camnoc_info[CAM_CAMNOC_HW_PDX] = &cam1080_cpas100_camnoc_info_pdx;
 		cpas_info = &cam1080_cpas100_cpas_info;
 		cesta_info = &cam_v1080_cesta_info;
 		break;

@@ -1592,6 +1592,14 @@ static struct cam_camnoc_info cam1080_cpas100_camnoc_info_nrt = {
 	.addr_trans_info = &cam1080_cpas100_addr_trans_info,
 };
 
+static struct cam_camnoc_info cam1080_cpas100_camnoc_info_pdx = {
+	.test_irq_info = {
+		.sbm_enable_mask = 0x1,
+		.sbm_clear_mask = 0x1,
+	},
+};
+
+
 static struct cam_cpas_camnoc_qchannel cam1080_cpas100_qchannel_info_rt = {
 	.qchannel_ctrl   = 0xEC,
 	.qchannel_status = 0xF0,
