@@ -142,6 +142,9 @@ enum cam_isp_state_change_trigger {
  * @enable_state_monitor_dump:  Enable isp state monitor dump
  * @disable_internal_recovery:  Disable internal kernel recovery mask
  * @enable_cdm_cmd_buff_dump:   Enable CDM Command buffer dump
+ * @wait_indefinitely_mup_sync: If set on out of sync error, if packet
+ *                              does not exist to perform internal recovery on
+ *                              continue to wait
  *
  */
 struct cam_isp_ctx_debug {
@@ -149,6 +152,7 @@ struct cam_isp_ctx_debug {
 	uint32_t        enable_state_monitor_dump;
 	uint32_t        disable_internal_recovery_mask;
 	uint8_t         enable_cdm_cmd_buff_dump;
+	bool            wait_indefinitely_mup_sync;
 };
 
 /**

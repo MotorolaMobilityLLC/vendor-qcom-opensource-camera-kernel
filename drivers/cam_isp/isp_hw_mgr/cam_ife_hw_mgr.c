@@ -15516,6 +15516,10 @@ static int cam_ife_mgr_cmd(void *hw_mgr_priv, void *cmd_args)
 			drv_info->frame_duration = isp_hw_cmd_args->u.drv_info.frame_duration;
 			drv_info->blanking_duration = isp_hw_cmd_args->u.drv_info.blanking_duration;
 			break;
+		case CAM_ISP_HW_MGR_RESET_OUT_OF_SYNC_CNT:
+			cam_hw_mgr_reset_out_of_sync_cnt(ctx);
+			ctx->try_recovery_cnt = 0;
+			break;
 		default:
 			CAM_ERR(CAM_ISP, "Invalid HW mgr command:0x%x, ctx_idx: %u",
 				hw_cmd_args->cmd_type, ctx->ctx_index);
@@ -16183,7 +16187,6 @@ static int cam_ife_hw_mgr_handle_csid_error(
 
 	/* Default error types */
 	recovery_data.error_type = CAM_ISP_HW_ERROR_OVERFLOW;
-	error_event_data.error_type = CAM_ISP_HW_ERROR_CSID_FATAL;
 	error_event_data.error_type |= err_type;
 
 	/* Notify IFE/SFE devices, determine bus overflow */

@@ -4356,6 +4356,7 @@ end:
 }
 
 static int __cam_isp_ctx_handle_recovery_req_util(
+	bool *no_pending,
 	struct cam_isp_context *ctx_isp)
 {
 	int rc = 0;
@@ -4365,6 +4366,8 @@ static int __cam_isp_ctx_handle_recovery_req_util(
 	if (list_empty(&ctx->pending_req_list)) {
 		CAM_WARN(CAM_ISP,
 			"No pending request to recover from on ctx: %u", ctx->ctx_id);
+		if (no_pending)
+			*no_pending = true;
 		return -EINVAL;
 	}
 
@@ -4387,8 +4390,12 @@ static int __cam_isp_ctx_handle_recovery_req_util(
 			ctx->ctx_id, ctx->link_hdl, ctx_isp->recovery_req_id);
 		ctx_isp->recovery_req_id = 0;
 		atomic_set(&ctx_isp->internal_recovery_set, 0);
+		goto end;
 	}
 
+	CAM_DBG(CAM_ISP, "Triggered internal recovery for req:%llu ctx:%u on link 0x%x",
+		ctx_isp->recovery_req_id, ctx->ctx_id, ctx->link_hdl);
+end:
 	return rc;
 }
 
@@ -4397,8 +4404,11 @@ static int __cam_isp_ctx_trigger_error_req_reapply(
 	struct cam_isp_context *ctx_isp)
 {
 	int rc = 0;
+	bool no_pending = false;
 	uint32_t err_type = err_event_data->error_type;
 	struct cam_context *ctx = ctx_isp->base;
+	struct cam_hw_cmd_args hw_cmd_args;
+	struct cam_isp_hw_cmd_args isp_hw_cmd_args;
 
 	if ((err_type & CAM_ISP_HW_ERROR_RECOVERY_OVERFLOW) &&
 		(isp_ctx_debug.disable_internal_recovery_mask &
@@ -4429,12 +4439,28 @@ static int __cam_isp_ctx_trigger_error_req_reapply(
 	if (rc)
 		goto end;
 
-	rc = __cam_isp_ctx_handle_recovery_req_util(ctx_isp);
-	if (rc)
-		goto end;
+	rc = __cam_isp_ctx_handle_recovery_req_util(&no_pending, ctx_isp);
+	if (rc && (no_pending) && (err_type == CAM_ISP_HW_ERROR_CSID_SENSOR_SWITCH_ERROR)) {
+		if (!isp_ctx_debug.wait_indefinitely_mup_sync)
+			goto end;
 
-	CAM_DBG(CAM_ISP, "Triggered internal recovery for req:%llu ctx:%u on link 0x%x",
-		ctx_isp->recovery_req_id, ctx->ctx_id, ctx->link_hdl);
+		hw_cmd_args.ctxt_to_hw_map = ctx_isp->hw_ctx;
+		hw_cmd_args.cmd_type = CAM_HW_MGR_CMD_INTERNAL;
+		isp_hw_cmd_args.cmd_type =
+			CAM_ISP_HW_MGR_RESET_OUT_OF_SYNC_CNT;
+
+		hw_cmd_args.u.internal_args = (void *)&isp_hw_cmd_args;
+		ctx->hw_mgr_intf->hw_cmd(ctx->hw_mgr_intf->hw_mgr_priv,
+			&hw_cmd_args);
+		/*
+		 * If there is an out of sync, and no pending request wait indefinitely
+		 * if that is desired
+		 */
+		rc = 0;
+		CAM_DBG(CAM_ISP,
+			"Skipping error reporting for out of sync on ctx: %u link: 0x%x",
+			ctx->ctx_id, ctx->link_hdl);
+	}
 
 end:
 	return rc;
@@ -10268,6 +10294,8 @@ static int cam_isp_context_debug_register(void)
 		isp_ctx_debug.dentry, &isp_ctx_debug.enable_cdm_cmd_buff_dump);
 	debugfs_create_u32("disable_internal_recovery_mask", 0644,
 		isp_ctx_debug.dentry, &isp_ctx_debug.disable_internal_recovery_mask);
+	debugfs_create_bool("wait_indefinitely_mup_sync", 0644,
+		isp_ctx_debug.dentry, &isp_ctx_debug.wait_indefinitely_mup_sync);
 
 	return 0;
 }

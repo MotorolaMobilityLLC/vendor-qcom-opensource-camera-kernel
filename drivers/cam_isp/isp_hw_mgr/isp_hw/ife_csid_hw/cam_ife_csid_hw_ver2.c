@@ -3116,7 +3116,7 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 
 	if (err_type || out_of_sync_fatal) {
 		if (out_of_sync_fatal)
-			err_type = CAM_ISP_HW_ERROR_CSID_SENSOR_FRAME_DROP;
+			err_type = CAM_ISP_HW_ERROR_CSID_SENSOR_SWITCH_ERROR;
 
 		cam_ife_csid_ver2_handle_event_err(csid_hw,
 			irq_status_ipp, err_type, false, res);
@@ -8330,8 +8330,7 @@ static int cam_ife_csid_ver2_reset_out_of_sync_cnt(
 	atomic_set(&path_cfg->switch_out_of_sync_cnt, 0);
 
 	CAM_DBG(CAM_ISP,
-		"Reset out of sync cnt for res:%s",
-		res->res_name);
+		"Reset out of sync cnt for res:%s", res->res_name);
 
 	return 0;
 }
