@@ -1751,7 +1751,10 @@ parse_ahb_table:
 		if (cam_drv_en_mask_val & CAM_DDR_DRV)
 			soc_private->enable_cam_ddr_drv = true;
 
-		if (cam_drv_en_mask_val & CAM_CLK_DRV) {
+		if (!IS_REACHABLE(CONFIG_QCOM_CRM) && !IS_REACHABLE(CONFIG_QCOM_CRM_V2)) {
+			soc_private->enable_cam_clk_drv = false;
+			CAM_WARN(CAM_CPAS, "CLK DRV is diabled as required support is not available");
+		} else if (cam_drv_en_mask_val & CAM_CLK_DRV) {
 			if (!soc_private->enable_cam_ddr_drv) {
 				CAM_ERR(CAM_CPAS, "DDR DRV needs to be enabled for Clock DRV");
 				rc = -EPERM;
