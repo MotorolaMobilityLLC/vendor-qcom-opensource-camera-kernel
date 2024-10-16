@@ -230,10 +230,17 @@ const static struct component_ops cam_jpeg_enc_component_ops = {
 	.unbind = cam_jpeg_enc_component_unbind,
 };
 
+
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 static int cam_jpeg_enc_remove(struct platform_device *pdev)
+#else
+static void cam_jpeg_enc_remove(struct platform_device *pdev)
+#endif
 {
 	component_del(&pdev->dev, &cam_jpeg_enc_component_ops);
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static int cam_jpeg_enc_probe(struct platform_device *pdev)

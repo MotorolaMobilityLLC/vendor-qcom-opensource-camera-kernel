@@ -799,10 +799,16 @@ static int cam_cdm_intf_probe(struct platform_device *pdev)
 	return rc;
 }
 
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 static int cam_cdm_intf_remove(struct platform_device *pdev)
+#else
+static void cam_cdm_intf_remove(struct platform_device *pdev)
+#endif
 {
 	component_del(&pdev->dev, &cam_cdm_intf_component_ops);
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 struct platform_driver cam_cdm_intf_driver = {

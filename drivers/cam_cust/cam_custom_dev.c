@@ -215,10 +215,16 @@ const static struct component_ops cam_custom_component_ops = {
 	.unbind = cam_custom_component_unbind,
 };
 
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 static int cam_custom_dev_remove(struct platform_device *pdev)
+#else
+static void cam_custom_dev_remove(struct platform_device *pdev)
+#endif
 {
 	component_del(&pdev->dev, &cam_custom_component_ops);
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static int cam_custom_dev_probe(struct platform_device *pdev)

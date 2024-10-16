@@ -168,8 +168,14 @@ int cam_csid_ppi_probe(struct platform_device *pdev)
 	return rc;
 }
 
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 int cam_csid_ppi_remove(struct platform_device *pdev)
+#else
+void cam_csid_ppi_remove(struct platform_device *pdev)
+#endif
 {
 	component_del(&pdev->dev, &cam_ppi_component_ops);
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }

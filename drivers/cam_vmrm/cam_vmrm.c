@@ -2783,11 +2783,17 @@ static int cam_vmrm_intf_probe(struct platform_device *pdev)
 	return rc;
 }
 
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 static int cam_vmrm_intf_remove(struct platform_device *pdev)
+#else
+static void cam_vmrm_intf_remove(struct platform_device *pdev)
+#endif
 {
 	CAM_DBG(CAM_VMRM, "Removing the vmrm_intf driver");
 	component_del(&pdev->dev, &cam_vmrm_intf_ops);
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 struct platform_driver cam_vmrm_intf_driver = {
