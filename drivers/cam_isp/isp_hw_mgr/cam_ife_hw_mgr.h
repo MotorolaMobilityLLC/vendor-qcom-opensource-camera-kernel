@@ -69,34 +69,40 @@ enum cam_ife_ctx_master_type {
 /**
  * struct cam_ife_hw_mgr_debug - contain the debug information
  *
- * @dentry:                    Debugfs entry
- * @csid_debug:                csid debug information
- * @rx_capture_debug:          rx capture debug info
- * @enable_recovery:           enable recovery
- * @camif_debug:               camif debug info
- * @enable_csid_recovery:      enable csid recovery
- * @sfe_debug:                 sfe debug config
- * @sfe_sensor_diag_cfg:       sfe sensor diag config
- * @csid_test_bus:             csid test bus config
- * @sfe_cache_debug:           sfe cache debug info
- * @perf_cnt_res_id:           res_id for WM on which perf cnt is enabled
- * @ife_perf_counter_val:      ife perf counter values
- * @sfe_perf_counter_val:      sfe perf counter values
- * @csid_domain_id_value:      Value of domain id to set on CSID
- * @csid_out_of_sync_simul:    Controls out of sync simulation
- * @enable_req_dump:           Enable request dump on HW errors
- * @per_req_reg_dump:          Enable per request reg dump
- * @disable_ubwc_comp:         Disable UBWC compression
- * @disable_ife_mmu_prefetch:  Disable MMU prefetch for IFE bus WR
- * @enable_ife_frame_irqs:     Enable Frame timing IRQs for IFE/MCTFE
- * @rx_capture_debug_set:      If rx capture debug is set by user
- * @disable_isp_drv:           Disable ISP DRV config
- * @enable_presil_reg_dump:    Enable per req regdump in presil
- * @enable_cdm_cmd_check:      Enable invalid command check in cmd_buf
- * @enable_csid_set_domain_id: Enable CSID force set per path domain id
- * @per_req_wait_cdm:          Enable per req wait cdm
- * @enable_cdr_sweep_debug:    Enable sending some CSID reg values as part
- *                             of CSIPHY CDR tuning
+ * @dentry:                      Debugfs entry
+ * @csid_debug:                  csid debug information
+ * @rx_capture_debug:            rx capture debug info
+ * @enable_recovery:             enable recovery
+ * @camif_debug:                 camif debug info
+ * @enable_csid_recovery:        enable csid recovery
+ * @sfe_debug:                   sfe debug config
+ * @sfe_sensor_diag_cfg:         sfe sensor diag config
+ * @csid_test_bus:               csid test bus config
+ * @sfe_cache_debug:             sfe cache debug info
+ * @perf_cnt_res_id:             res_id for WM on which perf cnt is enabled
+ * @ife_perf_counter_val:        ife perf counter values
+ * @sfe_perf_counter_val:        sfe perf counter values
+ * @csid_domain_id_value:        Value of domain id to set on CSID
+ * @csid_out_of_sync_simul:      Controls out of sync simulation
+ * @ife_bus_wr_perf_counter_val: ife bus wr perf counter values
+ * @sfe_bus_wr_perf_counter_val: sfe bus wr perf counter values
+ * @csid_perf_cnt_res_id:        res_id of csid res for which perf cnt is enabled
+ * @csid_perf_counter_val0:      csid perf counter values for cfg0
+ * @csid_perf_counter_val1:      csid perf counter values for cfg1
+ * @enable_req_dump:             Enable request dump on HW errors
+ * @per_req_reg_dump:            Enable per request reg dump
+ * @disable_ubwc_comp:           Disable UBWC compression
+ * @disable_ife_mmu_prefetch:    Disable MMU prefetch for IFE bus WR
+ * @enable_ife_frame_irqs:       Enable Frame timing IRQs for IFE/MCTFE
+ * @rx_capture_debug_set:        If rx capture debug is set by user
+ * @disable_isp_drv:             Disable ISP DRV config
+ * @enable_presil_reg_dump:      Enable per req regdump in presil
+ * @enable_cdm_cmd_check:        Enable invalid command check in cmd_buf
+ * @enable_csid_set_domain_id:   Enable CSID force set per path domain id
+ * @per_req_wait_cdm:            Enable per req wait cdm
+ * @enable_cdr_sweep_debug:      Enable sending some CSID reg values as part
+ *                               of CSIPHY CDR tuning
+ * @is_csid_perf_cnt_enabled:    Flag to indicate if csid perf counter debug is enabled
  */
 struct cam_ife_hw_mgr_debug {
 	struct dentry  *dentry;
@@ -116,6 +122,9 @@ struct cam_ife_hw_mgr_debug {
 	uint32_t       csid_out_of_sync_simul;
 	uint32_t      *ife_bus_wr_perf_counter_val;
 	uint32_t      *sfe_bus_wr_perf_counter_val;
+	uint32_t       csid_perf_cnt_res_id;
+	uint32_t      *csid_perf_counter_val0;
+	uint32_t      *csid_perf_counter_val1;
 	bool           enable_req_dump;
 	bool           per_req_reg_dump;
 	bool           disable_ubwc_comp;
@@ -129,6 +138,7 @@ struct cam_ife_hw_mgr_debug {
 	bool           per_req_wait_cdm;
 	bool           enable_cdr_sweep_debug;
 	bool           enable_sfe_wr_perf_cntr;
+	bool           is_csid_perf_cnt_enabled;
 };
 
 /**
@@ -490,16 +500,19 @@ struct cam_isp_fcg_caps {
 };
 
 /**
- * struct cam_isp_ife_sfe_hw_caps - IFE/SFE hw capabilities
+ * struct cam_isp_hw_caps - IFE/SFE hw capabilities
  *
- * @max_vfe_out_res_type  :  max ife out res type value from hw
- * @max_sfe_out_res_type  :  max sfe out res type value from hw
- * @num_ife_perf_counters :  max ife perf counters supported
- * @num_sfe_perf_counters :  max sfe perf counters supported
- * @max_dt_supported      :  max DT CSID can decode
- * @support_consumed_addr :  indicate whether hw supports last consumed address
+ * @max_vfe_out_res_type          :  max ife out res type value from hw
+ * @max_sfe_out_res_type          :  max sfe out res type value from hw
+ * @num_ife_perf_counters         :  max ife perf counters supported
+ * @num_sfe_perf_counters         :  max sfe perf counters supported
+ * @num_ife_bus_wr_perf_counters  :  max ife bus wr perf counters supported
+ * @num_sfe_bus_wr_perf_counters  :  max sfe bus wr perf counters supported
+ * @num_csid_perf_counters        :  max csid perf counters supported
+ * @max_dt_supported              :  max DT CSID can decode
+ * @support_consumed_addr         :  indicate whether hw supports last consumed address
  */
-struct cam_isp_ife_sfe_hw_caps {
+struct cam_isp_hw_caps {
 	struct cam_isp_fcg_caps fcg_caps;
 	uint32_t                max_vfe_out_res_type;
 	uint32_t                max_sfe_out_res_type;
@@ -507,6 +520,7 @@ struct cam_isp_ife_sfe_hw_caps {
 	uint32_t                num_sfe_perf_counters;
 	uint32_t                num_ife_bus_wr_perf_counters;
 	uint32_t                num_sfe_bus_wr_perf_counters;
+	uint32_t                num_csid_perf_counters;
 	uint32_t                max_dt_supported;
 	bool                    support_consumed_addr;
 	struct cam_isp_hw_regiter_dump_data skip_regdump_data;
@@ -633,7 +647,7 @@ struct cam_ife_hw_mgr {
 	struct cam_req_mgr_core_workq   *workq;
 	struct cam_ife_hw_mgr_debug      debug_cfg;
 	spinlock_t                       ctx_lock;
-	struct cam_isp_ife_sfe_hw_caps   isp_caps;
+	struct cam_isp_hw_caps           isp_caps;
 	struct cam_isp_hw_path_port_map  path_port_map;
 
 	uint32_t                         num_caches_found;

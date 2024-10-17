@@ -443,6 +443,18 @@ static int cam_ife_csid_ver2_set_debug(
 		CAM_IFE_CSID_DEBUGFS_DT_SHIFT_MASK) & CAM_IFE_CSID_DEBUGFS_VC_DT_MASK);
 	csid_hw->debug_info.rx_capture_debug_set = debug_args->rx_capture_debug_set;
 
+	if (debug_args->is_csid_perf_cnt_enabled) {
+		for (i = 0; i < CAM_CSID_PERF_CNT_MAX; i++) {
+			csid_hw->debug_info.perf_counter_val0[i] =
+				debug_args->csid_perf_counter_val0[i];
+			csid_hw->debug_info.perf_counter_val1[i] =
+				debug_args->csid_perf_counter_val1[i];
+		}
+
+		csid_hw->debug_info.perf_cnt_res_id = debug_args->csid_perf_cnt_res_id;
+		csid_hw->debug_info.is_csid_perf_cnt_enabled = true;
+	}
+
 	debug_val = csid_hw->debug_info.debug_val;
 	while (debug_val) {
 
@@ -2602,6 +2614,57 @@ static void cam_ife_csid_ver2_print_debug_reg_status(
 		val3, res->res_name);
 }
 
+static inline void cam_ife_csid_ver2_read_rst_perf_counters(
+	struct cam_ife_csid_ver2_hw  *csid_hw,
+	struct cam_isp_resource_node *res)
+{
+	int i;
+	uint32_t perf_cnt_status, perf_cnt_val;
+	void __iomem *mem_base;
+	size_t len = 0;
+	uint8_t log_buf[256];
+	bool print = false;
+	const struct cam_ife_csid_ver2_reg_info *csid_reg;
+	struct cam_hw_soc_info                   *soc_info;
+
+	if (!csid_hw || !res) {
+		CAM_ERR(CAM_ISP, "Invalid args csid_hw:%s res:%s", CAM_IS_NULL_TO_STR(csid_hw),
+			CAM_IS_NULL_TO_STR(res));
+		return;
+	}
+
+	soc_info = &csid_hw->hw_info->soc_info;
+	mem_base = soc_info->reg_map[CAM_IFE_CSID_CLC_MEM_BASE_ID].mem_base;
+	csid_reg = (struct cam_ife_csid_ver2_reg_info *) csid_hw->core_info->csid_reg;
+
+	csid_hw->counters.perf_cnt_frames++;
+	for (i = 0; i < csid_reg->cmn_reg->num_perf_cntrs; i++) {
+		/* Check counter status */
+		perf_cnt_status = cam_io_r_mb(mem_base +
+			csid_reg->cmn_reg->perf_cnt_reg[i].perf_cnt_status);
+		if (!perf_cnt_status)
+			continue;
+
+		/* Read counter value */
+		perf_cnt_val = cam_io_r_mb(mem_base +
+			csid_reg->cmn_reg->perf_cnt_reg[i].perf_cnt_val);
+
+		/* Reset the counter */
+		cam_io_w_mb(csid_hw->debug_info.perf_counter_val0[i],
+			(mem_base + csid_reg->cmn_reg->perf_cnt_reg[i].perf_cnt_cfg0));
+		cam_io_w_mb(csid_hw->debug_info.perf_counter_val1[i],
+			(mem_base + csid_reg->cmn_reg->perf_cnt_reg[i].perf_cnt_cfg1));
+
+		CAM_INFO_BUF(CAM_ISP, log_buf, 256, &len, "counter idx:%d val: 0x%x", i,
+			perf_cnt_val);
+		print = true;
+	}
+
+	CAM_INFO(CAM_ISP, "CSID[%u] res: %s Frame:%u perf counters %s ",
+			csid_hw->hw_intf->hw_idx, res->res_name, csid_hw->counters.perf_cnt_frames,
+			log_buf);
+}
+
 static int cam_ife_csid_ver2_parse_path_irq_status(
 	struct cam_ife_csid_ver2_hw  *csid_hw,
 	struct cam_isp_resource_node *res,
@@ -2693,6 +2756,11 @@ static int cam_ife_csid_ver2_parse_path_irq_status(
 		bit_pos++;
 		status >>= 1;
 	}
+
+	if (csid_hw->debug_info.is_csid_perf_cnt_enabled &&
+		(csid_hw->debug_info.perf_cnt_res_id == res->res_id) &&
+		(irq_status & IFE_CSID_VER2_PATH_INFO_INPUT_EOF))
+		cam_ife_csid_ver2_read_rst_perf_counters(csid_hw, res);
 
 	if (csid_hw->flags.sof_irq_triggered) {
 		if ((irq_status & IFE_CSID_VER2_PATH_INFO_INPUT_SOF))
@@ -5062,6 +5130,14 @@ static int cam_ife_csid_ver2_path_irq_subscribe(
 
 	top_irq_mask[0] = csid_reg->path_reg[res->res_id]->top_irq_mask[top_index];
 
+	/* We read values for perf counter at input eof, hence enabling for given path */
+	if (csid_hw->debug_info.is_csid_perf_cnt_enabled &&
+		(csid_hw->debug_info.perf_cnt_res_id == res->res_id)) {
+		dbg_frm_irq_mask |= IFE_CSID_VER2_PATH_INFO_INPUT_EOF;
+		CAM_INFO(CAM_ISP, "CSID[%u] Enabling input EOF for res: %s for perf counter usage",
+			csid_hw->hw_intf->hw_idx, res->res_name);
+	}
+
 	if ((res->res_id == CAM_IFE_PIX_PATH_RES_IPP) &&
 		csid_reg->path_reg[res->res_id]->capabilities &
 		CAM_IFE_CSID_CAP_MULTI_CTXT) {
@@ -5391,8 +5467,8 @@ static int cam_ife_csid_ver2_enable_path(
 	const struct cam_ife_csid_ver2_reg_info      *csid_reg;
 	struct cam_hw_soc_info                       *soc_info;
 	const struct cam_ife_csid_ver2_path_reg_info *path_reg = NULL;
-	uint32_t val = 0;
-	uint32_t ctrl_addr = 0;
+	uint32_t val = 0, ctrl_addr = 0;
+	int i;
 	struct cam_ife_csid_ver2_path_cfg *path_cfg;
 	void __iomem *mem_base;
 
@@ -5411,6 +5487,26 @@ static int cam_ife_csid_ver2_enable_path(
 	path_reg = csid_reg->path_reg[res->res_id];
 	val = path_reg->resume_frame_boundary;
 	ctrl_addr = path_reg->ctrl_addr;
+
+	if (csid_hw->debug_info.is_csid_perf_cnt_enabled &&
+		(csid_hw->debug_info.perf_cnt_res_id == res->res_id)) {
+		csid_hw->counters.perf_cnt_frames = 0;
+		for (i = 0; i < csid_reg->cmn_reg->num_perf_cntrs; i++) {
+			if (!csid_hw->debug_info.perf_counter_val0[i])
+				continue;
+
+			cam_io_w_mb(csid_hw->debug_info.perf_counter_val0[i],
+				(mem_base + csid_reg->cmn_reg->perf_cnt_reg[i].perf_cnt_cfg0));
+			cam_io_w_mb(csid_hw->debug_info.perf_counter_val1[i],
+				(mem_base + csid_reg->cmn_reg->perf_cnt_reg[i].perf_cnt_cfg1));
+
+			CAM_INFO(CAM_ISP,
+				"CSID[%u] Enabling perf counter: %d for res: %s with cfg0: 0x%x cfg1: 0x%x",
+				csid_hw->hw_intf->hw_idx, i, res->res_name,
+				csid_hw->debug_info.perf_counter_val0[i],
+				csid_hw->debug_info.perf_counter_val1[i]);
+		}
+	}
 
 	switch (res->res_id) {
 	case CAM_IFE_PIX_PATH_RES_IPP:
@@ -8559,6 +8655,7 @@ static int cam_ife_csid_ver2_process_cmd(void *hw_priv,
 	int rc = 0;
 	struct cam_ife_csid_ver2_hw          *csid_hw;
 	struct cam_hw_info                   *hw_info;
+	struct cam_ife_csid_ver2_reg_info *csid_reg = NULL;
 
 	if (!hw_priv || !cmd_args) {
 		CAM_ERR(CAM_ISP, "CSID: Invalid arguments");
@@ -8679,6 +8776,9 @@ static int cam_ife_csid_ver2_process_cmd(void *hw_priv,
 
 		if (!csid_cap->max_dt_supported)
 			rc = -EINVAL;
+
+		csid_reg = (struct cam_ife_csid_ver2_reg_info *) csid_hw->core_info->csid_reg;
+		csid_cap->num_csid_perf_counters = csid_reg->cmn_reg->num_perf_cntrs;
 	}
 		break;
 	case CAM_ISP_HW_CMD_EXP_INFO_UPDATE:

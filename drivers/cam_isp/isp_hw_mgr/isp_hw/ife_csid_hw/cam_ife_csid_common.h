@@ -391,12 +391,14 @@ struct cam_ife_csid_core_info {
  * @irq_debug_cnt:          irq debug counter
  * @error_irq_count:        error irq counter
  * @crc_error_irq_count:    crc error irq counter
+ * @perf_cnt_frames:        Frame count for perf counter dump
  */
 struct cam_ife_csid_hw_counters {
 	uint32_t                          csi2_reserve_cnt;
 	uint32_t                          irq_debug_cnt;
 	uint32_t                          error_irq_count;
 	uint32_t                          crc_error_irq_count;
+	uint32_t                          perf_cnt_frames;
 };
 
 /*

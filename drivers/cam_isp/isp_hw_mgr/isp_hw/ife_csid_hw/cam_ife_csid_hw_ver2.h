@@ -88,6 +88,10 @@ struct cam_ife_csid_ver2_debug_info {
 	bool                                  test_bus_enabled;
 	bool                                  set_domain_id_enabled;
 	bool                                  cdr_sweep_debug_enabled;
+	bool                                  is_csid_perf_cnt_enabled;
+	uint32_t                              perf_cnt_res_id;
+	uint32_t                              perf_counter_val0[CAM_CSID_PERF_CNT_MAX];
+	uint32_t                              perf_counter_val1[CAM_CSID_PERF_CNT_MAX];
 };
 
 struct cam_ife_csid_ver2_top_cfg {
@@ -372,6 +376,13 @@ struct cam_ife_csid_ver2_mc_reg_info {
 	uint32_t           comp_subgrp2_mask;
 };
 
+struct cam_ife_csid_ver2_perf_cnt_hw_info {
+	uint32_t perf_cnt_cfg0;
+	uint32_t perf_cnt_cfg1;
+	uint32_t perf_cnt_val;
+	uint32_t perf_cnt_status;
+};
+
 struct cam_ife_csid_ver2_path_reg_info {
 	uint32_t irq_status_addr;
 	uint32_t irq_mask_addr;
@@ -561,6 +572,7 @@ struct cam_ife_csid_ver2_common_reg_info {
 	uint32_t debug_err_vec_ts_lb;
 	uint32_t debug_err_vec_ts_mb;
 	uint32_t rx_mode_id_cfg1_addr;
+	struct cam_ife_csid_ver2_perf_cnt_hw_info perf_cnt_reg[CAM_CSID_PERF_CNT_MAX];
 
 	/*Shift Bit Configurations*/
 	uint32_t rst_done_shift_val;
@@ -664,6 +676,7 @@ struct cam_ife_csid_ver2_common_reg_info {
 	uint32_t path_domain_id_cfg0;
 	uint32_t path_domain_id_cfg1;
 	uint32_t path_domain_id_cfg2;
+	uint32_t num_perf_cntrs;
 
 	/* Masks */
 	uint32_t ts_comb_vcdt_mask;

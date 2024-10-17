@@ -15,6 +15,8 @@
 #define CAM_IFE_CSID_UDI_MAX                           3
 #define RT_BASE_IDX                                    2
 #define CAM_ISP_MAX_PATHS                              8
+#define CAM_CSID_PERF_CNT_MAX                          3
+
 
 /* CSID multi-vcdt config related field */
 #define CAM_IFE_CSID_MAX_VALID_VC_NUM       2
@@ -582,6 +584,10 @@ struct cam_ife_csid_discard_init_frame_args {
  * @rx_capture_debug_set:      CSID rx capture debug set;
  * @set_domain_id_enabled:     Set domain id enabled
  * @enable_cdr_sweep_debug:    If CDR sweep for CSIPHY is enabled
+ * @is_csid_perf_cnt_enabled: Flag to indicate if csid perf counter debug is enabled
+ * @csid_perf_cnt_res_id:      res_id of csid res for which perf cnt is enabled
+ * @csid_perf_counter_val0:    CSID perf counter values for cfg0
+ * @csid_perf_counter_val1:    CSID perf counter values for cfg1
  */
 struct cam_ife_csid_debug_cfg_args {
 	uint64_t                          csid_debug;
@@ -591,6 +597,10 @@ struct cam_ife_csid_debug_cfg_args {
 	bool                              rx_capture_debug_set;
 	bool                              set_domain_id_enabled;
 	bool                              enable_cdr_sweep_debug;
+	bool                              is_csid_perf_cnt_enabled;
+	uint32_t                          csid_perf_cnt_res_id;
+	uint32_t                          csid_perf_counter_val0[CAM_CSID_PERF_CNT_MAX];
+	uint32_t                          csid_perf_counter_val1[CAM_CSID_PERF_CNT_MAX];
 };
 
 /*

@@ -1810,6 +1810,26 @@ static struct cam_ife_csid_ver2_common_reg_info
 	.debug_violation_addr                    = 0x03D4,
 	.debug_cfg_addr                          = 0x03E0,
 	.rx_mode_id_cfg1_addr                    = 0x0470,
+	.perf_cnt_reg = {
+		{
+			.perf_cnt_cfg0           = 0x0184,
+			.perf_cnt_cfg1           = 0x0188,
+			.perf_cnt_val            = 0x019C,
+			.perf_cnt_status         = 0x01A0,
+		},
+		{
+			.perf_cnt_cfg0           = 0x018C,
+			.perf_cnt_cfg1           = 0x0190,
+			.perf_cnt_val            = 0x01A4,
+			.perf_cnt_status         = 0x01A8,
+		},
+		{
+			.perf_cnt_cfg0           = 0x0194,
+			.perf_cnt_cfg1           = 0x0198,
+			.perf_cnt_val            = 0x01AC,
+			.perf_cnt_status         = 0x01B0,
+		},
+	},
 
 	/*configurations */
 	.major_version                           = 6,
@@ -1918,6 +1938,7 @@ static struct cam_ife_csid_ver2_common_reg_info
 	.path_domain_id_cfg1                     = 0x4,
 	.path_domain_id_cfg2                     = 0x8,
 	.phy_sel_base_idx                        = 1,
+	.num_perf_cntrs                          = 3,
 };
 
 struct cam_ife_csid_ver2_mc_reg_info

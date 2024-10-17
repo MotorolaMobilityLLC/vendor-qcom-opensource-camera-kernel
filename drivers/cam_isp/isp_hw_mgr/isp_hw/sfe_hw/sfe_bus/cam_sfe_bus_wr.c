@@ -96,7 +96,7 @@ struct cam_sfe_bus_wr_common_data {
 	uint32_t                                    perf_cnt_cfg[4];
 	struct cam_sfe_bus_cache_dbg_cfg            cache_dbg_cfg;
 	struct cam_hw_soc_info                     *soc_info;
-	uint32_t                                    cntr;
+	uint32_t                                    perf_cnt_frames;
 	bool                                        perf_cnt_en;
 };
 
@@ -905,10 +905,10 @@ static int cam_sfe_bus_start_wm(struct cam_isp_resource_node *wm_res)
 		rsrc_data->stride);
 
 	wm_res->res_state = CAM_ISP_RESOURCE_STATE_STREAMING;
-	common_data->cntr = 0;
+	common_data->perf_cnt_frames = 0;
 
 	if (!common_data->perf_cnt_en) {
-		for (j = 0; j < CAM_SFE_PERF_CNT_MAX; j++) {
+		for (j = 0; j < common_data->common_reg->num_perf_counters; j++) {
 			if (!common_data->perf_cnt_cfg[j])
 				continue;
 
@@ -916,7 +916,7 @@ static int cam_sfe_bus_start_wm(struct cam_isp_resource_node *wm_res)
 				common_data->mem_base +
 				common_data->common_reg->perf_cnt_reg[j].perf_cnt_cfg);
 			common_data->perf_cnt_en = true;
-			CAM_DBG(CAM_ISP, "SFE:%u perf_cnt_%d:0x%x",
+			CAM_INFO(CAM_ISP, "SFE:%u perf_cnt_%d:0x%x",
 				rsrc_data->common_data->core_index, rsrc_data->index,
 				j, common_data->perf_cnt_cfg[j]);
 		}
@@ -3415,8 +3415,8 @@ static int cam_sfe_bus_read_rst_perf_cntrs(
 	if (!common_data->perf_cnt_en)
 		return 0;
 
-	common_data->cntr++;
-	for (i = 0; i < CAM_SFE_PERF_CNT_MAX; i++) {
+	common_data->perf_cnt_frames++;
+	for (i = 0; i < common_data->common_reg->num_perf_counters; i++) {
 		status = cam_io_r_mb(common_data->mem_base +
 			common_data->common_reg->perf_cnt_status);
 		if (!(status & BIT(i)))
@@ -3435,7 +3435,7 @@ static int cam_sfe_bus_read_rst_perf_cntrs(
 	if (print)
 		CAM_INFO(CAM_ISP,
 			"SFE%u Frame: %u Perf counters c%s",
-			common_data->core_index, common_data->cntr, log_buf);
+			common_data->core_index, common_data->perf_cnt_frames, log_buf);
 
 	return 0;
 }

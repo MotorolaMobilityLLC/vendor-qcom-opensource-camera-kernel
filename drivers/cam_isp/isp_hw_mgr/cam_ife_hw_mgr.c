@@ -8438,6 +8438,18 @@ static void cam_ife_hw_mgr_set_hw_debug_config(
 	csid_debug_args.domain_id_value = hw_mgr->debug_cfg.csid_domain_id_value;
 	csid_debug_args.enable_cdr_sweep_debug = hw_mgr->debug_cfg.enable_cdr_sweep_debug;
 
+	if (hw_mgr->debug_cfg.is_csid_perf_cnt_enabled) {
+		for (i = 0; i < hw_mgr->isp_caps.num_csid_perf_counters; i++) {
+			csid_debug_args.csid_perf_counter_val0[i] =
+				hw_mgr->debug_cfg.csid_perf_counter_val0[i];
+			csid_debug_args.csid_perf_counter_val1[i] =
+				hw_mgr->debug_cfg.csid_perf_counter_val1[i];
+		}
+
+		csid_debug_args.csid_perf_cnt_res_id = hw_mgr->debug_cfg.csid_perf_cnt_res_id;
+		csid_debug_args.is_csid_perf_cnt_enabled = true;
+	}
+
 	/* Set SFE debug args */
 	sfe_debug_args.cache_config = false;
 	sfe_debug_args.u.dbg_cfg.sfe_debug_cfg = hw_mgr->debug_cfg.sfe_debug;
@@ -17638,6 +17650,115 @@ static int cam_isp_get_test_irq_line(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(cam_isp_test_irq_line, cam_isp_get_test_irq_line,
 	cam_isp_set_test_irq_line, "%16llu");
 
+static ssize_t cam_ife_hw_mgr_perfcnt_csid_write(
+	struct file *file, const char __user *ubuf,
+	size_t size, loff_t *loff_t)
+{
+	char *delimiter1, *delimiter2, *delimiter3, *delimiter4;
+	char input_buf[64] = {'\0'};
+	uint32_t counter_idx = 0, counter_val0 = 0, counter_val1 = 0, res_id = 0;
+	struct cam_ife_hw_mgr_debug *debug_cfg = &g_ife_hw_mgr.debug_cfg;
+
+	if (size >= 64)
+		return -EINVAL;
+
+	if (copy_from_user(input_buf, ubuf, size))
+		return -EFAULT;
+
+	input_buf[size] = '\0';
+
+	if (!g_ife_hw_mgr.isp_caps.num_csid_perf_counters)
+		return -EBADF;
+
+	delimiter1 = strnchr(input_buf, size, '_');
+	if (!delimiter1)
+		goto end;
+
+	delimiter2 = strnchr(delimiter1 + 1, size, '_');
+	if (!delimiter2)
+		goto end;
+
+	delimiter3 = strnchr(delimiter2 + 1, size, '_');
+	if (!delimiter3)
+		goto end;
+
+	delimiter4 = strnchr(delimiter3 + 1, size, '_');
+	if (!delimiter4)
+		goto end;
+
+	/* separate the strings */
+	*delimiter1 = '\0';
+	*delimiter2 = '\0';
+	*delimiter3 = '\0';
+	*delimiter4 = '\0';
+
+	/* Find the counter index after the first delimiter */
+	if (kstrtou32(delimiter1 + 1, 0, &counter_idx))
+		goto end;
+
+	/* Find the counter value for cfg0 after the second delimiter */
+	if (kstrtou32(delimiter2 + 1, 0, &counter_val0))
+		goto end;
+
+	/* Find the counter value for cfg1 after the third delimiter */
+	if (kstrtou32(delimiter3 + 1, 0, &counter_val1))
+		goto end;
+
+	if (kstrtou32(delimiter4 + 1, 0, &res_id))
+		goto end;
+
+	/* Check for supported HW */
+	if (strcmp(input_buf, "csid") == 0) {
+		/* check if counter is available for given target */
+		if ((counter_idx) && (counter_idx <=
+			g_ife_hw_mgr.isp_caps.num_csid_perf_counters)) {
+			debug_cfg->csid_perf_counter_val0[counter_idx - 1] =
+				counter_val0;
+			debug_cfg->csid_perf_counter_val1[counter_idx - 1] =
+				counter_val1;
+			debug_cfg->csid_perf_cnt_res_id = res_id;
+		} else
+			goto end;
+	} else {
+		goto end;
+	}
+
+	debug_cfg->is_csid_perf_cnt_enabled = true;
+
+	return size;
+
+end:
+	CAM_INFO(CAM_ISP,
+		"Failed to set perf counter debug setting - invalid input format [input: %s counter: %u counter_val0: %u counter_val1: %u]",
+		input_buf, counter_idx, counter_val0, counter_val1);
+	return -EINVAL;
+}
+
+static ssize_t cam_ife_hw_mgr_perfcnt_csid_read(
+	struct file *file, char __user *ubuf,
+	size_t size, loff_t *loff_t)
+{
+	char display_string[256];
+	int len = 0;
+
+	len += scnprintf(display_string + len, (256 - len),
+		"\n***** ISP CSID PERF COUNTERS *****\n\n");
+
+	if (!g_ife_hw_mgr.isp_caps.num_csid_perf_counters) {
+		len += scnprintf(display_string + len, (256 - len), "NOT SUPPORTED\n\n");
+	} else {
+		len += scnprintf(display_string + len, (256 - len),
+			"Available CSID perf counters: %u\n\n",
+			g_ife_hw_mgr.isp_caps.num_csid_perf_counters);
+		len += scnprintf(display_string + len, (256 - len),
+			"To choose counter write to same file - \"<hw>_<counter_index>_<reg0_val>_<reg1_val>_<res_id>\"\nEx. \"csid_1_53741581_20054321\"\n\n");
+	}
+
+	scnprintf(display_string + len, (256 - len), "*****************************\n");
+
+	return simple_read_from_buffer(ubuf, size, loff_t, display_string, strlen(display_string));
+}
+
 static ssize_t cam_ife_hw_mgr_perfcnt_bus_wr_write(
 	struct file *file, const char __user *ubuf,
 	size_t size, loff_t *loff_t)
@@ -17737,14 +17858,12 @@ static ssize_t cam_ife_hw_mgr_perfcnt_bus_wr_read(
 			g_ife_hw_mgr.isp_caps.num_ife_bus_wr_perf_counters,
 			g_ife_hw_mgr.isp_caps.num_sfe_bus_wr_perf_counters);
 		len += scnprintf(display_string + len, (256 - len),
-			"To choose counter write to same file - \"<hw>_<counter_index>_<reg_val>\"\nEx. \"ife_1_6619140\"\n\n");
+			"To choose counter write to same file - \"<hw>_<counter_index>_<reg_val>_<res_id>\"\nEx. \"ife_1_6619140_12295\"\n\n");
 	}
 
-	scnprintf(display_string + len, (256 - len),
-		"*****************************\n");
+	scnprintf(display_string + len, (256 - len), "*****************************\n");
 
-	return simple_read_from_buffer(ubuf, size, loff_t, display_string,
-		strlen(display_string));
+	return simple_read_from_buffer(ubuf, size, loff_t, display_string, strlen(display_string));
 }
 
 static ssize_t cam_ife_hw_mgr_perfcnt_write(
@@ -17856,6 +17975,13 @@ static const struct file_operations cam_ife_hw_mgr_bus_wr_perfcnter_debug = {
 	.open  = simple_open,
 	.read  = cam_ife_hw_mgr_perfcnt_bus_wr_read,
 	.write = cam_ife_hw_mgr_perfcnt_bus_wr_write,
+};
+
+static const struct file_operations cam_ife_hw_mgr_csid_perfcnter_debug = {
+	.owner = THIS_MODULE,
+	.open  = simple_open,
+	.read  = cam_ife_hw_mgr_perfcnt_csid_read,
+	.write = cam_ife_hw_mgr_perfcnt_csid_write,
 };
 
 static int cam_ife_set_csid_testbus_debug(void *data, u64 val)
@@ -18440,6 +18566,8 @@ static int cam_ife_hw_mgr_debug_register(void)
 		g_ife_hw_mgr.debug_cfg.dentry, NULL, &cam_ife_hw_mgr_perfcnter_debug);
 	debugfs_create_file("isp_bus_wr_perf_counters", 0644,
 		g_ife_hw_mgr.debug_cfg.dentry, NULL, &cam_ife_hw_mgr_bus_wr_perfcnter_debug);
+	debugfs_create_file("isp_csid_perf_counters", 0644,
+		g_ife_hw_mgr.debug_cfg.dentry, NULL, &cam_ife_hw_mgr_csid_perfcnter_debug);
 	debugfs_create_file("ife_csid_testbus", 0644,
 		g_ife_hw_mgr.debug_cfg.dentry, NULL, &cam_ife_csid_testbus_debug);
 	debugfs_create_bool("disable_isp_drv", 0644, g_ife_hw_mgr.debug_cfg.dentry,
@@ -18847,9 +18975,13 @@ int cam_ife_hw_mgr_init(struct cam_hw_mgr_intf *hw_mgr_intf, int *iommu_hdl,
 					sizeof(struct cam_isp_hw_cap));
 				if (!rc) {
 					CAM_DBG(CAM_ISP,
-						"Max DT supported: %u", isp_cap.max_dt_supported);
+						"Max DT supported: %u num_csid_perf_counters: %u",
+						isp_cap.max_dt_supported,
+						isp_cap.num_csid_perf_counters);
 					g_ife_hw_mgr.isp_caps.max_dt_supported =
 						isp_cap.max_dt_supported;
+					g_ife_hw_mgr.isp_caps.num_csid_perf_counters =
+						isp_cap.num_csid_perf_counters;
 				} else {
 					CAM_ERR(CAM_ISP, "Invalid num of DT supported: %u",
 						isp_cap.max_dt_supported);
@@ -19088,16 +19220,26 @@ int cam_ife_hw_mgr_init(struct cam_hw_mgr_intf *hw_mgr_intf, int *iommu_hdl,
 			sizeof(uint32_t), GFP_KERNEL);
 	}
 
-	/* Allocate memory for perf counters */
+	/* Allocate memory for bus wr perf counters */
 	if (g_ife_hw_mgr.isp_caps.num_ife_bus_wr_perf_counters) {
-		g_ife_hw_mgr.debug_cfg.ife_bus_wr_perf_counter_val = kcalloc(
+		g_ife_hw_mgr.debug_cfg.ife_bus_wr_perf_counter_val = CAM_MEM_ZALLOC_ARRAY(
 			g_ife_hw_mgr.isp_caps.num_ife_bus_wr_perf_counters,
 			sizeof(uint32_t), GFP_KERNEL);
 	}
 
 	if (g_ife_hw_mgr.isp_caps.num_sfe_bus_wr_perf_counters) {
-		g_ife_hw_mgr.debug_cfg.sfe_bus_wr_perf_counter_val = kcalloc(
+		g_ife_hw_mgr.debug_cfg.sfe_bus_wr_perf_counter_val = CAM_MEM_ZALLOC_ARRAY(
 			g_ife_hw_mgr.isp_caps.num_sfe_bus_wr_perf_counters,
+			sizeof(uint32_t), GFP_KERNEL);
+	}
+
+	/* Allocate memory for csid perf counters */
+	if (g_ife_hw_mgr.isp_caps.num_csid_perf_counters) {
+		g_ife_hw_mgr.debug_cfg.csid_perf_counter_val0 = CAM_MEM_ZALLOC_ARRAY(
+			g_ife_hw_mgr.isp_caps.num_csid_perf_counters,
+			sizeof(uint32_t), GFP_KERNEL);
+		g_ife_hw_mgr.debug_cfg.csid_perf_counter_val1 = CAM_MEM_ZALLOC_ARRAY(
+			g_ife_hw_mgr.isp_caps.num_csid_perf_counters,
 			sizeof(uint32_t), GFP_KERNEL);
 	}
 
@@ -19138,6 +19280,8 @@ void cam_ife_hw_mgr_deinit(void)
 	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.ife_perf_counter_val);
 	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.sfe_bus_wr_perf_counter_val);
 	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.ife_bus_wr_perf_counter_val);
+	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.csid_perf_counter_val0);
+	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.csid_perf_counter_val1);
 
 	for (i = 0; i < CAM_IFE_CTX_MAX; i++) {
 		cam_tasklet_deinit(

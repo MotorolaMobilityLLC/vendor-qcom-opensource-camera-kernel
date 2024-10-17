@@ -665,7 +665,8 @@ struct cam_isp_hw_regiter_dump_data {
  * @max_fcg_predictions:    Maximum number of predictions in FCG config provided by hw header
  * @max_dt_supported:       Maximum number of DTs CSID can decode
  * @fcg_supported:          Indicate whether FCG config is supported by the hw
- * @num_wr_perf_counters:   Number of perf counters for write
+ * @num_wr_perf_counters:   Number of perf counters for bus write
+ * @num_csid_perf_counters:   Number of perf counters for csid
  * @support_consumed_addr:  Indicate whether HW has last consumed addr reg
  *
  */
@@ -673,6 +674,7 @@ struct cam_isp_hw_cap {
 	uint32_t                             max_out_res_type;
 	uint32_t                             num_perf_counters;
 	uint32_t                             num_wr_perf_counters;
+	uint32_t                             num_csid_perf_counters;
 	uint32_t                             max_fcg_ch_ctx;
 	uint32_t                             max_fcg_predictions;
 	uint32_t                             max_dt_supported;

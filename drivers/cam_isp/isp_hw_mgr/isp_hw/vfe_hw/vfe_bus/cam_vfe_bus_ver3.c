@@ -119,7 +119,7 @@ struct cam_vfe_bus_ver3_common_data {
 	int                        rup_irq_handle[CAM_VFE_BUS_VER3_SRC_GRP_MAX];
 	uint32_t                                    pack_align_shift;
 	uint32_t                                    max_bw_counter_limit;
-	uint32_t                                    cntr;
+	uint32_t                                    perf_cnt_frames;
 };
 
 struct cam_vfe_bus_ver3_wm_cfg_data {
@@ -1422,10 +1422,10 @@ static int cam_vfe_bus_ver3_start_wm(struct cam_isp_resource_node *wm_res)
 		rsrc_data->cfg.stride, 0xF, rsrc_data->out_rsrc_data->dst_hw_ctxt_id_mask);
 
 	wm_res->res_state = CAM_ISP_RESOURCE_STATE_STREAMING;
-	common_data->cntr = 0;
+	common_data->perf_cnt_frames = 0;
 
 	if (!common_data->perf_cnt_en) {
-		for (j = 0; j < CAM_VFE_PERF_CNT_MAX; j++) {
+		for (j = 0; j < common_data->common_reg->num_perf_counters; j++) {
 			if (!common_data->perf_cnt_cfg[j])
 				continue;
 
@@ -1433,10 +1433,10 @@ static int cam_vfe_bus_ver3_start_wm(struct cam_isp_resource_node *wm_res)
 				common_data->mem_base +
 				common_data->common_reg->perf_cnt_reg[j].perf_cnt_cfg);
 			common_data->perf_cnt_en = true;
-			CAM_DBG(CAM_ISP, "VFE:%u perf_cnt_%d:0x%x offset: 0x%x",
+			CAM_INFO(CAM_ISP, "VFE:%u perf_cnt_%d:0x%x offset: 0x%x",
 				rsrc_data->common_data->core_index,
 				j, common_data->perf_cnt_cfg[j],
-			common_data->common_reg->perf_cnt_reg[j].perf_cnt_cfg);
+				common_data->common_reg->perf_cnt_reg[j].perf_cnt_cfg);
 		}
 	}
 
@@ -5006,8 +5006,8 @@ static int cam_vfe_bus_ver3_read_rst_perf_cntrs(
 		return 0;
 
 	CAM_DBG(CAM_ISP, "IFE%u Checking perf count status", common_data->core_index);
-	common_data->cntr++;
-	for (i = 0; i < CAM_VFE_PERF_CNT_MAX; i++) {
+	common_data->perf_cnt_frames++;
+	for (i = 0; i < common_data->common_reg->num_perf_counters; i++) {
 
 		status = cam_io_r_mb(common_data->mem_base +
 			common_data->common_reg->perf_cnt_status);
@@ -5027,7 +5027,7 @@ static int cam_vfe_bus_ver3_read_rst_perf_cntrs(
 	if (print)
 		CAM_INFO(CAM_ISP,
 			"IFE%u Frame: %u Perf counters %s",
-			common_data->core_index, common_data->cntr, log_buf);
+			common_data->core_index, common_data->perf_cnt_frames, log_buf);
 
 	return 0;
 }
