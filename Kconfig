@@ -117,3 +117,10 @@ config SPECTRA_SECURE_CAMNOC_REG_UPDATE
 		feature that allows the HLOS to configure
 		camnoc registers through HYP to avoid
 		potential security issues.
+
+config SPECTRA_POWER_DOMAIN_SET_HW_MODE
+	bool "enable GDSC control transfer between SW and HW"
+	help
+		This config enables the API that allows the transfer
+		of GDSC control between the software and the hardware
+		when power domains are used.

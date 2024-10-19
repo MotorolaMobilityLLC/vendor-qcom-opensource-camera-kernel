@@ -15,54 +15,61 @@
 #include "cam_mem_mgr_api.h"
 
 
-int cam_ipe_transfer_gdsc_control(struct cam_hw_soc_info *soc_info)
+static int cam_ipe_set_gdsc_mode(struct cam_hw_soc_info *soc_info,
+	enum cam_gdsc_control_mode gdsc_mode)
 {
 	int i;
 	int rc;
 
-	for (i = 0; i < soc_info->num_rgltr; i++) {
-		rc = cam_wrapper_regulator_set_mode(soc_info->rgltr[i],
-			REGULATOR_MODE_FAST, soc_info->rgltr_name[i]);
+	if (soc_info->is_a_genpd_device) {
+		rc = cam_soc_util_power_domain_set_mode(soc_info, gdsc_mode);
 		if (rc) {
-			CAM_ERR(CAM_ICP, "Regulator set mode %s failed",
-				soc_info->rgltr_name[i]);
-			goto rgltr_set_mode_failed;
+			CAM_ERR(CAM_ICP,
+				"Failed to set GDSC control to %s mode for dev: %s",
+				cam_soc_util_get_gdsc_mode_string(gdsc_mode),
+				soc_info->dev_name);
 		}
-	}
-	return 0;
+		return rc;
+	} else {
+		uint32_t mode;
+
+		if (gdsc_mode == CAM_GDSC_SW_CONTROL)
+			mode = REGULATOR_MODE_NORMAL;
+		else
+			mode = REGULATOR_MODE_FAST;
+
+		for (i = 0; i < soc_info->num_rgltr; i++) {
+			rc = cam_wrapper_regulator_set_mode(soc_info->rgltr[i],
+				mode, soc_info->rgltr_name[i]);
+			if (rc) {
+				CAM_ERR(CAM_ICP, "Failed to set %s to %s mode",
+					soc_info->rgltr_name[i],
+					cam_soc_util_get_gdsc_mode_string(gdsc_mode));
+				goto rgltr_set_mode_failed;
+			}
+		}
+		return 0;
 
 rgltr_set_mode_failed:
-	for (i = i - 1; i >= 0; i--)
-		if (soc_info->rgltr[i])
-			cam_wrapper_regulator_set_mode(soc_info->rgltr[i],
-				REGULATOR_MODE_NORMAL, soc_info->rgltr_name[i]);
+		for (i = i - 1; i >= 0; i--)
+			if (soc_info->rgltr[i])
+				cam_wrapper_regulator_set_mode(soc_info->rgltr[i],
+					(mode == REGULATOR_MODE_NORMAL ?
+					REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL),
+					soc_info->rgltr_name[i]);
 
-	return rc;
+		return rc;
+	}
+}
+
+int cam_ipe_transfer_gdsc_control(struct cam_hw_soc_info *soc_info)
+{
+	return cam_ipe_set_gdsc_mode(soc_info, CAM_GDSC_HW_CONTROL);
 }
 
 int cam_ipe_get_gdsc_control(struct cam_hw_soc_info *soc_info)
 {
-	int i;
-	int rc;
-
-	for (i = 0; i < soc_info->num_rgltr; i++) {
-		rc = cam_wrapper_regulator_set_mode(soc_info->rgltr[i],
-					REGULATOR_MODE_NORMAL, soc_info->rgltr_name[i]);
-		if (rc) {
-			CAM_ERR(CAM_ICP, "Regulator set mode %s failed",
-				soc_info->rgltr_name[i]);
-			goto rgltr_set_mode_failed;
-		}
-	}
-	return 0;
-
-rgltr_set_mode_failed:
-	for (i = i - 1; i >= 0; i--)
-		if (soc_info->rgltr[i])
-			cam_wrapper_regulator_set_mode(soc_info->rgltr[i],
-					REGULATOR_MODE_FAST, soc_info->rgltr_name[i]);
-
-	return rc;
+	return cam_ipe_set_gdsc_mode(soc_info, CAM_GDSC_SW_CONTROL);
 }
 
 static int cam_ipe_get_dt_properties(struct cam_hw_soc_info *soc_info)

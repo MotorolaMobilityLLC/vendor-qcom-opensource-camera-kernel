@@ -473,6 +473,9 @@ static void cam_sensor_i2c_component_unbind(struct device *dev,
 	mutex_unlock(&(s_ctrl->cam_sensor_mutex));
 	cam_unregister_subdev(&(s_ctrl->v4l2_dev_str));
 
+	if (s_ctrl->soc_info.is_a_genpd_device)
+		cam_soc_util_uninitialize_power_domain(&s_ctrl->soc_info);
+
 	CAM_MEM_FREE(s_ctrl->i2c_data.deferred_frame_update);
 	CAM_MEM_FREE(s_ctrl->i2c_data.per_frame);
 	CAM_MEM_FREE(s_ctrl->i2c_data.frame_skip);
@@ -715,6 +718,10 @@ static void cam_sensor_component_unbind(struct device *dev,
 	mutex_unlock(&(s_ctrl->cam_sensor_mutex));
 	cam_unregister_subdev(&(s_ctrl->v4l2_dev_str));
 	soc_info = &s_ctrl->soc_info;
+
+	if (soc_info->is_a_genpd_device)
+		cam_soc_util_uninitialize_power_domain(soc_info);
+
 	for (i = 0; i < soc_info->num_clk; i++) {
 		if (!soc_info->clk[i]) {
 			CAM_DBG(CAM_SENSOR, "%s handle is NULL skip put",

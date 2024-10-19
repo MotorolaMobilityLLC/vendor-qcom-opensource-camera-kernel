@@ -328,6 +328,10 @@ static void cam_eeprom_i2c_component_unbind(struct device *dev,
 
 	CAM_INFO(CAM_EEPROM, "i2c driver remove invoked");
 	soc_info = &e_ctrl->soc_info;
+
+	if (soc_info->is_a_genpd_device)
+		cam_soc_util_uninitialize_power_domain(soc_info);
+
 	for (i = 0; i < soc_info->num_clk; i++) {
 		if (!soc_info->clk[i]) {
 			CAM_DBG(CAM_EEPROM, "%s handle is NULL skip put",
@@ -625,6 +629,9 @@ static void cam_eeprom_component_unbind(struct device *dev,
 
 	CAM_DBG(CAM_EEPROM, "Component unbind called for: %s", pdev->name);
 	soc_info = &e_ctrl->soc_info;
+
+	if (soc_info->is_a_genpd_device)
+		cam_soc_util_uninitialize_power_domain(soc_info);
 
 	for (i = 0; i < soc_info->num_clk; i++) {
 		if (!soc_info->clk[i]) {
