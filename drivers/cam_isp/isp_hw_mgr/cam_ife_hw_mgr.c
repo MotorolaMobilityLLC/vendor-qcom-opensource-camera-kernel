@@ -15930,95 +15930,71 @@ static int cam_ife_mgr_recover_hw(void *priv, void *data)
 	/* Here recovery is performed */
 	CAM_DBG(CAM_ISP, "ErrorType = %d", error_type);
 
-	switch (error_type) {
-	case CAM_ISP_HW_ERROR_OVERFLOW:
-	case CAM_ISP_HW_ERROR_CSID_LANE_FIFO_OVERFLOW:
-	case CAM_ISP_HW_ERROR_CSID_PKT_HDR_CORRUPTED:
-	case CAM_ISP_HW_ERROR_CSID_MISSING_PKT_HDR_DATA:
-	case CAM_ISP_HW_ERROR_CSID_SENSOR_SWITCH_ERROR:
-	case CAM_ISP_HW_ERROR_CSID_FATAL:
-	case CAM_ISP_HW_ERROR_CSID_UNBOUNDED_FRAME:
-	case CAM_ISP_HW_ERROR_CSID_MISSING_EOT:
-	case CAM_ISP_HW_ERROR_CSID_PKT_PAYLOAD_CORRUPTED:
-	case CAM_ISP_HW_ERROR_CSID_OUTPUT_FIFO_OVERFLOW:
-	case CAM_ISP_HW_ERROR_RECOVERY_OVERFLOW:
-	case CAM_ISP_HW_ERROR_CSID_FRAME_SIZE:
-	case CAM_ISP_HW_ERROR_BUSIF_OVERFLOW:
-	case CAM_ISP_HW_ERROR_VIOLATION:
-		if (!recovery_data->affected_ctx[0]) {
-			CAM_ERR(CAM_ISP,
-				"No context is affected but recovery called");
-			kfree(recovery_data);
-			return 0;
-		}
-		/* stop resources here */
-		CAM_DBG(CAM_ISP, "STOP: Number of affected context: %d",
-			recovery_data->no_of_context);
-		for (i = 0; i < recovery_data->no_of_context; i++) {
-			stop_args.ctxt_to_hw_map =
-				recovery_data->affected_ctx[i];
-			rc = cam_ife_mgr_stop_hw_in_overflow(&stop_args);
-			if (rc) {
-				CAM_ERR(CAM_ISP, "CTX stop failed(%d) ctx_idx: %u",
-					rc, ctx->ctx_index);
-				return rc;
-			}
-		}
-
-		if (!g_ife_hw_mgr.debug_cfg.enable_recovery)
-			break;
-
-		CAM_DBG(CAM_ISP, "RESET: CSID PATH");
-		for (i = 0; i < recovery_data->no_of_context; i++) {
-			ctx = recovery_data->affected_ctx[i];
-			rc = cam_ife_hw_mgr_reset_csid(ctx,
-				CAM_IFE_CSID_RESET_PATH);
-
-			if (rc) {
-				CAM_ERR(CAM_ISP, "Failed RESET, ctx_idx: %u", ctx->ctx_index);
-				return rc;
-			}
-		}
-
-		CAM_DBG(CAM_ISP, "RESET: Calling VFE reset");
-
-		for (i = 0; i < CAM_IFE_HW_NUM_MAX; i++) {
-			if (recovery_data->affected_core[i])
-				cam_ife_mgr_reset_vfe_hw(ife_hw_mgr, i);
-		}
-
-		CAM_DBG(CAM_ISP, "START: Number of affected context: %d",
-			recovery_data->no_of_context);
-
-		for (i = 0; i < recovery_data->no_of_context; i++) {
-			ctx =  recovery_data->affected_ctx[i];
-			start_args.ctxt_to_hw_map = ctx;
-
-			rc = cam_ife_mgr_restart_hw(&start_args);
-			if (rc) {
-				CAM_ERR(CAM_ISP, "CTX start failed(%d) ctx_idx: %u",
-					rc, ctx->ctx_index);
-				return rc;
-			}
-			CAM_DBG(CAM_ISP, "Started resources rc (%d) ctx_idx: %u",
-				rc, ctx->ctx_index);
-		}
-
-		atomic_set(&ctx->overflow_pending, 0);
-		CAM_DBG(CAM_ISP, "Recovery Done rc (%d)", rc);
-
-		break;
-
-	case CAM_ISP_HW_ERROR_P2I_ERROR:
-		break;
-
-	default:
-		CAM_ERR(CAM_ISP, "Invalid Error");
+	if (!recovery_data->affected_ctx[0]) {
+		CAM_ERR(CAM_ISP,
+			"No context is affected but recovery called");
+		goto end;
 	}
+	/* stop resources here */
+	CAM_DBG(CAM_ISP, "STOP: Number of affected context: %d",
+		recovery_data->no_of_context);
+	for (i = 0; i < recovery_data->no_of_context; i++) {
+		stop_args.ctxt_to_hw_map =
+			recovery_data->affected_ctx[i];
+		rc = cam_ife_mgr_stop_hw_in_overflow(&stop_args);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "CTX stop failed(%d) ctx_idx: %u",
+				rc, ctx->ctx_index);
+			goto end;
+		}
+	}
+
+	if (!g_ife_hw_mgr.debug_cfg.enable_recovery)
+		goto end;
+
+	CAM_DBG(CAM_ISP, "RESET: CSID PATH");
+	for (i = 0; i < recovery_data->no_of_context; i++) {
+		ctx = recovery_data->affected_ctx[i];
+		rc = cam_ife_hw_mgr_reset_csid(ctx,
+			CAM_IFE_CSID_RESET_PATH);
+
+		if (rc) {
+			CAM_ERR(CAM_ISP, "Failed RESET, ctx_idx: %u", ctx->ctx_index);
+			goto end;
+		}
+	}
+
+	CAM_DBG(CAM_ISP, "RESET: Calling VFE reset");
+
+	for (i = 0; i < CAM_IFE_HW_NUM_MAX; i++) {
+		if (recovery_data->affected_core[i])
+			cam_ife_mgr_reset_vfe_hw(ife_hw_mgr, i);
+	}
+
+	CAM_DBG(CAM_ISP, "START: Number of affected context: %d",
+		recovery_data->no_of_context);
+
+	for (i = 0; i < recovery_data->no_of_context; i++) {
+		ctx =  recovery_data->affected_ctx[i];
+		start_args.ctxt_to_hw_map = ctx;
+
+		rc = cam_ife_mgr_restart_hw(&start_args);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "CTX start failed(%d) ctx_idx: %u",
+				rc, ctx->ctx_index);
+			goto end;
+		}
+		CAM_DBG(CAM_ISP, "Started resources rc (%d) ctx_idx: %u",
+			rc, ctx->ctx_index);
+	}
+
+	atomic_set(&ctx->overflow_pending, 0);
+	CAM_DBG(CAM_ISP, "Recovery Done rc (%d)", rc);
+
 	CAM_DBG(CAM_ISP, "Exit: ErrorType = %d", error_type);
 
 end:
-	kfree(recovery_data);
+	CAM_MEM_FREE(recovery_data);
 	return rc;
 }
 
