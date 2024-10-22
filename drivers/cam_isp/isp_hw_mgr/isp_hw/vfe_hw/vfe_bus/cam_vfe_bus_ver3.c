@@ -1157,7 +1157,7 @@ static int cam_vfe_bus_ver3_config_port(
 		rsrc_data->cfg.pack_fmt |= (1 << ver3_bus_priv->common_data.pack_align_shift);
 		break;
 	case CAM_VFE_BUS_VER3_VFE_OUT_RAW_DUMP:
-		if (cam_vfe_bus_ver3_needs_lsb_alignment(rsrc_data->cfg.pack_fmt)) {
+		if (cam_vfe_bus_ver3_needs_lsb_alignment(rsrc_data->cfg.format)) {
 			rsrc_data->cfg.pack_fmt |=
 				(1 << ver3_bus_priv->common_data.pack_align_shift);
 		}
@@ -1908,6 +1908,35 @@ static int cam_vfe_bus_ver3_get_secure_mode(void *priv, void *cmd_args,
 	return 0;
 }
 
+static int cam_vfe_bus_ver3_update_wm_mc_cfg(
+	struct cam_vfe_bus_ver3_vfe_out_data   *out_rsrc_data, uint32_t hw_ctxt_id_mask)
+{
+	int i;
+	struct cam_isp_resource_node           *wm_res = NULL;
+	struct cam_vfe_bus_ver3_wm_resource_data  *rsrc_data = NULL;
+	int hw_ctxt_id = ffs(hw_ctxt_id_mask) - 1;
+
+	if ((hw_ctxt_id < CAM_ISP_MULTI_CTXT_0) || (hw_ctxt_id >= CAM_ISP_MULTI_CTXT_MAX)) {
+		CAM_ERR(CAM_ISP, "Invalid hw context mask: 0x%x", hw_ctxt_id_mask);
+		return -EINVAL;
+	}
+
+	/*
+	 * Update context based config data as well to align with non multi-context
+	 * wm config, so that config for each hw context id can be updated independently
+	 * post acquire
+	 */
+	for (i = 0; i < out_rsrc_data->num_wm; i++) {
+		wm_res = &out_rsrc_data->wm_res[i];
+		rsrc_data = (struct cam_vfe_bus_ver3_wm_resource_data  *) wm_res->res_priv;
+
+		memcpy(&rsrc_data->mc_data[hw_ctxt_id].cfg, &rsrc_data->cfg,
+			sizeof(struct cam_vfe_bus_ver3_wm_cfg_data));
+	}
+
+	return 0;
+}
+
 static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 	uint32_t args_size)
 {
@@ -1963,7 +1992,14 @@ static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 			rsrc_data->dst_hw_ctxt_id_mask |=
 				out_acquire_args->out_port_info->hw_context_id;
 			out_acquire_args->rsrc_node = rsrc_node;
-			rc = 0;
+			rc = cam_vfe_bus_ver3_update_wm_mc_cfg(rsrc_data,
+				out_acquire_args->out_port_info->hw_context_id);
+			if (rc)
+				CAM_ERR(CAM_ISP,
+					"VFE:%u out_type:0x%X Failed to update mc config data for hw context:0x%x",
+					ver3_bus_priv->common_data.core_index, vfe_out_res_id,
+					out_acquire_args->out_port_info->hw_context_id);
+
 			goto end;
 		} else {
 			CAM_ERR(CAM_ISP,
@@ -2093,6 +2129,18 @@ static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 		goto release_wm;
 	}
 
+	if ((rsrc_data->mc_based || rsrc_data->cntxt_cfg_except) && out_acquire_args->use_hw_ctxt) {
+		rc = cam_vfe_bus_ver3_update_wm_mc_cfg(rsrc_data,
+			out_acquire_args->out_port_info->hw_context_id);
+		if (rc) {
+			CAM_ERR(CAM_ISP,
+				"VFE:%u out_type:0x%X Failed to update mc config data for hw context:0x%x",
+				ver3_bus_priv->common_data.core_index, vfe_out_res_id,
+				out_acquire_args->out_port_info->hw_context_id);
+			goto release_wm;
+		}
+	}
+
 	rsrc_data->is_dual = out_acquire_args->is_dual;
 	rsrc_data->is_master = out_acquire_args->is_master;
 
@@ -2105,8 +2153,7 @@ static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 
 release_wm:
 	for (i--; i >= 0; i--)
-		cam_vfe_bus_ver3_release_wm(ver3_bus_priv,
-			&rsrc_data->wm_res[i]);
+		cam_vfe_bus_ver3_release_wm(ver3_bus_priv, &rsrc_data->wm_res[i]);
 
 end:
 	return rc;
@@ -4363,8 +4410,10 @@ static int cam_vfe_bus_ver3_update_wm_config_v2(
 	struct cam_isp_vfe_wm_config_v2             *wm_config = NULL;
 	struct cam_vfe_bus_ver3_wm_cfg_data         *cfg;
 	struct cam_vfe_bus_ver3_reg_offset_common   *common_reg = NULL;
+	struct cam_vfe_bus_ver3_priv                *bus_priv = NULL;
 	int32_t                                      hw_ctxt_id = 0;
 	unsigned long                                context_id_mask = 0;
+	enum   cam_vfe_bus_ver3_packer_format        packer_fmt = PACKER_FMT_VER3_MAX;
 	bool                                         update_wm_mode;
 
 	if (!cmd_args) {
@@ -4374,6 +4423,7 @@ static int cam_vfe_bus_ver3_update_wm_config_v2(
 
 	wm_config_update = cmd_args;
 	vfe_out_data = wm_config_update->res->res_priv;
+	bus_priv = vfe_out_data->bus_priv;
 	wm_config = (struct cam_isp_vfe_wm_config_v2  *)
 		wm_config_update->data;
 
@@ -4445,6 +4495,12 @@ static int cam_vfe_bus_ver3_update_wm_config_v2(
 		wm_data->update_wm_format = false;
 		if (wm_config->packer_format && (cfg->format != wm_config->packer_format)) {
 			cfg->format = wm_config->packer_format;
+			packer_fmt = cam_vfe_bus_ver3_get_packer_fmt(wm_config->packer_format,
+				wm_data->index);
+			if (cam_vfe_bus_ver3_needs_lsb_alignment(wm_data->cfg.format))
+				packer_fmt |= (1 << bus_priv->common_data.pack_align_shift);
+
+			cfg->pack_fmt = packer_fmt;
 			wm_data->update_wm_format = true;
 		}
 
@@ -4458,8 +4514,7 @@ static int cam_vfe_bus_ver3_update_wm_config_v2(
 			vfe_out_data->common_data->core_index, wm_data->index,
 			vfe_out_data->wm_res[i].res_name, CAM_BOOL_TO_YESNO(update_wm_mode),
 			CAM_BOOL_TO_YESNO(wm_data->update_wm_format), cfg->en_cfg, cfg->height,
-			cfg->width, wm_data->cfg.stride, wm_data->cfg.pack_fmt,
-			wm_config->context_id_mask);
+			cfg->width, cfg->stride, cfg->pack_fmt, wm_config->context_id_mask);
 	}
 
 	return 0;
@@ -4476,6 +4531,7 @@ static int cam_vfe_bus_ver3_update_wm_config(
 	struct cam_vfe_bus_ver3_wm_resource_data    *wm_data = NULL;
 	struct cam_isp_vfe_wm_config                *wm_config = NULL;
 	struct cam_vfe_bus_ver3_reg_offset_common   *common_reg = NULL;
+	struct cam_vfe_bus_ver3_priv                *bus_priv = NULL;
 	enum   cam_vfe_bus_ver3_packer_format        packer_fmt = PACKER_FMT_VER3_MAX;
 	bool                                         update_wm_mode;
 
@@ -4486,6 +4542,7 @@ static int cam_vfe_bus_ver3_update_wm_config(
 
 	wm_config_update = cmd_args;
 	vfe_out_data = wm_config_update->res->res_priv;
+	bus_priv = vfe_out_data->bus_priv;
 	wm_config = (struct cam_isp_vfe_wm_config  *)
 			wm_config_update->data;
 
@@ -4528,27 +4585,16 @@ static int cam_vfe_bus_ver3_update_wm_config(
 		wm_data->update_wm_format = false;
 		if ((wm_config->packer_format != CAM_FORMAT_BASE) &&
 			(wm_data->cfg.format != wm_config->packer_format)) {
-			wm_data->update_wm_format = true;
 			wm_data->cfg.format = wm_config->packer_format;
 			packer_fmt = cam_vfe_bus_ver3_get_packer_fmt(
 				wm_config->packer_format, wm_data->index);
 
 			/* Reconfigure only for valid packer fmt */
 			if (packer_fmt != PACKER_FMT_VER3_MAX) {
-				/* LSB aligned for plain type format */
-				switch (wm_config->packer_format) {
-				case CAM_FORMAT_PLAIN16_10:
-				case CAM_FORMAT_PLAIN16_12:
-				case CAM_FORMAT_PLAIN16_14:
-				case CAM_FORMAT_PLAIN16_16:
-				case CAM_FORMAT_PLAIN16_10_LSB:
-					packer_fmt |=
-						(1 << wm_data->common_data->pack_align_shift);
-					wm_data->cfg.pack_fmt = packer_fmt;
-					break;
-				default:
-					break;
-				}
+				if (cam_vfe_bus_ver3_needs_lsb_alignment(wm_data->cfg.format))
+					packer_fmt |= (1 << bus_priv->common_data.pack_align_shift);
+
+				wm_data->cfg.pack_fmt = packer_fmt;
 			} else {
 				CAM_ERR(CAM_ISP, "VFE:%u Invalid format:%d",
 					vfe_out_data->common_data->core_index,
@@ -4556,6 +4602,7 @@ static int cam_vfe_bus_ver3_update_wm_config(
 				return -EINVAL;
 			}
 
+			wm_data->update_wm_format = true;
 			CAM_DBG(CAM_ISP,
 				"VFE:%u WM:%d update format:%d pack_fmt:%d",
 				vfe_out_data->common_data->core_index, wm_data->index,
