@@ -10,7 +10,7 @@
 #include <cam_sensor_util.h>
 #include <cam_sensor_io.h>
 #include <cam_req_mgr_util.h>
-
+#include "cam_common_util.h"
 #include "cam_eeprom_soc.h"
 #include "cam_debug_util.h"
 

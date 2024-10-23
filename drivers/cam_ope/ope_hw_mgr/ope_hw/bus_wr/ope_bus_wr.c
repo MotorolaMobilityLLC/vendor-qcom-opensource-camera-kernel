@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/iopoll.h>
 #include <media/cam_ope.h>
+#include "cam_common_util.h"
 #include "cam_io_util.h"
 #include "cam_hw.h"
 #include "cam_hw_intf.h"

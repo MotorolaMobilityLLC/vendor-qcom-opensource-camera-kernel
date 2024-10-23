@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/crc32.h>
 #include <media/cam_sensor.h>
-
 #include "cam_eeprom_core.h"
 #include "cam_eeprom_soc.h"
 #include "cam_debug_util.h"

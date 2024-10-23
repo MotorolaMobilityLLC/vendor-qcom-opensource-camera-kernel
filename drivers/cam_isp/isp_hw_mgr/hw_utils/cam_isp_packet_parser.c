@@ -6,6 +6,7 @@
 
 #include <media/cam_defs.h>
 #include <media/cam_isp.h>
+#include "cam_common_util.h"
 #include "cam_mem_mgr.h"
 #include "cam_isp_hw.h"
 #include "cam_vfe_hw_intf.h"
