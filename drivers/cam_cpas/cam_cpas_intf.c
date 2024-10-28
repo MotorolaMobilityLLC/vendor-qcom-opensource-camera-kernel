@@ -1202,6 +1202,9 @@ bool cam_cpas_is_fw_based_sys_caching_supported(void)
 		case CAM_LLCC_IPE_SRT_IP:
 		case CAM_LLCC_IPE_RT_RF:
 		case CAM_LLCC_IPE_SRT_RF:
+		case CAM_LLCC_IPE_SRT_STRIPE_OVERLAP:
+		case CAM_LLCC_IPE_RT_STRIPE_OVERLAP:
+		case CAM_LLCC_OFE_STRIPE_OVERLAP:
 			supported = true;
 			break;
 		default:

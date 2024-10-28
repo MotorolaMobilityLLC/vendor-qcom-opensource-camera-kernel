@@ -4361,6 +4361,9 @@ static inline int cam_cpas_validate_cache_type(
 	case CAM_LLCC_IPE_SRT_IP:
 	case CAM_LLCC_IPE_RT_RF:
 	case CAM_LLCC_IPE_SRT_RF:
+	case CAM_LLCC_IPE_SRT_STRIPE_OVERLAP:
+	case CAM_LLCC_IPE_RT_STRIPE_OVERLAP:
+	case CAM_LLCC_OFE_STRIPE_OVERLAP:
 		rc = 0;
 		break;
 	default:
