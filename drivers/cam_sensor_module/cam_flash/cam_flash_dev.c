@@ -13,11 +13,40 @@
 #include "camera_main.h"
 #include "cam_mem_mgr_api.h"
 
+static void cam_flash_populate_query_current(struct cam_flash_ctrl *fctrl,
+	struct cam_flash_query_cap_info *flash_cap,
+	struct cam_flash_private_soc *soc_private)
+{
+	int i = 0;
+
+	for (i = 0; i < fctrl->flash_num_sources; i++) {
+#if IS_REACHABLE(CONFIG_LEDS_QCOM_FLASH)
+		/* Values got from DT are kept in ua/us, need conversion here. */
+		flash_cap->max_current_flash[i] =
+			soc_private->flash_max_current[i] / UA_PER_MA;
+		flash_cap->max_duration_flash[i] =
+			soc_private->flash_max_duration[i] / US_PER_MS;
+		flash_cap->max_current_torch[i] =
+			soc_private->torch_max_current[i] / UA_PER_MA;
+	}
+#elif __or(IS_REACHABLE(CONFIG_LEDS_QPNP_FLASH_V2), \
+			IS_REACHABLE(CONFIG_LEDS_QTI_FLASH))
+		flash_cap->max_current_flash[i] =
+			soc_private->flash_max_current[i];
+		flash_cap->max_duration_flash[i] =
+			soc_private->flash_max_duration[i];
+	}
+
+	for (i = 0; i < fctrl->torch_num_sources; i++)
+		flash_cap->max_current_torch[i] =
+			soc_private->torch_max_current[i];
+#endif
+}
+
 static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 		void *arg, struct cam_flash_private_soc *soc_private)
 {
 	int rc = 0;
-	int i = 0;
 	struct cam_control *cmd = (struct cam_control *)arg;
 
 	if (!fctrl || !arg) {
@@ -144,17 +173,7 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 
 		CAM_DBG(CAM_FLASH, "CAM_QUERY_CAP");
 		flash_cap.slot_info = fctrl->soc_info.index;
-		for (i = 0; i < fctrl->flash_num_sources; i++) {
-			flash_cap.max_current_flash[i] =
-				soc_private->flash_max_current[i];
-			flash_cap.max_duration_flash[i] =
-				soc_private->flash_max_duration[i];
-		}
-
-		for (i = 0; i < fctrl->torch_num_sources; i++)
-			flash_cap.max_current_torch[i] =
-				soc_private->torch_max_current[i];
-
+		cam_flash_populate_query_current(fctrl, &flash_cap, soc_private);
 		if (copy_to_user(u64_to_user_ptr(cmd->handle),
 			&flash_cap, sizeof(struct cam_flash_query_cap_info))) {
 			CAM_ERR(CAM_FLASH, "Failed Copy to User");
