@@ -2475,9 +2475,9 @@ int32_t cam_sensor_apply_request(struct cam_req_mgr_apply_request *apply)
 	}
 
 #ifdef CONFIG_MOT_SENSOR_STRICT_PERFRAMECONTROL
-	if (apply->op_code == CAM_SENSOR_PACKET_OPCODE_SENSOR_UPDATE_STRICT_PERFRAMECONTROL20ms)
+	if ((apply->op_code & 0xFFFFFF) == CAM_SENSOR_PACKET_OPCODE_SENSOR_UPDATE_STRICT_PERFRAMECONTROL20ms)
 	{
-		opcode = apply->op_code;
+		opcode = CAM_SENSOR_PACKET_OPCODE_SENSOR_UPDATE_STRICT_PERFRAMECONTROL20ms;
 		s_ctrl->io_master_info.sof_timestamp_jiffies = apply->sof_timestamp_jiffies;
 	}
 #endif
