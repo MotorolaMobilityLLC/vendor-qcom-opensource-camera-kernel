@@ -9383,7 +9383,10 @@ static int cam_icp_mgr_alloc_devs(struct device_node *np, struct cam_icp_hw_mgr 
 		goto free_devs;
 	}
 
-	hw_mgr->dev_pc_flag = of_property_read_bool(np, "ipe_bps_pc_en");
+	/* Device power collapse flag is backward compatible with previous targets */
+	hw_mgr->dev_pc_flag = of_property_read_bool(np, "ipe_bps_pc_en") ||
+		of_property_read_bool(np, "interframe_pc_en");
+
 	hw_mgr->icp_pc_flag = of_property_read_bool(np, "icp_pc_en");
 	hw_mgr->icp_use_pil = of_property_read_bool(np, "icp_use_pil");
 	hw_mgr->synx_signaling_en = of_property_read_bool(np, "synx_signaling_en");
