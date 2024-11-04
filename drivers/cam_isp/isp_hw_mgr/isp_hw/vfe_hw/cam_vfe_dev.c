@@ -105,6 +105,17 @@ static int cam_vfe_component_bind(struct device *dev,
 		goto free_core_info;
 	}
 	hw_info = (struct cam_vfe_hw_info *)match_dev->data;
+
+	if (hw_info && hw_info->override_cb) {
+		CAM_DBG(CAM_ISP, "VFE[%u] calling override", vfe_dev_idx);
+		rc = hw_info->override_cb((void *)&hw_info);
+
+		if (rc) {
+			CAM_ERR(CAM_ISP, "VFE[%u] Failed to override", vfe_dev_idx);
+			goto free_core_info;
+		}
+	}
+
 	core_info->vfe_hw_info = hw_info;
 
 	rc = cam_vfe_init_soc_resources(&vfe_hw->soc_info, cam_vfe_irq,
