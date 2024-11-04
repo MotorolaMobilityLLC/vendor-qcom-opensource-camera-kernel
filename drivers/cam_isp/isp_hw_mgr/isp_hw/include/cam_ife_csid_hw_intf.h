@@ -347,6 +347,7 @@ struct cam_csid_hw_stop_args {
  * @is_internal_start:  Start triggered internally for reset & recovery
  * @start_only:         start only, no init required
  * @is_drv_config_en:   If drv config is enabled
+ * @aup_write:          Indicates if AUP needs to be programmed during starting CSID
  *
  */
 struct cam_csid_hw_start_args {
@@ -357,6 +358,7 @@ struct cam_csid_hw_start_args {
 	bool                                      is_internal_start;
 	bool                                      start_only;
 	bool                                      is_drv_config_en;
+	bool                                      aup_write;
 };
 
 
@@ -490,6 +492,7 @@ struct cam_ife_csid_dual_sync_args {
  * @mup_en:                Flag if dynamic sensor switch is enabled
  * @reg_write:             if set use AHB to config rup/aup
  * @add_toggled_mup_entry: Add toggled mup entry to simulate out of sync
+ * @disable_aup_write:     if set AUP should not be programmed
  */
 struct cam_isp_csid_reg_update_args {
 	struct cam_isp_hw_cmd_buf_update  cmd;
@@ -500,6 +503,7 @@ struct cam_isp_csid_reg_update_args {
 	uint32_t                          mup_en;
 	bool                              reg_write;
 	bool                              add_toggled_mup_entry;
+	bool                              disable_aup_write;
 };
 
 /*

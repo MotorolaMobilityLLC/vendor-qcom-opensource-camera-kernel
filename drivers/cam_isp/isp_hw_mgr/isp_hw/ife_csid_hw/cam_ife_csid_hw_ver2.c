@@ -6945,8 +6945,9 @@ int cam_ife_csid_ver2_start(void *hw_priv, void *args,
 		if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_SPLIT_RUP_AUP) {
 			cam_io_w_mb(rup_aup_mask.rup_mask,
 				csid_clc_membase + csid_reg->cmn_reg->rup_cmd_addr);
-			cam_io_w_mb(rup_aup_mask.aup_mask,
-				csid_clc_membase + csid_reg->cmn_reg->aup_cmd_addr);
+			if (start_args->aup_write)
+				cam_io_w_mb(rup_aup_mask.aup_mask,
+					csid_clc_membase + csid_reg->cmn_reg->aup_cmd_addr);
 			cam_io_w_mb(rup_aup_mask.rup_aup_set_mask,
 				csid_clc_membase + csid_reg->cmn_reg->rup_aup_cmd_addr);
 		} else {
@@ -6956,9 +6957,11 @@ int cam_ife_csid_ver2_start(void *hw_priv, void *args,
 		}
 	}
 
-	CAM_DBG(CAM_ISP, "CSID:%u RUP:0x%x AUP: 0x%x MUP:0x%x at start updated: %s",
+	CAM_DBG(CAM_ISP,
+		"CSID[%u] RUP: 0x%x, AUP: 0x%x, MUP: 0x%x, updated: %s, aup write: %s",
 		csid_hw->hw_intf->hw_idx, rup_aup_mask.rup_mask, rup_aup_mask.aup_mask,
-		rup_aup_mask.rup_aup_set_mask, CAM_BOOL_TO_YESNO(!start_args->is_internal_start));
+		rup_aup_mask.rup_aup_set_mask, CAM_BOOL_TO_YESNO(!start_args->is_internal_start),
+		CAM_BOOL_TO_YESNO(start_args->aup_write));
 
 
 	cam_ife_csid_ver2_enable_csi2(csid_hw);
@@ -7423,8 +7426,7 @@ static int cam_ife_csid_ver2_get_mc_reg_val_pair(
 	struct cam_ife_csid_ver2_reg_info            *csid_reg;
 	const struct cam_ife_csid_ver2_path_reg_info *path_reg;
 	struct cam_ife_csid_ver2_rup_aup_mask         rup_aup_mask = {0};
-	int                                           rc = 0;
-	uint32_t                                      i = 0;
+	int                                           rc = 0, i, idx = 0;
 
 	csid_reg = (struct cam_ife_csid_ver2_reg_info *)
 			csid_hw->core_info->csid_reg;
@@ -7443,36 +7445,40 @@ static int cam_ife_csid_ver2_get_mc_reg_val_pair(
 		rup_aup_mask.rup_aup_set_mask |= path_reg->rup_aup_set_mask;
 	}
 
-	reg_val_pair[0] = csid_reg->cmn_reg->rup_cmd_addr;
-	reg_val_pair[1] = rup_aup_mask.rup_mask;
-	reg_val_pair[2] = csid_reg->cmn_reg->aup_cmd_addr;
-	reg_val_pair[3] = rup_aup_mask.aup_mask;
-	reg_val_pair[4] = csid_reg->cmn_reg->rup_aup_cmd_addr;
-	reg_val_pair[5] = rup_aup_mask.rup_aup_set_mask;
+	/* RUP programming */
+	reg_val_pair[idx++] = csid_reg->cmn_reg->rup_cmd_addr;
+	reg_val_pair[idx++] = rup_aup_mask.rup_mask;
 
-	/**
-	 * If not an actual request, configure last applied MUP
-	 */
+	/* AUP programming on demand */
+	if (!rup_args->disable_aup_write) {
+		reg_val_pair[idx++] = csid_reg->cmn_reg->aup_cmd_addr;
+		reg_val_pair[idx++] = rup_aup_mask.aup_mask;
+	}
+
+	/* RUP_AUP_CMD & MUP programming */
 	if (rup_args->reg_write)
-		reg_val_pair[5] |= (rup_args->last_applied_mup <<
+		rup_aup_mask.rup_aup_set_mask |= (rup_args->last_applied_mup <<
 			csid_reg->cmn_reg->mup_shift_val);
 	else {
 		if (unlikely(rup_args->add_toggled_mup_entry))
-			reg_val_pair[5] |= ((~csid_hw->rx_cfg.mup & 0x1) <<
+			rup_aup_mask.rup_aup_set_mask |= ((~csid_hw->rx_cfg.mup & 0x1) <<
 				csid_reg->cmn_reg->mup_shift_val);
 		else
-			reg_val_pair[5] |= (csid_hw->rx_cfg.mup <<
+			rup_aup_mask.rup_aup_set_mask |= (csid_hw->rx_cfg.mup <<
 				csid_reg->cmn_reg->mup_shift_val);
 	}
+	reg_val_pair[idx++] = csid_reg->cmn_reg->rup_aup_cmd_addr;
+	reg_val_pair[idx] = rup_aup_mask.rup_aup_set_mask;
 
 	CAM_DBG(CAM_ISP,
-		"CSID[%d] configure rup: 0x%x, offset: 0x%x, aup: 0x%x, offset: 0x%x toggle MUP: %s",
-		csid_hw->hw_intf->hw_idx, reg_val_pair[1], reg_val_pair[0],
-		reg_val_pair[3], reg_val_pair[2],
-		CAM_BOOL_TO_YESNO(rup_args->add_toggled_mup_entry));
-	CAM_DBG(CAM_ISP, "CSID[%d] rup_aup_set reg: 0x%x, offset: 0x%x via %s",
-		csid_hw->hw_intf->hw_idx,reg_val_pair[5], reg_val_pair[4],
+		"CSID[%d] configure rup: 0x%x, offset: 0x%x, configure aup: 0x%x, offset: 0x%x, toggle MUP: %s, configure rup_aup_set: 0x%x, offset: 0x%x via %s",
+		csid_hw->hw_intf->hw_idx, rup_aup_mask.rup_mask, csid_reg->cmn_reg->rup_cmd_addr,
+		(rup_args->disable_aup_write ? 0 : rup_aup_mask.aup_mask),
+		(rup_args->disable_aup_write ? 0 : csid_reg->cmn_reg->aup_cmd_addr),
+		CAM_BOOL_TO_YESNO(rup_args->add_toggled_mup_entry),
+		rup_aup_mask.rup_aup_set_mask, csid_reg->cmn_reg->rup_aup_cmd_addr,
 		(rup_args->reg_write ? "AHB" : "CDM"));
+
 	return rc;
 }
 
@@ -7535,10 +7541,8 @@ static int cam_ife_csid_ver2_reg_update(
 	struct cam_ife_csid_ver2_reg_info     *csid_reg;
 	struct cam_hw_soc_info                *soc_info = &csid_hw->hw_info->soc_info;
 	struct cam_cdm_utils_ops              *cdm_util_ops;
-	uint32_t                               num_reg_val_pairs = 0;
-	uint32_t                               reg_val_pair[6] = {0};
+	uint32_t                               num_reg_val_pairs = 0, *reg_val_pair, size, i;
 	int                                    rc = 0;
-	uint32_t                               size, i = 0;
 	void __iomem                          *csid_clc_membase = soc_info->reg_map
 						[CAM_IFE_CSID_CLC_MEM_BASE_ID].mem_base;
 
@@ -7570,8 +7574,12 @@ static int cam_ife_csid_ver2_reg_update(
 		return -EINVAL;
 	}
 
-	num_reg_val_pairs = (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_SPLIT_RUP_AUP) ?
-		3 : 1;
+	if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_SPLIT_RUP_AUP)
+		num_reg_val_pairs = (rup_args->disable_aup_write) ?
+			CAM_IFE_CSID_RUP_SPLIT_REG_VAL_SIZE :
+			CAM_IFE_CSID_RUP_AUP_SPLIT_REG_VAL_SIZE;
+	else
+		num_reg_val_pairs = CAM_IFE_CSID_RUP_REG_VAL_SIZE;
 
 	size = cdm_util_ops->cdm_required_size_reg_random(num_reg_val_pairs);
 	/* since cdm returns dwords, we need to convert it into bytes */
@@ -7581,6 +7589,11 @@ static int cam_ife_csid_ver2_reg_update(
 		return -EINVAL;
 	}
 
+	reg_val_pair = CAM_MEM_ZALLOC_ARRAY(2 * num_reg_val_pairs, sizeof(uint32_t), GFP_KERNEL);
+	if (!reg_val_pair) {
+		CAM_ERR(CAM_ISP, "Failed at allocating memory for reg_val_pair");
+		return -ENOMEM;
+	}
 
 	if (rup_args->mup_en) {
 		csid_hw->rx_cfg.mup = rup_args->mup_val;
@@ -7601,6 +7614,8 @@ static int cam_ife_csid_ver2_reg_update(
 			num_reg_val_pairs, reg_val_pair);
 		rup_args->cmd.used_bytes = size * 4;
 	}
+
+	CAM_MEM_FREE(reg_val_pair);
 	return rc;
 }
 

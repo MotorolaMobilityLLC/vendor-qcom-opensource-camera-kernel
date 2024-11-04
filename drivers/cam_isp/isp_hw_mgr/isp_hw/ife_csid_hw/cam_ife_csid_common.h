@@ -59,6 +59,13 @@
 #define CAM_IFE_CSID_CAP_TOP_MASK_ALL_IRQS                BIT(9)
 
 /*
+ * CSID RUP AUP reg-val pair array
+ */
+#define CAM_IFE_CSID_RUP_AUP_SPLIT_REG_VAL_SIZE           3
+#define CAM_IFE_CSID_RUP_SPLIT_REG_VAL_SIZE               2
+#define CAM_IFE_CSID_RUP_REG_VAL_SIZE                     1
+
+/*
  * CSID RX debug vc-dt capture
  */
 #define CAM_IFE_CSID_DEBUGFS_RST_STROBE_MASK              0xF

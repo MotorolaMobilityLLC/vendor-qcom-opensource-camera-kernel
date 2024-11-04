@@ -612,14 +612,15 @@ struct cam_isp_hw_cmd_args {
  *
  * @config_args:               Hardware configuration commands.
  * @is_internal_start:         Start triggered internally for reset & recovery
- * @start_only                 Send start only to hw drivers. No init to
- *                             be done.
+ * @start_only:                Send start only to hw drivers. No init to be done.
+ * @aup_write:                 Indicates if AUP needs to be programmed during CSID start
  *
  */
 struct cam_isp_start_args {
 	struct cam_hw_config_args hw_config;
 	bool                      is_internal_start;
 	bool                      start_only;
+	bool                      aup_write;
 };
 
 /**

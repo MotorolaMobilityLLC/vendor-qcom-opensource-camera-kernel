@@ -9019,7 +9019,7 @@ static int __cam_isp_ctx_start_dev_in_ready(struct cam_context *ctx,
 {
 	int rc = 0;
 	int i;
-	struct cam_isp_start_args        start_isp;
+	struct cam_isp_start_args        start_isp = {0};
 	struct cam_ctx_request          *req;
 	struct cam_isp_ctx_req          *req_isp;
 	struct cam_isp_context          *ctx_isp =
@@ -9057,15 +9057,22 @@ static int __cam_isp_ctx_start_dev_in_ready(struct cam_context *ctx,
 	start_isp.hw_config.priv  = &req_isp->hw_update_data;
 	start_isp.hw_config.init_packet = 1;
 	start_isp.hw_config.reapply_type = CAM_CONFIG_REAPPLY_NONE;
-	start_isp.hw_config.cdm_reset_before_apply = false;
-	start_isp.is_internal_start = false;
+
+	/*
+	 * During CSID start, only need to program AUP when there's IO buffers
+	 * introduced from EPCR
+	 */
+	if ((req_isp->num_fence_map_in > 0) || (req_isp->num_fence_map_out > 0)) {
+		CAM_DBG(CAM_ISP,
+			"IO buffers are detected in INIT packet during start dev, need to program AUP during CSID start, req_id: %lld, ctx_idx: %u, link: 0x%x",
+			req->request_id, ctx->ctx_id, ctx->link_hdl);
+		start_isp.aup_write = true;
+	}
 
 	ctx_isp->last_applied_req_id = req->request_id;
 
 	if (ctx->state == CAM_CTX_FLUSHED)
 		start_isp.start_only = true;
-	else
-		start_isp.start_only = false;
 
 	__cam_isp_context_reset_ctx_params(ctx_isp);
 

@@ -1428,7 +1428,8 @@ static int cam_ife_mgr_csid_start_hw(
 	struct   cam_ife_hw_mgr_ctx *ctx,
 	uint32_t primary_rdi_csid_res,
 	bool     is_internal_start,
-	bool     start_only)
+	bool     start_only,
+	bool     aup_write)
 {
 	struct cam_isp_hw_mgr_res      *hw_mgr_res;
 	struct cam_isp_resource_node   *isp_res;
@@ -1436,9 +1437,9 @@ static int cam_ife_mgr_csid_start_hw(
 	struct cam_isp_resource_node   *primary_rdi_res = NULL;
 	struct cam_csid_hw_start_args   start_args;
 	struct cam_hw_intf             *hw_intf;
-	uint32_t  cnt;
-	int j;
-	bool ipp_available = false, is_secure;
+	uint32_t                        cnt;
+	int                             j;
+	bool                            ipp_available = false, is_secure;
 
 	for (j = ctx->num_base - 1 ; j >= 0; j--) {
 		cnt = 0;
@@ -1493,6 +1494,7 @@ static int cam_ife_mgr_csid_start_hw(
 			start_args.is_internal_start = is_internal_start;
 			start_args.start_only = start_only;
 			start_args.is_drv_config_en = (bool) ctx->drv_path_idle_en;
+			start_args.aup_write = aup_write;
 			hw_intf->hw_ops.start(hw_intf->hw_priv, &start_args,
 			    sizeof(start_args));
 		}
@@ -8375,7 +8377,7 @@ static int cam_ife_mgr_restart_hw(void *start_hw_args)
 
 	CAM_DBG(CAM_ISP, "START CSID HW ... in ctx id:%u", ctx->ctx_index);
 	/* Start the IFE CSID HW devices */
-	rc = cam_ife_mgr_csid_start_hw(ctx, CAM_IFE_PIX_PATH_RES_MAX, false, false);
+	rc = cam_ife_mgr_csid_start_hw(ctx, CAM_IFE_PIX_PATH_RES_MAX, false, false, false);
 	if (rc) {
 		CAM_ERR(CAM_ISP, "Error in starting CSID HW in ctx id:%u", ctx->ctx_index);
 		goto err;
@@ -8797,7 +8799,8 @@ start_only:
 		ctx->ctx_index);
 	/* Start the IFE CSID HW devices */
 	rc = cam_ife_mgr_csid_start_hw(ctx, primary_rdi_csid_res,
-		start_isp->is_internal_start, start_isp->start_only);
+		start_isp->is_internal_start, start_isp->start_only,
+		start_isp->aup_write);
 	if (rc)
 		goto err;
 
@@ -15087,7 +15090,8 @@ outportlog:
 }
 
 int cam_isp_config_csid_rup_aup(
-	struct cam_ife_hw_mgr_ctx *ctx)
+	struct cam_ife_hw_mgr_ctx *ctx,
+	bool disable_aup_write)
 {
 	int rc = 0, i, j, hw_idx;
 	struct cam_isp_hw_mgr_res       *hw_mgr_res;
@@ -15133,6 +15137,8 @@ int cam_isp_config_csid_rup_aup(
 		rup_args[i].cmd.size = 0;
 		rup_args[i].reg_write = true;
 		rup_args[i].last_applied_mup = ctx->current_mup;
+		rup_args[i].disable_aup_write = disable_aup_write;
+
 		res = rup_args[i].res[0];
 
 		rc = res->hw_intf->hw_ops.process_cmd(
@@ -15143,8 +15149,9 @@ int cam_isp_config_csid_rup_aup(
 			return rc;
 
 		CAM_DBG(CAM_ISP,
-			"Reg update for CSID: %u mup: %u ctx_idx: %u",
-			res->hw_intf->hw_idx, ctx->current_mup, ctx->ctx_index);
+			"Reg update for CSID: %u, mup: %u, ctx_idx: %u, disable_aup_write: %s",
+			res->hw_intf->hw_idx, ctx->current_mup, ctx->ctx_index,
+			CAM_BOOL_TO_YESNO(disable_aup_write));
 	}
 
 	return rc;
@@ -15152,14 +15159,15 @@ int cam_isp_config_csid_rup_aup(
 
 static int cam_ife_mgr_configure_scratch_for_ife(
 	bool is_streamon,
-	struct cam_ife_hw_mgr_ctx *ctx)
+	struct cam_ife_hw_mgr_ctx *ctx,
+	bool *disable_aup_write)
 {
 	int i, j, rc = 0;
 	uint32_t res_id;
 	struct cam_isp_hw_mgr_res           *hw_mgr_res;
 	struct cam_ife_sfe_scratch_buf_info *port_info;
 	struct cam_ife_scratch_buf_cfg      *ife_buf_info;
-	struct cam_isp_hw_mgr_res           *res_list_ife_out = NULL;
+	struct cam_isp_hw_mgr_res           *res_list_ife_out;
 
 	ife_buf_info = ctx->scratch_buf_info.ife_scratch_config;
 	res_list_ife_out = ctx->res_list_ife_out;
@@ -15199,6 +15207,9 @@ static int cam_ife_mgr_configure_scratch_for_ife(
 				NULL, NULL);
 			if (rc)
 				goto end;
+
+			/* Program AUP when there's a IFE scratch buffer */
+			*disable_aup_write = false;
 		}
 	}
 
@@ -15207,14 +15218,15 @@ end:
 }
 
 static int cam_ife_mgr_configure_scratch_for_sfe(
-	bool is_streamon, struct cam_ife_hw_mgr_ctx *ctx)
+	bool is_streamon, struct cam_ife_hw_mgr_ctx *ctx,
+	bool *disable_aup_write)
 {
 	int i, j, res_id, rc = 0;
 	struct cam_isp_hw_mgr_res           *hw_mgr_res;
 	struct cam_ife_sfe_scratch_buf_info *buf_info;
 	struct cam_sfe_scratch_buf_cfg      *sfe_scratch_config;
-	struct list_head                    *res_list_in_rd = NULL;
-	struct cam_isp_hw_mgr_res           *res_list_sfe_out = NULL;
+	struct list_head                    *res_list_in_rd;
+	struct cam_isp_hw_mgr_res           *res_list_sfe_out;
 
 	res_list_in_rd = &ctx->res_list_ife_in_rd;
 	res_list_sfe_out = ctx->res_list_sfe_out;
@@ -15270,6 +15282,9 @@ static int cam_ife_mgr_configure_scratch_for_sfe(
 				NULL, NULL);
 			if (rc)
 				goto end;
+
+			/* Program AUP when there's a SFE scratch buffer */
+			*disable_aup_write = false;
 		}
 	}
 
@@ -15303,6 +15318,9 @@ static int cam_ife_mgr_configure_scratch_for_sfe(
 				NULL, NULL);
 			if (rc)
 				goto end;
+
+			/* Program AUP when there's a SFE scratch buffer */
+			*disable_aup_write = false;
 		}
 	}
 
@@ -15319,11 +15337,12 @@ end:
 static int cam_ife_mgr_prog_default_settings(int64_t last_applied_max_pd_req,
 	bool force_disable_drv, bool is_streamon, struct cam_ife_hw_mgr_ctx *ctx)
 {
-	int rc = 0;
+	int  rc = 0;
+	bool disable_aup_write = true;
 
+	/* Check for SFE scratch buffers */
 	if (ctx->ctx_type == CAM_IFE_CTX_TYPE_SFE) {
-		/* Check for SFE scratch buffers */
-		rc = cam_ife_mgr_configure_scratch_for_sfe(is_streamon, ctx);
+		rc = cam_ife_mgr_configure_scratch_for_sfe(is_streamon, ctx, &disable_aup_write);
 		if (rc)
 			goto end;
 	}
@@ -15331,7 +15350,7 @@ static int cam_ife_mgr_prog_default_settings(int64_t last_applied_max_pd_req,
 	/* Check for IFE scratch buffers */
 	if (ctx->scratch_buf_info.ife_scratch_config &&
 		ctx->scratch_buf_info.ife_scratch_config->num_config) {
-		rc = cam_ife_mgr_configure_scratch_for_ife(is_streamon, ctx);
+		rc = cam_ife_mgr_configure_scratch_for_ife(is_streamon, ctx, &disable_aup_write);
 		if (rc)
 			goto end;
 	}
@@ -15348,7 +15367,8 @@ static int cam_ife_mgr_prog_default_settings(int64_t last_applied_max_pd_req,
 			(last_applied_max_pd_req >= 0))
 			cam_isp_mgr_drv_config(ctx, last_applied_max_pd_req, force_disable_drv, NULL);
 
-		rc = cam_isp_config_csid_rup_aup(ctx);
+		/* AUP needs to be programmed */
+		rc = cam_isp_config_csid_rup_aup(ctx, disable_aup_write);
 		if (rc)
 			CAM_ERR(CAM_ISP,
 				"RUP/AUP update failed for scratch buffers in ctx: %u",
