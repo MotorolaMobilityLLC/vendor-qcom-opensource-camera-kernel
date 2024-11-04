@@ -753,6 +753,8 @@ struct cam_ife_csid_ver2_reg_info {
 						    CAM_IFE_PIX_PATH_RES_MAX];
 	const struct cam_ife_csid_ver2_top_reg_info      *top_reg;
 	const struct cam_ife_csid_ver2_mc_reg_info       *ipp_mc_reg;
+	int                                             (*override_cb)(void *core_info);
+	void                                             *base;
 	const uint32_t                                    need_top_cfg;
 	const uint32_t                                    csid_cust_node_map[
 		    CAM_IFE_CSID_HW_NUM_MAX];

@@ -9187,6 +9187,7 @@ int cam_ife_csid_hw_ver2_init(struct cam_hw_intf *hw_intf,
 	int rc = -EINVAL;
 	struct cam_hw_info                   *hw_info;
 	struct cam_ife_csid_ver2_hw          *csid_hw = NULL;
+	struct cam_ife_csid_ver2_reg_info    *csid_reg;
 
 	if (!hw_intf || !core_info) {
 		CAM_ERR(CAM_ISP, "Invalid parameters intf: %pK hw_info: %pK",
@@ -9195,6 +9196,22 @@ int cam_ife_csid_hw_ver2_init(struct cam_hw_intf *hw_intf,
 	}
 
 	hw_info = (struct cam_hw_info  *)hw_intf->hw_priv;
+
+	csid_reg = core_info->csid_reg;
+	if (!csid_reg) {
+		CAM_ERR(CAM_ISP, "No register description available");
+		return rc;
+	}
+
+	if (csid_reg->override_cb) {
+		rc = csid_reg->override_cb((void *)core_info);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "CSID [%u] override failed", hw_intf->hw_idx);
+			return rc;
+		}
+
+		CAM_DBG(CAM_ISP, "CSID [%u] override called", hw_intf->hw_idx);
+	}
 
 	csid_hw = CAM_MEM_ZALLOC(sizeof(struct cam_ife_csid_ver2_hw), GFP_KERNEL);
 
