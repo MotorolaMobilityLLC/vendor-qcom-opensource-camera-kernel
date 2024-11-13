@@ -904,6 +904,7 @@ static int cam_tfe_csid_path_reserve(struct cam_tfe_csid_hw *csid_hw,
 	csid_hw->event_cb = reserve->event_cb;
 	csid_hw->event_cb_priv = reserve->event_cb_prv;
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	if (path_data->qcfa_bin) {
 		if (!cam_cpas_is_feature_supported(CAM_CPAS_QCFA_BINNING_ENABLE,
 			CAM_CPAS_HW_IDX_ANY, NULL)) {
@@ -912,6 +913,7 @@ static int cam_tfe_csid_path_reserve(struct cam_tfe_csid_hw *csid_hw,
 			goto end;
 		}
 	}
+#endif
 
 	/* Enable crop only for ipp */
 	if (reserve->res_id == CAM_TFE_CSID_PATH_RES_IPP)

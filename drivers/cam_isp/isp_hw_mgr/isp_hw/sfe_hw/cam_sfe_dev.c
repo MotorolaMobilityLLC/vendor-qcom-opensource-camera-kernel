@@ -49,10 +49,12 @@ static int cam_sfe_component_bind(struct device *dev,
 		goto end;
 	}
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	if (!cam_cpas_is_feature_supported(CAM_CPAS_SFE_FUSE, BIT(sfe_dev_idx), NULL)) {
 		CAM_DBG(CAM_SFE, "SFE:%d is not supported", sfe_dev_idx);
 		goto end;
 	}
+#endif
 
 	sfe_hw_intf = CAM_MEM_ZALLOC(sizeof(struct cam_hw_intf), GFP_KERNEL);
 	if (!sfe_hw_intf) {

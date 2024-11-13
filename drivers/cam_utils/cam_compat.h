@@ -152,7 +152,9 @@ unsigned long cam_update_dma_map_attributes(unsigned long attr);
 
 size_t cam_align_dma_buf_size(size_t len);
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 int cam_get_subpart_info(uint32_t *part_info, uint32_t max_num_cam);
+#endif
 
 int cam_iommu_map(struct iommu_domain *domain,
 	size_t firmware_start, phys_addr_t fw_hdl, size_t firmware_len,

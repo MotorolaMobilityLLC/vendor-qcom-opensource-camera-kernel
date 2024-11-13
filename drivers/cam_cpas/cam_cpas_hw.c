@@ -5387,7 +5387,7 @@ int cam_cpas_hw_probe(struct platform_device *pdev,
 	if (rc)
 		goto disable_soc_res;
 
-
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	rc = cam_get_subpart_info(&soc_private->part_info, CAM_CPAS_CAMERA_INSTANCES);
 	if (rc) {
 #ifndef CONFIG_ARCH_QTI_VM
@@ -5399,6 +5399,7 @@ int cam_cpas_hw_probe(struct platform_device *pdev,
 		rc = 0;
 #endif
 	}
+#endif
 
 	if (!cam_vmrm_no_register_read_on_bind()) {
 		rc = cam_cpas_soc_disable_resources(&cpas_hw->soc_info, true, true);

@@ -45,12 +45,14 @@ static int cam_vfe_component_bind(struct device *dev,
 		goto end;
 	}
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	if (!cam_cpas_is_feature_supported(CAM_CPAS_ISP_FUSE, BIT(vfe_dev_idx), NULL) ||
 		!cam_cpas_is_feature_supported(CAM_CPAS_ISP_LITE_FUSE,
 		BIT(vfe_dev_idx), NULL)) {
 		CAM_DBG(CAM_ISP, "IFE:%d is not supported", vfe_dev_idx);
 		goto end;
 	}
+#endif
 
 	vfe_hw_intf = CAM_MEM_ZALLOC(sizeof(struct cam_hw_intf), GFP_KERNEL);
 	if (!vfe_hw_intf) {

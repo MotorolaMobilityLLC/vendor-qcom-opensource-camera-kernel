@@ -3038,6 +3038,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 			}
 
 			if (csiphy_dev->csiphy_info[offset].secure_mode == 1) {
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 				if (!cam_cpas_is_feature_supported(
 					CAM_CPAS_SECURE_CAMERA_ENABLE,
 					CAM_CPAS_HW_IDX_ANY, NULL)) {
@@ -3045,7 +3046,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 						"sec_cam: camera fuse bit not set");
 					goto release_mutex;
 				}
-
+#endif
 				rc = cam_csiphy_program_secure_mode(csiphy_dev,
 					CAM_SECURE_MODE_SECURE, offset, false);
 				if (rc) {
@@ -3107,6 +3108,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 		}
 
 		if (csiphy_dev->csiphy_info[offset].secure_mode == 1) {
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 			if (!cam_cpas_is_feature_supported(
 					CAM_CPAS_SECURE_CAMERA_ENABLE,
 					CAM_CPAS_HW_IDX_ANY, NULL)) {
@@ -3115,6 +3117,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 				rc = -EINVAL;
 				goto cpas_stop;
 			}
+#endif
 
 			rc = cam_csiphy_program_secure_mode(
 				csiphy_dev,

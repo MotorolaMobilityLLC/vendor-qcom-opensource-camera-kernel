@@ -44,12 +44,14 @@ static int cam_ife_csid_component_bind(struct device *dev,
 		goto err;
 	}
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	if (!cam_cpas_is_feature_supported(CAM_CPAS_ISP_FUSE, BIT(csid_dev_idx), NULL) ||
 		!cam_cpas_is_feature_supported(CAM_CPAS_ISP_LITE_FUSE,
 		BIT(csid_dev_idx), NULL)) {
 		CAM_DBG(CAM_ISP, "CSID[%d] not supported based on fuse", csid_dev_idx);
 		goto err;
 	}
+#endif
 
 	hw_intf = CAM_MEM_ZALLOC(sizeof(*hw_intf), GFP_KERNEL);
 	if (!hw_intf) {

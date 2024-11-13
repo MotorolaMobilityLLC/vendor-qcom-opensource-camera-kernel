@@ -522,6 +522,7 @@ static int cam_csiphy_component_bind(struct device *dev,
 		goto csiphy_no_resource;
 	}
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	/* validate PHY fuse only for CSIPHY4 */
 	if ((new_csiphy_dev->soc_info.index == 4) &&
 		!cam_cpas_is_feature_supported(
@@ -531,6 +532,7 @@ static int cam_csiphy_component_bind(struct device *dev,
 			new_csiphy_dev->soc_info.index);
 		goto csiphy_no_resource;
 	}
+#endif
 
 	if (cam_cpas_query_domain_id_security_support())
 		new_csiphy_dev->domain_id_security = true;

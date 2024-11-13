@@ -9260,9 +9260,11 @@ int cam_ife_csid_hw_ver2_init(struct cam_hw_intf *hw_intf,
 		return rc;
 	}
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	if (cam_cpas_is_feature_supported(CAM_CPAS_QCFA_BINNING_ENABLE,
 		CAM_CPAS_HW_IDX_ANY, NULL))
 		csid_hw->flags.binning_enabled = true;
+#endif
 
 	if (cam_cpas_query_domain_id_security_support())
 		csid_hw->flags.domain_id_security = true;
