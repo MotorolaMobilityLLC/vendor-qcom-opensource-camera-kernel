@@ -4797,6 +4797,7 @@ end:
 
 static int cam_soc_util_user_reg_dump(
 	struct cam_reg_dump_desc *reg_dump_desc,
+	struct cam_reg_dump_desc *reg_dump_desc_u,
 	struct cam_hw_soc_dump_args *dump_args,
 	struct cam_hw_soc_info *soc_info,
 	struct cam_hw_soc_skip_dump_args *soc_skip_dump_args,
@@ -4806,7 +4807,7 @@ static int cam_soc_util_user_reg_dump(
 	int i;
 	struct cam_reg_read_info  *reg_read_info = NULL;
 
-	if (!dump_args || !reg_dump_desc || !soc_info) {
+	if (!dump_args || !reg_dump_desc || !soc_info || !reg_dump_desc_u) {
 		CAM_ERR(CAM_UTIL,
 			"Invalid input parameters %pK %pK %pK",
 			dump_args, reg_dump_desc, soc_info);
@@ -4814,7 +4815,7 @@ static int cam_soc_util_user_reg_dump(
 	}
 	for (i = 0; i < reg_dump_desc->num_read_range; i++) {
 
-		reg_read_info = &reg_dump_desc->read_range_flex[i];
+		reg_read_info = &reg_dump_desc_u->read_range_flex[i];
 		if (reg_read_info->type ==
 				CAM_REG_DUMP_READ_TYPE_CONT_RANGE) {
 			rc = cam_soc_util_dump_cont_reg_range_user_buf(
@@ -4990,8 +4991,8 @@ int cam_soc_util_reg_dump_to_cmd_buf(void *ctx,
 		}
 
 		rc = cam_common_mem_kdup((void **)&reg_dump_desc,
-			reg_dump_desc_u, sizeof(struct cam_reg_dump_desc) +
-			((local_num_read_range - 1) * sizeof(struct cam_reg_read_info)));
+			reg_dump_desc_u, sizeof(struct cam_reg_dump_desc) -
+			sizeof(((struct cam_reg_dump_desc *)0)->read_range));
 		if (rc) {
 			CAM_ERR(CAM_UTIL, "Alloc and copy req: [%llu] desc fail", req_id);
 			goto end;
@@ -5075,7 +5076,7 @@ int cam_soc_util_reg_dump_to_cmd_buf(void *ctx,
 		 */
 		if (user_triggered_dump) {
 			soc_skip_dump_args->reg_base_type = reg_base_type;
-			rc = cam_soc_util_user_reg_dump(reg_dump_desc,
+			rc = cam_soc_util_user_reg_dump(reg_dump_desc, reg_dump_desc_u,
 				soc_dump_args, soc_info, soc_skip_dump_args, reg_base_idx);
 			CAM_INFO(CAM_UTIL,
 				"%s reg_base_idx %d dumped offset %u",
@@ -5098,7 +5099,7 @@ int cam_soc_util_reg_dump_to_cmd_buf(void *ctx,
 			CAM_DBG(CAM_UTIL,
 				"Number of bytes written to cmd buffer: %u req_id: %llu",
 				dump_out_buf->bytes_written, req_id);
-			reg_read_info = &reg_dump_desc->read_range_flex[j];
+			reg_read_info = &reg_dump_desc_u->read_range_flex[j];
 			if (reg_read_info->type ==
 				CAM_REG_DUMP_READ_TYPE_CONT_RANGE) {
 				rc = cam_soc_util_dump_cont_reg_range(soc_info,
