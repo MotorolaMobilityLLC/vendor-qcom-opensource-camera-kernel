@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_IFE_CSID_LITE_680_H_
@@ -15,7 +15,7 @@
 
 static uint32_t cam_ife_csid_lite_680_num_top_irq_desc[] = {0,};
 
-static const struct cam_ife_csid_irq_desc cam_ife_csid_lite_680_rx_irq_desc[][32] = {
+static struct cam_ife_csid_irq_desc cam_ife_csid_lite_680_rx_irq_desc[][32] = {
 	{
 		{
 			.bitmask = BIT(0),
@@ -121,11 +121,11 @@ static const struct cam_ife_csid_irq_desc cam_ife_csid_lite_680_rx_irq_desc[][32
 	{}
 };
 
-static const uint32_t cam_ife_csid_lite_680_num_rx_irq_desc[] = {
+static uint32_t cam_ife_csid_lite_680_num_rx_irq_desc[] = {
 	ARRAY_SIZE(cam_ife_csid_lite_680_rx_irq_desc[0]),
 };
 
-static const struct cam_ife_csid_irq_desc cam_ife_csid_lite_680_path_irq_desc[] = {
+static struct cam_ife_csid_irq_desc cam_ife_csid_lite_680_path_irq_desc[] = {
 	{
 		.bitmask = BIT(0),
 		.desc = "",

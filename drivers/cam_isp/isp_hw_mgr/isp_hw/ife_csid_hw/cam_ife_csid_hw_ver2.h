@@ -339,6 +339,11 @@ struct cam_ife_csid_ver2_path_cfg {
 	bool                                 allow_epoch_eof_cb;
 };
 
+struct cam_ife_csid_ver2_path_data {
+	struct cam_ife_csid_ver2_path_cfg       path_cfg;
+	struct cam_ife_csid_ver2_path_reg_info *reg_offsets;
+};
+
 struct cam_ife_csid_ver2_top_reg_info {
 	uint32_t io_path_cfg0_addr[CAM_IFE_CSID_HW_NUM_MAX];
 	uint32_t dual_csid_cfg0_addr[CAM_IFE_CSID_HW_NUM_MAX];
@@ -463,6 +468,7 @@ struct cam_ife_csid_ver2_path_reg_info {
 	uint32_t path_frame_id;
 	uint32_t cfg2_addr;
 	uint32_t debug_sim_monitor;
+	uint32_t base;
 
 	/*Shift Bit Configurations*/
 	uint32_t start_mode_master;
@@ -747,32 +753,36 @@ struct cam_ife_csid_ver2_reg_info {
 	struct cam_irq_controller_reg_info               *buf_done_irq_reg_info;
 	struct cam_irq_controller_reg_info               *path_irq_reg_info[
 		CAM_IFE_PIX_PATH_RES_MAX];
-	const struct cam_ife_csid_ver2_common_reg_info   *cmn_reg;
-	const struct cam_ife_csid_ver2_csi2_rx_reg_info  *csi2_reg;
-	const struct cam_ife_csid_ver2_path_reg_info     *path_reg[
+	struct cam_ife_csid_ver2_common_reg_info         *cmn_reg;
+	struct cam_ife_csid_ver2_csi2_rx_reg_info        *csi2_reg;
+	struct cam_ife_csid_ver2_path_reg_info           *path_reg[
 						    CAM_IFE_PIX_PATH_RES_MAX];
-	const struct cam_ife_csid_ver2_top_reg_info      *top_reg;
-	const struct cam_ife_csid_ver2_mc_reg_info       *ipp_mc_reg;
+	struct cam_ife_csid_ver2_top_reg_info            *top_reg;
+	struct cam_ife_csid_ver2_mc_reg_info             *ipp_mc_reg;
 	int                                             (*override_cb)(void *core_info);
 	void                                             *base;
 	const uint32_t                                    need_top_cfg;
 	const uint32_t                                    csid_cust_node_map[
 		    CAM_IFE_CSID_HW_NUM_MAX];
-	const int                                         input_core_sel[
+	int                                         input_core_sel[
 		    CAM_IFE_CSID_HW_NUM_MAX][CAM_IFE_CSID_INPUT_CORE_SEL_MAX];
-	const struct cam_ife_csid_top_irq_desc           (*top_irq_desc)[][32];
-	const struct cam_ife_csid_irq_desc               (*rx_irq_desc)[][32];
-	const char*                                      (*debug_vec_desc)[][32];
-	const struct cam_ife_csid_irq_desc               *path_irq_desc;
-	const uint32_t                                   *num_top_err_irqs;
-	const uint32_t                                   *num_rx_err_irqs;
-	const uint32_t                                    num_path_err_irqs;
-	const struct cam_ife_csid_top_debug_mask         *top_debug_mask;
-	const struct cam_ife_csid_rx_debug_mask          *rx_debug_mask;
-	const uint32_t                                    num_top_regs;
-	const uint32_t                                    num_rx_regs;
-	bool                                              is_ife_sfe_mapped;
-	bool                                              dynamic_drv_supported;
+	struct cam_ife_csid_top_irq_desc           (*top_irq_desc)[][32];
+	struct cam_ife_csid_irq_desc               (*rx_irq_desc)[][32];
+	char*                                      (*debug_vec_desc)[][32];
+	struct cam_ife_csid_irq_desc               *path_irq_desc;
+	uint32_t                                   *num_top_err_irqs;
+	uint32_t                                   *num_rx_err_irqs;
+	uint32_t                                    num_path_err_irqs;
+	struct cam_ife_csid_top_debug_mask         *top_debug_mask;
+	struct cam_ife_csid_rx_debug_mask          *rx_debug_mask;
+	struct cam_ife_csid_ver2_path_reg_info     *ipp_reg_info;
+	struct cam_ife_csid_ver2_path_reg_info     *rdi_reg_info;
+	struct cam_ife_csid_ver2_path_reg_info     *ppp_reg_info;
+	uint32_t                                    num_top_regs;
+	uint32_t                                    num_rx_regs;
+	bool                                        is_ife_sfe_mapped;
+	bool                                        dynamic_drv_supported;
+	bool                                        support_dyn_offset;
 };
 
 /*

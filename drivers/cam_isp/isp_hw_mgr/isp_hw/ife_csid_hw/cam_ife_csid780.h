@@ -17,7 +17,7 @@
 
 #define CAM_CSID_VERSION_V780                 0x70080000
 
-static const struct cam_ife_csid_irq_desc cam_ife_csid_780_rx_irq_desc[][32] = {
+static struct cam_ife_csid_irq_desc cam_ife_csid_780_rx_irq_desc[][32] = {
 	{
 		{
 			.bitmask = BIT(0),
@@ -122,11 +122,11 @@ static const struct cam_ife_csid_irq_desc cam_ife_csid_780_rx_irq_desc[][32] = {
 	},
 };
 
-static const uint32_t cam_ife_csid_780_num_rx_irq_desc[] = {
+static uint32_t cam_ife_csid_780_num_rx_irq_desc[] = {
 	ARRAY_SIZE(cam_ife_csid_780_rx_irq_desc[0]),
 };
 
-static const struct cam_ife_csid_irq_desc cam_ife_csid_780_path_irq_desc[] = {
+static struct cam_ife_csid_irq_desc cam_ife_csid_780_path_irq_desc[] = {
 	{
 		.bitmask = BIT(0),
 		.err_type = CAM_ISP_HW_ERROR_CSID_FATAL,
@@ -257,7 +257,7 @@ static const struct cam_ife_csid_irq_desc cam_ife_csid_780_path_irq_desc[] = {
 	},
 };
 
-static const struct cam_ife_csid_top_irq_desc cam_ife_csid_780_top_irq_desc[][32] = {
+static struct cam_ife_csid_top_irq_desc cam_ife_csid_780_top_irq_desc[][32] = {
 	{
 		{
 			.bitmask  = BIT(1),
@@ -287,7 +287,7 @@ static const struct cam_ife_csid_top_irq_desc cam_ife_csid_780_top_irq_desc[][32
 	},
 };
 
-static const uint32_t cam_ife_csid_780_num_top_irq_desc[] = {
+static uint32_t cam_ife_csid_780_num_top_irq_desc[] = {
 	ARRAY_SIZE(cam_ife_csid_780_top_irq_desc[0]),
 };
 

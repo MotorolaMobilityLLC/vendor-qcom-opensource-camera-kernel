@@ -18092,7 +18092,7 @@ static inline char *__cam_isp_irq_inject_reg_unit_to_name(
 	int32_t hw_type, int32_t reg_unit)
 {
 	int32_t reg_idx;
-	const uint8_t **irq_reg_tag;
+	uint8_t **irq_reg_tag;
 
 	if (hw_type == CAM_ISP_HW_TYPE_CSID) {
 		reg_idx = reg_unit - (CAM_IFE_CSID_IRQ_REG * REG_SHIFT);

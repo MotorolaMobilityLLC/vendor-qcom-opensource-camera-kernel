@@ -4161,7 +4161,7 @@ static int cam_ife_csid_ver1_path_bottom_half_handler(
 	struct cam_ife_csid_ver1_hw                   *csid_hw,
 	uint32_t                                       index)
 {
-	const uint8_t                               **irq_reg_tag;
+	uint8_t                                    **irq_reg_tag;
 	uint8_t                                     *log_buf = NULL;
 	uint32_t                                     bit_pos = 0;
 	uint32_t                                     irq_status;
@@ -4371,7 +4371,7 @@ static int cam_ife_csid_ver1_path_top_half(
 	struct cam_ife_csid_ver1_path_reg_info *path_reg = NULL;
 	struct cam_ife_csid_ver1_reg_info      *csid_reg;
 	struct cam_hw_soc_info                 *soc_info;
-	const uint8_t                         **irq_reg_tag;
+	uint8_t                               **irq_reg_tag;
 	uint32_t                                status = 0;
 	uint32_t                                debug_bits;
 	uint32_t                                bit_pos = 0;
