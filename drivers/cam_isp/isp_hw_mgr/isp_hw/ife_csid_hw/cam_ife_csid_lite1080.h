@@ -904,7 +904,6 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.resume_frame_boundary               = 1,
 		.overflow_ctrl_en                    = 1,
 		.overflow_ctrl_mode_val              = 0x8,
-		.mipi_pack_supported                 = 1,
 		.packing_fmt_shift_val               = 15,
 		.plain_alignment_shift_val           = 11,
 		.plain_fmt_shift_val                 = 12,
@@ -935,6 +934,7 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.irq_set_addr                        = 0x0230,
 
 		/* configurations */
+		.mipi_pack_supported                 = 1,
 		.rup_mask                            = 0x100,
 		.aup_mask                            = 0x100,
 		.rup_aup_set_mask                    = 0x1,
@@ -951,6 +951,7 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.irq_set_addr                        = 0x0240,
 
 		/* configurations */
+		.mipi_pack_supported                 = 1,
 		.rup_mask                            = 0x200,
 		.aup_mask                            = 0x200,
 		.rup_aup_set_mask                    = 0x1,
@@ -967,6 +968,7 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.irq_set_addr                        = 0x0250,
 
 		/* configurations */
+		.mipi_pack_supported                 = 1,
 		.rup_mask                            = 0x400,
 		.aup_mask                            = 0x400,
 		.rup_aup_set_mask                    = 0x1,
@@ -982,6 +984,7 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.irq_set_addr                        = 0x0260,
 
 		/* configurations */
+		.mipi_pack_supported                 = 1,
 		.rup_mask                            = 0x800,
 		.aup_mask                            = 0x800,
 		.rup_aup_set_mask                    = 0x1,
