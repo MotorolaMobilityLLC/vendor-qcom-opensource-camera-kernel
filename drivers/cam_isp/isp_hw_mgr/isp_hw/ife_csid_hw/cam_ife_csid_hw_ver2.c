@@ -4087,7 +4087,8 @@ static int cam_ife_csid_hw_ver2_prepare_config_path_data(
 		}
 
 		for (i = 0; i < CAM_ISP_VC_DT_CFG; i++) {
-			if (cid_data->vc_dt[i].valid) {
+			if (cid_data->vc_dt[i].valid &&
+				cid_data->vc_dt[i].dt != CAM_ISP_INVALID_VC_VALUE) {
 				rc = cam_ife_csid_get_format_rdi(
 					path_cfg->in_format[i], path_cfg->out_format,
 					&path_cfg->path_format[i], path_reg->mipi_pack_supported,
@@ -4110,8 +4111,10 @@ static int cam_ife_csid_hw_ver2_prepare_config_path_data(
 	case CAM_IFE_PIX_PATH_RES_PPP:
 
 		for (i = 0; i < CAM_ISP_VC_DT_CFG; i++) {
-			if (cid_data->vc_dt[i].valid) {
-				rc = cam_ife_csid_get_format_ipp_ppp(path_cfg->in_format[i],
+			if (cid_data->vc_dt[i].valid &&
+				cid_data->vc_dt[i].dt != CAM_ISP_INVALID_VC_VALUE) {
+				rc = cam_ife_csid_get_format_ipp_ppp(
+					path_cfg->in_format[i],
 					&path_cfg->path_format[i]);
 				if (rc) {
 					CAM_ERR(CAM_ISP,
@@ -4641,7 +4644,7 @@ static int cam_ife_csid_ver2_init_config_rdi_path(
 	struct cam_hw_soc_info                   *soc_info;
 	struct cam_ife_csid_ver2_path_reg_info *path_reg = NULL;
 	struct cam_ife_csid_ver2_common_reg_info *cmn_reg = NULL;
-	uint32_t  val, cfg0 = 0, cfg1 = 0;
+	uint32_t  val, cfg0 = 0, cfg1 = 0, multi_vc_val, multi_dt_val;
 	struct cam_ife_csid_ver2_path_cfg      *path_cfg;
 	struct cam_ife_csid_ver2_path_data     *path_data;
 	struct cam_ife_csid_cid_data *cid_data;
@@ -4719,10 +4722,17 @@ static int cam_ife_csid_ver2_init_config_rdi_path(
 
 	/*Configure Multi VC DT combo */
 	if (cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].valid) {
-		val = (cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].vc <<
-				cmn_reg->multi_vcdt_vc1_shift_val) |
-			(cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].dt <<
-				 cmn_reg->multi_vcdt_dt1_shift_val) |
+		/**
+		 * From v1080 targets, where VC is decoupled from DT, there is a
+		 * valid case where VC 1 won't have a corresponding valid DT
+		 */
+		multi_vc_val = cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].vc;
+		multi_dt_val = (cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].dt ==
+			CAM_ISP_INVALID_VC_VALUE) ? 0 : cid_data->vc_dt[
+			CAM_IFE_CSID_MULTI_VC_DT_GRP_1].dt;
+
+		val = (multi_vc_val << cmn_reg->multi_vcdt_vc1_shift_val) |
+			(multi_dt_val << cmn_reg->multi_vcdt_dt1_shift_val) |
 			(1 << cmn_reg->multi_vcdt_en_shift_val);
 
 		if (cmn_reg->ts_comb_vcdt_en) {
@@ -4843,7 +4853,7 @@ static int cam_ife_csid_ver2_init_config_pxl_path(
 	struct cam_hw_soc_info                   *soc_info;
 	struct cam_ife_csid_ver2_path_reg_info *path_reg = NULL;
 	struct cam_ife_csid_ver2_common_reg_info *cmn_reg = NULL;
-	uint32_t val = 0, cfg0 = 0, cfg1 = 0;
+	uint32_t val = 0, cfg0 = 0, cfg1 = 0, multi_vc_val, multi_dt_val;
 	struct cam_ife_csid_ver2_path_data *path_data;
 	struct cam_ife_csid_ver2_path_cfg  *path_cfg;
 	struct cam_ife_csid_cid_data *cid_data;
@@ -4911,10 +4921,17 @@ static int cam_ife_csid_ver2_init_config_pxl_path(
 
 	/*Configure Multi VC DT combo */
 	if (cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].valid) {
-		val = (cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].vc <<
-				cmn_reg->multi_vcdt_vc1_shift_val) |
-			(cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].dt <<
-				 cmn_reg->multi_vcdt_dt1_shift_val) |
+		/**
+		 * From v1080 targets, where VC is decoupled from DT, there is a
+		 * valid case where VC 1 won't have a corresponding valid DT
+		 */
+		multi_vc_val = cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].vc;
+		multi_dt_val = (cid_data->vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_1].dt ==
+			CAM_ISP_INVALID_VC_VALUE) ? 0 : cid_data->vc_dt[
+			CAM_IFE_CSID_MULTI_VC_DT_GRP_1].dt;
+
+		val = (multi_vc_val << cmn_reg->multi_vcdt_vc1_shift_val) |
+			(multi_dt_val << cmn_reg->multi_vcdt_dt1_shift_val) |
 			(1 << cmn_reg->multi_vcdt_en_shift_val);
 
 		if (cmn_reg->ts_comb_vcdt_en) {

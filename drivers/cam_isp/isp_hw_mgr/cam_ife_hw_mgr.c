@@ -5845,7 +5845,7 @@ static int cam_ife_mgr_acquire_get_unified_structure_v3(
 	struct cam_isp_in_port_generic_info *in_port)
 {
 	struct cam_isp_in_port_info_v3 *in = NULL;
-	uint32_t in_port_length = 0;
+	uint32_t in_port_length = 0, num_valid_vc = 0, num_valid_dt = 0;
 	int32_t rc = 0, i;
 	size_t len = 0;
 	uint8_t log_buf[200];
@@ -5875,7 +5875,7 @@ static int cam_ife_mgr_acquire_get_unified_structure_v3(
 	in_port->num_valid_vc_dt =  in->csid_info.num_valid_vc_dt;
 	in_port->epd_supported   =  in->csid_info.param_mask & CAM_IFE_CSID_EPD_MODE_EN;
 
-	if (in_port->num_valid_vc_dt == 0 || in_port->num_valid_vc_dt >= CAM_ISP_VC_DT_CFG ||
+	if (in_port->num_valid_vc_dt == 0 || in_port->num_valid_vc_dt > CAM_ISP_VC_DT_CFG ||
 		in_port->num_valid_vc_dt > g_ife_hw_mgr.isp_caps.max_dt_supported) {
 		CAM_ERR(CAM_ISP,
 			"Invalid i/p arg invalid vc-dt: %d, arr size %u, max supported by HW: %u",
@@ -5887,8 +5887,15 @@ static int cam_ife_mgr_acquire_get_unified_structure_v3(
 
 	for (i = 0; i < in_port->num_valid_vc_dt; i++) {
 		if ((i >= CAM_IFE_CSID_MAX_VALID_VC_NUM) &&
-			(in->csid_info.vc[i] != CAM_ISP_INVALID_VC_VALUE))
+			((in->csid_info.vc[i] != CAM_ISP_INVALID_VC_VALUE) ||
+			(in->csid_info.dt[i] == CAM_ISP_INVALID_VC_VALUE)))
 			rc = -EINVAL;
+
+		if (in->csid_info.vc[i] != CAM_ISP_INVALID_VC_VALUE)
+			num_valid_vc++;
+
+		if (in->csid_info.dt[i] != CAM_ISP_INVALID_VC_VALUE)
+			num_valid_dt++;
 
 		in_port->vc[i]        =  in->csid_info.vc[i];
 		in_port->dt[i]        =  in->csid_info.dt[i];
@@ -5896,6 +5903,9 @@ static int cam_ife_mgr_acquire_get_unified_structure_v3(
 		CAM_INFO_BUF(CAM_ISP, log_buf, 200, &len, "VC%d: 0x%x, DT%d: 0x%x ",
 			i, in_port->vc[i], i, in_port->dt[i]);
 	}
+
+	if (!num_valid_vc || !num_valid_dt || (num_valid_vc == 1 && num_valid_dt != 1))
+		rc = -EINVAL;
 
 	if (rc) {
 		CAM_ERR(CAM_ISP, "Invalid VC/DT args, printing given %d args: %s",
@@ -5957,7 +5967,7 @@ static int cam_ife_mgr_acquire_get_unified_structure_v2(
 	struct cam_isp_in_port_generic_info *in_port)
 {
 	struct cam_isp_in_port_info_v2 *in = NULL;
-	uint32_t in_port_length = 0;
+	uint32_t in_port_length = 0, num_valid_vc = 0, num_valid_dt = 0;
 	int32_t rc = 0, i;
 	size_t len = 0;
 	uint8_t log_buf[200];
@@ -5988,7 +5998,7 @@ static int cam_ife_mgr_acquire_get_unified_structure_v2(
 	in_port->lane_cfg        =  in->lane_cfg;
 	in_port->num_valid_vc_dt =  in->num_valid_vc_dt;
 
-	if (in_port->num_valid_vc_dt == 0 || in_port->num_valid_vc_dt >= CAM_ISP_VC_DT_CFG ||
+	if (in_port->num_valid_vc_dt == 0 || in_port->num_valid_vc_dt > CAM_ISP_VC_DT_CFG ||
 		in_port->num_valid_vc_dt > g_ife_hw_mgr.isp_caps.max_dt_supported) {
 		CAM_ERR(CAM_ISP,
 			"Invalid i/p arg invalid vc-dt: %d, arr size %u, max supported by HW: %u",
@@ -5999,8 +6009,16 @@ static int cam_ife_mgr_acquire_get_unified_structure_v2(
 	}
 
 	for (i = 0; i < in_port->num_valid_vc_dt; i++) {
-		if ((i >= CAM_IFE_CSID_MAX_VALID_VC_NUM) && (in->vc[i] != CAM_ISP_INVALID_VC_VALUE))
+		if ((i >= CAM_IFE_CSID_MAX_VALID_VC_NUM) &&
+			((in->vc[i] != CAM_ISP_INVALID_VC_VALUE) ||
+			(in->dt[i] == CAM_ISP_INVALID_VC_VALUE)))
 			rc = -EINVAL;
+
+		if (in->vc[i] != CAM_ISP_INVALID_VC_VALUE)
+			num_valid_vc++;
+
+		if (in->dt[i] != CAM_ISP_INVALID_VC_VALUE)
+			num_valid_dt++;
 
 		in_port->vc[i]        =  in->vc[i];
 		in_port->dt[i]        =  in->dt[i];
@@ -6008,6 +6026,9 @@ static int cam_ife_mgr_acquire_get_unified_structure_v2(
 		CAM_INFO_BUF(CAM_ISP, log_buf, 200, &len, "VC%d: 0x%x, DT%d: 0x%x ",
 			i, in_port->vc[i], i, in_port->dt[i]);
 	}
+
+	if (!num_valid_vc || !num_valid_dt || (num_valid_vc == 1 && num_valid_dt != 1))
+		rc = -EINVAL;
 
 	if (rc) {
 		CAM_ERR(CAM_ISP, "Invalid VC/DT args, printing given %d args: %s",
