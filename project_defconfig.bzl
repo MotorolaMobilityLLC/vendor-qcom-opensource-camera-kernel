@@ -29,7 +29,10 @@ project_configs = select({
         "CONFIG_SPECTRA_SECURE_DYN_PORT_CFG=y",
         "CONFIG_SPECTRA_SECURE_CAMNOC_REG_UPDATE=y",
     ],
-    ":canoe": [],
+    ":canoe": [
+        "CONFIG_TARGET_SYNX_ENABLE=y",
+        "CONFIG_INTERCONNECT_QCOM=y",
+     ],
 })
 
 """
