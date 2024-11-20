@@ -20,6 +20,7 @@
 #if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 #include <linux/dma-iommu.h>
 #endif
+#include <soc/qcom/of_common.h>
 #include <linux/spi/spi.h>
 
 #include "cam_csiphy_dev.h"
@@ -64,7 +65,7 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 void cam_free_clear(const void *);
 void cam_check_iommu_faults(struct iommu_domain *domain,
 	struct cam_smmu_pf_info *pf_info);
-int cam_get_ddr_type(void);
+static inline int cam_get_ddr_type(void) { return of_fdt_get_ddrtype(); }
 int cam_compat_util_get_dmabuf_va(struct dma_buf *dmabuf, uintptr_t *vaddr);
 void cam_compat_util_put_dmabuf_va(struct dma_buf *dmabuf, void *vaddr);
 struct sg_table *cam_compat_dmabuf_map_attach(
