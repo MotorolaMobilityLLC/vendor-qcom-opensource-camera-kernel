@@ -82,45 +82,44 @@ struct cam_sensor_dev_res_info {
 
 /**
  * struct cam_sensor_ctrl_t: Camera control structure
- * @device_name: Sensor device name
- * @pdev: Platform device
- * @cam_sensor_mutex: Sensor mutex
- * @sensordata: Sensor board Information
- * @sensor_res: Sensor resolution index and other info
- *              accompanying a mode index switch
- * @cci_i2c_master: I2C structure
- * @io_master_info: Information about the communication master
- * @sensor_state: Sensor states
- * @is_probe_succeed: Probe succeeded or not
- * @id: Cell Index
- * @is_i3c_device: A Flag to indicate whether this sensor is an I3C Device.
- * @of_node: Of node ptr
- * @v4l2_dev_str: V4L2 device structure
- * @sensor_probe_addr_type: Sensor probe address type
- * @sensor_probe_data_type: Sensor probe data type
- * @i2c_data: Sensor I2C register settings
- * @sensor_info: Sensor query cap structure
- * @bridge_intf: Bridge interface structure
- * @streamon_count: Count to hold the number of times stream on called
- * @streamoff_count: Count to hold the number of times stream off called
- * @bob_reg_index: Hold to BoB regulator index
- * @bob_pwm_switch: Boolean flag to switch into PWM mode for BoB regulator
- * @last_flush_req: Last request to flush
- * @pipeline_delay: Sensor pipeline delay
- * @modeswitch_delay: Mode switch delay
- * @probe_sensor_slave_addr: Slave address used for probe if not zero
- * @sensor_name: Sensor name
- * @aon_camera_id: AON Camera ID associated with this sensor
- * @last_applied_req: Last updated request id
- * @last_applied_req: Last applied request id
- * @num_batched_frames: Number batched frames
- * @is_stopped_by_user: Indicate if sensor has been stopped by userland
- * @stream_off_after_eof: Indicates if sensor needs to stream off after eof
- * @stream_off_on_flush: Streaming off sensor on flush all call
- * @is_stream_off_pkt_updated: Updated stream off packet has been received
- * @is_res_info_updated: Indicate if resolution info is updated
+ *
+ * @device_name                 : Sensor device name
+ * @pdev                        : Platform device
+ * @cam_sensor_mutex            : Sensor mutex
+ * @sensordata                  : Sensor board Information
+ * @sensor_res                  : Sensor resolution index and other info
+ *                                accompanying a mode index switch
+ * @io_master_info              : Information about the communication master
+ * @sensor_state                : Sensor states
+ * @is_probe_succeed            : Probe succeeded or not
+ * @id                          : Cell Index
+ * @of_node                     : Of node ptr
+ * @v4l2_dev_str                : V4L2 device structure
+ * @sensor_probe_addr_type      : Sensor probe address type
+ * @sensor_probe_data_type      : Sensor probe data type
+ * @i2c_data                    : Sensor I2C register settings
+ * @sensor_info                 : Sensor query cap structure
+ * @bridge_intf                 : Bridge interface structure
+ * @streamon_count              : Count to hold the number of times stream on called
+ * @streamoff_count             : Count to hold the number of times stream off called
+ * @bob_reg_index               : Hold to BoB regulator index
+ * @bob_pwm_switch              : Boolean flag to switch into PWM mode for BoB regulator
+ * @last_flush_req              : Last request to flush
+ * @pipeline_delay              : Sensor pipeline delay
+ * @modeswitch_delay            : Mode switch delay
+ * @probe_sensor_slave_addr     : Slave address used for probe if not zero
+ * @sensor_name                 : Sensor name
+ * @aon_camera_id               : AON Camera ID associated with this sensor
+ * @last_applied_req            : Last updated request id
+ * @last_applied_req            : Last applied request id
+ * @num_batched_frames          : Number batched frames
+ * @is_stopped_by_user          : Indicate if sensor has been stopped by userland
+ * @stream_off_after_eof        : Indicates if sensor needs to stream off after eof
+ * @stream_off_on_flush         : Streaming off sensor on flush all call
+ * @is_stream_off_pkt_updated   : Updated stream off packet has been received
+ * @is_res_info_updated         : Indicate if resolution info is updated
  * @last_applied_done_timestamp : Last applied done timestamp value
- * @hw_no_ops: To determine whether HW operations need to be disabled
+ * @hw_no_ops                   : To determine whether HW operations need to be disabled
  */
 struct cam_sensor_ctrl_t {
 	char                           device_name[CAM_CTX_DEV_NAME_MAX_LENGTH];
@@ -129,13 +128,10 @@ struct cam_sensor_ctrl_t {
 	struct mutex                   cam_sensor_mutex;
 	struct cam_sensor_board_info  *sensordata;
 	struct cam_sensor_dev_res_info sensor_res[MAX_PER_FRAME_ARRAY];
-	enum cci_i2c_master_t          cci_i2c_master;
-	enum cci_device_num            cci_num;
 	struct camera_io_master        io_master_info;
 	enum cam_sensor_state_t        sensor_state;
 	uint8_t                        is_probe_succeed;
 	uint32_t                       id;
-	bool                           is_i3c_device;
 	struct device_node            *of_node;
 	struct cam_subdev              v4l2_dev_str;
 	uint8_t                        sensor_probe_addr_type;

@@ -820,7 +820,7 @@ int32_t cam_sensor_update_i2c_info(struct cam_cmd_i2c_info *i2c_info,
 				cci_client);
 			return -EINVAL;
 		}
-		cci_client->cci_i2c_master = s_ctrl->cci_i2c_master;
+		cci_client->cci_i2c_master = s_ctrl->io_master_info.cci_client->cci_i2c_master;
 		cci_client->sid = i2c_info->slave_addr >> 1;
 		cci_client->retries = 3;
 		cci_client->id_map = 0;

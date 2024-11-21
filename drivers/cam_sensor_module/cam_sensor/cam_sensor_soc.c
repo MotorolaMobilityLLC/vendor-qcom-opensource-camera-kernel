@@ -130,13 +130,12 @@ static int32_t cam_sensor_init_bus_params(struct cam_sensor_ctrl_t *s_ctrl)
 	return 0;
 }
 
-static int32_t cam_sensor_driver_get_dt_data(struct cam_sensor_ctrl_t *s_ctrl)
+int32_t cam_sensor_parse_dt(struct cam_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0;
 	int i = 0;
 	struct cam_sensor_board_info *sensordata = NULL;
 	struct device_node *of_node = s_ctrl->of_node;
-	struct device_node *of_parent = NULL;
 	struct cam_hw_soc_info *soc_info = &s_ctrl->soc_info;
 
 	s_ctrl->sensordata = CAM_MEM_ZALLOC(sizeof(*sensordata), GFP_KERNEL);
@@ -145,17 +144,31 @@ static int32_t cam_sensor_driver_get_dt_data(struct cam_sensor_ctrl_t *s_ctrl)
 
 	sensordata = s_ctrl->sensordata;
 
-	rc = cam_soc_util_get_dt_properties(soc_info);
+	rc = cam_sensor_init_bus_params(s_ctrl);
 	if (rc < 0) {
-		CAM_ERR(CAM_SENSOR, "Failed to read DT properties rc %d", rc);
-		goto FREE_SENSOR_DATA;
+		CAM_ERR(CAM_SENSOR,
+			"Failed in Initialize Bus params, rc %d", rc);
+		goto free_sensor_data;
 	}
+
+	rc = cam_sensor_util_parse_and_request_resources(&(s_ctrl->io_master_info),
+		soc_info);
+	if (rc < 0) {
+		CAM_ERR(CAM_EEPROM, "Failed in parse_and_request_resources rc : %d", rc);
+		return rc;
+	}
+
+	CAM_INFO(CAM_SENSOR,
+		"master: %d (1-CCI, 2-I2C, 3-SPI, 4-I3C) pm_ctrl_client_enable: %d",
+		s_ctrl->io_master_info.master_type,
+		(!s_ctrl->io_master_info.qup_client) ? 0 :
+			s_ctrl->io_master_info.qup_client->pm_ctrl_client_enable);
 
 	rc =  cam_sensor_util_init_gpio_pin_tbl(soc_info,
 			&sensordata->power_info.gpio_num_info);
 	if (rc < 0) {
 		CAM_ERR(CAM_SENSOR, "Failed to read gpios %d", rc);
-		goto FREE_SENSOR_DATA;
+		goto release_resources;
 	}
 
 	s_ctrl->id = soc_info->index;
@@ -164,14 +177,7 @@ static int32_t cam_sensor_driver_get_dt_data(struct cam_sensor_ctrl_t *s_ctrl)
 	if (s_ctrl->id >= MAX_CAMERAS) {
 		CAM_ERR(CAM_SENSOR, "Failed invalid cell_id %d", s_ctrl->id);
 		rc = -EINVAL;
-		goto FREE_SENSOR_DATA;
-	}
-
-	rc = of_property_read_bool(of_node, "i3c-target");
-	if (rc) {
-		CAM_INFO(CAM_SENSOR, "I3C Target");
-		s_ctrl->is_i3c_device = true;
-		s_ctrl->io_master_info.master_type = I3C_MASTER;
+		goto release_resources;
 	}
 
 	/* Store the index of BoB regulator if it is available */
@@ -206,37 +212,7 @@ static int32_t cam_sensor_driver_get_dt_data(struct cam_sensor_ctrl_t *s_ctrl)
 	if (rc < 0) {
 		CAM_ERR(CAM_SENSOR, "failed to get sub module index, rc=%d",
 			 rc);
-		goto FREE_SENSOR_DATA;
-	}
-
-	rc = cam_sensor_init_bus_params(s_ctrl);
-	if (rc < 0) {
-		CAM_ERR(CAM_SENSOR,
-			"Failed in Initialize Bus params, rc %d", rc);
-		goto FREE_SENSOR_DATA;
-	}
-
-	if (s_ctrl->io_master_info.master_type == CCI_MASTER) {
-
-		/* Get CCI master */
-		if (of_property_read_u32(of_node, "cci-master",
-			&s_ctrl->cci_i2c_master)) {
-			/* Set default master 0 */
-			s_ctrl->cci_i2c_master = MASTER_0;
-		}
-		CAM_DBG(CAM_SENSOR, "cci-master %d",
-			s_ctrl->cci_i2c_master);
-
-		of_parent = of_get_parent(of_node);
-		if (of_property_read_u32(of_parent, "cell-index",
-				&s_ctrl->cci_num) < 0)
-			/* Set default master 0 */
-			s_ctrl->cci_num = CCI_DEVICE_0;
-
-		s_ctrl->io_master_info.cci_client->cci_device
-			= s_ctrl->cci_num;
-
-		CAM_DBG(CAM_SENSOR, "cci-index %d", s_ctrl->cci_num);
+		goto release_resources;
 	}
 
 	if (of_property_read_u32(of_node, "sensor-position-pitch",
@@ -282,7 +258,7 @@ static int32_t cam_sensor_driver_get_dt_data(struct cam_sensor_ctrl_t *s_ctrl)
 		s_ctrl->aon_camera_id);
 	if (rc) {
 		CAM_ERR(CAM_SENSOR, "Aon registration failed, rc: %d", rc);
-		goto FREE_SENSOR_DATA;
+		goto release_resources;
 	}
 
 	if (!of_property_read_bool(of_node, "hw-no-ops"))
@@ -290,80 +266,17 @@ static int32_t cam_sensor_driver_get_dt_data(struct cam_sensor_ctrl_t *s_ctrl)
 	else
 		s_ctrl->hw_no_ops = true;
 
-	cam_sensor_utils_parse_pm_ctrl_flag(of_node, &(s_ctrl->io_master_info));
-	CAM_INFO(CAM_SENSOR,
-		"master: %d (1-CCI, 2-I2C, 3-SPI, 4-I3C) pm_ctrl_client_enable: %d",
-		s_ctrl->io_master_info.master_type,
-		(!s_ctrl->io_master_info.qup_client) ? 0 :
-			s_ctrl->io_master_info.qup_client->pm_ctrl_client_enable);
-
-	return rc;
-
-FREE_SENSOR_DATA:
-	CAM_MEM_FREE(sensordata);
-	s_ctrl->sensordata = NULL;
-
-	return rc;
-}
-
-int32_t cam_sensor_parse_dt(struct cam_sensor_ctrl_t *s_ctrl)
-{
-	int32_t i, rc = 0;
-	struct cam_hw_soc_info *soc_info = &s_ctrl->soc_info;
-
-	/* Parse dt information and store in sensor control structure */
-	rc = cam_sensor_driver_get_dt_data(s_ctrl);
-	if (rc < 0) {
-		CAM_ERR(CAM_SENSOR, "Failed to get dt data rc %d", rc);
-		return rc;
-	}
-
 	/* Initialize mutex */
 	mutex_init(&(s_ctrl->cam_sensor_mutex));
 
-	if (soc_info->is_a_genpd_device) {
-		rc = cam_soc_util_initialize_power_domain(soc_info);
-		if (rc) {
-			CAM_ERR(CAM_SENSOR, "Failed to initalize the GDSC for dev: %s",
-				soc_info->dev_name);
-			return rc;
-		}
-	}
-
-	/* Initialize default parameters */
-	for (i = 0; i < soc_info->num_clk; i++) {
-		soc_info->clk[i] = devm_clk_get(soc_info->dev,
-					soc_info->clk_name[i]);
-		if (IS_ERR(soc_info->clk[i])) {
-			CAM_ERR(CAM_SENSOR, "get failed for %s",
-				 soc_info->clk_name[i]);
-			rc = -ENOENT;
-			goto uninitialize_power_domain;
-		} else if (!soc_info->clk[i]) {
-			CAM_DBG(CAM_SENSOR, "%s handle is NULL skip get",
-				soc_info->clk_name[i]);
-			continue;
-		}
-	}
-	/* Initialize regulators to default parameters */
-	for (i = 0; i < soc_info->num_rgltr; i++) {
-		soc_info->rgltr[i] = devm_regulator_get(soc_info->dev,
-					soc_info->rgltr_name[i]);
-		if (IS_ERR_OR_NULL(soc_info->rgltr[i])) {
-			rc = PTR_ERR(soc_info->rgltr[i]);
-			rc = rc ? rc : -EINVAL;
-			CAM_ERR(CAM_SENSOR, "get failed for regulator %s",
-				 soc_info->rgltr_name[i]);
-			goto uninitialize_power_domain;
-		}
-		CAM_DBG(CAM_SENSOR, "get for regulator %s",
-			soc_info->rgltr_name[i]);
-	}
-
 	return rc;
 
-uninitialize_power_domain:
-	if (soc_info->is_a_genpd_device)
-		cam_soc_util_uninitialize_power_domain(soc_info);
+release_resources:
+	cam_sensor_util_release_resources(&(s_ctrl->io_master_info), soc_info);
+
+free_sensor_data:
+	CAM_MEM_FREE(sensordata);
+	s_ctrl->sensordata = NULL;
+
 	return rc;
 }

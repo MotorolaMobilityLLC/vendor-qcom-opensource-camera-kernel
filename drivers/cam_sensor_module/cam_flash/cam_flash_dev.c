@@ -415,13 +415,12 @@ static int cam_flash_init_subdev(struct cam_flash_ctrl *fctrl)
 static int cam_flash_component_bind(struct device *dev,
 	struct device *master_dev, void *data)
 {
-	int32_t rc = 0, i = 0;
-	struct cam_flash_ctrl *fctrl = NULL;
-	struct device_node *of_parent = NULL;
-	bool i3c_i2c_target;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct timespec64 ts_start, ts_end;
-	long microsec = 0;
+	int32_t                    rc = 0, i = 0;
+	struct cam_flash_ctrl     *fctrl = NULL;
+	struct device_node        *of_parent = NULL;
+	struct platform_device    *pdev = to_platform_device(dev);
+	struct timespec64          ts_start, ts_end;
+	long                       microsec = 0;
 
 	CAM_GET_TIMESTAMP(ts_start);
 	CAM_DBG(CAM_FLASH, "Binding flash component");
@@ -429,10 +428,6 @@ static int cam_flash_component_bind(struct device *dev,
 		CAM_ERR(CAM_FLASH, "of_node NULL");
 		return -EINVAL;
 	}
-
-	i3c_i2c_target = of_property_read_bool(pdev->dev.of_node, "i3c-i2c-target");
-	if (i3c_i2c_target)
-		return 0;
 
 	fctrl = CAM_MEM_ZALLOC(sizeof(struct cam_flash_ctrl), GFP_KERNEL);
 	if (!fctrl)
@@ -554,12 +549,7 @@ static void cam_flash_component_unbind(struct device *dev,
 	struct device *master_dev, void *data)
 {
 	struct cam_flash_ctrl *fctrl;
-	bool i3c_i2c_target;
 	struct platform_device *pdev = to_platform_device(dev);
-
-	i3c_i2c_target = of_property_read_bool(pdev->dev.of_node, "i3c-i2c-target");
-	if (i3c_i2c_target)
-		return;
 
 	fctrl = platform_get_drvdata(pdev);
 	if (!fctrl) {
@@ -650,7 +640,7 @@ static int cam_flash_i2c_component_bind(struct device *dev,
 	drv_name = of_node_full_name(np);
 	rc = cam_flash_get_dt_data(fctrl, &fctrl->soc_info);
 	if (rc) {
-		CAM_ERR(CAM_FLASH, "failed: cam_sensor_parse_dt rc %d", rc);
+		CAM_ERR(CAM_FLASH, "failed: cam_flash_get_dt_data rc %d", rc);
 		goto free_qup;
 	}
 

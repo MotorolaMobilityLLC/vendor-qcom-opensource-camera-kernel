@@ -235,7 +235,7 @@ static int cam_actuator_i2c_component_bind(struct device *dev,
 
 	rc = cam_actuator_parse_dt(a_ctrl, &client->dev);
 	if (rc < 0) {
-		CAM_ERR(CAM_ACTUATOR, "failed: cam_sensor_parse_dt rc %d", rc);
+		CAM_ERR(CAM_ACTUATOR, "failed: cam_actuator_parse_dt rc %d", rc);
 		goto free_soc;
 	}
 
@@ -315,13 +315,12 @@ static void cam_actuator_i2c_component_unbind(struct device *dev,
 	cam_actuator_shutdown(a_ctrl);
 	mutex_unlock(&(a_ctrl->actuator_mutex));
 	cam_unregister_subdev(&(a_ctrl->v4l2_dev_str));
+	cam_sensor_util_release_resources(&(a_ctrl->io_master_info), &(a_ctrl->soc_info));
 
 	/*Free Allocated Mem */
 	CAM_MEM_FREE(a_ctrl->i2c_data.per_frame);
 	a_ctrl->i2c_data.per_frame = NULL;
-	a_ctrl->soc_info.soc_private = NULL;
 	v4l2_set_subdevdata(&a_ctrl->v4l2_dev_str.sd, NULL);
-	CAM_MEM_FREE(a_ctrl->io_master_info.qup_client);
 	CAM_MEM_FREE(a_ctrl);
 }
 
@@ -401,7 +400,6 @@ static int cam_actuator_platform_component_bind(struct device *dev,
 {
 	int32_t                           rc = 0;
 	int32_t                           i = 0;
-	bool                              i3c_i2c_target;
 	struct cam_actuator_ctrl_t       *a_ctrl = NULL;
 	struct cam_actuator_soc_private  *soc_private = NULL;
 	struct platform_device           *pdev = to_platform_device(dev);
@@ -409,10 +407,6 @@ static int cam_actuator_platform_component_bind(struct device *dev,
 	long                              microsec = 0;
 
 	CAM_GET_TIMESTAMP(ts_start);
-
-	i3c_i2c_target = of_property_read_bool(pdev->dev.of_node, "i3c-i2c-target");
-	if (i3c_i2c_target)
-		return 0;
 
 	/* Create actuator control structure */
 	a_ctrl = devm_kzalloc(&pdev->dev,
@@ -511,12 +505,7 @@ static void cam_actuator_platform_component_unbind(struct device *dev,
 	struct device *master_dev, void *data)
 {
 	struct cam_actuator_ctrl_t      *a_ctrl;
-	bool                             i3c_i2c_target;
 	struct platform_device *pdev = to_platform_device(dev);
-
-	i3c_i2c_target = of_property_read_bool(pdev->dev.of_node, "i3c-i2c-target");
-	if (i3c_i2c_target)
-		return;
 
 	a_ctrl = platform_get_drvdata(pdev);
 	if (!a_ctrl) {
@@ -528,11 +517,7 @@ static void cam_actuator_platform_component_unbind(struct device *dev,
 	cam_actuator_shutdown(a_ctrl);
 	mutex_unlock(&(a_ctrl->actuator_mutex));
 	cam_unregister_subdev(&(a_ctrl->v4l2_dev_str));
-
-	CAM_MEM_FREE(a_ctrl->io_master_info.cci_client);
-	a_ctrl->io_master_info.cci_client = NULL;
-	CAM_MEM_FREE(a_ctrl->soc_info.soc_private);
-	a_ctrl->soc_info.soc_private = NULL;
+	cam_sensor_util_release_resources(&(a_ctrl->io_master_info), &(a_ctrl->soc_info));
 	CAM_MEM_FREE(a_ctrl->i2c_data.per_frame);
 	a_ctrl->i2c_data.per_frame = NULL;
 	v4l2_set_subdevdata(&a_ctrl->v4l2_dev_str.sd, NULL);

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 
@@ -83,34 +83,29 @@ struct actuator_intf_params {
 
 /**
  * struct cam_actuator_ctrl_t
- * @device_name: Device name
- * @i2c_driver: I2C device info
- * @pdev: Platform device
- * @cci_i2c_master: I2C structure
- * @io_master_info: Information about the communication master
- * @actuator_mutex: Actuator mutex
- * @is_i3c_device : A Flag to indicate whether this actuator is I3C device
- * @act_apply_state: Actuator settings aRegulator config
- * @id: Cell Index
- * @res_apply_state: Actuator settings apply state
- * @cam_act_state:   Actuator state
- * @gconf: GPIO config
- * @pinctrl_info: Pinctrl information
- * @v4l2_dev_str: V4L2 device structure
- * @i2c_data: I2C register settings structure
- * @act_info: Sensor query cap structure
- * @of_node: Node ptr
- * @last_flush_req: Last request to flush
+ * @device_name      : Device name
+ * @i2c_driver       : I2C device info
+ * @pdev             : Platform device
+ * @io_master_info   : Information about the communication master
+ * @actuator_mutex   : Actuator mutex
+ * @act_apply_state  : Actuator settings aRegulator config
+ * @id               : Cell Index
+ * @res_apply_state  : Actuator settings apply state
+ * @cam_act_state    : Actuator state
+ * @gconf            : GPIO config
+ * @pinctrl_info     : Pinctrl information
+ * @v4l2_dev_str     : V4L2 device structure
+ * @i2c_data         : I2C register settings structure
+ * @act_info         : Sensor query cap structure
+ * @of_node          : Node ptr
+ * @last_flush_req   : Last request to flush
  */
 struct cam_actuator_ctrl_t {
 	char device_name[CAM_CTX_DEV_NAME_MAX_LENGTH];
 	struct i2c_driver *i2c_driver;
-	enum cci_i2c_master_t cci_i2c_master;
-	enum cci_device_num cci_num;
 	struct camera_io_master io_master_info;
 	struct cam_hw_soc_info soc_info;
 	struct mutex actuator_mutex;
-	bool is_i3c_device;
 	uint32_t id;
 	enum cam_actuator_apply_state_t setting_apply_state;
 	enum cam_actuator_state cam_act_state;

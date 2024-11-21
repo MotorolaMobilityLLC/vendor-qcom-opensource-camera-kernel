@@ -800,8 +800,6 @@ static int32_t cam_eeprom_parse_write_memory_packet(
 					goto end;
 				}
 				if (master == CCI_MASTER) {
-					cci->cci_i2c_master =
-						e_ctrl->cci_i2c_master;
 					cci->i2c_freq_mode =
 						i2c_info->i2c_freq_mode;
 					cci->sid =

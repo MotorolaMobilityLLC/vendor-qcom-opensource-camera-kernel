@@ -229,8 +229,6 @@ int32_t cam_actuator_slaveInfo_pkt_parser(struct cam_actuator_ctrl_t *a_ctrl,
 
 	i2c_info = (struct cam_cmd_i2c_info *)cmd_buf;
 	if (a_ctrl->io_master_info.master_type == CCI_MASTER) {
-		a_ctrl->io_master_info.cci_client->cci_i2c_master =
-			a_ctrl->cci_i2c_master;
 		a_ctrl->io_master_info.cci_client->i2c_freq_mode =
 			i2c_info->i2c_freq_mode;
 		a_ctrl->io_master_info.cci_client->sid =

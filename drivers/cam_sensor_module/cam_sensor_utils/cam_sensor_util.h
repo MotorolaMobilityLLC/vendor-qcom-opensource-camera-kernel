@@ -145,4 +145,10 @@ static inline int cam_sensor_util_aon_registration(uint32_t phy_idx, uint32_t ao
 void cam_sensor_utils_parse_pm_ctrl_flag(struct device_node *of_node,
 	struct camera_io_master *io_master_info);
 
+int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_master_info,
+	struct cam_hw_soc_info *soc_info);
+
+void cam_sensor_util_release_resources(struct camera_io_master *io_master_info,
+	struct cam_hw_soc_info *soc_info);
+
 #endif /* _CAM_SENSOR_UTIL_H_ */
