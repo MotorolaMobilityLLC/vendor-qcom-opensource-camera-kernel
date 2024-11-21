@@ -16278,20 +16278,50 @@ static int cam_ife_hw_mgr_handle_csid_secondary_err_evts(
 	int rc = -EINVAL;
 	struct cam_isp_hw_secondary_event_data sec_evt_data = {0};
 	cam_hw_event_cb_func ife_hw_irq_cb = ctx->common.event_cb;
+	char err_name[CAM_IFE_HW_ERR_NAME_LEN];
 
+	snprintf(err_name, CAM_IFE_HW_ERR_NAME_LEN, "%s", "error");
 	/*
 	 * Support frame drop as secondary event
 	 */
+
 	if (err_type & CAM_ISP_HW_ERROR_CSID_SENSOR_FRAME_DROP) {
 		sec_evt_data.evt_type = CAM_ISP_HW_SEC_EVENT_OUT_OF_SYNC_FRAME_DROP;
+		snprintf(err_name, CAM_IFE_HW_ERR_NAME_LEN, "%s", "sync frame drop");
+	}
 
-		CAM_DBG(CAM_ISP,
-			"Received CSID[%u] sensor sync frame drop res: %d as secondary evt on ctx: %u",
+	CAM_DBG(CAM_ISP,
+		"Received CSID[%d] %s err_type:%d res: %d as secondary evt on ctx: %u",
+		event_info->hw_idx, err_name, err_type, event_info->res_id, ctx->ctx_index);
+
+	rc = ife_hw_irq_cb(ctx->common.cb_priv, CAM_ISP_HW_SECONDARY_EVENT, (void *)&sec_evt_data);
+	if (rc)
+		CAM_ERR(CAM_ISP,
+			"Handling cb for CSID[%d] %s err_type:%d res: %d as secondary evt on ctx: %u failed rc:%d",
+			event_info->hw_idx, err_name, err_type, event_info->res_id,
+			ctx->ctx_index, rc);
+
+	return rc;
+}
+
+static int cam_ife_hw_mgr_handle_rup_miss_evt(
+	struct cam_ife_hw_mgr_ctx            *ctx,
+	struct cam_isp_hw_event_info         *event_info,
+	struct cam_isp_hw_error_event_data   *error_event_data)
+{
+	int rc = -EINVAL;
+	cam_hw_event_cb_func ife_hw_irq_cb = ctx->common.event_cb;
+
+	CAM_DBG(CAM_ISP,
+			"Received CSID[%u] rup miss res: %d on ctx: %u",
 			event_info->hw_idx, event_info->res_id, ctx->ctx_index);
 
-		rc = ife_hw_irq_cb(ctx->common.cb_priv,
-			CAM_ISP_HW_SECONDARY_EVENT, (void *)&sec_evt_data);
-	}
+	rc = ife_hw_irq_cb(ctx->common.cb_priv,
+			CAM_ISP_HW_EVENT_ERROR, (void *)error_event_data);
+	if (rc)
+		CAM_ERR(CAM_ISP,
+			"CSID[%u] RUP miss cb failed for res:%d on ctx:%u",
+			event_info->hw_idx, event_info->res_id, ctx->ctx_index);
 
 	return rc;
 }
@@ -16338,6 +16368,13 @@ static int cam_ife_hw_mgr_handle_csid_error(
 	/* Default error types */
 	recovery_data.error_type = CAM_ISP_HW_ERROR_OVERFLOW;
 	error_event_data.error_type |= err_type;
+
+	if (err_type & CAM_ISP_HW_ERROR_CSID_RUP_MISS) {
+		error_event_data.error_type = CAM_ISP_HW_ERROR_CSID_RUP_MISS;
+		error_event_data.try_internal_recovery = true;
+		rc = cam_ife_hw_mgr_handle_rup_miss_evt(ctx, event_info, &error_event_data);
+		goto end;
+	}
 
 	/* Notify IFE/SFE devices, determine bus overflow */
 	if (err_type & (CAM_ISP_HW_ERROR_CSID_OUTPUT_FIFO_OVERFLOW |
@@ -16400,7 +16437,7 @@ static int cam_ife_hw_mgr_handle_csid_error(
 
 end:
 	spin_unlock(&g_ife_hw_mgr.ctx_lock);
-	return 0;
+	return rc;
 }
 
 static int cam_ife_hw_mgr_handle_csid_rup(

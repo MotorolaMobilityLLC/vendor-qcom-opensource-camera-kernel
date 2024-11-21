@@ -216,7 +216,11 @@ static struct cam_ife_csid_irq_desc cam_ife_csid_1080_path_irq_desc[] = {
 		.debug = "Check sensor configuration",
 		.err_handler = cam_ife_csid_hw_ver2_mup_mismatch_handler,
 	},
-	{0},
+	{
+		.bitmask = BIT(8),
+		.err_type = CAM_ISP_HW_ERROR_CSID_RUP_MISS,
+		.irq_name = "INFO_RUP_MISS_IRQ",
+	},
 	{
 		.bitmask = BIT(9),
 		.irq_name = "INFO_INPUT_EOF",
@@ -340,6 +344,12 @@ static struct cam_ife_csid_top_irq_desc cam_ife_csid_1080_top_irq_desc[][32] = {
 			.err_name = "FATAL_SENSOR_SWITCHING_IRQ",
 			.desc =
 				"Sensor/SW: Minimum VBI period between dynamically switching between two sensor modes was either violated or the downstream pipe was not active when the switch was made",
+		},
+		{
+			.bitmask  = BIT(15),
+			.err_type = CAM_ISP_HW_ERROR_CSID_RUP_MISS,
+			.err_name = "INFO_IPP_RUP_MISS_COMP",
+			.desc = "IPP composite RUP MISS",
 		},
 	},
 	{
@@ -753,9 +763,10 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.min_hbi_shift_val                = 4,
 		.start_master_sel_shift_val       = 4,
 		.fatal_err_mask                   = 0x2c1c6081,
-		.non_fatal_err_mask               = 0x12000000,
+		.non_fatal_err_mask               = 0x12000100,
 		.sof_irq_mask                     = 0x10,
 		.rup_irq_mask                     = 0x800000,
+		.rup_miss_irq_mask                = 0x100,
 		.epoch0_irq_mask                  = 0x200000,
 		.epoch1_irq_mask                  = 0x400000,
 		.eof_irq_mask                     = 0x8,
@@ -928,11 +939,12 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.lut_bank_0_sel_val               = 0,
 		.lut_bank_1_sel_val               = 1,
 		.fatal_err_mask                   = 0x2c1c6081,
-		.non_fatal_err_mask               = 0x12000000,
+		.non_fatal_err_mask               = 0x12000100,
 		.rup_mask                         = 0x10000,
 		.aup_mask                         = 0x10000,
 		.rup_aup_set_mask                 = 0x1,
 		.top_irq_mask                     = {0x10,},
+		.rup_miss_irq_mask                = 0x100,
 		.epoch0_shift_val                 = 16,
 		.epoch1_shift_val                 = 0,
 		.sof_retiming_dis_shift           = 5,
@@ -1019,9 +1031,10 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.offline_mode_en_shift_val        = 2,
 		.ccif_violation_en                = 1,
 		.fatal_err_mask                   = 0x2c1c6081,
-		.non_fatal_err_mask               = 0x12000000,
+		.non_fatal_err_mask               = 0x12000100,
 		.sof_irq_mask                     = 0x10,
 		.rup_irq_mask                     = 0x800000,
+		.rup_miss_irq_mask                = 0x100,
 		.epoch0_irq_mask                  = 0x200000,
 		.epoch1_irq_mask                  = 0x400000,
 		.eof_irq_mask                     = 0x8,
@@ -1456,7 +1469,8 @@ static struct cam_ife_csid_ver2_common_reg_info
 							CAM_IFE_CSID_CAP_SKIP_PATH_CFG1 |
 							CAM_IFE_CSID_CAP_SKIP_EPOCH_CFG |
 							CAM_IFE_CSID_CAP_DEBUG_ERR_VEC |
-							CAM_IFE_CSID_CAP_TOP_MASK_ALL_IRQS,
+							CAM_IFE_CSID_CAP_TOP_MASK_ALL_IRQS |
+							CAM_IFE_CSID_CAP_RUP_MISS,
 	.top_top2_irq_mask                       = 0x80000000,
 	.drv_rup_en_val_map = {
 		2, /*RDI0 */
@@ -1493,6 +1507,7 @@ struct cam_ife_csid_ver2_mc_reg_info
 	.ipp_src_ctxt_mask_shift           = 4,
 	.ipp_dst_ctxt_mask_shift           = 0,
 	.comp_rup_mask                     = 0x4000000,
+	.comp_rup_miss_mask                = 0x8000,
 	.comp_epoch0_mask                  = 0x8000000,
 	.comp_eof_mask                     = 0x20000000,
 	.comp_sof_mask                     = 0x40000000,

@@ -1947,7 +1947,8 @@ static int cam_ife_csid_ver2_handle_event_err(
 
 	cam_ife_csid_ver2_print_camif_timestamps(csid_hw);
 
-	cam_ife_csid_ver2_read_debug_err_vectors(csid_hw);
+	if (err_type ^ CAM_ISP_HW_ERROR_CSID_RUP_MISS)
+		cam_ife_csid_ver2_read_debug_err_vectors(csid_hw);
 
 	csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_ERROR, (void *)&evt);
 
@@ -3089,6 +3090,7 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 	uint32_t                                      eof_irq_mask = 0;
 	uint32_t                                      epoch0_irq_mask = 0;
 	uint32_t                                      rup_irq_mask = 0;
+	uint32_t                                      rup_miss_irq_mask = 0;
 	int                                           rc = 0;
 	bool                                          out_of_sync_fatal = false;
 
@@ -3148,12 +3150,14 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 		sof_irq_mask = csid_reg->ipp_mc_reg->comp_sof_mask;
 		eof_irq_mask = csid_reg->ipp_mc_reg->comp_eof_mask;
 		rup_irq_mask = csid_reg->ipp_mc_reg->comp_rup_mask;
+		rup_miss_irq_mask = csid_reg->ipp_mc_reg->comp_rup_miss_mask;
 		epoch0_irq_mask = csid_reg->ipp_mc_reg->comp_epoch0_mask;
 		evt_info.res_id   = CAM_IFE_PIX_PATH_RES_IPP;
 	} else {
 		sof_irq_mask = path_data->reg_offsets->sof_irq_mask;
 		eof_irq_mask = path_data->reg_offsets->eof_irq_mask;
 		rup_irq_mask = path_data->reg_offsets->rup_irq_mask;
+		rup_miss_irq_mask = path_data->reg_offsets->rup_miss_irq_mask;
 		epoch0_irq_mask = path_data->reg_offsets->epoch0_irq_mask;
 		evt_info.res_id   = res->res_id;
 	}
@@ -3174,6 +3178,10 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 
 	if (irq_status_ipp & rup_irq_mask)
 		csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_REG_UPDATE, (void *)&evt_info);
+
+	if (irq_status_ipp & path_reg->rup_miss_irq_mask)
+		cam_ife_csid_ver2_handle_event_err(csid_hw, irq_status_ipp,
+			CAM_ISP_HW_ERROR_CSID_RUP_MISS, false, res);
 
 	if (irq_status_ipp & epoch0_irq_mask) {
 		if ((!csid_hw->flags.last_exp_valid) ||
@@ -3452,6 +3460,10 @@ static int cam_ife_csid_ver2_rdi_bottom_half(
 	if (irq_status_rdi & path_data->reg_offsets->rup_irq_mask)
 		csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_REG_UPDATE, (void *)&evt_info);
 
+	if (irq_status_rdi & path_data->reg_offsets->rup_miss_irq_mask)
+		cam_ife_csid_ver2_handle_event_err(csid_hw, irq_status_rdi,
+			CAM_ISP_HW_ERROR_CSID_RUP_MISS, false, res);
+
 	if ((irq_status_rdi & path_data->reg_offsets->epoch0_irq_mask)) {
 		if (path_data->path_cfg.sec_evt_config.en_secondary_evt &&
 			(path_data->path_cfg.sec_evt_config.evt_type & CAM_IFE_CSID_EVT_EPOCH)) {
@@ -3459,7 +3471,8 @@ static int cam_ife_csid_ver2_rdi_bottom_half(
 		}
 
 		if ((!csid_hw->flags.last_exp_valid) ||
-			(csid_hw->flags.last_exp_valid && path_data->path_cfg.allow_epoch_eof_cb)) {
+			(csid_hw->flags.last_exp_valid &&
+				path_data->path_cfg.allow_epoch_eof_cb)) {
 			cam_ife_csid_ver2_update_event_ts(&path_data->path_cfg.epoch_ts,
 				&payload->timestamp);
 			csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_EPOCH,
@@ -5355,6 +5368,9 @@ static int cam_ife_csid_ver2_program_rdi_path(
 
 	if (res->is_rdi_primary_res) {
 		dbg_frm_irq_mask |= path_data->reg_offsets->rup_irq_mask;
+		if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_RUP_MISS)
+			dbg_frm_irq_mask |= path_data->reg_offsets->rup_miss_irq_mask;
+
 		if (path_data->path_cfg.handle_camif_irq)
 			dbg_frm_irq_mask |= path_data->reg_offsets->sof_irq_mask |
 				path_data->reg_offsets->eof_irq_mask |
@@ -5460,6 +5476,9 @@ static int cam_ife_csid_ver2_program_ipp_path(
 		(path_data->path_cfg.sync_mode == CAM_ISP_HW_SYNC_NONE ||
 			path_data->path_cfg.sync_mode == CAM_ISP_HW_SYNC_MASTER)) {
 		dbg_frm_irq_mask |= path_data->reg_offsets->rup_irq_mask;
+		if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_RUP_MISS)
+			dbg_frm_irq_mask |= path_reg->rup_miss_irq_mask;
+
 		if (path_data->path_cfg.handle_camif_irq)
 			dbg_frm_irq_mask |= (path_data->reg_offsets->sof_irq_mask |
 				path_data->reg_offsets->epoch0_irq_mask |
@@ -5470,6 +5489,9 @@ static int cam_ife_csid_ver2_program_ipp_path(
 	if ((res->res_id == CAM_IFE_PIX_PATH_RES_IPP) &&
 		(csid_reg->path_reg[res->res_id]->capabilities & CAM_IFE_CSID_CAP_MULTI_CTXT)) {
 		dbg_frm_irq_mask |= path_data->reg_offsets->rup_irq_mask;
+		if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_RUP_MISS)
+			dbg_frm_irq_mask |= path_reg->rup_miss_irq_mask;
+
 		if (path_data->path_cfg.handle_camif_irq)
 			dbg_frm_irq_mask |= path_data->reg_offsets->sof_irq_mask;
 	}

@@ -289,6 +289,7 @@ struct cam_ife_csid_ver2_rup_aup_mask {
  * @ts_comb_vcdt_en:        Indicates if Timestamp combined vcdt flag is enabled
  * @is_aeb_en:              Flag to indicate if aeb mode is enabled
  * @allow_epoch_cb:         Flag to indicate if epoch callback is allowed for last exposure
+ * @enable_rup_miss         Flag to indicate if rup miss callback should be enabled on this path
  *
  */
 struct cam_ife_csid_ver2_path_cfg {
@@ -377,6 +378,7 @@ struct cam_ife_csid_ver2_mc_reg_info {
 	uint32_t           comp_eof_mask;
 	uint32_t           comp_epoch0_mask;
 	uint32_t           comp_rup_mask;
+	uint32_t           comp_rup_miss_mask;
 	uint32_t           comp_subgrp0_mask;
 	uint32_t           comp_subgrp2_mask;
 };
@@ -520,6 +522,7 @@ struct cam_ife_csid_ver2_path_reg_info {
 	uint32_t non_fatal_err_mask;
 	uint32_t pix_pattern_shift;
 	uint32_t rup_irq_mask;
+	uint32_t rup_miss_irq_mask;
 	uint32_t sof_irq_mask;
 	uint32_t eof_irq_mask;
 	uint32_t epoch0_irq_mask;

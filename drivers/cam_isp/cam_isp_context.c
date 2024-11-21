@@ -4492,6 +4492,29 @@ end:
 	return rc;
 }
 
+static int cam_isp_ctx_rup_miss_handler(struct cam_context *ctx,
+	struct cam_isp_hw_error_event_data  *error_event_data)
+{
+	struct cam_ctx_request *pending_req = NULL, *wait_req = NULL, *active_req = NULL;
+
+	if (!list_empty(&ctx->pending_req_list))
+		pending_req = list_first_entry(&ctx->pending_req_list, struct cam_ctx_request,
+				list);
+
+	if (!list_empty(&ctx->wait_req_list))
+		wait_req = list_first_entry(&ctx->wait_req_list, struct cam_ctx_request, list);
+
+	if (!list_empty(&ctx->active_req_list))
+		active_req = list_first_entry(&ctx->active_req_list, struct cam_ctx_request, list);
+
+	CAM_WARN(CAM_ISP, "RUP miss recived for ctx:%u, link:0x%x, pending_req:%llu wait_req:%llu active_req:%llu",
+		ctx->ctx_id, ctx->link_hdl, (pending_req) ? pending_req->request_id : -1,
+		(wait_req) ? wait_req->request_id : -1,
+		(active_req) ? active_req->request_id : -1);
+
+	return 0;
+}
+
 static int __cam_isp_ctx_handle_error(struct cam_isp_context *ctx_isp,
 	void *evt_data)
 {
@@ -4516,6 +4539,13 @@ static int __cam_isp_ctx_handle_error(struct cam_isp_context *ctx_isp,
 
 	CAM_DBG(CAM_ISP, "Enter HW error_type = %d, ctx:%u on link 0x%x",
 		error_event_data->error_type, ctx->ctx_id, ctx->link_hdl);
+
+	if (error_event_data->error_type & CAM_ISP_HW_ERROR_CSID_RUP_MISS) {
+		rc = cam_isp_ctx_rup_miss_handler(ctx, error_event_data);
+		if (rc)
+			CAM_ERR(CAM_ISP, "rup miss handler failed rc=%d", rc);
+		return rc;
+	}
 
 	if (error_event_data->try_internal_recovery) {
 		rc = __cam_isp_ctx_trigger_error_req_reapply(error_event_data, ctx_isp);
@@ -5136,6 +5166,7 @@ static int __cam_isp_ctx_handle_secondary_events(
 		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
 			CAM_ISP_STATE_CHANGE_TRIGGER_SEC_EVT_EPOCH,
 			ctx_isp->last_applied_req_id);
+
 		ctx_isp->out_of_sync_cnt = 0;
 
 		/*

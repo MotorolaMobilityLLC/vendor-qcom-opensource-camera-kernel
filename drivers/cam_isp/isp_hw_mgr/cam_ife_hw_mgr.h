@@ -66,6 +66,8 @@ enum cam_ife_ctx_master_type {
 /* Trigger single out of sync debugfs */
 #define CAM_IFE_CTX_TRIGGER_SINGLE_OUT_OF_SYNC_CFG 1
 
+#define CAM_IFE_HW_ERR_NAME_LEN 32
+
 /**
  * struct cam_ife_hw_mgr_debug - contain the debug information
  *

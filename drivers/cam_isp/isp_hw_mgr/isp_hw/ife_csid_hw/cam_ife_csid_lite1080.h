@@ -206,7 +206,11 @@ static struct cam_ife_csid_irq_desc cam_ife_csid_lite_1080_path_irq_desc[] = {
 		.debug = "Check sensor configuration",
 		.err_handler = cam_ife_csid_hw_ver2_mup_mismatch_handler,
 	},
-	{0},
+	{
+		.bitmask = BIT(8),
+		.err_type = CAM_ISP_HW_ERROR_CSID_RUP_MISS,
+		.irq_name = "INFO_RUP_MISS_IRQ",
+	},
 	{
 		.bitmask = BIT(9),
 		.irq_name = "INFO_INPUT_EOF",
@@ -667,7 +671,8 @@ static struct cam_ife_csid_ver2_common_reg_info
 	.capabilities                                 = CAM_IFE_CSID_CAP_SKIP_PATH_CFG1 |
 								CAM_IFE_CSID_CAP_SPLIT_RUP_AUP |
 								CAM_IFE_CSID_CAP_SKIP_EPOCH_CFG |
-								CAM_IFE_CSID_CAP_DEBUG_ERR_VEC,
+								CAM_IFE_CSID_CAP_DEBUG_ERR_VEC |
+								CAM_IFE_CSID_CAP_RUP_MISS,
 
 	.top_top2_irq_mask                            = 0x80000000,
 };
@@ -827,9 +832,10 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.min_hbi_shift_val                    = 4,
 		.start_master_sel_shift_val           = 4,
 		.fatal_err_mask                       = 0x2c1c6081,
-		.non_fatal_err_mask                   = 0x12000000,
+		.non_fatal_err_mask                   = 0x12000100,
 		.sof_irq_mask                         = 0x10,
 		.rup_irq_mask                         = 0x800000,
+		.rup_miss_irq_mask                    = 0x100,
 		.epoch0_irq_mask                      = 0x200000,
 		.epoch1_irq_mask                      = 0x400000,
 		.eof_irq_mask                         = 0x8,
@@ -917,9 +923,10 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.debug_byte_cntr_rst_shift_val       = 2,
 		.ccif_violation_en                   = 1,
 		.fatal_err_mask                      = 0x2c1c6081,
-		.non_fatal_err_mask                  = 0x12000000,
+		.non_fatal_err_mask                  = 0x12000100,
 		.sof_irq_mask                        = 0x10,
 		.rup_irq_mask                        = 0x800000,
+		.rup_miss_irq_mask                   = 0x100,
 		.epoch0_irq_mask                     = 0x200000,
 		.epoch1_irq_mask                     = 0x400000,
 		.eof_irq_mask                        = 0x8,
