@@ -429,15 +429,6 @@ int hfi_read_message(int client_handle, uint32_t *pmsg, uint8_t q_id,
 
 	if (!cam_presil_mode_enabled()) {
 		/* Regular logic */
-		if (q->qhdr_read_idx == q->qhdr_write_idx) {
-			CAM_DBG(CAM_HFI,
-				"[%s] hfi hdl: %d Q not ready, state:%u, r idx:%u, w idx:%u",
-				hfi->client_name, client_handle, hfi->hfi_state,
-				q->qhdr_read_idx, q->qhdr_write_idx);
-			rc = -EIO;
-			goto err;
-		}
-
 		if (q_id == Q_MSG)
 			read_q = (uint32_t *)hfi->map.msg_q.kva;
 		else
@@ -504,13 +495,6 @@ int hfi_read_message(int client_handle, uint32_t *pmsg, uint8_t q_id,
 
 		cam_presil_retrieve_buffer(0, 0, 0, sizeof(q->qhdr_write_idx),
 			(uint32_t)write_index_iova, (unsigned long)&q->qhdr_write_idx, true);
-
-		if (q->qhdr_read_idx == q->qhdr_write_idx) {
-			CAM_DBG(CAM_HFI, "Q not ready q_id %d state:%u, r idx:%u, w idx:%u",
-				q_id, hfi->hfi_state, q->qhdr_read_idx, q->qhdr_write_idx);
-			rc = -EIO;
-			goto err;
-		}
 
 		read_ptr_iova = (read_q_iova + (q->qhdr_read_idx << BYTE_WORD_SHIFT));
 		write_ptr_iova = (read_q_iova + (q->qhdr_write_idx << BYTE_WORD_SHIFT));
