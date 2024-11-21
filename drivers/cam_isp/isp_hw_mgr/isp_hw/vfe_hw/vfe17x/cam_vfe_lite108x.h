@@ -431,7 +431,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite108x_bus_hw_info = {
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
 		},
 	},
-	.num_out = 6,
+	.valid_wm_mask   = 0x1F,
 	.vfe_out_hw_info = {
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,

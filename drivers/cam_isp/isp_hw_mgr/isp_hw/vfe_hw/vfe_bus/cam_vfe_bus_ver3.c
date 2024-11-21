@@ -1207,6 +1207,13 @@ static int cam_vfe_bus_ver3_acquire_wm(
 
 	bus_hw_info = (struct cam_vfe_bus_ver3_hw_info *)ver3_bus_priv->bus_hw_info;
 	rsrc_data = wm_res->res_priv;
+
+	if (!(BIT_ULL(rsrc_data->index) & ver3_bus_priv->bus_hw_info->valid_wm_mask)) {
+		CAM_ERR(CAM_ISP, "WM index %u not supported, valid mask 0x%llx",
+			rsrc_data->index, ver3_bus_priv->bus_hw_info->valid_wm_mask);
+		return -EINVAL;
+	}
+
 	wm_idx = rsrc_data->index;
 	rsrc_data->cfg.format = out_acq_args->out_port_info->format;
 	rsrc_data->use_wm_pack = (out_acq_args->use_wm_pack ||
@@ -1533,6 +1540,16 @@ static int cam_vfe_bus_ver3_init_wm_resource(uint32_t index,
 		CAM_DBG(CAM_ISP, "VFE:%u Failed to alloc for WM res priv",
 			ver3_bus_priv->common_data.hw_intf->hw_idx);
 		return -ENOMEM;
+	}
+
+	if (!(BIT_ULL(index) & ver3_hw_info->valid_wm_mask)) {
+
+		CAM_DBG(CAM_ISP, "VFE:%u WM %d  not supported, supported_mask 0x%x",
+			ver3_bus_priv->common_data.hw_intf->hw_idx, index,
+			ver3_hw_info->valid_wm_mask);
+		rsrc_data->index = index;
+		wm_res->res_priv = rsrc_data;
+		return 0;
 	}
 
 	if (out_rsrc_data->mc_based || out_rsrc_data->cntxt_cfg_except) {
@@ -1990,6 +2007,7 @@ static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 				ver3_bus_priv,
 				out_acquire_args->out_port_info->res_type,
 				&outmap_index);
+
 	if ((vfe_out_res_id == CAM_VFE_BUS_VER3_VFE_OUT_MAX) ||
 		(outmap_index >= ver3_bus_priv->num_out)) {
 		CAM_WARN(CAM_ISP,
@@ -2683,6 +2701,34 @@ static int cam_vfe_bus_ver3_handle_vfe_out_done_bottom_half(void                
 	return rc;
 }
 
+static int cam_vfe_bus_ver3_update_out_port_info(struct cam_vfe_bus_ver3_priv *bus_priv,
+	struct cam_vfe_bus_ver3_hw_info *ver3_hw_info)
+{
+	uint32_t i, j;
+
+	for (i = 0; i < CAM_VFE_BUS_VER3_VFE_OUT_MAX; i++) {
+		for (j = 0; j < ver3_hw_info->vfe_out_hw_info[i].num_wm; j++) {
+			if (BIT_ULL(ver3_hw_info->vfe_out_hw_info[i].wm_idx[j]) &
+				ver3_hw_info->valid_wm_mask) {
+				ver3_hw_info->valid_out_ports |=
+					BIT_ULL(ver3_hw_info->vfe_out_hw_info[i].vfe_out_type);
+				break;
+			}
+		}
+	}
+
+	/*
+	 * fls gives the last set bit. Number of outports are taken as equal to last
+	 * index to take care of the case like, Indicies, 0,1,2,3...20, 22 are valid.
+	 * Index 21 is invalid.
+	 */
+	bus_priv->num_out = fls64(ver3_hw_info->valid_out_ports);
+	CAM_DBG(CAM_ISP, "valid out ports %u num_out %u", ver3_hw_info->valid_out_ports,
+		bus_priv->num_out);
+
+	return 0;
+}
+
 static int cam_vfe_bus_ver3_init_vfe_out_resource(uint32_t  index,
 	struct cam_vfe_bus_ver3_priv                  *ver3_bus_priv,
 	struct cam_vfe_bus_ver3_hw_info               *ver3_hw_info)
@@ -2698,6 +2744,15 @@ static int cam_vfe_bus_ver3_init_vfe_out_resource(uint32_t  index,
 		CAM_ERR(CAM_ISP, "Init VFE Out failed, Invalid type=%d",
 			vfe_out_type);
 		return -EINVAL;
+	}
+
+	if (!(BIT_ULL(vfe_out_type) & ver3_hw_info->valid_out_ports) ||
+			ver3_bus_priv->vfe_out_map_outtype[vfe_out_type] !=
+			CAM_VFE_BUS_VER3_VFE_OUT_MAX) {
+		CAM_DBG(CAM_ISP, "VFE[%u] port not updated %u, map_out_type %u", vfe_out_type,
+			ver3_bus_priv->common_data.core_index,
+			ver3_bus_priv->vfe_out_map_outtype[vfe_out_type]);
+		return 0;
 	}
 
 	ver3_bus_priv->vfe_out_map_outtype[vfe_out_type] = index;
@@ -5338,7 +5393,19 @@ int cam_vfe_bus_ver3_init(
 	bus_priv->common_data.soc_info = soc_info;
 	bus_priv->bus_hw_info = ver3_hw_info;
 
-	if (bus_priv->num_out >= CAM_VFE_BUS_VER3_VFE_OUT_MAX) {
+	if ((!ver3_hw_info->valid_wm_mask && !bus_priv->num_out) ||
+		(ver3_hw_info->valid_wm_mask && bus_priv->num_out)) {
+		CAM_ERR(CAM_ISP,
+			"VFE:%u Invalid ports, Valid ports 0x%llx num_out %u, valid_wm_mask, 0x%llx",
+			bus_priv->common_data.core_index, ver3_hw_info->valid_out_ports,
+			bus_priv->num_out, ver3_hw_info->valid_wm_mask);
+		rc = -EINVAL;
+		goto free_bus_priv;
+	} else if (ver3_hw_info->valid_wm_mask) {
+		cam_vfe_bus_ver3_update_out_port_info(bus_priv, ver3_hw_info);
+	}
+
+	if (bus_priv->num_out > CAM_VFE_BUS_VER3_VFE_OUT_MAX) {
 		CAM_ERR(CAM_ISP, "VFE:%u number of vfe out:%d more than max value:%d ",
 			bus_priv->common_data.core_index, bus_priv->num_out,
 			CAM_VFE_BUS_VER3_VFE_OUT_MAX);
@@ -5395,11 +5462,11 @@ int cam_vfe_bus_ver3_init(
 
 	for (i = 0; i < bus_priv->num_out; i++) {
 		rc = cam_vfe_bus_ver3_init_vfe_out_resource(i, bus_priv,
-			bus_hw_info);
+				bus_hw_info);
 		if (rc < 0) {
 			CAM_ERR(CAM_ISP,
-				"VFE:%u init out_type:0x%X failed rc:%d",
-				bus_priv->common_data.core_index, i, rc);
+					"VFE:%u init out_type:0x%X failed rc:%d",
+					bus_priv->common_data.core_index, i, rc);
 			goto deinit_vfe_out;
 		}
 	}

@@ -283,6 +283,8 @@ struct cam_vfe_bus_ver3_vfe_out_hw_info {
  *
  * @common_reg:                   Common register details
  * @client_offsets:               Offsets for client registers
+ * @valid_out_ports:              Valid out ports
+ * @valid_wm_mask:                Valid WM mask
  * @num_client:                   Total number of write clients
  * @bus_client_reg:               Bus client register info
  * @vfe_out_hw_info:              VFE output capability
@@ -310,6 +312,8 @@ struct cam_vfe_bus_ver3_vfe_out_hw_info {
 struct cam_vfe_bus_ver3_hw_info {
 	struct cam_vfe_bus_ver3_reg_offset_common common_reg;
 	struct cam_vfe_bus_ver3_reg_offset_bus_client client_offsets;
+	uint64_t     valid_out_ports;
+	uint64_t     valid_wm_mask;
 	uint32_t num_client;
 	struct cam_vfe_bus_ver3_reg_offset_bus_client
 		bus_client_reg[CAM_VFE_BUS_VER3_MAX_CLIENTS];
