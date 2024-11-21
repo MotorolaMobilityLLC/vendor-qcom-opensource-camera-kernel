@@ -51,26 +51,6 @@ static uint32_t bus_error_irq_mask[2] = {
 	0x00000000,
 };
 
-enum cam_vfe_bus_ver3_packer_format {
-	PACKER_FMT_VER3_PLAIN_128,
-	PACKER_FMT_VER3_PLAIN_8,
-	PACKER_FMT_VER3_PLAIN_8_ODD_EVEN,
-	PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10,
-	PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10_ODD_EVEN,
-	PACKER_FMT_VER3_PLAIN_16_10BPP,
-	PACKER_FMT_VER3_PLAIN_16_12BPP,
-	PACKER_FMT_VER3_PLAIN_16_14BPP,
-	PACKER_FMT_VER3_PLAIN_16_16BPP,
-	PACKER_FMT_VER3_PLAIN_32,
-	PACKER_FMT_VER3_PLAIN_64,
-	PACKER_FMT_VER3_TP_10,
-	PACKER_FMT_VER3_MIPI10,
-	PACKER_FMT_VER3_MIPI12,
-	PACKER_FMT_VER3_MIPI14,
-	PACKER_FMT_VER3_MIPI20,
-	PACKER_FMT_VER3_PLAIN32_20BPP,
-	PACKER_FMT_VER3_MAX,
-};
 
 struct cam_vfe_bus_irq_violation_type {
 	bool hwpd_violation;
@@ -1215,6 +1195,9 @@ static int cam_vfe_bus_ver3_acquire_wm(
 	int32_t wm_idx = 0, rc = 0;
 	struct cam_vfe_bus_ver3_wm_resource_data  *rsrc_data = NULL;
 	uint64_t supported_formats;
+	uint32_t pack_format = 0;
+	uint64_t supported_pack_formats;
+	struct cam_vfe_bus_ver3_hw_info *bus_hw_info = NULL;
 
 	if (wm_res->res_state != CAM_ISP_RESOURCE_STATE_AVAILABLE) {
 		CAM_ERR(CAM_ISP, "VFE:%u WM:%d not available state:%d",
@@ -1222,6 +1205,7 @@ static int cam_vfe_bus_ver3_acquire_wm(
 		return -EALREADY;
 	}
 
+	bus_hw_info = (struct cam_vfe_bus_ver3_hw_info *)ver3_bus_priv->bus_hw_info;
 	rsrc_data = wm_res->res_priv;
 	wm_idx = rsrc_data->index;
 	rsrc_data->cfg.format = out_acq_args->out_port_info->format;
@@ -1238,18 +1222,26 @@ static int cam_vfe_bus_ver3_acquire_wm(
 	/* Set WM offset value to default */
 	rsrc_data->cfg.offset  = 0;
 	supported_formats = ver3_bus_priv->bus_hw_info->bus_client_reg[wm_idx].supported_formats;
+	supported_pack_formats = bus_hw_info->bus_client_reg[wm_idx].supported_pack_formats;
+
+	if ((supported_formats && supported_pack_formats) ||
+		(!supported_formats && !supported_pack_formats)) {
+		CAM_ERR(CAM_ISP, "%s: Invalid config, supported_formats %u, pack_formats %u",
+			wm_res->res_name, supported_formats, supported_pack_formats);
+		return rc;
+	}
+
+
 	CAM_DBG(CAM_ISP,
 		"VFE:%u WM:%d width %d height %d, supported_format: 0x%llx, pack_fmt: %d use_wm_pack:%s",
 		wm_res->hw_intf->hw_idx, rsrc_data->index,
 		rsrc_data->cfg.width, rsrc_data->cfg.height, supported_formats,
 		rsrc_data->cfg.pack_fmt, CAM_BOOL_TO_YESNO(rsrc_data->use_wm_pack));
 
-
-
-	if (!(supported_formats & BIT_ULL(rsrc_data->cfg.format))) {
+	if (supported_formats &&
+		(!(supported_formats & BIT_ULL(rsrc_data->cfg.format)))) {
 		CAM_ERR(CAM_ISP, "Invalid format %d out_type:%d supported_formats %llu",
 			rsrc_data->cfg.format, vfe_out_res_id, supported_formats);
-		return -EINVAL;
 	}
 
 	rc = cam_vfe_bus_ver3_config_port(ver3_bus_priv, rsrc_data, vfe_out_res_id, plane);
@@ -1257,6 +1249,15 @@ static int cam_vfe_bus_ver3_acquire_wm(
 		CAM_ERR(CAM_ISP, "VFE:%u WM:%d %s Failed to configure port",
 			rsrc_data->common_data->core_index, rsrc_data->index, wm_res->res_name);
 		return rc;
+	}
+
+	pack_format = rsrc_data->cfg.pack_fmt & (~BIT(ver3_bus_priv->common_data.pack_align_shift));
+
+	if (supported_pack_formats && (!(supported_pack_formats & BIT_ULL(pack_format)))) {
+		CAM_ERR(CAM_ISP,
+			"Invalid pack format %d out_type:%d supported_pack_fmt 0x%llx, wm: %d",
+			pack_format, vfe_out_res_id, supported_pack_formats, wm_idx);
+		return -EINVAL;
 	}
 
 	if ((rsrc_data->cfg.en_cfg >> rsrc_data->common_data->common_reg->wm_mode_shift) !=

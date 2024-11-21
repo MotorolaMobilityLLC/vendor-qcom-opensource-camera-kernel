@@ -108,6 +108,27 @@ enum cam_vfe_bus_ver3_vfe_out_type {
 	CAM_VFE_BUS_VER3_VFE_OUT_MAX,
 };
 
+enum cam_vfe_bus_ver3_packer_format {
+	PACKER_FMT_VER3_PLAIN_128,
+	PACKER_FMT_VER3_PLAIN_8,
+	PACKER_FMT_VER3_PLAIN_8_ODD_EVEN,
+	PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10,
+	PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10_ODD_EVEN,
+	PACKER_FMT_VER3_PLAIN_16_10BPP,
+	PACKER_FMT_VER3_PLAIN_16_12BPP,
+	PACKER_FMT_VER3_PLAIN_16_14BPP,
+	PACKER_FMT_VER3_PLAIN_16_16BPP,
+	PACKER_FMT_VER3_PLAIN_32,
+	PACKER_FMT_VER3_PLAIN_64,
+	PACKER_FMT_VER3_TP_10,
+	PACKER_FMT_VER3_MIPI10,
+	PACKER_FMT_VER3_MIPI12,
+	PACKER_FMT_VER3_MIPI14,
+	PACKER_FMT_VER3_MIPI20,
+	PACKER_FMT_VER3_PLAIN32_20BPP,
+	PACKER_FMT_VER3_MAX,
+};
+
 /*
  * struct cam_vfe_bus_ver3_err_irq_desc:
  *
@@ -227,6 +248,7 @@ struct cam_vfe_bus_ver3_reg_offset_bus_client {
 	uint32_t hw_ctxt_cfg;
 	uint32_t bw_limiter_addr;
 	uint32_t comp_group;
+	uint64_t supported_pack_formats;
 	uint64_t supported_formats;
 	uint32_t rcs_en_mask;
 };
