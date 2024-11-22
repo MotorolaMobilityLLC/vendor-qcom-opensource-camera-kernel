@@ -129,7 +129,7 @@ static struct i2c_settings_list*
 		return NULL;
 
 	tmp->i2c_settings.reg_setting = (struct cam_sensor_i2c_reg_array *)
-		vzalloc(size * sizeof(struct cam_sensor_i2c_reg_array));
+		CAM_MEM_ZALLOC(size * sizeof(struct cam_sensor_i2c_reg_array), GFP_KERNEL);
 	if (tmp->i2c_settings.reg_setting == NULL) {
 		list_del(&(tmp->list));
 		CAM_MEM_FREE(tmp);
@@ -175,7 +175,7 @@ int32_t delete_request(struct i2c_settings_array *i2c_array)
 
 	list_for_each_entry_safe(i2c_list, i2c_next,
 		&(i2c_array->list_head), list) {
-		vfree(i2c_list->i2c_settings.reg_setting);
+		CAM_MEM_FREE(i2c_list->i2c_settings.reg_setting);
 		list_del(&(i2c_list->list));
 		CAM_MEM_FREE(i2c_list);
 	}
