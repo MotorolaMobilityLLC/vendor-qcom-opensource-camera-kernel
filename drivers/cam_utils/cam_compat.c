@@ -350,7 +350,7 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 		rc = IClientEnv_open(client_env, CTrustedCameraDriver_UID, &sc_object);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Failed getting mink sc_object, rc: %d", rc);
-			return rc;
+			goto client_release;
 		}
 
 		secure_info = &csiphy_dev->csiphy_info[offset].secure_info;
@@ -364,13 +364,13 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 		rc = ITrustedCameraDriver_dynamicProtectSensor(sc_object, &params);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Mink secure call failed, rc: %d", rc);
-			return rc;
+			goto obj_release;
 		}
 
 		rc = Object_release(sc_object);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Failed releasing secure camera object, rc: %d", rc);
-			return rc;
+			goto client_release;
 		}
 
 		rc = Object_release(client_env);
@@ -393,6 +393,13 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 #endif
 
 	return 0;
+
+obj_release:
+	Object_release(sc_object);
+client_release:
+	Object_release(client_env);
+
+	return rc;
 }
 #elif KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE
 int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
