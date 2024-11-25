@@ -431,6 +431,7 @@ struct cam_isp_fcg_prediction_tracker {
  *                             by other devices on the link as part of link setup
  * @mode_switch_en:            Indicates if mode switch is enabled
  * @sfe_en:                    Indicates if SFE is being used
+ * @frmhdr_verify_buf_done:    Indicates if frameheader is used to verify buf done
  *
  */
 struct cam_isp_context {
@@ -500,6 +501,7 @@ struct cam_isp_context {
 	bool                                  mode_switch_en;
 	bool                                  sfe_en;
 	bool                                  standby_en;
+	bool                                  frmhdr_verify_buf_done;
 };
 
 /**

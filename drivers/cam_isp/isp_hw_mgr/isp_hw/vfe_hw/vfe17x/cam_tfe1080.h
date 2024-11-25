@@ -2112,6 +2112,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 	.bus_err_desc          = &tfe1080_bus_irq_err_desc,
 	.num_comp_grp          = 10,
 	.support_consumed_addr = true,
+	.support_buf_done_with_framehdr = true,
 	.mc_comp_done_mask = {
 		BIT(24), 0x0, BIT(25), 0x0, 0x0, 0x0,
 		0x0, 0x0, 0x0, 0x0,

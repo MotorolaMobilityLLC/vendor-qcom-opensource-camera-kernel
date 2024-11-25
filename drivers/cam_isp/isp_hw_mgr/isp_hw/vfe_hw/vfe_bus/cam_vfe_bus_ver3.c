@@ -95,6 +95,8 @@ struct cam_vfe_bus_ver3_common_data {
 	bool                                        init_irq_subscribed;
 	bool                                        disable_mmu_prefetch;
 	bool                                        perf_cnt_en;
+	bool                                        support_buf_done_with_framehdr;
+	bool                                        use_last_consumed_addr;
 	cam_hw_mgr_event_cb_func                    event_cb;
 	int                        rup_irq_handle[CAM_VFE_BUS_VER3_SRC_GRP_MAX];
 	uint32_t                                    pack_align_shift;
@@ -2463,6 +2465,8 @@ static int cam_vfe_bus_ver3_stop_vfe_out(
 	rsrc_data = vfe_out->res_priv;
 	common_data = rsrc_data->common_data;
 
+	common_data->use_last_consumed_addr = false;
+
 	if (vfe_out->res_state == CAM_ISP_RESOURCE_STATE_AVAILABLE ||
 		vfe_out->res_state == CAM_ISP_RESOURCE_STATE_RESERVED) {
 		CAM_DBG(CAM_ISP, "Stop VFE:%u out_type:0x%X state:%d",
@@ -2552,8 +2556,12 @@ static int cam_vfe_bus_ver3_out_done_top_half_util(uint32_t evt_id,
 
 	if ((status_0 & comp_rsrc_data->comp_done_mask)  || (evt_payload->is_hw_ctxt_comp_done &&
 		(status_0 & comp_rsrc_data->mc_comp_done_mask))) {
-		evt_payload->last_consumed_addr = cam_io_r_mb(common_data->mem_base +
-			wm_rsrc_data->client_base + wm_rsrc_data->hw_regs->addr_status_0);
+		if (!out_rsrc_data->common_data->support_buf_done_with_framehdr ||
+			out_rsrc_data->common_data->use_last_consumed_addr) {
+			evt_payload->last_consumed_addr = cam_io_r_mb(common_data->mem_base +
+				wm_rsrc_data->client_base + wm_rsrc_data->hw_regs->addr_status_0);
+			}
+
 		trace_cam_log_event("bufdone", "bufdone_IRQ",
 			status_0, comp_rsrc_data->comp_grp_type);
 	}
@@ -5250,6 +5258,12 @@ static int cam_vfe_bus_ver3_process_cmd(
 			bus_priv->bus_hw_info->skip_regdump_stop_offset;
 		vfe_bus_cap->num_wr_perf_counters =
 			bus_priv->bus_hw_info->common_reg.num_perf_counters;
+		vfe_bus_cap->support_buf_done_with_framehdr =
+			bus_priv->common_data.support_buf_done_with_framehdr;
+
+		if (vfe_bus_cap->support_buf_done_with_framehdr)
+			vfe_bus_cap->support_consumed_addr = false;
+
 		rc = 0;
 		break;
 	case CAM_ISP_HW_CMD_GET_LAST_CONSUMED_ADDR:
@@ -5268,6 +5282,8 @@ static int cam_vfe_bus_ver3_process_cmd(
 		debug_cfg = (struct cam_vfe_generic_debug_config *)cmd_args;
 		bus_priv->common_data.disable_mmu_prefetch =
 			debug_cfg->disable_ife_mmu_prefetch;
+		bus_priv->common_data.use_last_consumed_addr =
+			debug_cfg->use_last_consumed_addr;
 
 		for (i = 0; i < CAM_VFE_PERF_CNT_MAX; i++) {
 			bus_priv->common_data.perf_cnt_cfg[i] =
@@ -5376,6 +5392,8 @@ int cam_vfe_bus_ver3_init(
 	bus_priv->common_data.is_lite = soc_private->is_ife_lite;
 	bus_priv->common_data.support_consumed_addr =
 		ver3_hw_info->support_consumed_addr;
+	bus_priv->common_data.support_buf_done_with_framehdr =
+		ver3_hw_info->support_buf_done_with_framehdr;
 	bus_priv->common_data.support_burst_limit =
 		ver3_hw_info->support_burst_limit;
 	bus_priv->common_data.disable_ubwc_comp = false;
