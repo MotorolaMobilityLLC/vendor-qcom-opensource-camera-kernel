@@ -668,8 +668,6 @@ struct cam_isp_hw_regiter_dump_data {
  * @num_wr_perf_counters:   Number of perf counters for bus write
  * @num_csid_perf_counters:   Number of perf counters for csid
  * @support_consumed_addr:  Indicate whether HW has last consumed addr reg
- * @support_buf_done_with_framehdr:  Indicate whether HW supports using frameheader
- *                                  for buf done verification
  *
  */
 struct cam_isp_hw_cap {
@@ -683,7 +681,6 @@ struct cam_isp_hw_cap {
 	bool                                 fcg_supported;
 	bool                                 support_consumed_addr;
 	struct cam_isp_hw_regiter_dump_data  skip_regdump_data;
-	bool                                 support_buf_done_with_framehdr;
 };
 
 /**

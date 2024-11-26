@@ -240,9 +240,6 @@ static int cam_isp_blob_path_exp_order_update(struct cam_ife_hw_mgr_ctx         
 	struct cam_isp_path_exp_order_update_internal   *exp_order_update;
 	bool                                             csid_update_valid = false;
 	struct cam_ife_csid_exp_info_update_args         exp_info_update_args = {0};
-	struct cam_isp_hw_mgr_res                        *isp_hw_mgr_res;
-	uint32_t                                         res_id;
-	enum cam_ife_pix_path_res_id                     csid_res_id;
 	int i, rc = 0;
 
 	ife_hw_mgr = ctx->hw_mgr;
@@ -253,6 +250,7 @@ static int cam_isp_blob_path_exp_order_update(struct cam_ife_hw_mgr_ctx         
 		prepare_hw_data->packet_opcode_type, request_id,
 		ctx->ctx_index, exp_order_update->num_process_exp,
 		exp_order_update->num_sensor_out_exp, exp_order_update->num_path_exp_info);
+
 
 	for (i = 0; i < exp_order_update->num_path_exp_info; i++) {
 		if ((exp_order_update->exp_info[i].hw_type <= CAM_ISP_HW_BASE) ||
@@ -272,16 +270,7 @@ static int cam_isp_blob_path_exp_order_update(struct cam_ife_hw_mgr_ctx         
 			exp_order_update->exp_info[i].exp_order);
 
 		if (exp_order_update->exp_info[i].hw_type == CAM_ISP_HW_CSID) {
-			/**
-			 * Blob handling for this condition does not follow the normal
-			 * sequence of processing during prepare_hs_update. This if block
-			 * is meant to be processed during config_hw instead, and relies
-			 * on the exp_order_update_valid boolean to be set to indicate
-			 * flow.
-			 */
-			if (!prepare_hw_data->exp_order_update_valid)
-				continue;
-			csid_res_id = CAM_IFE_PIX_PATH_RES_MAX;
+			enum cam_ife_pix_path_res_id csid_res_id = CAM_IFE_PIX_PATH_RES_MAX;
 
 			if ((!csid_update_valid) &&
 				(exp_order_update->exp_info[i].exp_order ==
@@ -303,43 +292,6 @@ static int cam_isp_blob_path_exp_order_update(struct cam_ife_hw_mgr_ctx         
 				exp_info_update_args.last_exp_valid = true;
 				csid_update_valid = true;
 			}
-		} else if (exp_order_update->exp_info[i].hw_type == CAM_ISP_HW_MC_TFE) {
-			if (exp_order_update->exp_info[i].exp_order != CAM_ISP_EXP_ORDER_LAST)
-				continue;
-
-			res_id = exp_order_update->exp_info[i].res_id & 0xFF;
-
-			if (ctx->vfe_out_map[res_id] == 0xFF) {
-				CAM_ERR(CAM_ISP,
-					"[FRMHDR] Invalid index:%d for out_map, req_id:%llu ctx_idx:%u",
-					res_id, request_id, ctx->ctx_index);
-				return -EINVAL;
-			}
-
-			isp_hw_mgr_res = &ctx->res_list_ife_out[ctx->vfe_out_map[res_id]];
-			if (!isp_hw_mgr_res || !isp_hw_mgr_res->hw_res[0]) {
-				CAM_ERR(CAM_ISP,
-					"[FRMHDR] Res node or HW not acquired for res_id: 0x%x, req_id:%llu ctx_idx:%u",
-					res_id, request_id, ctx->ctx_index);
-				return -EINVAL;
-			}
-
-			if (exp_order_update->exp_info[i].hw_ctxt_id > CAM_ISP_MULTI_CTXT_MAX) {
-				CAM_ERR(CAM_ISP,
-					"[FRMHDR] Invalid hw ctxt_id specified at i: %d for res_id: 0x%x, hw_ctxt_id: 0x%x, req_id:%llu ctx_idx:%u",
-					i, res_id, exp_order_update->exp_info[i].hw_ctxt_id,
-					request_id, ctx->ctx_index);
-				return -EINVAL;
-			}
-
-			isp_hw_mgr_res->buf_done_frameheader_info.last_ctxt =
-				exp_order_update->exp_info[i].hw_ctxt_id;
-
-			CAM_DBG(CAM_ISP,
-				"[FRMHDR] Last ctxt for res_id: 0x%x updated to: %u, req_id:%llu ctx_idx:%u",
-				res_id, exp_order_update->exp_info[i].hw_ctxt_id,
-				request_id, ctx->ctx_index);
-
 		} else {
 			CAM_ERR(CAM_ISP,
 				"hw_type:%u at idx:%d not supported for exp order update req_id:%llu ctx_idx:%u",
@@ -371,6 +323,7 @@ static int cam_isp_blob_path_exp_order_update(struct cam_ife_hw_mgr_ctx         
 			}
 		}
 	}
+
 	return rc;
 }
 
@@ -2166,7 +2119,7 @@ static void cam_ife_hw_mgr_print_acquire_info(
 	if (hw_mgr_ctx->flags.is_offline)
 		len += scnprintf(log_info + len, (128 - len), " OFFLINE: Y");
 
-	if (hw_mgr_ctx->flags.is_hw_ctx_acq &&
+	if (hw_mgr_ctx->is_hw_ctx_acq &&
 		(!hw_mgr_ctx->hw_mgr->csid_hw_caps[hw_idx[CAM_ISP_HW_SPLIT_LEFT]].is_lite)) {
 		len += scnprintf(log_info + len, (128 - len), " HW_CTXT [SRC:DST_MASK]");
 
@@ -2201,7 +2154,7 @@ fail:
 		sfe_hw_idx[CAM_ISP_HW_SPLIT_LEFT], sfe_hw_idx[CAM_ISP_HW_SPLIT_RIGHT],
 		hw_mgr_ctx->ctx_index);
 
-	if (hw_mgr_ctx->flags.is_hw_ctx_acq)
+	if (hw_mgr_ctx->is_hw_ctx_acq)
 		CAM_INFO(CAM_ISP, "HW_CTXT [SRC:DST_MASK] [%d:0x%x] [%d:0x%x] [%d:0x%x]",
 			CAM_ISP_MULTI_CTXT_0,
 			hw_mgr_ctx->acq_hw_ctxt_src_dst_map[CAM_ISP_MULTI_CTXT_0],
@@ -2708,7 +2661,6 @@ static int cam_ife_hw_mgr_acquire_res_ife_out_rdi(
 	ife_out_res->use_wm_pack = ife_src_res->use_wm_pack;
 	ife_out_res->res_id = out_port->res_type;
 	ife_out_res->res_type = CAM_ISP_RESOURCE_VFE_OUT;
-	ife_out_res->buf_done_frameheader_info.last_ctxt = 0xFF;
 	ife_src_res->num_children++;
 	ife_ctx->num_acq_vfe_out++;
 
@@ -2856,9 +2808,7 @@ static int cam_ife_hw_mgr_acquire_res_ife_out_pixel(
 		ife_out_res->res_type = CAM_ISP_RESOURCE_VFE_OUT;
 		ife_out_res->res_id = out_port->res_type;
 		ife_out_res->hw_ctxt_id_mask |= vfe_acquire.vfe_out.out_port_info->hw_context_id;
-		ife_out_res->mc_based = vfe_acquire.vfe_out.use_hw_ctxt;
 		if (!is_ife_out_in_list) {
-			ife_out_res->buf_done_frameheader_info.last_ctxt = 0xFF;
 			ife_src_res->num_children++;
 			ife_ctx->num_acq_vfe_out++;
 		}
@@ -6342,7 +6292,7 @@ static int cam_ife_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 		total_sfe_ports += in_port[i].sfe_port_count;
 
 		if ((in_port[i].major_ver == 3) && in_port[i].ipp_count)
-			ife_ctx->flags.is_hw_ctx_acq = true;
+			ife_ctx->is_hw_ctx_acq = true;
 	}
 
 	total_ports = total_pix_port + total_rdi_port + total_pd_port;
@@ -6508,11 +6458,6 @@ static int cam_ife_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	if (g_ife_hw_mgr.isp_caps.support_consumed_addr)
 		acquire_args->op_flags |=
 			CAM_IFE_CTX_CONSUME_ADDR_EN;
-
-	if (g_ife_hw_mgr.isp_caps.support_buf_done_with_framehdr &&
-		!ife_hw_mgr->debug_cfg.use_last_consumed_addr)
-		acquire_args->op_flags |=
-			CAM_IFE_CTX_FRMHDR_BUF_DONE;
 
 	if ((ife_ctx->flags.is_sfe_shdr) ||
 		(ife_ctx->flags.is_sfe_fs) ||
@@ -8580,7 +8525,6 @@ static void cam_ife_hw_mgr_set_hw_debug_config(
 	vfe_debug_args.enable_ife_frame_irqs = hw_mgr->debug_cfg.enable_ife_frame_irqs;
 	vfe_debug_args.num_counters = hw_mgr->isp_caps.num_ife_perf_counters;
 	vfe_debug_args.diag_config = hw_mgr->debug_cfg.camif_debug;
-	vfe_debug_args.use_last_consumed_addr = hw_mgr->debug_cfg.use_last_consumed_addr;
 	for (i = 0; i < hw_mgr->isp_caps.num_ife_perf_counters; i++)
 		vfe_debug_args.vfe_perf_counter_val[i] =
 			hw_mgr->debug_cfg.ife_perf_counter_val[i];
@@ -11461,195 +11405,6 @@ static int cam_isp_hw_mgr_add_cmd_buf_util(
 	return rc;
 }
 
-static int cam_isp_process_frameheader_blob_util(
-	struct cam_isp_frame_header_buf_info *buf_cfg,
-	struct cam_ife_hw_mgr_ctx *ctx,
-	struct cam_hw_prepare_update_args *prepare,
-	struct cam_isp_hw_mgr_res *isp_out_res,
-	uint32_t ctxt_id)
-{
-	dma_addr_t                             iova_addr;
-	uintptr_t                              kmd_buf_addr;
-	uint32_t                              *cpu_addr;
-	size_t                                 len;
-	uint64_t                               frame_header_iova;
-	int                                    rc = 0;
-	uint32_t                               res_id;
-	struct cam_isp_framehdr_buf_done      *buf_done_frameheader_info;
-
-	res_id = buf_cfg->resource_type & 0xFF;
-
-	rc = cam_mem_get_io_buf(buf_cfg->mem_handle, ctx->hw_mgr->mgr_common.img_iommu_hdl,
-		&iova_addr, &len, NULL, prepare->buf_tracker);
-	if (rc || !iova_addr || !len) {
-		CAM_ERR(CAM_ISP,
-			"[FRMHDR] Error getting iova for buf_handle: 0x%x for res_id: 0x%x, req_id: %llu, ctx_idx:%u, ctxt_id: %u, iova: %pK, len: %d, rc: %d",
-			buf_cfg->mem_handle, res_id, prepare->packet->header.request_id,
-			ctx->ctx_index, ctxt_id, iova_addr, len, rc);
-		return rc;
-	}
-
-	rc = cam_mem_get_cpu_buf(buf_cfg->mem_handle, &kmd_buf_addr, &len);
-	if (rc || !kmd_buf_addr || !len) {
-		CAM_ERR(CAM_ISP,
-			"[FRMHDR] Error getting cpu va for buf_handle: 0x%x, for res_id: 0x%x, req_id: %llu, ctx_idx:%u, ctxt_id: %u, cpuva: %pK, len: %d, rc: %d",
-			buf_cfg->mem_handle, res_id, prepare->packet->header.request_id,
-			ctx->ctx_index, kmd_buf_addr, len, rc);
-		return rc;
-	}
-	cpu_addr = (uint32_t *) kmd_buf_addr;
-
-	if (buf_cfg->offset + CAM_FRAME_HEADER_BUFFER_SIZE > len) {
-		CAM_ERR(CAM_ISP,
-			"[FRMHDR] Buffer offset for res_id: 0x%x, ctxt_id: %u req_id: %llu, ctx_idx:%u exceeds size of buffer allocated with buf_handle: 0x%x: %u",
-			res_id, ctxt_id, prepare->packet->header.request_id,
-			ctx->ctx_index, buf_cfg->mem_handle, len);
-		cam_mem_put_cpu_buf(buf_cfg->mem_handle);
-		return -EINVAL;
-	}
-
-	frame_header_iova = (uint64_t)iova_addr + (uint64_t)buf_cfg->offset;
-
-	/* frame header address needs to be 256 byte aligned */
-	if (frame_header_iova % CAM_FRAME_HEADER_ADDR_ALIGNMENT) {
-		CAM_ERR(CAM_ISP,
-			"[FRMHDR] Buffer offset for res_id: 0x%x, ctxt_id: %u req_id: %llu, ctx_idx:%u not aligned with 256 bytes: offset: 0x%x",
-			res_id, ctxt_id, prepare->packet->header.request_id,
-			ctx->ctx_index, buf_cfg->offset);
-		cam_mem_put_cpu_buf(buf_cfg->mem_handle);
-		return -EINVAL;
-	}
-
-
-	buf_done_frameheader_info = &isp_out_res->buf_done_frameheader_info;
-	buf_done_frameheader_info->iova_addr[ctxt_id] = frame_header_iova;
-	buf_done_frameheader_info->cpu_addr[ctxt_id] = cpu_addr +
-		(buf_cfg->offset / 4);
-
-	CAM_DBG(CAM_ISP,
-		"[FRMHDR] buf for res_id: %u, ctx: %u, req_id: %llu, ctx_idx:%u, iova: %pK, cpu_addr: %pK",
-		res_id, ctxt_id, prepare->packet->header.request_id,
-		ctx->ctx_index, buf_done_frameheader_info->iova_addr[ctxt_id],
-		buf_done_frameheader_info->cpu_addr[ctxt_id]);
-
-	return rc;
-}
-
-static int cam_isp_blob_frameheader_cfg(
-	uint32_t                                   blob_type,
-	struct cam_isp_frame_header_buf_cfg       *frame_header_cfg,
-	struct cam_hw_prepare_update_args         *prepare,
-	enum cam_isp_hw_type                       hw_type)
-{
-	struct cam_ife_hw_mgr_ctx             *ctx = NULL;
-	struct cam_isp_hw_mgr_res             *isp_out_res;
-	struct cam_isp_frame_header_buf_info  *buf_cfg = NULL;
-	struct cam_isp_framehdr_buf_done      *framehdr_buf_done;
-	uint32_t                               res_id, i, j;
-	int                                    rc = 0, ctxt_id;
-
-	ctx = prepare->ctxt_to_hw_map;
-
-	if (!g_ife_hw_mgr.isp_caps.support_buf_done_with_framehdr) {
-		CAM_WARN_RATE_LIMIT(CAM_ISP,
-			"[FRMHDR] No support for using frameheader in verifying buf done, req_id: %llu, ctx_idx:%u",
-			prepare->packet->header.request_id, ctx->ctx_index);
-		return 0;
-	}
-
-	if ((prepare->num_hw_update_entries + 1) >=
-			prepare->max_hw_update_entries) {
-		CAM_ERR(CAM_ISP,
-			"[FRMHDR] Insufficient HW entries: %d max: %d req_id: %llu, ctx_idx: %u",
-			prepare->num_hw_update_entries,
-			prepare->max_hw_update_entries,
-			prepare->packet->header.request_id, ctx->ctx_index);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < frame_header_cfg->num_ports; i++) {
-		buf_cfg = &frame_header_cfg->frame_header_cfg[i];
-		res_id = buf_cfg->resource_type & 0xFF;
-
-		if ((buf_cfg->resource_type >= CAM_ISP_SFE_OUT_RES_BASE) &&
-			(buf_cfg->resource_type <= CAM_ISP_SFE_OUT_RES_BASE + max_sfe_out_res)) {
-			CAM_ERR(CAM_ISP,
-				"[FRMHDR] SFE resource does not support using frameheader in verifying buf done 0x%x, req_id: %llu, ctx_idx:%u",
-				buf_cfg->resource_type, prepare->packet->header.request_id,
-				ctx->ctx_index);
-			rc = -EINVAL;
-			break;
-		}
-
-		if (buf_cfg->hw_ctxt_id < CAM_ISP_MULTI_CTXT0_MASK ||
-			buf_cfg->hw_ctxt_id > CAM_ISP_MULTI_CTXT2_MASK) {
-			CAM_ERR(CAM_ISP,
-				"[FRMHDR] Invalid hw ctxt id: 0x%x in frameheader config for res id: %u, req_id: %llu, ctx_idx: %u",
-				buf_cfg->hw_ctxt_id, res_id,
-				prepare->packet->header.request_id, ctx->ctx_index);
-			rc = -EINVAL;
-			break;
-		}
-
-		ctxt_id = ffs(buf_cfg->hw_ctxt_id) - 1;
-
-		if (ctx->vfe_out_map[res_id] == 0xFF) {
-			CAM_ERR(CAM_ISP,
-				"[FRMHDR] Invalid index for res_id: %u, ctxt_id: %d, req_id: %llu, ctx_idx: %u",
-				res_id, ctxt_id, prepare->packet->header.request_id,
-				ctx->ctx_index);
-			rc = -EINVAL;
-			break;
-		}
-
-		isp_out_res = &ctx->res_list_ife_out[ctx->vfe_out_map[res_id]];
-
-		if (!isp_out_res->mc_based)
-			ctxt_id = 0;
-
-		rc = cam_isp_process_frameheader_blob_util(buf_cfg, ctx,
-			prepare, isp_out_res, ctxt_id);
-		if (rc)
-			break;
-	}
-
-	/* Make sure all acquired ports have a frameheader buffer */
-	for (i = 0; i < ctx->num_acq_vfe_out; i++) {
-		isp_out_res = &ctx->res_list_ife_out[i];
-		res_id = isp_out_res->res_id & 0xFF;
-		framehdr_buf_done = &isp_out_res->buf_done_frameheader_info;
-
-		if (!isp_out_res->mc_based) {
-			if (!framehdr_buf_done->cpu_addr[CAM_ISP_MULTI_CTXT_0] ||
-				!framehdr_buf_done->iova_addr[CAM_ISP_MULTI_CTXT_0]) {
-				CAM_ERR(CAM_ISP,
-				"[FRMHDR] Buffer not configured for res_id: %u, ctxt_id 0, is_mc: %s, req_id: %llu, ctx_idx: %u",
-				res_id, CAM_BOOL_TO_YESNO(isp_out_res->mc_based),
-				prepare->packet->header.request_id, ctx->ctx_index);
-
-				return -EINVAL;
-			}
-		} else {
-			for (j = 0; j < CAM_ISP_MULTI_CTXT_MAX; j++) {
-				if (!(isp_out_res->hw_ctxt_id_mask & BIT(j)))
-					continue;
-
-				if (!framehdr_buf_done->cpu_addr[j] ||
-					!framehdr_buf_done->iova_addr[j]) {
-					CAM_ERR(CAM_ISP,
-					"[FRMHDR] Buffer not configured for res_id: %u, ctxt_id %u, is_mc: %s, req_id: %llu, ctx_idx: %u",
-					res_id, j, CAM_BOOL_TO_YESNO(isp_out_res->mc_based),
-					prepare->packet->header.request_id, ctx->ctx_index);
-
-					return -EINVAL;
-				}
-			}
-		}
-	}
-
-	return rc;
-}
-
 static int cam_isp_update_ife_pdaf_cfg(
 	struct cam_ife_hw_mgr_ctx         *ctx,
 	struct cam_hw_prepare_update_args *prepare,
@@ -13240,77 +12995,12 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 			(exp_order_update->num_path_exp_info *
 			sizeof(struct cam_isp_per_path_exp_info))));
 
-		rc = cam_isp_blob_path_exp_order_update(ife_mgr_ctx,
-			prepare->packet->header.request_id, prepare_hw_data);
-
 		CAM_DBG(CAM_ISP,
 			"Exp order update num_process_exp:%u num_sensor_out_exp:%u num_path_exp_info:%u ctx:%u",
 			exp_order_update->num_process_exp, exp_order_update->num_sensor_out_exp,
 			exp_order_update->num_path_exp_info,
 			ife_mgr_ctx->ctx_index);
 		prepare_hw_data->exp_order_update_valid = true;
-	}
-		break;
-	case CAM_ISP_GENERIC_BLOB_TYPE_FRAMEHEADER_CFG: {
-		struct cam_isp_frame_header_buf_cfg    *frame_header_cfg;
-		struct cam_isp_prepare_hw_update_data   *prepare_hw_data;
-
-		if (blob_size < sizeof(struct cam_isp_frame_header_buf_cfg)) {
-			CAM_ERR(CAM_ISP,
-				"[FRMHDR] Invalid exp order update blob size %u expected %u req_id:%llu, ctx_idx: %u",
-				blob_size, sizeof(struct cam_isp_frame_header_buf_cfg),
-				prepare->packet->header.request_id, ife_mgr_ctx->ctx_index);
-			return -EINVAL;
-		}
-
-		prepare_hw_data = (struct cam_isp_prepare_hw_update_data  *)
-			prepare->priv;
-		frame_header_cfg = (struct cam_isp_frame_header_buf_cfg *)blob_data;
-
-		if ((!frame_header_cfg->num_ports) || (frame_header_cfg->num_ports >
-			max_ife_out_res)) {
-			CAM_ERR(CAM_ISP,
-				"[FRMHDR] Invalid num_ports:%u, req_id:%llu, ctx_idx: %u",
-				frame_header_cfg->num_ports, prepare->packet->header.request_id,
-				ife_mgr_ctx->ctx_index);
-			return -EINVAL;
-		}
-
-		/* Check for integer overflow */
-		if (sizeof(struct cam_isp_frame_header_buf_info) > ((UINT_MAX -
-			sizeof(struct cam_isp_frame_header_buf_cfg)) /
-			(frame_header_cfg->num_ports))) {
-			CAM_ERR(CAM_ISP,
-				"[FRMHDR] Max size exceeded in frame header cfg num_path_info:%u size per path:%lu, req_id:%llu, ctx_idx: %u",
-				frame_header_cfg->num_ports,
-				sizeof(struct cam_isp_per_path_exp_info),
-				prepare->packet->header.request_id, ife_mgr_ctx->ctx_index);
-			return -EINVAL;
-		}
-
-		if (blob_size < (sizeof(struct cam_isp_frame_header_buf_cfg) +
-			(frame_header_cfg->num_ports *
-			sizeof(struct cam_isp_frame_header_buf_info)))) {
-			CAM_ERR(CAM_ISP,
-				"[FRMHDR] Invalid blob size %u expected %lu req_id:%llu, ctx_idx: %u",
-				blob_size, sizeof(struct cam_isp_frame_header_buf_cfg)
-				+ (frame_header_cfg->num_ports *
-				sizeof(struct cam_isp_frame_header_buf_info)),
-				prepare->packet->header.request_id, ife_mgr_ctx->ctx_index);
-			return -EINVAL;
-		}
-
-		if ((frame_header_cfg->num_ports > (max_ife_out_res)) ||
-			(frame_header_cfg->num_ports == 0)) {
-			CAM_ERR(CAM_ISP,
-				"[FRMHDR] Invalid num_ports:%u in frameheader config req_id:%llu, ctx_idx: %u",
-				frame_header_cfg->num_ports,
-				prepare->packet->header.request_id, ife_mgr_ctx->ctx_index);
-				return -EINVAL;
-		}
-
-		rc = cam_isp_blob_frameheader_cfg(blob_type, frame_header_cfg,
-			prepare, CAM_ISP_HW_TYPE_VFE);
 	}
 		break;
 	default:
@@ -13491,7 +13181,6 @@ static int cam_csid_packet_generic_blob_handler(void *user_data,
 	case CAM_ISP_GENERIC_BLOB_TYPE_UBWC_CONFIG_V3:
 	case CAM_ISP_GENERIC_BLOB_TYPE_VFE_OUT_CONFIG_V2:
 	case CAM_ISP_GENERIC_BLOB_TYPE_EXP_ORDER_UPDATE:
-	case CAM_ISP_GENERIC_BLOB_TYPE_FRAMEHEADER_CFG:
 		break;
 	case CAM_ISP_GENERIC_BLOB_TYPE_IRQ_COMP_CFG: {
 		struct cam_isp_irq_comp_cfg *irq_comp_cfg;
@@ -13925,7 +13614,6 @@ static int cam_sfe_packet_generic_blob_handler(void *user_data,
 				rc, ife_mgr_ctx->ctx_index);
 	}
 		break;
-	case CAM_ISP_GENERIC_BLOB_TYPE_FRAMEHEADER_CFG:
 	case CAM_ISP_GENERIC_BLOB_TYPE_IFE_FCG_CFG:
 	case CAM_ISP_GENERIC_BLOB_TYPE_HFR_CONFIG:
 	case CAM_ISP_GENERIC_BLOB_TYPE_CLOCK_CONFIG:
@@ -14884,7 +14572,6 @@ static int cam_ife_mgr_prepare_hw_update(void *hw_mgr_priv,
 	bool                                     frame_header_enable = false;
 	struct cam_isp_prepare_hw_update_data   *prepare_hw_data;
 	struct cam_isp_frame_header_info         frame_header_info;
-	struct cam_isp_hw_mgr_res               *ife_out_res;
 	struct list_head                        *res_list_ife_rd_tmp = NULL;
 	struct cam_isp_cmd_buf_count             cmd_buf_count = {0};
 	struct cam_isp_check_io_cfg_for_scratch  check_for_scratch = {0};
@@ -14969,10 +14656,6 @@ static int cam_ife_mgr_prepare_hw_update(void *hw_mgr_priv,
 			frame_header_info.frame_header_iova_addr =
 				prepare_hw_data->frame_header_iova;
 		}
-
-		if (g_ife_hw_mgr.isp_caps.support_buf_done_with_framehdr &&
-			!hw_mgr->debug_cfg.use_last_consumed_addr)
-			frame_header_info.frame_header_enable = true;
 
 		rc = cam_ife_hw_mgr_update_cmd_buffer(ctx, prepare,
 			&prepare_hw_data->kmd_cmd_buff_info, &cmd_buf_count, i);
@@ -15079,24 +14762,6 @@ static int cam_ife_mgr_prepare_hw_update(void *hw_mgr_priv,
 		(!prepare_hw_data->frame_header_res_id)) {
 		CAM_ERR(CAM_ISP, "Failed to configure frame header, ctx_idx: %u", ctx->ctx_index);
 		goto end;
-	}
-
-	if (g_ife_hw_mgr.isp_caps.support_buf_done_with_framehdr &&
-		!hw_mgr->debug_cfg.use_last_consumed_addr) {
-		for (i = 0; i < ctx->num_acq_vfe_out; i++) {
-			ife_out_res = &ctx->res_list_ife_out[i];
-			if (ife_out_res->mc_based) {
-				if (ife_out_res->buf_done_frameheader_info.last_ctxt >=
-				CAM_ISP_MULTI_CTXT_MAX) {
-					CAM_ERR(CAM_ISP,
-						"[FRMHDR] Last ctxt info for res_id: 0x%x not configured, req_id:%llu, ctx_idx: %u",
-						ife_out_res->res_id,
-						prepare->packet->header.request_id, ctx->ctx_index);
-					rc = -EINVAL;
-					goto end;
-				}
-			}
-		}
 	}
 
 	/*
@@ -19032,9 +18697,6 @@ static int cam_ife_hw_mgr_debug_register(void)
 	debugfs_create_bool("enable_cdr_sweep_debug", 0644,
 		g_ife_hw_mgr.debug_cfg.dentry,
 		&g_ife_hw_mgr.debug_cfg.enable_cdr_sweep_debug);
-	debugfs_create_bool("use_last_consumed_addr", 0644,
-		g_ife_hw_mgr.debug_cfg.dentry,
-		&g_ife_hw_mgr.debug_cfg.use_last_consumed_addr);
 
 end:
 	g_ife_hw_mgr.debug_cfg.enable_csid_recovery = 1;
@@ -19371,8 +19033,6 @@ int cam_ife_hw_mgr_init(struct cam_hw_mgr_intf *hw_mgr_intf, int *iommu_hdl,
 
 	g_ife_hw_mgr.isp_caps.support_consumed_addr =
 		isp_cap.support_consumed_addr;
-	g_ife_hw_mgr.isp_caps.support_buf_done_with_framehdr =
-		isp_cap.support_buf_done_with_framehdr;
 	g_ife_hw_mgr.isp_caps.max_vfe_out_res_type =
 		isp_cap.max_out_res_type;
 	g_ife_hw_mgr.isp_caps.num_ife_perf_counters =

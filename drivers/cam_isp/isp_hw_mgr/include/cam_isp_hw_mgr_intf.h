@@ -52,7 +52,6 @@
 #define CAM_IFE_CTX_SFE_EN             BIT(4)
 #define CAM_IFE_CTX_AEB_EN             BIT(5)
 #define CAM_IFE_CTX_DYNAMIC_SWITCH_EN  BIT(6)
-#define CAM_IFE_CTX_FRMHDR_BUF_DONE    BIT(7)
 
 /*
  * Maximum configuration entry size  - This is based on the
@@ -70,10 +69,6 @@
 #define CAM_ISP_MAX_FCG_CH_CTXS        3
 #define CAM_ISP_IFE_MAX_FCG_CH_CTXS    3
 #define CAM_ISP_SFE_MAX_FCG_CHANNELS   2
-/*
- * Frameheader local ID offset
- */
-#define CAM_ISP_FRMHDR_LOCAL_ID_OFFSET_32_BIT   3
 
 /**
  *  enum cam_isp_hw_event_type - Collection of the ISP hardware events
