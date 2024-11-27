@@ -123,10 +123,12 @@ static int cam_custom_component_bind(struct device *dev,
 	g_custom_dev.sd.internal_ops = &cam_custom_subdev_internal_ops;
 	g_custom_dev.sd.close_seq_prior = CAM_SD_CLOSE_HIGH_PRIORITY;
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	if (!cam_cpas_is_feature_supported(CAM_CPAS_CUSTOM_FUSE, BIT(0), NULL)) {
 		CAM_DBG(CAM_CUSTOM, "CUSTOM:0 is not supported");
 		goto err;
 	}
+#endif
 
 	rc = cam_subdev_probe(&g_custom_dev.sd, pdev, CAM_CUSTOM_DEV_NAME,
 		CAM_CUSTOM_DEVICE_TYPE);

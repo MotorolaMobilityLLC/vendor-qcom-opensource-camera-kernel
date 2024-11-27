@@ -793,7 +793,9 @@ static int32_t cam_icp_ctx_timer(void *priv, void *data)
 	}
 
 	mutex_lock(&hw_mgr->ctx_mutex[ctx_id]);
-	if (!test_bit(ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) {
+	if ((!test_bit(ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) ||
+		(ctx_info->ctx_acquired_timestamp !=
+			hw_mgr->ctx_acquired_timestamp[ctx_id])) {
 		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u",
 			ctx_id);
 		goto end;
@@ -849,6 +851,7 @@ static void cam_icp_ctx_timer_cb(struct timer_list *timer_data)
 
 	ctx_info->ctx_data = ctx_data;
 	ctx_info->ctx_id = ctx_data->ctx_id;
+	ctx_info->ctx_acquired_timestamp = hw_mgr->ctx_acquired_timestamp[ctx_data->ctx_id];
 
 	spin_lock_irqsave(&hw_mgr->hw_mgr_lock, flags);
 	task = cam_req_mgr_workq_get_task(hw_mgr->timer_work);
@@ -4279,6 +4282,8 @@ add_ctx_data:
 	}
 	list_add_tail(&ctx_data->list, next_list_head);
 
+	hw_mgr->ctx_acquired_timestamp[i] = ktime_get_boottime_ns();
+
 	set_bit(i, hw_mgr->active_ctx_info.active_ctx_bitmap);
 	return 0;
 }
@@ -5082,6 +5087,8 @@ static int cam_icp_mgr_release_ctx(
 	ctx_data->hw_mgr_priv = NULL;
 
 	CAM_DBG(CAM_ICP, "[%s] X: ctx_id = %d", hw_mgr->hw_mgr_name, ctx_data->ctx_id);
+
+	hw_mgr->ctx_acquired_timestamp[ctx_id] = 0;
 
 	/* Free ctx data in the queue */
 	cam_icp_mgr_put_ctx(hw_mgr, ctx_data);
@@ -9383,7 +9390,10 @@ static int cam_icp_mgr_alloc_devs(struct device_node *np, struct cam_icp_hw_mgr 
 		goto free_devs;
 	}
 
-	hw_mgr->dev_pc_flag = of_property_read_bool(np, "ipe_bps_pc_en");
+	/* Device power collapse flag is backward compatible with previous targets */
+	hw_mgr->dev_pc_flag = of_property_read_bool(np, "ipe_bps_pc_en") ||
+		of_property_read_bool(np, "interframe_pc_en");
+
 	hw_mgr->icp_pc_flag = of_property_read_bool(np, "icp_pc_en");
 	hw_mgr->icp_use_pil = of_property_read_bool(np, "icp_use_pil");
 	hw_mgr->synx_signaling_en = of_property_read_bool(np, "synx_signaling_en");

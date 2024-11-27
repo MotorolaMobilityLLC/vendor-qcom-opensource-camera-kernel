@@ -94,6 +94,14 @@ config DYNAMIC_FD_PORT_CONFIG
 		the FD port to secure or non-secure based on
 		the FD solution in use in secure camera use cases.
 
+config SPECTRA_QULTIVATE_API
+	bool "enable Qultivate API related dependencies"
+	help
+		This config enables all Qultivate API
+		related dependencies. Qultivate APIs are
+		used to determine whether a HW module is
+		functional on the SOC and proceed with probing.
+
 config SECURE_CAMERA_25
 	bool "enable secure camera 2.5"
 	help

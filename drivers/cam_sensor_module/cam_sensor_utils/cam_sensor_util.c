@@ -1273,6 +1273,27 @@ int32_t msm_camera_fill_vreg_params(
 			if (j == num_vreg)
 				power_setting[i].seq_val = INVALID_VREG;
 			break;
+		case SENSOR_CUSTOM_REG3:
+			for (j = 0; j < num_vreg; j++) {
+
+				if (!strcmp(soc_info->rgltr_name[j],
+					"cam_v_custom3")) {
+					CAM_DBG(CAM_SENSOR_UTIL,
+						"i:%d j:%d cam_vcustom3", i, j);
+					power_setting[i].seq_val = j;
+
+					if (VALIDATE_VOLTAGE(
+						soc_info->rgltr_min_volt[j],
+						soc_info->rgltr_max_volt[j],
+						power_setting[i].config_val))
+						power_setting[i].valid_config = true;
+
+					break;
+				}
+			}
+			if (j == num_vreg)
+				power_setting[i].seq_val = INVALID_VREG;
+			break;
 		default:
 			break;
 		}
@@ -2280,6 +2301,7 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_VAF_PWDM:
 		case SENSOR_CUSTOM_REG1:
 		case SENSOR_CUSTOM_REG2:
+		case SENSOR_CUSTOM_REG3:
 			if (debug_bypass_drivers & CAM_BYPASS_RGLTR) {
 				CAM_DBG(CAM_SENSOR_UTIL, "Bypass regulator enable seq_type %d",
 					power_setting->seq_type);
@@ -2421,6 +2443,7 @@ power_up_failed:
 		case SENSOR_VAF_PWDM:
 		case SENSOR_CUSTOM_REG1:
 		case SENSOR_CUSTOM_REG2:
+		case SENSOR_CUSTOM_REG3:
 			if (debug_bypass_drivers & CAM_BYPASS_RGLTR) {
 				CAM_DBG(CAM_SENSOR_UTIL, "Bypass regulator disable seq_type %d",
 					power_setting->seq_type);
@@ -2604,6 +2627,7 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_VAF_PWDM:
 		case SENSOR_CUSTOM_REG1:
 		case SENSOR_CUSTOM_REG2:
+		case SENSOR_CUSTOM_REG3:
 			if (debug_bypass_drivers & CAM_BYPASS_RGLTR) {
 				CAM_DBG(CAM_SENSOR_UTIL, "Bypass regulator disable seq_type %d",
 					pd->seq_type);

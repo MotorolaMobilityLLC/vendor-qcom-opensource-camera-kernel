@@ -482,12 +482,13 @@ static void cam_vfe_top_ver4_check_module_idle(
 }
 
 static void cam_vfe_top_ver4_check_module_status(
-	uint32_t num_reg, uint32_t *reg_val,
+	uint32_t num_reg, uint64_t *reg_val,
 	struct cam_vfe_top_ver4_priv *top_priv,
 	struct cam_vfe_top_ver4_debug_reg_info (*status_list)[][8])
 {
 	bool found = false, is_mc;
-	uint32_t i, j, val = 0, idle_status;
+	uint32_t i, j, idle_status;
+	uint64_t val = 0;
 	size_t len = 0;
 	uint8_t line_buf[CAM_VFE_LEN_LOG_BUF], log_buf[1024];
 
@@ -509,7 +510,7 @@ static void cam_vfe_top_ver4_check_module_status(
 				&idle_status, &is_mc);
 
 			snprintf(line_buf, CAM_VFE_LEN_LOG_BUF,
-				"\n\t%s [I:%u V:%u R:%u] idle: 0x%x, is_mc: %s",
+				"\n\t%s [I:%llu V:%llu R:%llu] idle: 0x%x, is_mc: %s",
 				(*status_list)[i][j].clc_name, ((val >> 2) & 1),
 				((val >> 1) & 1), (val & 1), idle_status, CAM_BOOL_TO_YESNO(is_mc));
 
@@ -569,7 +570,7 @@ static void cam_vfe_top_ver4_print_debug_reg_status(
 	uint32_t                                   *debug_reg;
 	size_t                                      len = 0;
 	uint8_t                                    *log_buf;
-	uint32_t                                   reg_val[CAM_VFE_TOP_DBG_REG_MAX] = {0};
+	uint64_t                                   reg_val[CAM_VFE_TOP_DBG_REG_MAX] = {0};
 	struct cam_hw_soc_info                     *soc_info;
 	void __iomem                               *base;
 	char                                       *reg_name;
@@ -602,7 +603,7 @@ static void cam_vfe_top_ver4_print_debug_reg_status(
 	while (i < num_reg) {
 		for (j = 0; j < 4 && i < num_reg; j++, i++) {
 			val = cam_io_r(base + debug_reg[i]);
-			reg_val[i] = val;
+			reg_val[i] = (uint64_t)val;
 			CAM_INFO_BUF(CAM_ISP, log_buf, CAM_VFE_LEN_LOG_BUF, &len,
 				"VFE[%u] status %2d : 0x%08x", soc_info->index, i, val);
 		}
@@ -1984,17 +1985,19 @@ static int cam_vfe_handle_irq_top_half(uint32_t evt_id,
 	vfe_res = th_payload->handler_priv;
 	vfe_priv = vfe_res->res_priv;
 
-	CAM_DBG(CAM_ISP,
-		"VFE:%u IRQ status_0: 0x%X status_1: 0x%X",
-		vfe_res->hw_intf->hw_idx, th_payload->evt_status_arr[0],
-		th_payload->evt_status_arr[1]);
+	for (i = 0; i < th_payload->num_registers; i++)
+		CAM_DBG(CAM_ISP,
+			"VFE:%u IRQ status_%u: 0x%X",
+			vfe_res->hw_intf->hw_idx, i,
+			th_payload->evt_status_arr[i]);
 
 	rc  = cam_vfe_get_evt_payload(vfe_priv, &evt_payload);
 	if (rc) {
-		CAM_INFO_RATE_LIMIT(CAM_ISP,
-		"VFE:%u IRQ status_0: 0x%X status_1: 0x%X",
-		vfe_res->hw_intf->hw_idx, th_payload->evt_status_arr[0],
-		th_payload->evt_status_arr[1]);
+		for (i = 0; i < th_payload->num_registers; i++)
+			CAM_INFO_RATE_LIMIT(CAM_ISP,
+				"VFE:%u IRQ status_%u: 0x%X",
+				vfe_res->hw_intf->hw_idx, i,
+				th_payload->evt_status_arr[i]);
 		return rc;
 	}
 

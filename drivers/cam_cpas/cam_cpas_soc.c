@@ -1040,6 +1040,12 @@ static inline int
 		return CAM_LLCC_IPE_RT_RF;
 	else if (strcmp(cache_name, "ipe_srt_rf") == 0)
 		return CAM_LLCC_IPE_SRT_RF;
+	else if (strcmp(cache_name, "ipe_stripe_overlap_srt") == 0)
+		return CAM_LLCC_IPE_SRT_STRIPE_OVERLAP;
+	else if (strcmp(cache_name, "ipe_stripe_overlap_rt") == 0)
+		return CAM_LLCC_IPE_RT_STRIPE_OVERLAP;
+	else if (strcmp(cache_name, "ofe_stripe_overlap") == 0)
+		return CAM_LLCC_OFE_STRIPE_OVERLAP;
 	else
 		return -1;
 }
@@ -1055,6 +1061,9 @@ static inline bool cam_cpas_is_valid_fw_based_scid(
 	case CAM_LLCC_IPE_SRT_IP:
 	case CAM_LLCC_IPE_RT_RF:
 	case CAM_LLCC_IPE_SRT_RF:
+	case CAM_LLCC_IPE_SRT_STRIPE_OVERLAP:
+	case CAM_LLCC_IPE_RT_STRIPE_OVERLAP:
+	case CAM_LLCC_OFE_STRIPE_OVERLAP:
 		rc = true;
 		break;
 	default:

@@ -1552,6 +1552,7 @@ static int cam_ife_csid_check_cust_node(
 	return 0;
 }
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 static bool cam_ife_csid_ver1_is_width_valid_by_fuse(
 	struct cam_ife_csid_ver1_hw *csid_hw,
 	uint32_t width)
@@ -1586,6 +1587,7 @@ static bool cam_ife_csid_ver1_is_width_valid_by_fuse(
 
 	return true;
 }
+#endif
 
 static bool cam_ife_csid_ver1_is_width_valid_by_dt(
 	struct cam_ife_csid_ver1_hw *csid_hw,
@@ -1627,11 +1629,13 @@ bool cam_ife_csid_ver1_is_width_valid(
 		width = reserve->in_port->right_stop -
 			reserve->in_port->right_start + 1;
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	if (!cam_ife_csid_ver1_is_width_valid_by_fuse(csid_hw, width)) {
 		CAM_ERR(CAM_ISP, "CSID[%u] width limited by fuse",
 			csid_hw->hw_intf->hw_idx);
 		return false;
 	}
+#endif
 
 	if (!cam_ife_csid_ver1_is_width_valid_by_dt(csid_hw, width)) {
 		CAM_ERR(CAM_ISP, "CSID[%u] width limited by dt",
@@ -4157,7 +4161,7 @@ static int cam_ife_csid_ver1_path_bottom_half_handler(
 	struct cam_ife_csid_ver1_hw                   *csid_hw,
 	uint32_t                                       index)
 {
-	const uint8_t                               **irq_reg_tag;
+	uint8_t                                    **irq_reg_tag;
 	uint8_t                                     *log_buf = NULL;
 	uint32_t                                     bit_pos = 0;
 	uint32_t                                     irq_status;
@@ -4367,7 +4371,7 @@ static int cam_ife_csid_ver1_path_top_half(
 	struct cam_ife_csid_ver1_path_reg_info *path_reg = NULL;
 	struct cam_ife_csid_ver1_reg_info      *csid_reg;
 	struct cam_hw_soc_info                 *soc_info;
-	const uint8_t                         **irq_reg_tag;
+	uint8_t                               **irq_reg_tag;
 	uint32_t                                status = 0;
 	uint32_t                                debug_bits;
 	uint32_t                                bit_pos = 0;
@@ -4787,9 +4791,11 @@ int cam_ife_csid_hw_ver1_init(struct cam_hw_intf  *hw_intf,
 		return rc;
 	}
 
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	if (cam_cpas_is_feature_supported(CAM_CPAS_QCFA_BINNING_ENABLE,
 		CAM_CPAS_HW_IDX_ANY, NULL))
 		ife_csid_hw->flags.binning_enabled = true;
+#endif
 
 	ife_csid_hw->hw_intf->hw_ops.get_hw_caps =
 						cam_ife_csid_ver1_get_hw_caps;

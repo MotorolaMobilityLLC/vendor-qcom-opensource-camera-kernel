@@ -452,12 +452,21 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 #endif
 
 #ifdef CONFIG_SPECTRA_SECURE_CAMNOC_REG_UPDATE
+static_assert(sizeof(struct cam_scm_camera_qos)
+		== sizeof(struct qcom_scm_camera_qos));
+static_assert(offsetof(struct cam_scm_camera_qos, offset)
+		== offsetof(struct qcom_scm_camera_qos, offset));
+static_assert(offsetof(struct cam_scm_camera_qos, val)
+		== offsetof(struct qcom_scm_camera_qos, val));
 int cam_update_camnoc_qos_settings(uint32_t use_case_id,
-	uint32_t qos_cnt, struct qcom_scm_camera_qos *scm_buf)
+	uint32_t qos_cnt, struct cam_scm_camera_qos *scm_buf)
 {
 	int rc = 0;
+	struct qcom_scm_camera_qos qcom_scm_buf[QCOM_SCM_CAMERA_MAX_QOS_CNT] = {0};
 
-	rc = qcom_scm_camera_update_camnoc_qos(use_case_id, qos_cnt, scm_buf);
+	memcpy(qcom_scm_buf, scm_buf, sizeof(struct cam_scm_camera_qos) * qos_cnt);
+
+	rc = qcom_scm_camera_update_camnoc_qos(use_case_id, qos_cnt, qcom_scm_buf);
 	if (rc)
 		CAM_ERR(CAM_CPAS, "scm call to update QoS failed: %d, use_case_id: %d",
 			rc, use_case_id);
@@ -466,7 +475,7 @@ int cam_update_camnoc_qos_settings(uint32_t use_case_id,
 }
 #else
 int cam_update_camnoc_qos_settings(uint32_t use_case_id,
-	uint32_t qos_cnt, struct qcom_scm_camera_qos *scm_buf)
+	uint32_t qos_cnt, struct cam_scm_camera_qos *scm_buf)
 {
 	CAM_ERR(CAM_CPAS, "scm call to update QoS is not supported under this kernel");
 	return -EOPNOTSUPP;
@@ -722,8 +731,7 @@ int cam_req_mgr_ordered_list_cmp(void *priv,
 }
 #endif
 
-#if (KERNEL_VERSION(5, 15, 0) <= LINUX_VERSION_CODE && \
-	KERNEL_VERSION(5, 18, 0) > LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(6, 7, 0) >= LINUX_VERSION_CODE)
 long cam_dma_buf_set_name(struct dma_buf *dmabuf, const char *name)
 {
 	long ret = 0;
@@ -884,7 +892,7 @@ bool cam_secure_get_vfe_fd_port_config(void)
 #endif
 }
 
-#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 int cam_get_subpart_info(uint32_t *part_info, uint32_t max_num_cam)
 {
 	int rc = 0;
@@ -905,12 +913,6 @@ int cam_get_subpart_info(uint32_t *part_info, uint32_t max_num_cam)
 		CAM_ERR(CAM_CPAS, "Failed while getting subpart_info, rc = %d.", rc);
 		return rc;
 	}
-
-	return 0;
-}
-#else
-int cam_get_subpart_info(uint32_t *part_info, uint32_t max_num_cam)
-{
 	return 0;
 }
 #endif
@@ -942,11 +944,11 @@ int cam_iommu_map(struct iommu_domain *domain,
 #endif
 
 #if KERNEL_VERSION(6, 2, 0) <= LINUX_VERSION_CODE
-size_t cam_iommu_map_sg(struct iommu_domain *domain,
+ssize_t cam_iommu_map_sg(struct iommu_domain *domain,
 	dma_addr_t iova_start, struct scatterlist *sgl,
 	uint64_t orig_nents, int prot)
 {
-	size_t size = 0;
+	ssize_t size = 0;
 
 	size = iommu_map_sg(domain,
 			iova_start,
@@ -955,11 +957,11 @@ size_t cam_iommu_map_sg(struct iommu_domain *domain,
 	return size;
 }
 #else
-size_t cam_iommu_map_sg(struct iommu_domain *domain,
+ssize_t cam_iommu_map_sg(struct iommu_domain *domain,
 	dma_addr_t iova_start, struct scatterlist *sgl,
 	uint64_t orig_nents, int prot)
 {
-	size_t size = 0;
+	ssize_t size = 0;
 
 	size = iommu_map_sg(domain, iova_start,
 			sgl, orig_nents,

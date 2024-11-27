@@ -1988,6 +1988,9 @@ static int __cam_isp_ctx_handle_buf_done_for_req_list(
 		ctx_isp->last_bufdone_err_apply_req_id = 0;
 	}
 
+	/* Reset it in case a previous rup affect new frame */
+	atomic_set(&ctx_isp->unserved_rup, 0);
+
 	if (atomic_read(&ctx_isp->internal_recovery_set) && !ctx_isp->active_req_cnt)
 		__cam_isp_context_try_internal_recovery(ctx_isp);
 
@@ -3756,8 +3759,13 @@ static int __cam_isp_ctx_reg_upd_in_sof(struct cam_isp_context *ctx_isp,
 		else
 			CAM_ERR(CAM_ISP,
 				"receive rup in unexpected state, ctx_idx: %u, link: 0x%x",
-				 ctx->ctx_id, ctx->link_hdl);
+				ctx->ctx_id, ctx->link_hdl);
+	} else {
+		atomic_set(&ctx_isp->unserved_rup, 1);
+		CAM_WARN(CAM_ISP, "Received a unserved rup ctx:%u link: 0x%x",
+			ctx->ctx_id, ctx->link_hdl);
 	}
+
 	if (req != NULL) {
 		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
 			CAM_ISP_STATE_CHANGE_TRIGGER_REG_UPDATE,
@@ -3778,6 +3786,7 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 	struct cam_context                 *ctx = ctx_isp->base;
 	struct cam_isp_hw_epoch_event_data *epoch_done_event_data =
 		(struct cam_isp_hw_epoch_event_data *)evt_data;
+	struct cam_isp_ctx_irq_ops         *irq_ops;
 
 	if (!evt_data) {
 		CAM_ERR(CAM_ISP, "invalid event data");
@@ -3785,9 +3794,26 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 	}
 
 	if (ctx_isp->bubble_recover_dis && !ctx_isp->sfe_en) {
-		CAM_INFO(CAM_ISP, "Bubble Recovery Disabled");
-		__cam_isp_ctx_send_sof_timestamp(ctx_isp, 0,
-			CAM_REQ_MGR_SOF_EVENT_SUCCESS);
+		if (atomic_read(&ctx_isp->unserved_rup)) {
+			CAM_INFO(CAM_ISP, "Processed a unserved rup, ctx:%u link: 0x%x",
+				ctx->ctx_id, ctx->link_hdl);
+			__cam_isp_ctx_reg_upd_in_applied_state(ctx_isp, NULL);
+			irq_ops = &ctx_isp->substate_machine_irq[ctx_isp->substate_activated];
+			if (irq_ops->irq_ops[CAM_ISP_HW_EVENT_EPOCH])
+				irq_ops->irq_ops[CAM_ISP_HW_EVENT_EPOCH](ctx_isp, evt_data);
+			else
+				CAM_DBG(CAM_ISP,
+					"No handle function for Substate[%s], evt id %d, ctx:%u link: 0x%x",
+					__cam_isp_ctx_substate_val_to_type(
+					ctx_isp->substate_activated),
+					CAM_ISP_HW_EVENT_EPOCH,
+					ctx->ctx_id, ctx->link_hdl);
+			atomic_set(&ctx_isp->unserved_rup, 0);
+		} else {
+			CAM_INFO(CAM_ISP, "Bubble Recovery Disabled");
+			__cam_isp_ctx_send_sof_timestamp(ctx_isp, 0,
+				CAM_REQ_MGR_SOF_EVENT_SUCCESS);
+		}
 		return 0;
 	}
 
@@ -7511,7 +7537,7 @@ static int __cam_isp_ctx_config_dev_in_top_state(
 	struct cam_packet                *packet = NULL;
 	size_t                            remain_len = 0;
 	struct cam_hw_prepare_update_args cfg = {0};
-	struct cam_req_mgr_add_request    add_req;
+	struct cam_req_mgr_add_request    add_req = {0};
 	struct cam_isp_context           *ctx_isp =
 		(struct cam_isp_context *) ctx->ctx_priv;
 	struct cam_hw_cmd_args           hw_cmd_args;
@@ -7716,6 +7742,7 @@ static int __cam_isp_ctx_config_dev_in_top_state(
 			add_req.link_hdl = ctx->link_hdl;
 			add_req.dev_hdl  = ctx->dev_hdl;
 			add_req.req_id   = req->request_id;
+			add_req.trigger_skip = req_isp->hw_update_data.mup_en;
 			rc = ctx->ctx_crm_intf->add_req(&add_req);
 			if (rc) {
 				if (rc == -EBADR)
@@ -8993,7 +9020,7 @@ static int __cam_isp_ctx_start_dev_in_ready(struct cam_context *ctx,
 {
 	int rc = 0;
 	int i;
-	struct cam_isp_start_args        start_isp;
+	struct cam_isp_start_args        start_isp = {0};
 	struct cam_ctx_request          *req;
 	struct cam_isp_ctx_req          *req_isp;
 	struct cam_isp_context          *ctx_isp =
@@ -9031,15 +9058,22 @@ static int __cam_isp_ctx_start_dev_in_ready(struct cam_context *ctx,
 	start_isp.hw_config.priv  = &req_isp->hw_update_data;
 	start_isp.hw_config.init_packet = 1;
 	start_isp.hw_config.reapply_type = CAM_CONFIG_REAPPLY_NONE;
-	start_isp.hw_config.cdm_reset_before_apply = false;
-	start_isp.is_internal_start = false;
+
+	/*
+	 * During CSID start, only need to program AUP when there's IO buffers
+	 * introduced from EPCR
+	 */
+	if ((req_isp->num_fence_map_in > 0) || (req_isp->num_fence_map_out > 0)) {
+		CAM_DBG(CAM_ISP,
+			"IO buffers are detected in INIT packet during start dev, need to program AUP during CSID start, req_id: %lld, ctx_idx: %u, link: 0x%x",
+			req->request_id, ctx->ctx_id, ctx->link_hdl);
+		start_isp.aup_write = true;
+	}
 
 	ctx_isp->last_applied_req_id = req->request_id;
 
 	if (ctx->state == CAM_CTX_FLUSHED)
 		start_isp.start_only = true;
-	else
-		start_isp.start_only = false;
 
 	__cam_isp_context_reset_ctx_params(ctx_isp);
 
@@ -9450,6 +9484,7 @@ static int __cam_isp_ctx_reset_and_recover(
 
 	/* Block all events till HW is resumed */
 	ctx_isp->substate_activated = CAM_ISP_CTX_ACTIVATED_HALT;
+	atomic_set(&ctx_isp->unserved_rup, 0);
 
 	req = list_first_entry(&ctx->pending_req_list,
 		struct cam_ctx_request, list);

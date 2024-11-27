@@ -1146,7 +1146,7 @@ static int cam_cpas_apply_smart_qos(
 	uint8_t i;
 	int32_t reg_indx, cam_qos_cnt = 0, ret = 0;
 	uint32_t reg_base_mask;
-	struct qcom_scm_camera_qos scm_buf[QCOM_SCM_CAMERA_MAX_QOS_CNT] = {0};
+	struct cam_scm_camera_qos scm_buf[QCOM_SCM_CAMERA_MAX_QOS_CNT] = {0};
 
 	if (cpas_core->smart_qos_dump) {
 		CAM_INFO(CAM_PERF, "Printing SmartQoS values before update");
@@ -4361,6 +4361,9 @@ static inline int cam_cpas_validate_cache_type(
 	case CAM_LLCC_IPE_SRT_IP:
 	case CAM_LLCC_IPE_RT_RF:
 	case CAM_LLCC_IPE_SRT_RF:
+	case CAM_LLCC_IPE_SRT_STRIPE_OVERLAP:
+	case CAM_LLCC_IPE_RT_STRIPE_OVERLAP:
+	case CAM_LLCC_OFE_STRIPE_OVERLAP:
 		rc = 0;
 		break;
 	default:
@@ -5384,7 +5387,7 @@ int cam_cpas_hw_probe(struct platform_device *pdev,
 	if (rc)
 		goto disable_soc_res;
 
-
+#ifdef CONFIG_SPECTRA_QULTIVATE_API
 	rc = cam_get_subpart_info(&soc_private->part_info, CAM_CPAS_CAMERA_INSTANCES);
 	if (rc) {
 #ifndef CONFIG_ARCH_QTI_VM
@@ -5396,6 +5399,7 @@ int cam_cpas_hw_probe(struct platform_device *pdev,
 		rc = 0;
 #endif
 	}
+#endif
 
 	if (!cam_vmrm_no_register_read_on_bind()) {
 		rc = cam_cpas_soc_disable_resources(&cpas_hw->soc_info, true, true);

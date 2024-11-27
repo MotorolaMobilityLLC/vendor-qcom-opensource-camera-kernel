@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/iopoll.h>
@@ -28,7 +28,7 @@
 /* factor to conver qtime to boottime */
 int64_t qtime_to_boottime;
 
-const uint8_t *cam_ife_csid_irq_reg_tag[CAM_IFE_CSID_IRQ_REG_MAX + 1] = {
+uint8_t *cam_ife_csid_irq_reg_tag[CAM_IFE_CSID_IRQ_REG_MAX + 1] = {
 	"TOP",
 	"RX",
 	"RDI0",
@@ -606,7 +606,7 @@ int cam_ife_csid_convert_res_to_irq_reg(uint32_t res_id)
 	}
 }
 
-const char *cam_ife_csid_reset_type_to_string(enum cam_ife_csid_reset_type reset_type)
+char *cam_ife_csid_reset_type_to_string(enum cam_ife_csid_reset_type reset_type)
 {
 	switch (reset_type) {
 	case CAM_IFE_CSID_RESET_GLOBAL: return "global";
@@ -683,7 +683,7 @@ int cam_ife_csid_get_base(struct cam_hw_soc_info *soc_info,
 
 	return 0;
 }
-const uint8_t **cam_ife_csid_get_irq_reg_tag_ptr(void)
+uint8_t **cam_ife_csid_get_irq_reg_tag_ptr(void)
 {
 	return cam_ife_csid_irq_reg_tag;
 }

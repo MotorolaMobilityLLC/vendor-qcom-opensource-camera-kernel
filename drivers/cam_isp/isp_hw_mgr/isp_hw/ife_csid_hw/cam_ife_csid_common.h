@@ -59,6 +59,13 @@
 #define CAM_IFE_CSID_CAP_TOP_MASK_ALL_IRQS                BIT(9)
 
 /*
+ * CSID RUP AUP reg-val pair array
+ */
+#define CAM_IFE_CSID_RUP_AUP_SPLIT_REG_VAL_SIZE           3
+#define CAM_IFE_CSID_RUP_SPLIT_REG_VAL_SIZE               2
+#define CAM_IFE_CSID_RUP_REG_VAL_SIZE                     1
+
+/*
  * CSID RX debug vc-dt capture
  */
 #define CAM_IFE_CSID_DEBUGFS_RST_STROBE_MASK              0xF
@@ -546,7 +553,7 @@ int cam_ife_csid_convert_res_to_irq_reg(uint32_t res_id);
 int cam_ife_csid_get_base(struct cam_hw_soc_info *soc_info,
 	uint32_t base_id, void *cmd_args, size_t arg_size);
 
-const char *cam_ife_csid_reset_type_to_string(enum cam_ife_csid_reset_type reset_type);
+char *cam_ife_csid_reset_type_to_string(enum cam_ife_csid_reset_type reset_type);
 
-const uint8_t **cam_ife_csid_get_irq_reg_tag_ptr(void);
+uint8_t **cam_ife_csid_get_irq_reg_tag_ptr(void);
 #endif /*_CAM_IFE_CSID_COMMON_H_ */

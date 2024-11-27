@@ -128,6 +128,9 @@
 #define CAM_LLCC_IPE_SRT_IP                8
 #define CAM_LLCC_IPE_RT_RF                 9
 #define CAM_LLCC_IPE_SRT_RF                10
+#define CAM_LLCC_IPE_SRT_STRIPE_OVERLAP    11
+#define CAM_LLCC_IPE_RT_STRIPE_OVERLAP     12
+#define CAM_LLCC_OFE_STRIPE_OVERLAP        13
 
 
 /* cam sys cache llcc staling mode */

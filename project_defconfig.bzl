@@ -7,6 +7,7 @@ common_configs = [
 	"CONFIG_SPECTRA_SENSOR=y",
 	"CONFIG_SPECTRA_USE_RPMH_DRV_API=y",
 	"CONFIG_SPECTRA_LLCC_STALING=y",
+	"CONFIG_SPECTRA_QULTIVATE_API=y",
 ]
 
 dependency_config = [

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_VFE_CORE_H_
@@ -48,6 +49,8 @@ struct cam_vfe_hw_info {
 
 	uint32_t                          camif_lite_version;
 	void                             *camif_lite_reg;
+	int                             (*override_cb)(void **hw_info);
+	void                             *base;
 };
 
 #define CAM_VFE_EVT_MAX                    256
