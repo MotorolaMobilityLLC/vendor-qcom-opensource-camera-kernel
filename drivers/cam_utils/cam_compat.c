@@ -449,13 +449,6 @@ int cam_req_mgr_ordered_list_cmp(void *priv,
 		list_entry(head_2, struct cam_subdev, list));
 }
 
-int cam_get_ddr_type(void)
-{
-	/* We assume all chipsets running kernel version 5.15+
-	 * to be using only DDR5 based memory.
-	 */
-	return DDR_TYPE_LPDDR5;
-}
 #else
 void cam_smmu_util_iommu_custom(struct device *dev,
 	dma_addr_t discard_start, size_t discard_length)
@@ -475,10 +468,6 @@ int cam_req_mgr_ordered_list_cmp(void *priv,
 		list_entry(head_2, struct cam_subdev, list));
 }
 
-int cam_get_ddr_type(void)
-{
-	return of_fdt_get_ddrtype();
-}
 #endif
 
 #if KERNEL_VERSION(5, 15, 0) <= LINUX_VERSION_CODE
