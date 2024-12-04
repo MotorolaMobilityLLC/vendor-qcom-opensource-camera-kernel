@@ -246,6 +246,7 @@ struct i2c_settings_array {
 	struct list_head list_head;
 	int32_t is_settings_valid;
 	int64_t request_id;
+	struct timespec64 applied_timestamp;
 };
 
 struct i2c_data_settings {
