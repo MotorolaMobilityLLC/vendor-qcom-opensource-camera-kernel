@@ -222,6 +222,7 @@ static int cam_sensor_handle_res_info(struct cam_sensor_res_info *res_info,
 	s_ctrl->sensor_res[idx].height = res_info->height;
 	s_ctrl->sensor_res[idx].fps = res_info->fps;
 	s_ctrl->sensor_res[idx].request_id = s_ctrl->last_updated_req;
+	s_ctrl->sensor_res[idx].feature_mask = CAM_SENSOR_FEATURE_NONE;
 
 	if (res_info->num_valid_params > 0) {
 		if (res_info->valid_param_mask & CAM_SENSOR_FEATURE_MASK)
@@ -2237,7 +2238,7 @@ int cam_sensor_apply_settings(struct cam_sensor_ctrl_t *s_ctrl,
 
 int32_t cam_sensor_apply_request(struct cam_req_mgr_apply_request *apply)
 {
-	int32_t rc = 0;
+	int32_t idx, rc = 0;
 	struct cam_sensor_ctrl_t *s_ctrl = NULL;
 	int32_t curr_idx, last_applied_idx;
 	enum cam_sensor_packet_opcodes opcode =
@@ -2251,6 +2252,19 @@ int32_t cam_sensor_apply_request(struct cam_req_mgr_apply_request *apply)
 	if (!s_ctrl) {
 		CAM_ERR(CAM_SENSOR, "Device data is NULL");
 		return -EINVAL;
+	}
+
+	if (apply->request_id > 1) {
+		idx = (apply->request_id - 1) % MAX_PER_FRAME_ARRAY;
+
+		if (s_ctrl->sensor_res[idx].feature_mask &
+			CAM_SENSOR_FEATURE_ALWAYS_APPLY_DEFERRED_META) {
+			cam_sensor_apply_settings(s_ctrl, apply->request_id - 1,
+				CAM_SENSOR_PACKET_OPCODE_SENSOR_DEFERRED_META);
+			CAM_DBG(CAM_SENSOR,
+				"Sensor[%d] applying deferred settings from req id: %lld",
+				s_ctrl->soc_info.index, apply->request_id);
+		}
 	}
 
 	if ((apply->recovery) && (apply->request_id > 0)) {
