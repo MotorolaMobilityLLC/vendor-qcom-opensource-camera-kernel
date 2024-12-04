@@ -1489,7 +1489,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 		/* BUS Client 17 STATS_FLICKER_BAYERS */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(PACKER_FMT_VER3_PLAIN_32),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_32),
 		},
 		/* BUS Client 18 STATS_TMC_BHIST */
 		{
