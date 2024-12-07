@@ -2806,6 +2806,15 @@ int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_mast
 			soc_info->clk_name[i]);
 	}
 
+	if (soc_info->is_an_opp_device) {
+		rc = cam_soc_util_register_with_opp_framework(soc_info);
+		if (rc) {
+			CAM_ERR(CAM_UTIL, "Failed in registering with OPP: %s, rc: %d",
+				soc_info->dev_name, rc);
+			goto release_resources;
+		}
+	}
+
 	/* Initialize regulators to default parameters */
 	for (i = 0; i < soc_info->num_rgltr; i++) {
 		soc_info->rgltr[i] = devm_regulator_get(soc_info->dev,
