@@ -27,7 +27,7 @@
 #include "cam_cpastop_hw.h"
 #include "cam_smmu_api.h"
 
-#ifdef CONFIG_SECURE_CAMERA_25
+#ifdef CONFIG_SPECTRA_SECURE_CAMERA_25
 #include <smmu-proxy/linux/qti-smmu-proxy.h>
 #endif
 
@@ -51,7 +51,7 @@
 MODULE_IMPORT_NS(DMA_BUF);
 #endif
 
-#ifdef CONFIG_DOMAIN_ID_SECURE_CAMERA
+#ifdef CONFIG_SPECTRA_SECURE_MINK_API
 #include <linux/IClientEnv.h>
 #include <linux/ITrustedCameraDriver.h>
 #include <linux/CTrustedCameraDriver.h>

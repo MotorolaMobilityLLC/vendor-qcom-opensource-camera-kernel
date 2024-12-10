@@ -31,7 +31,7 @@
 #include "cam_mem_mgr_api.h"
 #include "cam_req_mgr_dev.h"
 
-#if defined(CONFIG_DYNAMIC_FD_PORT_CONFIG) || defined(CONFIG_SPECTRA_SECURE_DYN_PORT_CFG)
+#ifdef CONFIG_SPECTRA_SECURE_MINK_API
 #include <linux/IClientEnv.h>
 #include <linux/ITrustedCameraDriver.h>
 #include <linux/CTrustedCameraDriver.h>
@@ -1276,7 +1276,7 @@ int cam_cpas_dump_state_monitor_info(struct cam_req_mgr_dump_info *info)
 }
 EXPORT_SYMBOL(cam_cpas_dump_state_monitor_info);
 
-#ifdef CONFIG_DYNAMIC_FD_PORT_CONFIG
+#ifdef ITRUSTEDCAMERADRIVER_OP_DYNAMICCONFIGUREFDPORT
 static int cam_cpas_handle_fd_port_config(uint32_t is_secure)
 {
 	int rc = 0;
@@ -1394,7 +1394,7 @@ static int cam_cpas_handle_custom_config_cmd(struct cam_cpas_intf *cpas_intf,
 	}
 
 	switch (cmd->cmd_type) {
-#ifdef CONFIG_DYNAMIC_FD_PORT_CONFIG
+#ifdef ITRUSTEDCAMERADRIVER_OP_DYNAMICCONFIGUREFDPORT
 	case CAM_CPAS_CUSTOM_CMD_FD_PORT_CFG: {
 		struct cam_cpas_fd_port_config cfg;
 
@@ -1424,7 +1424,7 @@ static int cam_cpas_handle_custom_config_cmd(struct cam_cpas_intf *cpas_intf,
 	return rc;
 }
 
-#ifdef CONFIG_SPECTRA_SECURE_DYN_PORT_CFG
+#ifdef ITRUSTEDCAMERADRIVER_OP_DYNAMICCONFIGUREPORTSV2
 static int cam_cpas_get_scm_device_type(enum cam_device_type device_type,
 	uint32_t *scm_dev_type)
 {

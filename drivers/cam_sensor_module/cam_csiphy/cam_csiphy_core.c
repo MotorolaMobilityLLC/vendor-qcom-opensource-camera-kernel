@@ -797,8 +797,10 @@ static int cam_csiphy_update_secure_info(struct csiphy_device *csiphy_dev, int32
 	uint32_t cpas_version;
 	int rc;
 
-	if (csiphy_dev->domain_id_security) {
-		CAM_DBG(CAM_CSIPHY, "Target supports domain ID security, skipping legacy update");
+	if (cam_is_mink_api_available()) {
+		CAM_DBG(CAM_CSIPHY, "Using MINK API for CSIPHY [%u], skipping legacy update",
+			csiphy_dev->soc_info.index);
+
 		return 0;
 	}
 
@@ -1764,15 +1766,16 @@ static int cam_csiphy_program_secure_mode(struct csiphy_device *csiphy_dev,
 {
 	int rc = 0;
 
+	if (!csiphy_dev->csiphy_info[offset].secure_info_updated &&
+		cam_is_mink_api_available()) {
+		CAM_ERR(CAM_CSIPHY,
+			"PHY[%u] domain id info not updated, aborting secure call",
+			csiphy_dev->soc_info.index);
+
+		return -EINVAL;
+	}
+
 	if (csiphy_dev->domain_id_security) {
-		if (!csiphy_dev->csiphy_info[offset].secure_info_updated) {
-			CAM_ERR(CAM_CSIPHY,
-				"PHY[%u] domain id info not updated, aborting secure call",
-				csiphy_dev->soc_info.index);
-
-			return -EINVAL;
-		}
-
 		rc = cam_cpas_enable_clks_for_domain_id(true);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Failed to enable the Domain ID clocks");
@@ -1785,10 +1788,10 @@ static int cam_csiphy_program_secure_mode(struct csiphy_device *csiphy_dev,
 	if (csiphy_dev->domain_id_security) {
 		if (cam_cpas_enable_clks_for_domain_id(false))
 			CAM_ERR(CAM_CSIPHY, "Failed to disable the Domain ID clocks");
-
-		if (!protect)
-			csiphy_dev->csiphy_info[offset].secure_info_updated = false;
 	}
+
+	if (!protect && cam_is_mink_api_available())
+		csiphy_dev->csiphy_info[offset].secure_info_updated = false;
 
 	return rc;
 }

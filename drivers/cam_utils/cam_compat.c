@@ -118,7 +118,7 @@ int cam_smmu_fetch_csf_version(struct cam_csf_version *csf_version)
 	csf_version->arch_ver = 3;
 	csf_version->max_ver = 0;
 	csf_version->min_ver = 0;
-#elif defined CONFIG_SECURE_CAMERA_25
+#elif defined CONFIG_SPECTRA_SECURE_CAMERA_25
 	struct csf_version csf_ver;
 	int rc;
 
@@ -144,7 +144,7 @@ int cam_smmu_fetch_csf_version(struct cam_csf_version *csf_version)
 
 unsigned long cam_update_dma_map_attributes(unsigned long attrs)
 {
-#ifdef CONFIG_SECURE_CAMERA_25
+#ifdef CONFIG_SPECTRA_SECURE_CAMERA_25
 	attrs |= DMA_ATTR_QTI_SMMU_PROXY_MAP;
 #endif
 	return attrs;
@@ -152,7 +152,7 @@ unsigned long cam_update_dma_map_attributes(unsigned long attrs)
 
 size_t cam_align_dma_buf_size(size_t len)
 {
-#ifdef CONFIG_SECURE_CAMERA_25
+#ifdef CONFIG_SPECTRA_SECURE_CAMERA_25
 	len = ALIGN(len, SMMU_PROXY_MEM_ALIGNMENT);
 #endif
 	return len;
@@ -199,6 +199,7 @@ void cam_unreserve_icp_fw(struct cam_fw_alloc_info *icp_fw, size_t fw_length)
 	iounmap(icp_fw->fw_kva);
 }
 
+#ifdef CONFIG_SPECTRA_SECURE_SCM_API
 int cam_ife_notify_safe_lut_scm(bool safe_trigger)
 {
 	const uint32_t smmu_se_ife = 0;
@@ -222,6 +223,12 @@ int cam_ife_notify_safe_lut_scm(bool safe_trigger)
 
 	return rc;
 }
+#else
+int cam_ife_notify_safe_lut_scm(bool safe_trigger)
+{
+	return 0;
+}
+#endif
 
 void cam_cpastop_scm_write(struct cam_cpas_hw_errata_wa *errata_wa)
 {
@@ -324,7 +331,15 @@ void cam_free_clear(const void * ptr)
 }
 #endif
 
-#ifdef CONFIG_DOMAIN_ID_SECURE_CAMERA
+bool cam_is_mink_api_available(void)
+{
+#ifdef CONFIG_SPECTRA_SECURE_MINK_API
+	return true;
+#else
+	return false;
+#endif
+}
+#ifdef CONFIG_SPECTRA_SECURE_MINK_API
 int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 	bool protect, int32_t offset, bool __maybe_unused is_shutdown)
 {
@@ -338,7 +353,7 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 		return -EINVAL;
 	}
 
-#if !IS_ENABLED(CONFIG_QCOM_SI_CORE)
+#if !IS_ENABLED(CONFIG_QCOM_SI_CORE) && defined(CONFIG_SPECTRA_SECURE_SCM_API)
 	if (!is_shutdown) {
 #endif
 		rc = get_client_env_object(&client_env);
@@ -378,7 +393,7 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 			CAM_ERR(CAM_CSIPHY, "Failed releasing mink env object, rc: %d", rc);
 			return rc;
 		}
-#if !IS_ENABLED(CONFIG_QCOM_SI_CORE)
+#if !IS_ENABLED(CONFIG_QCOM_SI_CORE) && defined(CONFIG_SPECTRA_SECURE_SCM_API)
 	} else {
 		/* This is a temporary work around until the SMC Invoke driver is
 		 * refactored to avoid the dependency on FDs, which was causing issues
@@ -407,22 +422,7 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 {
 	int rc = 0;
 
-	/**
-	 * A check here is made if the target is using
-	 * an older version of the kernel driver (< 6.0)
-	 * with domain id feature present. In this case,
-	 * we are to fail this call, as the new mink call
-	 * is only supported on kernel driver versions 6.0
-	 * and above, and the new domain id scheme is not
-	 * backwards compatible with the older scheme.
-	 */
-	if (csiphy_dev->domain_id_security) {
-		CAM_ERR(CAM_CSIPHY,
-			"Domain id support not present on current kernel driver: %d",
-			LINUX_VERSION_CODE);
-		return -EINVAL;
-	}
-
+#ifdef CONFIG_SPECTRA_SECURE_SCM_API
 	if (offset >= CSIPHY_MAX_INSTANCES_PER_PHY) {
 		CAM_ERR(CAM_CSIPHY, "Invalid CSIPHY offset");
 		rc = -EINVAL;
@@ -431,6 +431,10 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 		CAM_ERR(CAM_CSIPHY, "SCM call to hypervisor failed");
 		rc = -EINVAL;
 	}
+#else
+	CAM_ERR(CAM_CSIPHY, "SCM API dependencies not enabled");
+	return -EINVAL;
+#endif
 
 	return rc;
 }

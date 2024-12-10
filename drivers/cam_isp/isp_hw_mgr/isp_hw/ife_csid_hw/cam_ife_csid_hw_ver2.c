@@ -7002,12 +7002,11 @@ int cam_ife_csid_ver2_start(void *hw_priv, void *args,
 	}
 
 	/*
-	 * For targets with domain-id support, hand over relevant parameters
+	 * For targets with MINK based API support, hand over relevant parameters
 	 * to phy driver
 	 */
 	if ((csid_hw->sync_mode != CAM_ISP_HW_SYNC_SLAVE) &&
-		start_args->is_secure &&
-		csid_hw->flags.domain_id_security)
+		start_args->is_secure && cam_is_mink_api_available())
 		cam_ife_csid_ver2_send_secure_info(start_args, csid_hw);
 
 	/*
