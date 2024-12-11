@@ -3206,7 +3206,9 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 			out_of_sync_fatal = true;
 	}
 
-	err_mask = path_reg->fatal_err_mask | path_reg->non_fatal_err_mask;
+	err_mask = path_data->reg_offsets->fatal_err_mask |
+		path_data->reg_offsets->non_fatal_err_mask;
+
 	spin_lock(&csid_hw->lock_state);
 	if (csid_hw->hw_info->hw_state != CAM_HW_STATE_POWER_UP) {
 		CAM_ERR(CAM_ISP, "CSID[%u] powered down state",
