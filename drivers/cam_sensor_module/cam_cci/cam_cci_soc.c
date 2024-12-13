@@ -405,10 +405,6 @@ int cam_cci_parse_dt_info(struct platform_device *pdev,
 		&new_cci_dev->soc_info;
 	void *irq_data[CAM_SOC_MAX_IRQ_LINES_PER_DEV] = {0};
 	int32_t  num_irq = 0;
-	struct task_struct  *task = NULL;
-	struct irq_desc     *desc = NULL;
-	struct sched_param param = {0};
-
 
 	rc = cam_soc_util_get_dt_properties(soc_info);
 	if (rc < 0) {
@@ -446,23 +442,6 @@ int cam_cci_parse_dt_info(struct platform_device *pdev,
 			return -EINVAL;
 		}
 		disable_irq(soc_info->irq_num[i]);
-		desc = irq_to_desc(soc_info->irq_num[i]);
-		if (!desc) {
-			CAM_WARN(CAM_CCI,
-				"Unable to locate Descriptor for irq_num: %d",
-				soc_info->irq_num[i]);
-		} else {
-			task = desc->action->thread;
-			param.sched_priority = MAX_RT_PRIO - 1;
-			if (task) {
-				rc = sched_setscheduler(task, SCHED_FIFO, &param);
-				if (rc) {
-					CAM_ERR(CAM_CCI,
-						"non-fatal: Failed to set Scheduler Priority: %d",
-						rc);
-				}
-			}
-		}
 	}
 
 	new_cci_dev->v4l2_dev_str.pdev = pdev;
