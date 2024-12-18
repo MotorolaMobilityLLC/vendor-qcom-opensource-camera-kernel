@@ -258,15 +258,17 @@ static inline void __cam_print_to_buffer(char *buf, const size_t buf_size, size_
 }
 
 void cam_print_to_buffer(char *buf, const size_t buf_size, size_t *len, unsigned int tag,
-	unsigned long long module_id, const char *fmt, ...)
+	unsigned long long module, const char *fmt, ...)
 {
 	va_list args;
+	unsigned long module_id;
 
 	if ((*len) >= buf_size) {
 		CAM_ERR(CAM_UTIL, "Inadequate buffer size: %lu for length: %lu", buf_size, len);
 		return;
 	}
 
+	module_id =  __ffs(module);
 	va_start(args, fmt);
 	__cam_print_to_buffer(buf, buf_size, len, tag, module_id, fmt, args);
 	va_end(args);
