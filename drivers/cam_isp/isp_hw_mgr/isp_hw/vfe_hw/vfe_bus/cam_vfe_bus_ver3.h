@@ -281,33 +281,33 @@ struct cam_vfe_bus_ver3_vfe_out_hw_info {
  *
  * @Brief:            HW register info for entire Bus
  *
- * @common_reg:                   Common register details
- * @client_offsets:               Offsets for client registers
- * @valid_out_ports:              Valid out ports
- * @valid_wm_mask:                Valid WM mask
- * @num_client:                   Total number of write clients
- * @bus_client_reg:               Bus client register info
- * @vfe_out_hw_info:              VFE output capability
- * @num_cons_err:                 Number of constraint errors in list
- * @constraint_error_list:        Static list of all constraint errors
- * @num_comp_grp:                 Number of composite groups
- * @comp_done_mask:               Mask shift for comp done mask
- * @mc_comp_done_mask:            Mask shift for hw multi-context comp done irq
- * @top_irq_shift:                Mask shift for top level BUS WR irq
- * @support_consumed_addr:        Indicate if bus support consumed address
- * @max_out_res:                  Max vfe out resource value supported for hw
- * @supported_irq:                Mask to indicate the IRQ supported
- * @comp_cfg_needed:              Composite group config is needed for hw
- * @pack_align_shift:             Shift value for alignment of packer format
- * @max_bw_counter_limit:         Max BW counter limit
- * @support_burst_limit:          flag for supporting bust limit
- * @skip_regdump:                 Skip regdump
- * @skip_regdump_start_offset:    Start offset for skipping reg dump
- * @skip_regdump_stop_offset:     End offset for skipping reg dump
- * @client_base:                  Base address for clients
- * @client_reg_size:              Reg size for clients
- * @ubwc_client_mask:             Mask for clients supporting UBWC.
- * @support_dyn_offset:           Flag for supporting dynamic offset
+ * @common_reg:                      Common register details
+ * @client_offsets:                  Offsets for client registers
+ * @num_client:                      Total number of write clients
+ * @bus_client_reg:                  Bus client register info
+ * @vfe_out_hw_info:                 VFE output capability
+ * @num_cons_err:                    Number of constraint errors in list
+ * @constraint_error_list:           Static list of all constraint errors
+ * @num_comp_grp:                    Number of composite groups
+ * @comp_done_mask:                  Mask shift for comp done mask
+ * @mc_comp_done_mask:               Mask shift for hw multi-context comp done irq
+ * @top_irq_shift:                   Mask shift for top level BUS WR irq
+ * @support_consumed_addr:           Indicate if bus support consumed address
+ * @support_buf_done_with_framehdr:  Indicate if bus supports frameheader to
+ *                                   verify buf done
+ * @max_out_res:                     Max vfe out resource value supported for hw
+ * @supported_irq:                   Mask to indicate the IRQ supported
+ * @comp_cfg_needed:                 Composite group config is needed for hw
+ * @pack_align_shift:                Shift value for alignment of packer format
+ * @max_bw_counter_limit:            Max BW counter limit
+ * @support_burst_limit:             flag for supporting bust limit
+ * @skip_regdump:                    Skip regdump
+ * @skip_regdump_start_offset:       Start offset for skipping reg dump
+ * @skip_regdump_stop_offset:        End offset for skipping reg dump
+ * @client_base:                     Base address for clients
+ * @client_reg_size:                 Reg size for clients
+ * @ubwc_client_mask:                Mask for clients supporting UBWC.
+ * @support_dyn_offset:              Flag for supporting dynamic offset
  */
 struct cam_vfe_bus_ver3_hw_info {
 	struct cam_vfe_bus_ver3_reg_offset_common common_reg;
@@ -330,6 +330,7 @@ struct cam_vfe_bus_ver3_hw_info {
 	uint32_t mc_comp_done_mask[CAM_VFE_BUS_VER3_COMP_GRP_MAX];
 	uint32_t top_irq_shift;
 	bool support_consumed_addr;
+	bool support_buf_done_with_framehdr;
 	uint32_t max_out_res;
 	uint32_t supported_irq;
 	bool comp_cfg_needed;

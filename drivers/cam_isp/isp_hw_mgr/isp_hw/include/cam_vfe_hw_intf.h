@@ -415,6 +415,9 @@ struct cam_vfe_generic_ubwc_config {
  * @vfe_bus_wr_perf_counter_val : VFE wr perf counter values
  * @disable_ife_mmu_prefetch    : Disable IFE mmu prefetch
  * @enable_ife_frame_irqs       : Enable IFE frame timing IRQs
+ * @use_last_consumed_addr      : Use last consumed addr instead of
+ *                                frameheader to verify buf done on
+ *                                targets supporting frameheader scheme
  */
 struct cam_vfe_generic_debug_config {
 	uint64_t  diag_config;
@@ -423,6 +426,7 @@ struct cam_vfe_generic_debug_config {
 	uint32_t  vfe_bus_wr_perf_counter_val[CAM_VFE_PERF_CNT_MAX];
 	bool      disable_ife_mmu_prefetch;
 	bool      enable_ife_frame_irqs;
+	bool      use_last_consumed_addr;
 };
 
 /*

@@ -754,13 +754,24 @@ static void cam_isp_validate_for_ife_scratch(
 	}
 }
 
+static inline bool cam_isp_validate_io_cfg_flag(
+	uint32_t version, struct cam_buf_io_cfg *io_cfg)
+{
+	if (!io_cfg || version != 3)
+		return false;
+
+	return (io_cfg->flag == CAM_ISP_MULTI_CTXT0_MASK ||
+		io_cfg->flag == CAM_ISP_MULTI_CTXT1_MASK ||
+		io_cfg->flag == CAM_ISP_MULTI_CTXT2_MASK);
+}
+
 static int cam_isp_io_buf_get_entries_util(
 	struct cam_isp_io_buf_info              *buf_info,
 	struct cam_buf_io_cfg                   *io_cfg,
 	struct cam_isp_hw_mgr_res              **hw_mgr_res)
 {
 	uint32_t                                res_id;
-	uint32_t                                num_entries;
+	uint32_t                                num_entries, hw_ctxt_id;
 	struct cam_hw_fence_map_entry          *map_entries  =  NULL;
 	struct cam_isp_hw_mgr_res              *hw_mgr_res_temp;
 	bool                                    found = false;
@@ -857,10 +868,34 @@ static int cam_isp_io_buf_get_entries_util(
 		map_entries->resource_handle = io_cfg->resource_type;
 		map_entries->sync_id = io_cfg->fence;
 		map_entries->early_sync_id = io_cfg->early_fence;
-		if (buf_info->major_version == 3)
+		if (buf_info->major_version == 3) {
+			if (!cam_isp_validate_io_cfg_flag(buf_info->major_version, io_cfg)) {
+				CAM_ERR(CAM_ISP,
+					"Invalid IO cfg flag : %u for res_id: %u, req_id: %u",
+					io_cfg->flag, res_id,
+					buf_info->prepare->packet->header.request_id);
+				return -EINVAL;
+			}
 			map_entries->hw_ctxt_id = io_cfg->flag;
-		else
+			hw_ctxt_id = ffs(io_cfg->flag) - 1;
+			if (buf_info->frame_hdr->frame_header_enable) {
+				map_entries->frameheader_cpu_addr =
+					(*hw_mgr_res)->buf_done_frameheader_info.cpu_addr[
+						hw_ctxt_id];
+				if (!map_entries->frameheader_cpu_addr) {
+					CAM_ERR(CAM_ISP,
+						"[FRMHDR] No frameheader buffer configured for res_id: %u, ctxt_id: %u, req_id: %llu",
+						res_id, hw_ctxt_id,
+						buf_info->prepare->packet->header.request_id);
+					return -EINVAL;
+				}
+
+				map_entries->is_last_ctxt = (*hw_mgr_res)->mc_based ? (hw_ctxt_id ==
+					(*hw_mgr_res)->buf_done_frameheader_info.last_ctxt) : true;
+			}
+		} else {
 			map_entries->hw_ctxt_id = 0x0;
+		}
 	}
 
 	return 0;
@@ -1010,7 +1045,7 @@ static int cam_isp_add_io_buffers_util(
 		bus_port_update.frame_header =
 			buf_info->frame_hdr->frame_header_iova_addr;
 		bus_port_update.local_id =
-			buf_info->prepare->packet->header.request_id;
+		buf_info->prepare->packet->header.request_id;
 	}
 
 	update_buf.cmd.size = kmd_buf_remain_size;
@@ -1091,11 +1126,12 @@ static int cam_isp_add_io_buffers_mc(
 	uint32_t                        bytes_used;
 	uint32_t                        kmd_buf_remain_size;
 	uint32_t                       *cmd_buf_addr;
-	struct cam_isp_hw_mgr_res      *hw_mgr_res = NULL;
-	struct cam_isp_resource_node   *res = NULL;
 	uint8_t                         max_out = 0;
 	int                             rc = 0;
 	int                             i;
+	struct cam_isp_hw_mgr_res        *hw_mgr_res = NULL;
+	struct cam_isp_resource_node     *res = NULL;
+	struct cam_isp_framehdr_buf_done *buf_done_frameheader_info;
 
 	if (io_info->kmd_buf_info->used_bytes < io_info->kmd_buf_info->size) {
 		kmd_buf_remain_size = io_info->kmd_buf_info->size -
@@ -1131,6 +1167,7 @@ static int cam_isp_add_io_buffers_mc(
 
 	max_out = io_info->out_max;
 	for (i = 0; i < num_ports; i++) {
+
 		rc = cam_isp_io_buf_get_entries_util(io_info,
 			(struct cam_buf_io_cfg *)mc_io_cfg[(max_out * ctxt_id) + i], &hw_mgr_res);
 
@@ -1143,6 +1180,20 @@ static int cam_isp_add_io_buffers_mc(
 
 		if (!res)
 			continue;
+
+		if (io_info->frame_hdr->frame_header_enable) {
+			buf_done_frameheader_info = &hw_mgr_res->buf_done_frameheader_info;
+			io_info->frame_hdr->frame_header_iova_addr =
+				buf_done_frameheader_info->iova_addr[ctxt_id];
+			if (!(io_info->frame_hdr->frame_header_iova_addr)) {
+				CAM_ERR(CAM_ISP,
+					"[FRMHDR] No frameheader buffer configured for res_id: %u, ctxt_id: %u, req_id: %llu",
+					res->res_id, ctxt_id,
+					io_info->prepare->packet->header.request_id);
+				return -EINVAL;
+			}
+			io_info->frame_hdr->frame_header_res_id = 0;
+		}
 
 		rc = cam_isp_add_io_buffers_util(io_info,
 			(struct cam_buf_io_cfg *)mc_io_cfg[(max_out * ctxt_id) + i], res);
@@ -1200,8 +1251,7 @@ int cam_isp_add_io_buffers(struct cam_isp_io_buf_info   *io_info)
 	for (i = 0; i < io_info->prepare->packet->num_io_configs; i++) {
 
 		if (major_version == 3) {
-			if ((io_cfg[i].flag < CAM_ISP_MULTI_CTXT0_MASK) ||
-				(io_cfg[i].flag > CAM_ISP_MULTI_CTXT2_MASK)) {
+			if (!cam_isp_validate_io_cfg_flag(major_version, &io_cfg[i])) {
 				CAM_ERR(CAM_ISP, "Invalid hw context id: 0x%x for io cfg: %d",
 					io_cfg[i].flag, i);
 				rc = -EINVAL;
