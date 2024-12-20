@@ -2038,6 +2038,10 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 	CAM_DBG(CAM_SENSOR, "power setting size: %d", ctrl->power_setting_size);
 
 	for (index = 0; index < ctrl->power_setting_size; index++) {
+#ifdef CONFIG_CAM_SENSOR_POWER_RETRY
+		int retries = 5;
+		bool matched = false;
+#endif
 		CAM_DBG(CAM_SENSOR, "index: %d", index);
 		power_setting = &ctrl->power_setting[index];
 		if (!power_setting) {
@@ -2075,6 +2079,24 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 						goto power_up_failed;
 					}
 
+#ifdef CONFIG_CAM_SENSOR_POWER_RETRY
+					while (retries-- && !matched) {
+						rc =  cam_soc_util_regulator_enable(
+							soc_info->rgltr[j],
+							soc_info->rgltr_name[j],
+							soc_info->rgltr_min_volt[j],
+							soc_info->rgltr_max_volt[j],
+							soc_info->rgltr_op_mode[j],
+							soc_info->rgltr_delay[j]);
+						if(rc){
+							CAM_ERR(CAM_SENSOR,
+								"Reg enable failed, Reg enable again");
+							mdelay(1);
+						}else{
+							matched = true;
+						}
+					}
+#else
 					rc =  cam_soc_util_regulator_enable(
 					soc_info->rgltr[j],
 					soc_info->rgltr_name[j],
@@ -2082,6 +2104,7 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 					soc_info->rgltr_max_volt[j],
 					soc_info->rgltr_op_mode[j],
 					soc_info->rgltr_delay[j]);
+#endif
 					if (rc) {
 						CAM_ERR(CAM_SENSOR,
 							"Reg enable failed");
@@ -2169,6 +2192,25 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 					goto power_up_failed;
 				}
 
+#ifdef CONFIG_CAM_SENSOR_POWER_RETRY
+				while (retries-- && !matched) {
+					rc =  cam_soc_util_regulator_enable(
+						soc_info->rgltr[vreg_idx],
+						soc_info->rgltr_name[vreg_idx],
+						soc_info->rgltr_min_volt[vreg_idx],
+						soc_info->rgltr_max_volt[vreg_idx],
+						soc_info->rgltr_op_mode[vreg_idx],
+						soc_info->rgltr_delay[vreg_idx]);
+					if(rc){
+						CAM_ERR(CAM_SENSOR,
+							"Reg Enable failed for %s, Reg Enable again",
+							soc_info->rgltr_name[vreg_idx]);
+						mdelay(1);
+					}else{
+						matched = true;
+					}
+				}
+#else
 				rc =  cam_soc_util_regulator_enable(
 					soc_info->rgltr[vreg_idx],
 					soc_info->rgltr_name[vreg_idx],
@@ -2176,6 +2218,7 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 					soc_info->rgltr_max_volt[vreg_idx],
 					soc_info->rgltr_op_mode[vreg_idx],
 					soc_info->rgltr_delay[vreg_idx]);
+#endif
 				if (rc) {
 					CAM_ERR(CAM_SENSOR,
 						"Reg Enable failed for %s",
