@@ -160,6 +160,7 @@ struct cam_vfe_bus_ver3_wm_resource_data {
 	bool                 hfr_cfg_done;
 	bool                 use_wm_pack;
 	bool                 update_wm_format;
+	bool                 rcs_en;
 };
 
 struct cam_vfe_bus_ver3_comp_grp_data {
@@ -1281,9 +1282,11 @@ static int cam_vfe_bus_ver3_acquire_wm(
 
 	*comp_grp_id = ver3_bus_priv->bus_hw_info->bus_client_reg[wm_idx].comp_group;
 
-	if (out_acq_args->out_port_info->rcs_en)
+	if (out_acq_args->out_port_info->rcs_en) {
+		rsrc_data->rcs_en = true;
 		rsrc_data->cfg.en_cfg |=
 			ver3_bus_priv->bus_hw_info->bus_client_reg[wm_idx].rcs_en_mask;
+	}
 
 	/* Acquire ownership */
 	rc = cam_vmrm_soc_acquire_resources(CAM_HW_ID_IFE0 + rsrc_data->common_data->core_index);
@@ -1330,6 +1333,7 @@ static int cam_vfe_bus_ver3_release_wm(void   *bus_priv,
 	rsrc_data->hfr_cfg_done = false;
 	rsrc_data->cfg.en_cfg = 0;
 	rsrc_data->is_dual = 0;
+	rsrc_data->rcs_en = false;
 	memset(&rsrc_data->ubwc_cfg_data, 0, sizeof(struct cam_vfe_bus_ver3_wm_ubwc_cfg_data));
 
 	if (rsrc_data->out_rsrc_data->mc_based || rsrc_data->out_rsrc_data->cntxt_cfg_except)
@@ -4559,6 +4563,10 @@ static int cam_vfe_bus_ver3_update_wm_config_v2(
 		else
 			cfg->en_cfg = ((wm_config->wm_mode << common_reg->wm_mode_shift) |
 				(wm_config->virtual_frame_en << common_reg->virtual_frm_en_shift));
+
+		if (wm_data->rcs_en)
+			cfg->en_cfg |=
+				bus_priv->bus_hw_info->bus_client_reg[wm_data->index].rcs_en_mask;
 
 		if (i == PLANE_C)
 			cfg->height = wm_config->height / 2;
