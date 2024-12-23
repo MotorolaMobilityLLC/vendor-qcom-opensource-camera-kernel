@@ -1032,7 +1032,7 @@ end:
 }
 
 static int __cam_custom_ctx_acquire_dev_in_available(
-	struct cam_context *ctx, struct cam_acquire_dev_cmd *cmd)
+	struct cam_context *ctx, struct cam_acquire_dev_cmd_unified *cmd)
 {
 	int rc = 0;
 	struct cam_create_dev_hdl  req_hdl_param;
