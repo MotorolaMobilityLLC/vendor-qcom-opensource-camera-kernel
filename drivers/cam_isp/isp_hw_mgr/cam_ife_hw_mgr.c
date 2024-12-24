@@ -5963,6 +5963,9 @@ static int cam_ife_mgr_acquire_get_unified_structure_v3(
 		goto err;
 	}
 
+	CAM_DBG(CAM_ISP, "VC/DT args from UMD:, num: %d, pairs: %s",
+		in_port->num_valid_vc_dt, log_buf);
+
 	for (i = 0; i < in_port->num_valid_vc_dt; i++) {
 		in_port->format[i] = (in->csid_info.format >> (i * CAM_IFE_DECODE_FORMAT_SHIFT_VAL))
 			& CAM_IFE_DECODE_FORMAT_MASK;
@@ -6085,6 +6088,9 @@ static int cam_ife_mgr_acquire_get_unified_structure_v2(
 			in_port->num_valid_vc_dt, log_buf);
 		goto err;
 	}
+
+	CAM_DBG(CAM_ISP, "VC/DT args from UMD:, num: %d, pairs: %s",
+		in_port->num_valid_vc_dt, log_buf);
 
 	for (i = 0; i < in_port->num_valid_vc_dt; i++) {
 		in_port->format[i] = (in->format >> (i * CAM_IFE_DECODE_FORMAT_SHIFT_VAL)) &
