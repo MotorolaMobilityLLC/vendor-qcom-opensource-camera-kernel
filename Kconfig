@@ -119,7 +119,7 @@ config SPECTRA_POWER_DOMAIN_SET_HW_MODE
 
 config SPECTRA_SECURE_MINK_API
 	bool "enable MINK based APIs"
-	default y if SPECTRA_DOMAIN_ID_SECURE_CAMERA || SECURE_CAMERA_25
+	default y if SPECTRA_DOMAIN_ID_SECURE_CAMERA || SPECTRA_SECURE_CAMERA_25
 	help
 		This config enables compilation of MINK based APIs
 		which provide TZ related configuration functionality
