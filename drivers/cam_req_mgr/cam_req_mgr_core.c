@@ -4966,10 +4966,13 @@ static int __cam_req_mgr_unlink(
 	spin_unlock_bh(&link->link_state_spin_lock);
 
 	if (!link->is_shutdown) {
+		/* Hold the request lock prior to disconnecting link */
+		mutex_lock(&link->req.lock);
 		rc = __cam_req_mgr_disconnect_link(link);
 		if (rc)
 			CAM_ERR(CAM_CORE,
 				"Unlink for all devices was not successful");
+		mutex_unlock(&link->req.lock);
 	}
 
 	mutex_lock(&link->lock);
