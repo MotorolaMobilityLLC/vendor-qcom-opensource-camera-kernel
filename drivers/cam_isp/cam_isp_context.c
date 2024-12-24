@@ -4599,6 +4599,7 @@ static int __cam_isp_ctx_handle_error(struct cam_isp_context *ctx_isp,
 	__cam_isp_ctx_dump_frame_timing_record(ctx_isp);
 	__cam_isp_ctx_print_event_record(ctx_isp);
 	__cam_isp_ctx_trigger_reg_dump(CAM_HW_MGR_CMD_REG_DUMP_ON_ERROR, ctx, NULL);
+	__cam_isp_ctx_dump_state_monitor_array(ctx_isp);
 
 	__cam_isp_get_notification_evt_params(error_event_data->error_type,
 		&fence_evt_cause, &req_mgr_err_code, &recovery_type);
@@ -10003,9 +10004,6 @@ static int __cam_isp_ctx_handle_irq_in_activated(void *context,
 			ctx_isp->substate_activated), evt_id,
 			ctx->ctx_id, ctx->link_hdl);
 	}
-
-	if (evt_id == CAM_ISP_HW_EVENT_ERROR)
-		__cam_isp_ctx_dump_state_monitor_array(ctx_isp);
 
 	if ((evt_id == CAM_ISP_HW_EVENT_SOF) ||
 		(evt_id == CAM_ISP_HW_EVENT_EOF) ||
