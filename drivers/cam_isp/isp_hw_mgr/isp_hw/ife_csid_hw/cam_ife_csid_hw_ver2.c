@@ -1885,7 +1885,7 @@ static void cam_ife_csid_ver2_read_debug_err_vectors(
 				k++;
 			}
 		}
-		CAM_INFO(CAM_ISP, "Error(s) that occurred in time order %d at timestamp %lld: %s",
+		CAM_INFO(CAM_ISP, "Error(s) that occurred in time order %d at timestamp %llu: %s",
 			i, timestamp, log_buf);
 		memset(log_buf, 0x0, sizeof(uint8_t) * CAM_IFE_CSID_LOG_BUF_LEN);
 	}

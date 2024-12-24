@@ -1360,8 +1360,8 @@ static struct cam_ife_csid_ver2_common_reg_info
 	.debug_cfg_addr                          = 0x7E4,
 	.debug_err_vec_irq                       = {0x2D4, 0x2D8, 0x2DC},
 	.debug_err_vec_cfg                       = 0x2D0,
-	.debug_err_vec_ts_lb                     = 0x2E0,
-	.debug_err_vec_ts_mb                     = 0x2E4,
+	.debug_err_vec_ts_mb                     = 0x2E0,
+	.debug_err_vec_ts_lb                     = 0x2E4,
 	.rx_mode_id_cfg1_addr                    = 0x0870,
 	.perf_cnt_reg = {
 		{
