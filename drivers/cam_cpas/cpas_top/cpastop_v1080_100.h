@@ -346,7 +346,7 @@ static struct cam_camnoc_specific
 			.value = 0x00001E40,
 		},
 		.danger_lut = {
-			.enable = false,
+			.enable = true,
 			.access_type = CAM_REG_TYPE_READ_WRITE,
 			.masked_value = 0,
 			.offset = 0x2C40, /* NOC_RT_0_NIU_DANGERLUT_LOW */
@@ -428,7 +428,7 @@ static struct cam_camnoc_specific
 			.value = 0x00001C40,
 		},
 		.danger_lut = {
-			.enable = false,
+			.enable = true,
 			.access_type = CAM_REG_TYPE_READ_WRITE,
 			.masked_value = 0,
 			.offset = 0x2E40, /* NOC_RT_1_NIU_DANGERLUT_LOW */
@@ -510,7 +510,7 @@ static struct cam_camnoc_specific
 			.value = 0x00001C40,
 		},
 		.danger_lut = {
-			.enable = false,
+			.enable = true,
 			.access_type = CAM_REG_TYPE_READ_WRITE,
 			.masked_value = 0,
 			.offset = 0x3040, /* NOC_RT_2_NIU_DANGERLUT_LOW */
