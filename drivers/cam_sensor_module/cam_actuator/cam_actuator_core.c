@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -504,6 +504,7 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 	rc = cam_packet_util_validate_cmd_desc(cmd_desc);
 	if (rc) {
 		CAM_ERR(CAM_ACTUATOR, "Invalid cmd desc ret: %d", rc);
+		cam_mem_put_cpu_buf(config.packet_handle);
 		return rc;
 	}
 
@@ -512,14 +513,16 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 		if (!csl_packet->num_cmd_buf) {
 			CAM_ERR(CAM_ACTUATOR, "Invalid num_cmd_buffer = %d",
 				csl_packet->num_cmd_buf);
+			cam_mem_put_cpu_buf(config.packet_handle);
 			return -EINVAL;
 		}
 		/* Loop through multiple command buffers */
 		for (i = 0; i < csl_packet->num_cmd_buf; i++) {
 			rc = cam_packet_util_validate_cmd_desc(&cmd_desc[i]);
-			if (rc)
+			if (rc) {
+				cam_mem_put_cpu_buf(config.packet_handle);
 				return rc;
-
+			}
 			total_cmd_buf_in_bytes = cmd_desc[i].length;
 			if (!total_cmd_buf_in_bytes)
 				continue;
@@ -632,6 +635,7 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 		if (!csl_packet->num_cmd_buf) {
 			CAM_ERR(CAM_ACTUATOR, "Invalid num_cmd_buffer = %d",
 				csl_packet->num_cmd_buf);
+			cam_mem_put_cpu_buf(config.packet_handle);
 			return -EINVAL;
 		}
 		if (a_ctrl->cam_act_state < CAM_ACTUATOR_CONFIG) {
@@ -669,7 +673,8 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 		if (!csl_packet->num_cmd_buf) {
 			CAM_ERR(CAM_ACTUATOR, "Invalid num_cmd_buffer = %d",
 				csl_packet->num_cmd_buf);
-			return -EINVAL;
+			rc = -EINVAL;
+			goto end;
 		}
 		if (a_ctrl->cam_act_state < CAM_ACTUATOR_CONFIG) {
 			rc = -EINVAL;

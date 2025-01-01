@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -1173,6 +1173,7 @@ int cam_flash_i2c_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 	rc = cam_packet_util_validate_cmd_desc(cmd_desc);
 	if (rc) {
 		CAM_ERR(CAM_FLASH, "Invalid cmd desc ret: %d", rc);
+		cam_mem_put_cpu_buf(config.packet_handle);
 		return rc;
 	}
 
@@ -1421,6 +1422,7 @@ int cam_flash_i2c_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 		if (rc) {
 			CAM_ERR(CAM_FLASH,
 			"Failed in parsing i2c packets");
+			cam_mem_put_cpu_buf(config.packet_handle);
 			return rc;
 		}
 
@@ -1428,6 +1430,7 @@ int cam_flash_i2c_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 		rc = fctrl->func_tbl.apply_setting(fctrl, csl_req_id);
 		if (rc)
 			CAM_ERR(CAM_FLASH, "cannot apply init fire cmd rc = %d", rc);
+		cam_mem_put_cpu_buf(config.packet_handle);
 		return rc;
 	}
 	case CAM_FLASH_PACKET_OPCODE_NON_REALTIME_SET_OPS: {
@@ -1649,6 +1652,7 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 	rc = cam_packet_util_validate_cmd_desc(cmd_desc);
 	if (rc) {
 		CAM_ERR(CAM_FLASH, "Invalid cmd desc ret: %d", rc);
+		cam_mem_put_cpu_buf(config.packet_handle);
 		return rc;
 	}
 
@@ -1789,6 +1793,8 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 			cmd_desc->offset);
 		if (!cmd_buf) {
 			rc = -EINVAL;
+			cam_mem_put_cpu_buf(cmd_desc->mem_handle);
+			cam_mem_put_cpu_buf(config.packet_handle);
 			return rc;
 		}
 		cmn_hdr = (struct common_header *)cmd_buf;
@@ -1804,6 +1810,8 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 				CAM_WARN(CAM_FLASH,
 					"Rxed Flash fire ops without linking");
 				flash_data->cmn_attr.is_settings_valid = false;
+				cam_mem_put_cpu_buf(cmd_desc->mem_handle);
+				cam_mem_put_cpu_buf(config.packet_handle);
 				return -EINVAL;
 			}
 			if (remain_len < sizeof(struct cam_flash_set_on_off)) {
