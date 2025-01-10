@@ -856,8 +856,10 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 #ifdef CONFIG_CAM_SENSOR_PROBE_DEBUG
 	int retries = 5;
 	bool matched = false;
-#endif
+	uint32_t chipid = 0, chipid_h = 0, chipid_l = 0;
+#else
 	uint32_t chipid = 0;
+#endif
 	struct cam_camera_slave_info *slave_info;
 
 	slave_info = &(s_ctrl->sensordata->slave_info);
@@ -873,13 +875,30 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 
 #ifdef CONFIG_CAM_SENSOR_PROBE_DEBUG
 	while (retries-- && !matched) {
-		rc = camera_io_dev_read(
-			&(s_ctrl->io_master_info),
-			slave_info->sensor_id_reg_addr,
-			&chipid,
-			s_ctrl->sensor_probe_addr_type,
-			s_ctrl->sensor_probe_data_type);
+		if (slave_info->sensor_id==0x32e1) {
+			rc = camera_io_dev_read(
+				&(s_ctrl->io_master_info),
+				slave_info->sensor_id_reg_addr,
+				&chipid_h, CAMERA_SENSOR_I2C_TYPE_WORD,
+				CAMERA_SENSOR_I2C_TYPE_BYTE);
 
+			rc = camera_io_dev_read(
+				&(s_ctrl->io_master_info),
+				slave_info->sensor_id_reg_addr + 1,
+				&chipid_l, CAMERA_SENSOR_I2C_TYPE_WORD,
+				CAMERA_SENSOR_I2C_TYPE_BYTE);
+
+			chipid = (chipid_h << 8) | chipid_l;
+
+			CAM_INFO(CAM_SENSOR, "sensor read id gc32e1_read_id: 0x%x , 0x%x , 0x%x", chipid_h, chipid_l, chipid);
+		} else {
+			rc = camera_io_dev_read(
+				&(s_ctrl->io_master_info),
+				slave_info->sensor_id_reg_addr,
+				&chipid,
+				s_ctrl->sensor_probe_addr_type,
+				s_ctrl->sensor_probe_data_type);
+		}
 		CAM_INFO(CAM_SENSOR, "%s read id: 0x%x expected id 0x%x:",
 			s_ctrl->sensor_name, chipid, slave_info->sensor_id);
 
