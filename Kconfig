@@ -138,3 +138,11 @@ config SPECTRA_SECURE_SCM_API
 		SCM APIs are considered legacy APIs and a predecessor
 		of MINK based APIs. Do note that this option and the
 		MINK one are not mutually exclusive.
+
+config SPECTRA_VMRM
+	bool "enable VMRM module required for CSF 3.0"
+	help
+		This config enables the driver that allows
+		the resource sharing and message exchanges
+		between PVM and TVM that is required for
+		camera security framework 3.0.

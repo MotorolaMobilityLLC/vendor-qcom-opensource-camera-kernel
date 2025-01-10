@@ -123,7 +123,6 @@ def _define_module(target, variant):
             "drivers/cam_cdm/cam_cdm_virtual_core.c",
             "drivers/cam_cdm/cam_cdm_hw_core.c",
             "drivers/cam_utils/cam_soc_icc.c",
-            "drivers/cam_vmrm/cam_vmrm_interface.c",
             "drivers/camera_main.c",
         ],
         conditional_srcs = {
@@ -285,7 +284,10 @@ def _define_module(target, variant):
                 ],
             },
             "CONFIG_SPECTRA_VMRM": {
-                True: ["drivers/cam_vmrm/qrtr/cam_qrtr_comms.c"],
+                True: [
+                    "drivers/cam_vmrm/qrtr/cam_qrtr_comms.c",
+                    "drivers/cam_vmrm/cam_vmrm_interface.c",
+                ],
             },
         },
         copts = ["-include", "$(location :camera_banner)"],

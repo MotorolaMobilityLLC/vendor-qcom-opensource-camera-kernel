@@ -8,6 +8,7 @@
 #include "cam_vmrm_msg_handler.h"
 #include "cam_inter_vm_comms.h"
 #include "cam_qrtr_comms.h"
+#include "cam_vmrm_interface.h"
 #include <dt-bindings/msm-camera.h>
 
 #ifndef _CAM_VMRM_H_
@@ -18,28 +19,6 @@
 #define CAM_BUF_SIZE_MAX      32
 #define CAM_HEXADECIMAL       16
 #define CAM_MHZ               1000000
-
-/* message destination id for hw instance */
-#define CAM_HW_ID_BASE          0x3000
-#define CAM_HW_ID_CSIPHY0       (CAM_HW_ID_BASE + 0)
-#define CAM_HW_ID_CCI0          (CAM_HW_ID_BASE + 0x100)
-#define CAM_HW_ID_CPAS          (CAM_HW_ID_BASE + 0x200)
-#define CAM_HW_ID_CDM0          (CAM_HW_ID_BASE + 0x300)
-#define CAM_HW_ID_SFE0          (CAM_HW_ID_BASE + 0x400)
-#define CAM_HW_ID_CSID0         (CAM_HW_ID_BASE + 0x500)
-#define CAM_HW_ID_IFE0          (CAM_HW_ID_BASE + 0x600)
-#define CAM_HW_ID_ICP           (CAM_HW_ID_BASE + 0x700)
-#define CAM_HW_ID_IPE           (CAM_HW_ID_BASE + 0x800)
-#define CAM_HW_ID_BPS           (CAM_HW_ID_BASE + 0x900)
-#define CAM_HW_ID_OFE           (CAM_HW_ID_BASE + 0xa00)
-#define CAM_HW_ID_SENSOR0       (CAM_HW_ID_BASE + 0xb00)
-#define CAM_HW_ID_EEPROM0       (CAM_HW_ID_BASE + 0xc00)
-
-/* message destination id for driver node*/
-#define CAM_DRIVER_ID_BASE          0xa000
-#define CAM_DRIVER_ID_ISP           (CAM_DRIVER_ID_BASE + 0)
-#define CAM_DRIVER_ID_ICP           (CAM_DRIVER_ID_BASE + 0x100)
-#define CAM_DRIVER_ID_CPAS          (CAM_DRIVER_ID_BASE + 0x200)
 
 /*
  * camera irq label, there is a similar irq label defined in
@@ -78,9 +57,6 @@
 
 /* resource request client name*/
 #define CAM_RESOURCE_REQ_CLIENT_NAME "cam_vmrm"
-
-/* message callback */
-typedef int (*msg_cb_func) (void *cb_data, void *msg, uint32_t size);
 
 /**
  * struct cam_soc_resources - camera soc resources object for the hw
@@ -162,29 +138,6 @@ struct cam_hw_instance {
 	struct mutex             msg_comm_lock;
 	int32_t                  ref_count;
 	struct list_head         list;
-};
-
-/**
- * struct cam_driver_node -    camera driver node
- *
- * @driver_id:                 Driver id
- * @driver_name:               Driver name
- * @driver_msg_callback:       Driver message callback
- * @driver_msg_callback_data:  Data pass to callback
- * @wait_response:             Completion info
- * @response_result:           Response result
- * @msg_comm_lock:             Message communication lock
- * @list:                      Link list entry
- */
-struct cam_driver_node {
-	uint32_t          driver_id;
-	char              driver_name[CAM_SOC_MAX_LENGTH_NAME];
-	msg_cb_func       driver_msg_callback;
-	void             *driver_msg_callback_data;
-	struct completion wait_response;
-	int               response_result;
-	struct mutex      msg_comm_lock;
-	struct list_head  list;
 };
 
 /**
