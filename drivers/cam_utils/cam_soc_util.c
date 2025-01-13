@@ -4428,7 +4428,8 @@ int cam_soc_util_disable_platform_resource(struct cam_hw_soc_info *soc_info,
 }
 
 int cam_soc_util_reg_dump(struct cam_hw_soc_info *soc_info,
-	uint32_t base_index, uint32_t offset, int size)
+	uint32_t base_index, uint32_t offset, int size,
+	uint64_t client_mask, bool is_error_case)
 {
 	void __iomem     *base_addr = NULL;
 
@@ -4445,7 +4446,7 @@ int cam_soc_util_reg_dump(struct cam_hw_soc_info *soc_info,
 	 * All error checking already done above,
 	 * hence ignoring the return value below.
 	 */
-	cam_io_dump(base_addr, offset, size);
+	cam_io_dump(base_addr, offset, size, client_mask, is_error_case);
 
 	return 0;
 }

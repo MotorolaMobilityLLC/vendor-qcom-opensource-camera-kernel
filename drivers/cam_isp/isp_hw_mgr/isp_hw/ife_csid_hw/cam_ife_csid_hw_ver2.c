@@ -1904,6 +1904,7 @@ static int cam_ife_csid_ver2_handle_event_err(
 	struct cam_isp_hw_error_event_info   err_evt_info;
 	struct cam_isp_hw_event_info         evt = {0};
 	struct cam_ife_csid_ver2_path_data  *path_data;
+	uint32_t                             data_idx;
 
 	if (!csid_hw->event_cb) {
 		CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID[%u] event cb not registered",
@@ -1935,6 +1936,18 @@ static int cam_ife_csid_ver2_handle_event_err(
 				csid_hw->hw_intf->hw_idx, res->res_name, err_type,
 				irq_status, path_data->path_cfg.error_ts.tv_sec,
 				path_data->path_cfg.error_ts.tv_nsec);
+
+			/* Dump TPG registers if applicable in case of fatal error */
+			if (csid_hw->rx_cfg.tpg_mux_sel) {
+				/* tpg_num_sel(N) to TPG Idx mapping is N-1 */
+				data_idx = csid_hw->rx_cfg.tpg_num_sel - 1;
+				CAM_ERR(CAM_ISP, "CSID:%u fatal error. Notify TPG: %d",
+					csid_hw->hw_intf->hw_idx,
+					data_idx);
+				cam_subdev_notify_message(CAM_TPG_DEVICE_TYPE,
+					CAM_SUBDEV_MESSAGE_REG_DUMP, (void *)&data_idx);
+			}
+
 		} else {
 			CAM_ERR(CAM_ISP,
 				"csid[%u] Rx Err: 0x%x status 0x%x",

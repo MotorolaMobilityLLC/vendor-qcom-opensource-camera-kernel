@@ -1,12 +1,21 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2011-2014, 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_IO_UTIL_H_
 #define _CAM_IO_UTIL_H_
 
 #include <linux/types.h>
+
+#define CAM_INFO_IF(__module, is_error_case, fmt, args...)  \
+({ \
+	if (is_error_case) \
+		CAM_INFO(__module, fmt, ##args); \
+	else \
+		CAM_DBG(__module, fmt, ##args); \
+})
 
 /**
  * cam_io_w()
@@ -224,9 +233,12 @@ int32_t cam_io_w_mb_offset_val_block(const uint32_t data[][2],
  * @base_addr:          Start register address for the dumping
  * @start_offset:       Start register offset for the dump
  * @size:               Size specifying the range for dumping
+ * @client_mask:        Module id for passing respective dump mask from client
+ * @is_error_case:      Flag to indicate whether the dump is triggered by an error condition
  *
  * @return:             Success or Failure
  */
-int cam_io_dump(void __iomem *base_addr, uint32_t start_offset, int size);
+int cam_io_dump(void __iomem *base_addr, uint32_t start_offset, int size,
+	uint64_t client_mask, bool is_error_case);
 
 #endif /* _CAM_IO_UTIL_H_ */

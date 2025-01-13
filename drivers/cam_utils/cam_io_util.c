@@ -238,7 +238,8 @@ int cam_io_w_mb_offset_val_block(const uint32_t data[][2],
 #define BYTES_PER_REGISTER           4
 #define NUM_REGISTER_PER_LINE        4
 #define REG_OFFSET(__start, __i)    (__start + (__i * BYTES_PER_REGISTER))
-int cam_io_dump(void __iomem *base_addr, uint32_t start_offset, int size)
+int cam_io_dump(void __iomem *base_addr, uint32_t start_offset, int size,
+	uint64_t client_mask, bool is_error_case)
 {
 	char          line_str[128];
 	char         *p_str;
@@ -246,7 +247,7 @@ int cam_io_dump(void __iomem *base_addr, uint32_t start_offset, int size)
 	int           bytes_written, used_size;
 	uint32_t      data;
 
-	CAM_DBG(CAM_IO_DUMP, "addr=%pK offset=0x%x size=%d",
+	CAM_INFO_IF(client_mask, is_error_case, "addr=%pK offset=0x%x size=%d",
 		base_addr, start_offset, size);
 
 	if (!base_addr || (size <= 0))
@@ -269,14 +270,14 @@ int cam_io_dump(void __iomem *base_addr, uint32_t start_offset, int size)
 		p_str += bytes_written;
 		used_size += bytes_written;
 		if ((i + 1) % NUM_REGISTER_PER_LINE == 0) {
-			CAM_DBG(CAM_IO_DUMP, "%s", line_str);
+			CAM_INFO_IF(client_mask, is_error_case, "%s", line_str);
 			line_str[0] = '\0';
 			p_str = line_str;
 			used_size = 0;
 		}
 	}
 	if (line_str[0] != '\0')
-		CAM_DBG(CAM_IO_DUMP, "%s", line_str);
+		CAM_INFO_IF(client_mask, is_error_case, "%s", line_str);
 
 	return 0;
 }

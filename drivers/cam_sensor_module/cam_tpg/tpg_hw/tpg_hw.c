@@ -15,7 +15,7 @@
 #define TIMEOUT_MULTIPLIER          1
 #define REQUEST_ID_UNSET           -1
 
-int32_t cam_tpg_mem_dmp(struct cam_hw_soc_info *soc_info)
+int32_t cam_tpg_mem_dmp(struct cam_hw_soc_info *soc_info, bool is_error_case)
 {
 	int32_t rc = 0;
 	resource_size_t size = 0;
@@ -29,7 +29,7 @@ int32_t cam_tpg_mem_dmp(struct cam_hw_soc_info *soc_info)
 	addr = soc_info->reg_map[0].mem_base;
 	CAM_DBG(CAM_TPG, "TPG[%d] register dump", soc_info->index);
 	size = resource_size(soc_info->mem_block[0]);
-	rc = cam_io_dump(addr, 0, (size >> 2));
+	rc = cam_io_dump(addr, 0, (size >> 2), CAM_TPG, is_error_case);
 	if (rc < 0) {
 		CAM_ERR(CAM_TPG, "generating dump failed %d", rc);
 	}
@@ -533,7 +533,7 @@ static int tpg_hw_apply_settings_to_hw_locked(struct tpg_hw *hw,
 	hw->hw_info->ops->process_cmd(hw,
 		TPG_CONFIG_CTRL, &globalargs);
 	if (!cam_presil_mode_enabled())
-		cam_tpg_mem_dmp(hw->soc_info);
+		cam_tpg_mem_dmp(hw->soc_info, false);
 end:
 	return 0;
 }

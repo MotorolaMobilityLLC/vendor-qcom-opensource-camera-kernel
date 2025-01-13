@@ -64,9 +64,8 @@ extern unsigned int debug_bypass_drivers;
 #define CAM_SENSOR_UTIL         BIT_ULL(35)
 #define CAM_SYNX                BIT_ULL(36)
 #define CAM_VMRM                BIT_ULL(37)
-#define CAM_IO_DUMP             BIT_ULL(38)
-#define CAM_SENSOR_IO           BIT_ULL(39)
-#define CAM_DBG_MOD_MAX         40
+#define CAM_SENSOR_IO           BIT_ULL(38)
+#define CAM_DBG_MOD_MAX         39
 
 /* Log level types */
 enum cam_debug_log_level {
@@ -126,7 +125,6 @@ static const char *cam_debug_mod_name[CAM_DBG_MOD_MAX] = {
 	"CAM-SENSOR-UTIL",
 	"CAM_SYNX",
 	"CAM-VMRM",
-	"CAM-IO-DUMP",
 	"CAM_SENSOR_IO",
 };
 
@@ -169,7 +167,6 @@ __builtin_choose_expr(((module_id) == CAM_DMA_FENCE), "CAM-DMA-FENCE",      \
 __builtin_choose_expr(((module_id) == CAM_SENSOR_UTIL), "CAM-SENSOR-UTIL",  \
 __builtin_choose_expr(((module_id) == CAM_SYNX), "CAM-SYNX",                \
 __builtin_choose_expr(((module_id) == CAM_VMRM), "CAM-VMRM",                \
-__builtin_choose_expr(((module_id) == CAM_IO_DUMP), "CAM-IO-DUMP",          \
 __builtin_choose_expr(((module_id) == CAM_SENSOR_IO), "CAM-SENSOR-IO",      \
 "CAMERA"))))))))))))))))))))))))))))))))))))))
 

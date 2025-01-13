@@ -75,6 +75,18 @@ int cam_tpg_setup_link(
 	return 0;
 }
 
+void cam_tpg_trigger_memdump(struct cam_tpg_device *tpg_dev)
+{
+	if (!tpg_dev) {
+		CAM_ERR(CAM_TPG, "Invalid tpg device handle");
+		return;
+	}
+
+	CAM_INFO(CAM_TPG, "TPG[%d] Full memory dump triggered",
+		tpg_dev->tpg_hw.soc_info->index);
+	cam_tpg_mem_dmp(tpg_dev->tpg_hw.soc_info, true);
+}
+
 static int cam_tpg_notify_frame_skip(
 	struct cam_req_mgr_apply_request *apply)
 {

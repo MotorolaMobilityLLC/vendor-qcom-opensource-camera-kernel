@@ -332,11 +332,12 @@ struct tpg_hw_initsettings_v3 {
 /**
  * @brief dump the tpg memory info
  *
- * @param soc_info: soc info for soc related info
+ * @param soc_info      : soc info for soc related info
+ * @param is_error_case : Flag to indicate whether an error condition triggered
  *
  * @return : 0 on succuss
  */
-int32_t cam_tpg_mem_dmp(struct cam_hw_soc_info *soc_info);
+int32_t cam_tpg_mem_dmp(struct cam_hw_soc_info *soc_info, bool is_error_case);
 
 /**
  * @brief dump global config command
