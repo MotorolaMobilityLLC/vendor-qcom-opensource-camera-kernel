@@ -129,7 +129,7 @@ static struct i2c_settings_list*
 		return NULL;
 
 	tmp->i2c_settings.reg_setting = (struct cam_sensor_i2c_reg_array *)
-		vzalloc(size * sizeof(struct cam_sensor_i2c_reg_array));
+		CAM_MEM_ZALLOC(size * sizeof(struct cam_sensor_i2c_reg_array), GFP_KERNEL);
 	if (tmp->i2c_settings.reg_setting == NULL) {
 		list_del(&(tmp->list));
 		CAM_MEM_FREE(tmp);
@@ -175,7 +175,7 @@ int32_t delete_request(struct i2c_settings_array *i2c_array)
 
 	list_for_each_entry_safe(i2c_list, i2c_next,
 		&(i2c_array->list_head), list) {
-		vfree(i2c_list->i2c_settings.reg_setting);
+		CAM_MEM_FREE(i2c_list->i2c_settings.reg_setting);
 		list_del(&(i2c_list->list));
 		CAM_MEM_FREE(i2c_list);
 	}
@@ -2719,5 +2719,147 @@ void cam_sensor_utils_parse_pm_ctrl_flag(struct device_node *of_node,
 		(io_master_info->qup_client != NULL)) {
 		io_master_info->qup_client->pm_ctrl_client_enable =
 			of_property_read_bool(of_parent, "qcom,pm-ctrl-client");
+	}
+}
+
+int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_master_info,
+	struct cam_hw_soc_info *soc_info)
+{
+	int                    i, rc;
+	enum cci_device_num   *cci_num = NULL;
+	enum cci_i2c_master_t *cci_i2c_master = NULL;
+	struct device_node    *of_parent = NULL;
+	struct device_node    *of_node = NULL;
+
+	if (!io_master_info) {
+		CAM_ERR(CAM_SENSOR_UTIL, "io_master_info is null");
+		return -EINVAL;
+	}
+
+	of_node = soc_info->dev->of_node;
+
+	if (!of_node) {
+		CAM_ERR(CAM_SENSOR_UTIL, "of_node is null");
+		return -EINVAL;
+	}
+
+	rc = cam_soc_util_get_dt_properties(soc_info);
+	if (rc < 0) {
+		CAM_ERR(CAM_SENSOR_UTIL, "failed in parsing common soc dt(rc %d)", rc);
+		return rc;
+	}
+
+	if (soc_info->is_a_genpd_device) {
+		rc = cam_soc_util_initialize_power_domain(soc_info);
+		if (rc) {
+			CAM_ERR(CAM_EEPROM, "Failed to initialize the GDSC for dev: %s",
+				soc_info->dev_name);
+			return rc;
+		}
+	}
+
+	strscpy(io_master_info->sensor_name, soc_info->dev_name,
+		CAM_SENSOR_NAME_MAX_SIZE);
+
+	if (of_property_read_bool(of_node, "i3c-target")) {
+		io_master_info->master_type = I3C_MASTER;
+		CAM_DBG(CAM_SENSOR_UTIL, "%s Module is an I3C Target",
+			io_master_info->sensor_name);
+	}
+
+	if (io_master_info->master_type == CCI_MASTER) {
+		cci_i2c_master = &io_master_info->cci_client->cci_i2c_master;
+		cci_num = (u32 *)(&io_master_info->cci_client->cci_device);
+		of_parent = of_get_parent(of_node);
+
+		rc = of_property_read_u32(of_node, "cci-master",
+			cci_i2c_master);
+
+		if (rc < 0 || (*cci_i2c_master >= MASTER_MAX)) {
+			CAM_ERR(CAM_SENSOR_UTIL, "failed rc %d", rc);
+			rc = -EFAULT;
+			goto release_resources;
+		}
+		CAM_DBG(CAM_SENSOR_UTIL, "cci-master is %d for %s", *cci_i2c_master,
+			io_master_info->sensor_name);
+
+		if (of_property_read_u32(of_parent, "cell-index", cci_num) < 0)
+			/* Set default master 0 */
+			*cci_num = CCI_DEVICE_0;
+
+		CAM_DBG(CAM_SENSOR_UTIL, "cci-index is %d for %s", *cci_num,
+			io_master_info->sensor_name);
+	}
+
+	/* Initialize clk default parameters */
+	for (i = 0; i < soc_info->num_clk; i++) {
+		soc_info->clk[i] = devm_clk_get(soc_info->dev,
+			soc_info->clk_name[i]);
+		if (IS_ERR_OR_NULL(soc_info->clk[i])) {
+			rc = PTR_ERR(soc_info->rgltr[i]);
+			rc = rc ? rc : -EINVAL;
+			CAM_ERR(CAM_SENSOR_UTIL, "get failed for %s",
+				soc_info->clk_name[i]);
+			goto release_resources;
+		}
+		CAM_DBG(CAM_SENSOR_UTIL, "get for clk %s",
+			soc_info->clk_name[i]);
+	}
+
+	if (soc_info->is_an_opp_device) {
+		rc = cam_soc_util_register_with_opp_framework(soc_info);
+		if (rc) {
+			CAM_ERR(CAM_UTIL, "Failed in registering with OPP: %s, rc: %d",
+				soc_info->dev_name, rc);
+			goto release_resources;
+		}
+	}
+
+	/* Initialize regulators to default parameters */
+	for (i = 0; i < soc_info->num_rgltr; i++) {
+		soc_info->rgltr[i] = devm_regulator_get(soc_info->dev,
+					soc_info->rgltr_name[i]);
+		if (IS_ERR_OR_NULL(soc_info->rgltr[i])) {
+			rc = PTR_ERR(soc_info->rgltr[i]);
+			rc = rc ? rc : -EINVAL;
+			CAM_ERR(CAM_SENSOR_UTIL, "get failed for regulator %s",
+				 soc_info->rgltr_name[i]);
+			goto release_resources;
+		}
+		CAM_DBG(CAM_SENSOR_UTIL, "get for regulator %s",
+			soc_info->rgltr_name[i]);
+	}
+
+	cam_sensor_utils_parse_pm_ctrl_flag(of_node, io_master_info);
+
+	return 0;
+
+release_resources:
+	if (soc_info->is_a_genpd_device)
+		cam_soc_util_uninitialize_power_domain(soc_info);
+	return rc;
+}
+
+void cam_sensor_util_release_resources(struct camera_io_master *io_master_info,
+	struct cam_hw_soc_info *soc_info)
+{
+	if (soc_info->is_a_genpd_device)
+		cam_soc_util_uninitialize_power_domain(soc_info);
+
+	if (soc_info->soc_private != NULL) {
+		CAM_MEM_FREE(soc_info->soc_private);
+		soc_info->soc_private = NULL;
+	}
+
+	if ((io_master_info->master_type == CCI_MASTER) && (io_master_info->cci_client != NULL)) {
+		CAM_MEM_FREE(io_master_info->cci_client);
+		io_master_info->cci_client = NULL;
+	}
+
+	if (((io_master_info->master_type == I2C_MASTER) ||
+		(io_master_info->master_type == I3C_MASTER)) &&
+		(io_master_info->qup_client != NULL)) {
+		CAM_MEM_FREE(io_master_info->qup_client);
+		io_master_info->qup_client = NULL;
 	}
 }

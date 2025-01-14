@@ -229,8 +229,6 @@ int32_t cam_actuator_slaveInfo_pkt_parser(struct cam_actuator_ctrl_t *a_ctrl,
 
 	i2c_info = (struct cam_cmd_i2c_info *)cmd_buf;
 	if (a_ctrl->io_master_info.master_type == CCI_MASTER) {
-		a_ctrl->io_master_info.cci_client->cci_i2c_master =
-			a_ctrl->cci_i2c_master;
 		a_ctrl->io_master_info.cci_client->i2c_freq_mode =
 			i2c_info->i2c_freq_mode;
 		a_ctrl->io_master_info.cci_client->sid =
@@ -289,6 +287,7 @@ int32_t cam_actuator_apply_request(struct cam_req_mgr_apply_request *apply)
 {
 	int32_t rc = 0, request_id, del_req_id;
 	struct cam_actuator_ctrl_t *a_ctrl = NULL;
+	struct i2c_settings_array *i2c_set = NULL;
 
 	if (!apply) {
 		CAM_ERR(CAM_ACTUATOR, "Invalid Input Args");
@@ -320,23 +319,24 @@ int32_t cam_actuator_apply_request(struct cam_req_mgr_apply_request *apply)
 			goto release_mutex;
 		}
 	}
-	del_req_id = (request_id +
-		MAX_PER_FRAME_ARRAY - MAX_SYSTEM_PIPELINE_DELAY) %
-		MAX_PER_FRAME_ARRAY;
 
-	if (apply->request_id >
-		a_ctrl->i2c_data.per_frame[del_req_id].request_id) {
-		a_ctrl->i2c_data.per_frame[del_req_id].request_id = 0;
-		rc = delete_request(&a_ctrl->i2c_data.per_frame[del_req_id]);
-		if (rc < 0) {
-			CAM_ERR(CAM_ACTUATOR,
-				"Fail deleting the req: %d err: %d\n",
-				del_req_id, rc);
-			goto release_mutex;
+	for (del_req_id = 0; del_req_id < MAX_PER_FRAME_ARRAY; del_req_id++) {
+		i2c_set = &(a_ctrl->i2c_data.per_frame[del_req_id]);
+		if ((i2c_set->is_settings_valid == 1) &&
+			(apply->request_id > (i2c_set->request_id + MAX_SYSTEM_PIPELINE_DELAY))) {
+			CAM_DBG(CAM_ACTUATOR, "Clean up per frame[%d] = %lld",
+				del_req_id, i2c_set->request_id);
+			i2c_set->request_id = 0;
+			rc = delete_request(i2c_set);
+			if (rc < 0) {
+				CAM_ERR(CAM_ACTUATOR,
+					"Fail deleting the req: %d err: %d\n",
+					del_req_id, rc);
+				goto release_mutex;
+			}
 		}
-	} else {
-		CAM_DBG(CAM_ACTUATOR, "No Valid Req to clean Up");
 	}
+	CAM_DBG(CAM_ACTUATOR, "Req Per frame validation check Finished");
 
 release_mutex:
 	mutex_unlock(&(a_ctrl->actuator_mutex));
@@ -458,7 +458,6 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 	struct cam_cmd_buf_desc   *cmd_desc = NULL;
 	struct cam_actuator_soc_private *soc_private = NULL;
 	struct cam_sensor_power_ctrl_t  *power_info = NULL;
-	size_t                           packet_size = 0;
 
 	if (!a_ctrl || !arg) {
 		CAM_ERR(CAM_ACTUATOR, "Invalid Args");
@@ -497,26 +496,9 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 	remain_len -= (size_t)config.offset;
 	csl_packet_u = (struct cam_packet *)
 		(generic_pkt_ptr + (uint32_t)config.offset);
-	packet_size = csl_packet_u->header.size;
-	if (packet_size <= remain_len) {
-		rc = cam_common_mem_kdup((void **)&csl_packet,
-			csl_packet_u, packet_size);
-		if (rc) {
-			CAM_ERR(CAM_ACTUATOR, "Alloc and copy request: %lld packet fail",
-				csl_packet_u->header.request_id);
-			goto put_buf;
-		}
-	} else {
-		CAM_ERR(CAM_ACTUATOR, "Invalid packet header size %u",
-			packet_size);
-		rc = -EINVAL;
-		goto put_buf;
-	}
-
-	if (cam_packet_util_validate_packet(csl_packet,
-		remain_len)) {
-		CAM_ERR(CAM_ACTUATOR, "Invalid packet params");
-		rc = -EINVAL;
+	rc = cam_packet_util_copy_pkt_to_kmd(csl_packet_u, &csl_packet, remain_len);
+	if (rc) {
+		CAM_ERR(CAM_ACTUATOR, "Copying packet to KMD failed");
 		goto end;
 	}
 
@@ -705,7 +687,7 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 		i2c_reg_settings = &i2c_data->per_frame[
 			csl_packet->header.request_id % MAX_PER_FRAME_ARRAY];
 
-		 i2c_reg_settings->request_id =
+		i2c_reg_settings->request_id =
 			csl_packet->header.request_id;
 		i2c_reg_settings->is_settings_valid = 1;
 		offset = (uint32_t *)&csl_packet->payload_flex;

@@ -424,6 +424,7 @@ static int cam_sensor_i2c_component_bind(struct device *dev,
 		cam_sensor_notify_frame_skip;
 	s_ctrl->bridge_intf.ops.flush_req = cam_sensor_flush_request;
 	s_ctrl->bridge_intf.ops.process_evt = cam_sensor_process_evt;
+	s_ctrl->bridge_intf.ops.dump_req = cam_sensor_dump_request;
 
 	s_ctrl->sensordata->power_info.dev = soc_info->dev;
 	CAM_GET_TIMESTAMP(ts_end);
@@ -472,16 +473,12 @@ static void cam_sensor_i2c_component_unbind(struct device *dev,
 	cam_sensor_shutdown(s_ctrl);
 	mutex_unlock(&(s_ctrl->cam_sensor_mutex));
 	cam_unregister_subdev(&(s_ctrl->v4l2_dev_str));
-
-	if (s_ctrl->soc_info.is_a_genpd_device)
-		cam_soc_util_uninitialize_power_domain(&s_ctrl->soc_info);
-
+	cam_sensor_util_release_resources(&(s_ctrl->io_master_info), &(s_ctrl->soc_info));
 	CAM_MEM_FREE(s_ctrl->i2c_data.deferred_frame_update);
 	CAM_MEM_FREE(s_ctrl->i2c_data.per_frame);
 	CAM_MEM_FREE(s_ctrl->i2c_data.frame_skip);
 	CAM_MEM_FREE(s_ctrl->i2c_data.bubble_update);
 	v4l2_set_subdevdata(&(s_ctrl->v4l2_dev_str.sd), NULL);
-	CAM_MEM_FREE(s_ctrl->io_master_info.qup_client);
 	CAM_MEM_FREE(s_ctrl);
 }
 
@@ -559,18 +556,14 @@ static int cam_sensor_i2c_driver_remove(struct i2c_client *client)
 static int cam_sensor_component_bind(struct device *dev,
 	struct device *master_dev, void *data)
 {
-	int32_t rc = 0, i = 0;
-	struct cam_sensor_ctrl_t *s_ctrl = NULL;
-	struct cam_hw_soc_info *soc_info = NULL;
-	bool i3c_i2c_target;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct timespec64 ts_start, ts_end;
-	long microsec = 0;
+	int32_t                     rc = 0, i = 0;
+	struct cam_sensor_ctrl_t   *s_ctrl = NULL;
+	struct cam_hw_soc_info     *soc_info = NULL;
+	struct platform_device     *pdev = to_platform_device(dev);
+	struct timespec64           ts_start, ts_end;
+	long                        microsec = 0;
 
 	CAM_GET_TIMESTAMP(ts_start);
-	i3c_i2c_target = of_property_read_bool(pdev->dev.of_node, "i3c-i2c-target");
-	if (i3c_i2c_target)
-		return 0;
 
 	/* Create sensor control structure */
 	s_ctrl = devm_kzalloc(&pdev->dev,
@@ -666,6 +659,7 @@ static int cam_sensor_component_bind(struct device *dev,
 		cam_sensor_notify_frame_skip;
 	s_ctrl->bridge_intf.ops.flush_req = cam_sensor_flush_request;
 	s_ctrl->bridge_intf.ops.process_evt = cam_sensor_process_evt;
+	s_ctrl->bridge_intf.ops.dump_req = cam_sensor_dump_request;
 
 	s_ctrl->sensordata->power_info.dev = &pdev->dev;
 	platform_set_drvdata(pdev, s_ctrl);
@@ -696,15 +690,8 @@ free_s_ctrl:
 static void cam_sensor_component_unbind(struct device *dev,
 	struct device *master_dev, void *data)
 {
-	int                        i;
 	struct cam_sensor_ctrl_t  *s_ctrl;
-	struct cam_hw_soc_info    *soc_info;
-	bool                       i3c_i2c_target;
 	struct platform_device *pdev = to_platform_device(dev);
-
-	i3c_i2c_target = of_property_read_bool(pdev->dev.of_node, "i3c-i2c-target");
-	if (i3c_i2c_target)
-		return;
 
 	s_ctrl = platform_get_drvdata(pdev);
 	if (!s_ctrl) {
@@ -717,20 +704,7 @@ static void cam_sensor_component_unbind(struct device *dev,
 	cam_sensor_shutdown(s_ctrl);
 	mutex_unlock(&(s_ctrl->cam_sensor_mutex));
 	cam_unregister_subdev(&(s_ctrl->v4l2_dev_str));
-	soc_info = &s_ctrl->soc_info;
-
-	if (soc_info->is_a_genpd_device)
-		cam_soc_util_uninitialize_power_domain(soc_info);
-
-	for (i = 0; i < soc_info->num_clk; i++) {
-		if (!soc_info->clk[i]) {
-			CAM_DBG(CAM_SENSOR, "%s handle is NULL skip put",
-				soc_info->clk_name[i]);
-			continue;
-		}
-		devm_clk_put(soc_info->dev, soc_info->clk[i]);
-	}
-
+	cam_sensor_util_release_resources(&(s_ctrl->io_master_info), &(s_ctrl->soc_info));
 	CAM_MEM_FREE(s_ctrl->i2c_data.deferred_frame_update);
 	CAM_MEM_FREE(s_ctrl->i2c_data.per_frame);
 	CAM_MEM_FREE(s_ctrl->i2c_data.frame_skip);

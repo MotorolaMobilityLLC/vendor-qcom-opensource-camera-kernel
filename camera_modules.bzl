@@ -1,15 +1,48 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_module")
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
-load("//msm-kernel:target_variants.bzl", "get_all_variants")
+load(":target_variants.bzl", "get_all_variants")
 load(":project_defconfig.bzl", "get_project_defconfig")
 
 def _define_module(target, variant):
     tv = "{}_{}".format(target, variant)
-    deps = [
-        ":camera_headers",
-        ":camera_banner",
-        "//msm-kernel:all_headers",
-    ]
+    sun_deps = []
+    base_deps = []
+    deps = []
+    base_deps = select({
+        "//build/kernel/kleaf:socrepo_true": [
+            ":camera_headers",
+            ":camera_banner",
+            "//soc-repo:all_headers",
+            "//soc-repo:{}/drivers/firmware/qcom/qcom-scm".format(tv),
+            "//soc-repo:{}/drivers/iommu/qcom_iommu_util".format(tv),
+            "//soc-repo:{}/drivers/soc/qcom/mem_buf/mem_buf_dev".format(tv),
+            "//soc-repo:{}/drivers/soc/qcom/crm-v2".format(tv),
+            "//soc-repo:{}/drivers/clk/qcom/clk-qcom".format(tv),
+            "//soc-repo:{}/drivers/soc/qcom/qcom_rpmh".format(tv),
+            "//soc-repo:{}/drivers/soc/qcom/socinfo".format(tv),
+            "//soc-repo:{}/drivers/soc/qcom/llcc-qcom".format(tv),
+            "//soc-repo:{}/drivers/soc/qcom/mdt_loader".format(tv),
+        ],
+        "//build/kernel/kleaf:socrepo_false": [
+            ":camera_headers",
+            ":camera_banner",
+            "//msm-kernel:all_headers",
+        ],
+    })
+
+    if target == "sun":
+        sun_deps += select({
+            "//build/kernel/kleaf:socrepo_true": [
+                "//soc-repo:{}/drivers/soc/qcom/qcom_va_minidump".format(tv),
+                "//soc-repo:{}/drivers/leds/leds-qti-flash".format(tv),
+            ],
+            "//build/kernel/kleaf:socrepo_false": [],
+        })
+
+    kernel_build = select({
+        "//build/kernel/kleaf:socrepo_true": "//soc-repo:{}_base_kernel".format(tv),
+        "//build/kernel/kleaf:socrepo_false": "//msm-kernel:{}".format(tv),
+    })
 
     # Generate the defconfig file dynamically
     native.genrule(
@@ -43,6 +76,15 @@ def _define_module(target, variant):
             "//vendor/qcom/opensource/securemsm-kernel:{}_smcinvoke_dlkm".format(tv),
             "//vendor/qcom/opensource/securemsm-kernel:{}_smmu_proxy_dlkm".format(tv),
             "//vendor/qcom/opensource/mmrm-driver:{}_mmrm_driver".format(tv),
+        ])
+    if target == "canoe":
+        deps.extend([
+           "//vendor/qcom/opensource/synx-kernel:synx_headers",
+            "//vendor/qcom/opensource/synx-kernel:{}_modules".format(tv),
+            "//vendor/qcom/opensource/securemsm-kernel:smcinvoke_kernel_headers",
+            "//vendor/qcom/opensource/securemsm-kernel:smmu_proxy_headers",
+            "//vendor/qcom/opensource/securemsm-kernel:{}_smcinvoke_dlkm".format(tv),
+            "//vendor/qcom/opensource/securemsm-kernel:{}_smmu_proxy_dlkm".format(tv),
         ])
     ddk_module(
         name = "{}_camera".format(tv),
@@ -81,7 +123,6 @@ def _define_module(target, variant):
             "drivers/cam_cdm/cam_cdm_virtual_core.c",
             "drivers/cam_cdm/cam_cdm_hw_core.c",
             "drivers/cam_utils/cam_soc_icc.c",
-            "drivers/cam_vmrm/cam_vmrm_interface.c",
             "drivers/camera_main.c",
         ],
         conditional_srcs = {
@@ -243,14 +284,17 @@ def _define_module(target, variant):
                 ],
             },
             "CONFIG_SPECTRA_VMRM": {
-                True: ["drivers/cam_vmrm/qrtr/cam_qrtr_comms.c"],
+                True: [
+                    "drivers/cam_vmrm/qrtr/cam_qrtr_comms.c",
+                    "drivers/cam_vmrm/cam_vmrm_interface.c",
+                ],
             },
         },
         copts = ["-include", "$(location :camera_banner)"],
-        deps = deps,
+        deps = base_deps + sun_deps +deps,
         kconfig = "Kconfig",
         defconfig = "{}_defconfig_generated".format(tv),
-        kernel_build = "//msm-kernel:{}".format(tv),
+        kernel_build = kernel_build,
     )
 
     copy_to_dist_dir(

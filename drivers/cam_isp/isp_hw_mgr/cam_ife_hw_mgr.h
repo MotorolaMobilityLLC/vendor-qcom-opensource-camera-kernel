@@ -66,6 +66,8 @@ enum cam_ife_ctx_master_type {
 /* Trigger single out of sync debugfs */
 #define CAM_IFE_CTX_TRIGGER_SINGLE_OUT_OF_SYNC_CFG 1
 
+#define CAM_IFE_HW_ERR_NAME_LEN 32
+
 /**
  * struct cam_ife_hw_mgr_debug - contain the debug information
  *
@@ -103,6 +105,7 @@ enum cam_ife_ctx_master_type {
  * @enable_cdr_sweep_debug:      Enable sending some CSID reg values as part
  *                               of CSIPHY CDR tuning
  * @is_csid_perf_cnt_enabled:    Flag to indicate if csid perf counter debug is enabled
+ * @use_last_consumed_addr:      Use last consumed addr scheme to verify buf dones
  */
 struct cam_ife_hw_mgr_debug {
 	struct dentry  *dentry;
@@ -139,6 +142,7 @@ struct cam_ife_hw_mgr_debug {
 	bool           enable_cdr_sweep_debug;
 	bool           enable_sfe_wr_perf_cntr;
 	bool           is_csid_perf_cnt_enabled;
+	bool           use_last_consumed_addr;
 };
 
 /**
@@ -257,6 +261,7 @@ struct cam_ife_hw_mgr_ctx_scratch_buf_info {
  *                         only rdi and PD resource without PIX port.
  * @dynamic_drv_supported: Indicate if the dynamic drv is supported
  * @skip_reg_dump_buf_put: Set if put_cpu_buf for reg dump buf is already called
+ * @is_hw_ctx_acq:       If acquire for ife ctx is having hw ctx acquired
  *
  */
 struct cam_ife_hw_mgr_ctx_flags {
@@ -281,6 +286,7 @@ struct cam_ife_hw_mgr_ctx_flags {
 	bool   rdi_pd_context;
 	bool   dynamic_drv_supported;
 	bool   skip_reg_dump_buf_put;
+	bool   is_hw_ctx_acq;
 };
 
 /**
@@ -402,7 +408,6 @@ struct cam_cmd_buf_desc_addr_len {
  * @vfe_bus_comp_grp:       VFE composite group placeholder
  * @sfe_bus_comp_grp:       SFE composite group placeholder
  * @cdm_done_ts:            CDM callback done timestamp
- * @is_hw_ctx_acq:          If acquire for ife ctx is having hw ctx acquired
  * @acq_hw_ctxt_src_dst_map: Src to dst hw ctxt map for acquired pixel paths
  * @pri_rdi_out_res:         Primary RDI res for RDI only cases
  * @drv_info:                Array to include the per request drv info
@@ -473,7 +478,6 @@ struct cam_ife_hw_mgr_ctx {
 	struct cam_isp_context_comp_record        *vfe_bus_comp_grp;
 	struct cam_isp_context_comp_record        *sfe_bus_comp_grp;
 	struct timespec64                          cdm_done_ts;
-	bool                                       is_hw_ctx_acq;
 	uint32_t                                   acq_hw_ctxt_src_dst_map[CAM_ISP_MULTI_CTXT_MAX];
 	uint32_t                                   pri_rdi_out_res;
 	struct cam_isp_hw_per_req_info             per_req_info[MAX_DRV_REQUEST_DEPTH];
@@ -512,6 +516,7 @@ struct cam_isp_fcg_caps {
  * @num_csid_perf_counters        :  max csid perf counters supported
  * @max_dt_supported              :  max DT CSID can decode
  * @support_consumed_addr         :  indicate whether hw supports last consumed address
+ * @support_buf_done_with_framehdr :  if target supports this scheme
  */
 struct cam_isp_hw_caps {
 	struct cam_isp_fcg_caps fcg_caps;
@@ -525,8 +530,8 @@ struct cam_isp_hw_caps {
 	uint32_t                max_dt_supported;
 	bool                    support_consumed_addr;
 	struct cam_isp_hw_regiter_dump_data skip_regdump_data;
+	bool                    support_buf_done_with_framehdr;
 };
-
 /*
  * struct cam_isp_sys_cache_info:
  *

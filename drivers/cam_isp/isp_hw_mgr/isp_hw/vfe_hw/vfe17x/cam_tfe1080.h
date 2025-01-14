@@ -1325,6 +1325,42 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.global_irq_cmd_offset    = 0x00001030,
 			.global_clear_bitmask     = 0x00000001,
 		},
+		.num_perf_counters                = 8,
+		.perf_cnt_status                  = 0x000010B4,
+		.perf_cnt_reg = {
+			{
+				.perf_cnt_cfg = 0x00001074,
+				.perf_cnt_val = 0x00001094,
+			},
+			{
+				.perf_cnt_cfg = 0x00001078,
+				.perf_cnt_val = 0x00001098,
+			},
+			{
+				.perf_cnt_cfg = 0x0000107C,
+				.perf_cnt_val = 0x0000109C,
+			},
+			{
+				.perf_cnt_cfg = 0x00001080,
+				.perf_cnt_val = 0x000010A0,
+			},
+			{
+				.perf_cnt_cfg = 0x00001084,
+				.perf_cnt_val = 0x000010A4,
+			},
+			{
+				.perf_cnt_cfg = 0x00001088,
+				.perf_cnt_val = 0x000010A8,
+			},
+			{
+				.perf_cnt_cfg = 0x0000108C,
+				.perf_cnt_val = 0x000010AC,
+			},
+			{
+				.perf_cnt_cfg = 0x00001090,
+				.perf_cnt_val = 0x000010B0,
+			},
+		},
 	},
 	.num_client = CAM_TFE_BUS_VER3_1080_MAX_CLIENTS,
 	.support_dyn_offset                       = true,
@@ -1366,217 +1402,213 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 		/* BUS Client 0 FULL */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_BAYER_UBWC_TP10)|
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN8) | BIT_ULL(CAM_FORMAT_PLAIN16_8) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_10) | BIT_ULL(CAM_FORMAT_PLAIN16_12) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_14) | BIT_ULL(CAM_FORMAT_PLAIN16_16) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_10_LSB),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI12) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI14) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
 			.rcs_en_mask             =  0x200,
 		},
 		/* BUS Client 1 DS4_Y */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_TP10) |
-				BIT_ULL(CAM_FORMAT_UBWC_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_UBWC_TP10),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10),
 		},
 		/* BUS Client 2 DS4_C */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_TP10) |
-				BIT_ULL(CAM_FORMAT_UBWC_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_UBWC_TP10),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10),
 		},
 		/* BUS Client 3 DS16_Y */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_TP10) |
-				BIT_ULL(CAM_FORMAT_UBWC_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_UBWC_TP10),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10),
 		},
 		/* BUS Client 4 DS16_C */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_TP10) |
-				BIT_ULL(CAM_FORMAT_UBWC_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_UBWC_TP10),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10),
 		},
 		/* BUS Client 5 DS2_Y */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN8) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_16) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
-				BIT_ULL(CAM_FORMAT_TP10) |
-				BIT_ULL(CAM_FORMAT_UBWC_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_UBWC_TP10) |
-				BIT_ULL(CAM_FORMAT_BAYER_UBWC_TP10),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
+				BIT_ULL(PACKER_FMT_VER3_TP_10),
 			.rcs_en_mask             =  0x200,
 		},
 		/* BUS Client 6 DS2_C */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN8) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_16) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
-				BIT_ULL(CAM_FORMAT_TP10) |
-				BIT_ULL(CAM_FORMAT_UBWC_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_TP10) |
-				BIT_ULL(CAM_FORMAT_GBR_UBWC_TP10) |
-				BIT_ULL(CAM_FORMAT_BAYER_UBWC_TP10),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
+				BIT_ULL(PACKER_FMT_VER3_TP_10),
 
 			.rcs_en_mask             =  0x200,
 		},
 		/* BUS Client 7 FD_Y */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_1,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN8) |
-				BIT_ULL(CAM_FORMAT_NV21) |
-				BIT_ULL(CAM_FORMAT_NV12),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10_ODD_EVEN) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10),
 		},
 		/* BUS Client 8 FD_C */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_1,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN8) |
-				BIT_ULL(CAM_FORMAT_NV21) |
-				BIT_ULL(CAM_FORMAT_NV12),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10_ODD_EVEN) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10),
 		},
 		/* BUS Client 9 PIXEL RAW */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN8) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_16) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_14),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI12) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI14),
 		},
 		/* BUS Client 10 STATS_AEC_BE */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN128),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 		},
 		/* BUS Client 11 STATS_AEC_BHIST */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN64),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
 		},
 		/* BUS Client 12 STATS_TINTLESS_BG */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN128),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 		},
 		/* BUS Client 13 STATS_AWB_BG */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN128),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 		},
 		/* BUS Client 14 STATS_AWB_BFW */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN128),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 		},
 		/* BUS Client 15 STATS_AF_BHIST */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN64),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
 		},
 		/* BUS Client 16 STATS_ALSC_BG */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN128),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 		},
 		/* BUS Client 17 STATS_FLICKER_BAYERS */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN32),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_32),
 		},
 		/* BUS Client 18 STATS_TMC_BHIST */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN64),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
 		},
 		/* BUS Client 19 PDAF_0 */ /* Note: PDAF_SAD == 2PD*/
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN64),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
 		},
 		/* BUS Client 20 PDAF_1 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN16_8) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_10) | BIT_ULL(CAM_FORMAT_PLAIN16_12) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_14) | BIT_ULL(CAM_FORMAT_PLAIN16_16) |
-				BIT_ULL(CAM_FORMAT_UBWC_P016),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
 		},
 		/* BUS Client 21 PDAF_2 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN8) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_16),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
 		},
 		/* BUS Client 22 PDAF_3 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_4,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN64),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
 		},
 		/* BUS Client 23 RDI_0 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_5,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) | BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN128) | BIT_ULL(CAM_FORMAT_PLAIN8) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN64),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_MIPI10) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI12) | BIT_ULL(PACKER_FMT_VER3_MIPI14) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
 		},
 		/* BUS Client 24 RDI_1 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_6,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) | BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN128) | BIT_ULL(CAM_FORMAT_PLAIN8) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN64),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_MIPI10) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI12) | BIT_ULL(PACKER_FMT_VER3_MIPI14) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
 		},
 		/* BUS Client 25 RDI_2 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_7,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
-				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) | BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN128) | BIT_ULL(CAM_FORMAT_PLAIN8) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
-				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN64),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_MIPI10) |
+				BIT_ULL(PACKER_FMT_VER3_MIPI12) | BIT_ULL(PACKER_FMT_VER3_MIPI14) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
+				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
 		},
 		/* BUS Client 26 RDI_3 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_8,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN128),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 		},
 		/* BUS Client 27 RDI_4 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_9,
-			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN128),
+			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 		},
 	},
-	.num_out = 24,
+	.valid_wm_mask   = 0xFFFFFFF,
 	.vfe_out_hw_info = {
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,

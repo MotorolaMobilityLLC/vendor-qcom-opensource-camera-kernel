@@ -52,6 +52,7 @@
 #define CAM_IFE_CTX_SFE_EN             BIT(4)
 #define CAM_IFE_CTX_AEB_EN             BIT(5)
 #define CAM_IFE_CTX_DYNAMIC_SWITCH_EN  BIT(6)
+#define CAM_IFE_CTX_FRMHDR_BUF_DONE    BIT(7)
 
 /*
  * Maximum configuration entry size  - This is based on the
@@ -69,6 +70,10 @@
 #define CAM_ISP_MAX_FCG_CH_CTXS        3
 #define CAM_ISP_IFE_MAX_FCG_CH_CTXS    3
 #define CAM_ISP_SFE_MAX_FCG_CHANNELS   2
+/*
+ * Frameheader local ID offset
+ */
+#define CAM_ISP_FRMHDR_LOCAL_ID_OFFSET_32_BIT   3
 
 /**
  *  enum cam_isp_hw_event_type - Collection of the ISP hardware events
@@ -144,7 +149,8 @@ enum cam_isp_hw_err_type {
 	CAM_ISP_HW_ERROR_HWPD_VIOLATION               = 0x00040000,
 	CAM_ISP_HW_ERROR_CSID_MISSING_SOT             = 0x00080000,
 	CAM_ISP_HW_ERROR_CSID_ILLEGAL_DT_SWITCH       = 0x00100000,
-	CAM_ISP_HW_ERROR_DRV_VOTEUP_LATE              = 0x00200000
+	CAM_ISP_HW_ERROR_DRV_VOTEUP_LATE              = 0x00200000,
+	CAM_ISP_HW_ERROR_CSID_RUP_MISS                = 0x00400000,
 };
 
 /**

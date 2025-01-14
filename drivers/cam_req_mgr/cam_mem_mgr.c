@@ -996,6 +996,80 @@ int cam_mem_mgr_check_for_supported_heaps(uint64_t *heap_mask)
 	return 0;
 }
 
+static int cam_mem_util_mem_buf_lend(int num_vmids,
+	int *vmids, int *perms, struct dma_buf **buf)
+{
+#if IS_ENABLED(CONFIG_QCOM_MEM_BUF)
+	struct mem_buf_lend_kernel_arg arg;
+	int rc = 0;
+
+	if (num_vmids > 0) {
+		if (num_vmids >= CAM_MAX_VMIDS) {
+			CAM_ERR(CAM_MEM, "Insufficient array size for vmids %d", num_vmids);
+			return -EINVAL;
+		}
+
+		arg.nr_acl_entries = num_vmids;
+		arg.vmids = vmids;
+		arg.perms = perms;
+
+		rc = mem_buf_lend(*buf, &arg);
+		if (rc) {
+			CAM_ERR(CAM_MEM,
+				"Failed in buf lend rc=%d, buf=%pK, num_vmids: %d, vmids [0]=0x%x, [1]=0x%x, [2]=0x%x",
+				rc, *buf, num_vmids, vmids[0], vmids[1], vmids[2]);
+			return rc;
+		}
+	}
+
+	return rc;
+#else
+	CAM_ERR(CAM_MEM,
+		"Mem buf lend not available, buf: %pK, num_vmids: %d, vmids [0]=0x%x, [1]=0x%x, [2]=0x%x",
+		*buf, num_vmids, vmids[0], vmids[1], vmids[2]);
+
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int cam_mem_util_check_mem_lend_needed(
+	int *vmids, int *perms, int *num_vmids, unsigned int flags)
+{
+	if (flags & CAM_MEM_FLAG_PROTECTED_MODE) {
+		if (IS_CSF25(tbl.csf_version.arch_ver, tbl.csf_version.max_ver)) {
+			return 0;
+		} else if (IS_ENABLED(CONFIG_QCOM_MEM_BUF)) {
+			vmids[*num_vmids] = VMID_CP_CAMERA;
+			perms[*num_vmids] = PERM_READ | PERM_WRITE;
+			(*num_vmids)++;
+			if (flags & CAM_MEM_FLAG_CDSP_OUTPUT) {
+				vmids[*num_vmids] = VMID_CP_CDSP;
+				perms[*num_vmids] = PERM_READ | PERM_WRITE;
+				(*num_vmids)++;
+			}
+		} else {
+			goto err;
+		}
+	} else if (flags & CAM_MEM_FLAG_EVA_NOPIXEL) {
+		if (IS_ENABLED(CONFIG_QCOM_MEM_BUF)) {
+			vmids[*num_vmids] = VMID_CP_NON_PIXEL;
+			perms[*num_vmids] = PERM_READ | PERM_WRITE;
+			(*num_vmids)++;
+		} else {
+			goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	CAM_ERR(CAM_MEM,
+		"Mem buf lend not available, num_vmids: %d, vmids [0]=0x%x, [1]=0x%x, [2]=0x%x",
+		num_vmids, vmids[0], vmids[1], vmids[2]);
+
+	return -EOPNOTSUPP;
+}
+
 static int cam_mem_util_get_dma_buf(size_t len,
 	unsigned int cam_flags,
 	enum cam_mem_mgr_allocator alloc_type,
@@ -1010,7 +1084,6 @@ static int cam_mem_util_get_dma_buf(size_t len,
 #ifndef CONFIG_ARCH_QTI_VM
 	bool use_cached_heap = false;
 #endif
-	struct mem_buf_lend_kernel_arg arg;
 	int vmids[CAM_MAX_VMIDS];
 	int perms[CAM_MAX_VMIDS];
 	int num_vmids = 0;
@@ -1022,6 +1095,11 @@ static int cam_mem_util_get_dma_buf(size_t len,
 
 	if (g_cam_mem_mgr_debug.alloc_profile_enable)
 		CAM_GET_TIMESTAMP(ts1);
+
+	rc = cam_mem_util_check_mem_lend_needed(vmids, perms, &num_vmids, cam_flags);
+	if (rc) {
+		return rc;
+	}
 
 #ifndef CONFIG_ARCH_QTI_VM
 	if ((cam_flags & CAM_MEM_FLAG_CACHE) ||
@@ -1045,30 +1123,15 @@ static int cam_mem_util_get_dma_buf(size_t len,
 			return -EINVAL;
 		}
 	}
-
 	if (cam_flags & CAM_MEM_FLAG_PROTECTED_MODE) {
 		if (IS_CSF25(tbl.csf_version.arch_ver, tbl.csf_version.max_ver)) {
 			heap = tbl.system_heap;
 			len = cam_align_dma_buf_size(len);
 		} else {
 			heap = tbl.secure_display_heap;
-			vmids[num_vmids] = VMID_CP_CAMERA;
-			perms[num_vmids] = PERM_READ | PERM_WRITE;
-			num_vmids++;
-		}
-
-		if (cam_flags & CAM_MEM_FLAG_CDSP_OUTPUT) {
-			CAM_DBG(CAM_MEM, "Secure mode CDSP flags");
-
-			vmids[num_vmids] = VMID_CP_CDSP;
-			perms[num_vmids] = PERM_READ | PERM_WRITE;
-			num_vmids++;
 		}
 	} else if (cam_flags & CAM_MEM_FLAG_EVA_NOPIXEL) {
 		heap = tbl.secure_display_heap;
-		vmids[num_vmids] = VMID_CP_NON_PIXEL;
-		perms[num_vmids] = PERM_READ | PERM_WRITE;
-		num_vmids++;
 	} else if (cam_flags & CAM_MEM_FLAG_UBWC_P_HEAP) {
 		if (!tbl.ubwc_p_heap) {
 			CAM_ERR(CAM_MEM, "ubwc-p heap is not available, can't allocate");
@@ -1193,23 +1256,9 @@ static int cam_mem_util_get_dma_buf(size_t len,
 	if (((cam_flags & CAM_MEM_FLAG_PROTECTED_MODE) &&
 		!IS_CSF25(tbl.csf_version.arch_ver, tbl.csf_version.max_ver)) ||
 		(cam_flags & CAM_MEM_FLAG_EVA_NOPIXEL)) {
-		if (num_vmids >= CAM_MAX_VMIDS) {
-			CAM_ERR(CAM_MEM, "Insufficient array size for vmids %d", num_vmids);
-			rc = -EINVAL;
+		rc = cam_mem_util_mem_buf_lend(num_vmids, vmids, perms, buf);
+		if (rc)
 			goto end;
-		}
-
-		arg.nr_acl_entries = num_vmids;
-		arg.vmids = vmids;
-		arg.perms = perms;
-
-		rc = mem_buf_lend(*buf, &arg);
-		if (rc) {
-			CAM_ERR(CAM_MEM,
-				"Failed in buf lend rc=%d, buf=%pK, vmids [0]=0x%x, [1]=0x%x, [2]=0x%x",
-				rc, *buf, vmids[0], vmids[1], vmids[2]);
-			goto end;
-		}
 	}
 
 	CAM_DBG(CAM_MEM, "Allocate success, len=%zu, *buf=%pK, i_ino=%lu", len, *buf, *i_ino);
@@ -3221,7 +3270,7 @@ struct dma_buf * cam_mem_mgr_get_dma_buf(int fd)
 
 int cam_mem_mgr_send_all_buffers_to_presil(int32_t iommu_hdl)
 {
-       return 0;
+	return 0;
 }
 
 int cam_mem_mgr_send_buffer_to_presil(int32_t iommu_hdl, int32_t buf_handle)

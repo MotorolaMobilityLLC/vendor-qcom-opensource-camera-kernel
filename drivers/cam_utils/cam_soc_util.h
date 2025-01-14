@@ -256,9 +256,9 @@ struct cam_soc_gpio_data {
  * @shared_clk_mask         Mask indicating which of the clocks are shared with
  *                          other devices. Set rate on these clocks needs to go
  *                          through camera clk wrapper for aggregation.
- * @prev_clk_level          Last vote level
  * @src_clk_idx:            Source clock index that is rate-controllable
  * @applied_src_clk_rates:  Applied src clock rates for SW and HW client
+ * @current_src_clk_level:  The current level the src clock is configured to
  * @clk_level_valid:        Indicates whether corresponding level is valid
  * @lowest_clk_level:       Lowest clock level that has valid freq info
  * @highest_clk_level:      Highest clock level that has valid freq info
@@ -292,6 +292,8 @@ struct cam_soc_gpio_data {
  *                          space, parameter is like this, mem label, mem tag, irq1 label,
  *                          irq2 label.
  * @is_a_genpd_device:      Indicates whether the device is using power domains for GDSCs
+ * @is_an_opp_device:       Whether it is an OPP device whose src clk is
+ *                          managed by the OPP framework
  */
 struct cam_hw_soc_info {
 	struct platform_device         *pdev;
@@ -333,9 +335,9 @@ struct cam_hw_soc_info {
 	int32_t                         clk_rate[CAM_MAX_VOTE][CAM_SOC_MAX_CLK];
 	uint32_t                        clk_id[CAM_SOC_MAX_CLK];
 	uint32_t                        shared_clk_mask;
-	int32_t                         prev_clk_level;
 	int32_t                         src_clk_idx;
 	struct cam_soc_util_clk_rates   applied_src_clk_rates;
+	enum cam_vote_level             current_main_src_clk_level;
 	bool                            clk_level_valid[CAM_MAX_VOTE];
 	uint32_t                        lowest_clk_level;
 	uint32_t                        highest_clk_level;
@@ -369,6 +371,7 @@ struct cam_hw_soc_info {
 	uint32_t                        vmrm_resource_ids[CAM_VMRM_MAX_RESOURCE_IDS];
 #endif
 	bool                            is_a_genpd_device;
+	bool                            is_an_opp_device;
 };
 
 /**
@@ -1139,5 +1142,15 @@ inline int cam_soc_util_turn_off_power_domain(struct cam_hw_soc_info *soc_info);
  */
 inline int cam_soc_util_power_domain_set_mode(struct cam_hw_soc_info *soc_info,
 	enum cam_gdsc_control_mode ctrl_mode);
+
+/**
+ * cam_soc_util_register_with_opp_framework()
+ * @brief:             Registers the device with the OPP framework.
+ *
+ * @soc_info:          SOC info for the device associated with the OPP.
+ *
+ * @return:            0 on success, or an error code otherwise
+ */
+int cam_soc_util_register_with_opp_framework(struct cam_hw_soc_info *soc_info);
 
 #endif /* _CAM_SOC_UTIL_H_ */

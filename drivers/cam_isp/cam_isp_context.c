@@ -2404,6 +2404,176 @@ static int __cam_isp_ctx_handle_deferred_buf_done_in_bubble(
 	return rc;
 }
 
+static bool __cam_isp_ctx_check_buf_done_match_for_request(
+	struct cam_isp_context *ctx_isp, struct cam_isp_ctx_req *req_isp,
+	struct cam_isp_hw_done_event_data *done,
+	bool use_frameheader)
+{
+	int i;
+	uint32_t cmp_addr;
+	bool match_found;
+
+	for (i = 0; i < req_isp->num_fence_map_out; i++) {
+		if (done->resource_handle == req_isp->fence_map_out[i].resource_handle) {
+			if (use_frameheader && !req_isp->fence_map_out[i].is_last_ctxt)
+				continue;
+
+			break;
+		}
+	}
+
+	if (i == req_isp->num_fence_map_out)
+		return 0;
+
+	if (use_frameheader) {
+		CAM_DBG(CAM_ISP,
+			"[FRMHDR] Match buf done with res: %s, frmhdr addr: %pK, hw_ctxt_id: %u, local_id: %u, req_id: %llu, ctx %u, link: 0x%x",
+			__cam_isp_resource_handle_id_to_type(
+			ctx_isp->isp_device_type, done->resource_handle),
+			req_isp->fence_map_out[i].frameheader_cpu_addr,
+			ffs(req_isp->fence_map_out[i].hw_ctxt_id) - 1,
+			req_isp->fence_map_out[i].frameheader_cpu_addr[
+				CAM_ISP_FRMHDR_LOCAL_ID_OFFSET_32_BIT],
+			req_isp->base->request_id, ctx_isp->base->ctx_id, ctx_isp->base->link_hdl);
+
+		match_found = (req_isp->fence_map_out[i].frameheader_cpu_addr[
+			CAM_ISP_FRMHDR_LOCAL_ID_OFFSET_32_BIT] ==
+			(uint32_t) req_isp->base->request_id);
+	} else {
+		cmp_addr = cam_smmu_is_expanded_memory() ? CAM_36BIT_INTF_GET_IOVA_BASE(
+			req_isp->fence_map_out[i].image_buf_addr[0]) :
+			req_isp->fence_map_out[i].image_buf_addr[0];
+
+		match_found = (done->last_consumed_addr == cmp_addr);
+	}
+
+	return match_found;
+}
+
+static int __cam_isp_context_match_last_consumed_addr_with_other_port(
+	struct cam_isp_hw_done_event_data *done,
+	struct cam_isp_context *ctx_isp, struct cam_hw_fence_map_entry *fence)
+{
+	struct cam_hw_cmd_args   hw_cmd_args;
+	struct cam_isp_hw_cmd_args  isp_hw_cmd_args;
+	struct cam_context *ctx = ctx_isp->base;
+	uint32_t cmp_addr;
+	bool found = false;
+	int rc;
+
+	done->resource_handle = fence->resource_handle;
+	done->last_consumed_addr = 0;
+
+	hw_cmd_args.ctxt_to_hw_map = ctx_isp->hw_ctx;
+	hw_cmd_args.cmd_type = CAM_HW_MGR_CMD_INTERNAL;
+	isp_hw_cmd_args.cmd_type =
+		CAM_ISP_HW_MGR_GET_LAST_CONSUMED_ADDR;
+	isp_hw_cmd_args.cmd_data = done;
+	hw_cmd_args.u.internal_args = (void *)&isp_hw_cmd_args;
+	rc = ctx->hw_mgr_intf->hw_cmd(
+		ctx->hw_mgr_intf->hw_mgr_priv,
+		&hw_cmd_args);
+	if (rc) {
+		CAM_ERR(CAM_ISP, "HW command failed, ctx %u, link: 0x%x",
+			ctx->ctx_id, ctx->link_hdl);
+		return rc;
+	}
+
+	cmp_addr = cam_smmu_is_expanded_memory() ?
+		CAM_36BIT_INTF_GET_IOVA_BASE(
+		fence->image_buf_addr[0]) : fence->image_buf_addr[0];
+
+	CAM_DBG(CAM_ISP,
+		"Get res %s last_consumed_addr:0x%x cmp_addr:0x%x",
+		__cam_isp_resource_handle_id_to_type(
+		ctx_isp->isp_device_type, done->resource_handle),
+		done->last_consumed_addr, cmp_addr);
+	if (done->last_consumed_addr == cmp_addr) {
+		CAM_DBG(CAM_ISP, "Consumed addr compare success for res:%s ",
+			__cam_isp_resource_handle_id_to_type(
+		ctx_isp->isp_device_type, done->resource_handle));
+		found = true;
+	}
+
+	return found;
+}
+
+static int __cam_isp_context_try_match_buf_done_with_other_ports(
+	struct cam_isp_context *ctx_isp,
+	struct cam_isp_context_comp_record *comp_grp,
+	struct cam_isp_hw_done_event_data *done,
+	struct cam_isp_ctx_req *req_isp, bool use_frameheader)
+{
+	int i, j, rc, found = false;
+
+	for (i = 0; !found && i < comp_grp->num_res; i++) {
+		/* If the res is same with original res, we don't need to read again  */
+		if (comp_grp->res_id[i] == done->resource_handle)
+			continue;
+
+		/* Check if the res in the requested list */
+		for (j = 0; j < req_isp->num_fence_map_out; j++) {
+			if (comp_grp->res_id[i] == req_isp->fence_map_out[j].resource_handle) {
+				if (!use_frameheader || (use_frameheader
+					&& req_isp->fence_map_out[j].is_last_ctxt))
+					break;
+				}
+		}
+
+		/* If res_id[i] isn't in requested list, then try next res in the group */
+		if (j == req_isp->num_fence_map_out) {
+			if (i != comp_grp->num_res - 1)
+				continue;
+			else
+				break;
+		}
+
+		if (use_frameheader) {
+			CAM_DBG(CAM_ISP,
+				"[FRMHDR] Match buf done with other res: %s, frmhdr addr: %pK, hw_ctxt_id: %u, local_id: %u, req_id: %llu, ctx %u, link: 0x%x",
+				__cam_isp_resource_handle_id_to_type(
+				ctx_isp->isp_device_type,
+				req_isp->fence_map_out[j].resource_handle),
+				req_isp->fence_map_out[j].frameheader_cpu_addr,
+				ffs(req_isp->fence_map_out[j].hw_ctxt_id) - 1,
+				req_isp->fence_map_out[j].frameheader_cpu_addr[
+					CAM_ISP_FRMHDR_LOCAL_ID_OFFSET_32_BIT],
+				req_isp->base->request_id, ctx_isp->base->ctx_id,
+				ctx_isp->base->link_hdl);
+				found = (req_isp->fence_map_out[j].frameheader_cpu_addr[
+					CAM_ISP_FRMHDR_LOCAL_ID_OFFSET_32_BIT] ==
+					req_isp->base->request_id);
+		} else {
+			/*
+			 * Find out the res from the requested list,
+			 * then we can get last consumed address from this port.
+			 */
+			rc = __cam_isp_context_match_last_consumed_addr_with_other_port(done,
+				ctx_isp, &req_isp->fence_map_out[j]);
+			if (rc < 0)
+				return rc;
+			found = rc;
+		}
+	}
+	return found;
+}
+
+static inline bool __cam_isp_check_if_comp_grp_for_req_is_done(
+	struct cam_isp_ctx_req *req_isp,
+	struct cam_isp_hw_done_event_data *done)
+{
+	int i;
+
+	for (i = 0; i < req_isp->num_fence_map_out; i++) {
+		if (done->resource_handle == req_isp->fence_map_out[i].resource_handle) {
+			if (req_isp->fence_map_out[i].sync_id == -1)
+				return true;
+		}
+	}
+
+	return false;
+}
+
 static int __cam_isp_ctx_handle_buf_done_for_request_verify_addr(
 	struct cam_isp_context *ctx_isp,
 	struct cam_ctx_request  *req,
@@ -2414,16 +2584,13 @@ static int __cam_isp_ctx_handle_buf_done_for_request_verify_addr(
 {
 	int rc = 0;
 	int i, j, k, def_idx;
-	bool not_found = false;
+	bool not_found;
 	bool duplicate_defer_buf_done = false;
 	struct cam_isp_ctx_req *req_isp;
 	struct cam_context *ctx = ctx_isp->base;
 	const char *handle_type;
-	uint32_t cmp_addr = 0;
 	struct cam_isp_hw_done_event_data   unhandled_done = {0};
 	struct cam_isp_context_comp_record *comp_grp = NULL;
-	struct cam_hw_cmd_args   hw_cmd_args;
-	struct cam_isp_hw_cmd_args  isp_hw_cmd_args;
 
 	trace_cam_buf_done("ISP", ctx, req);
 
@@ -2434,17 +2601,15 @@ static int __cam_isp_ctx_handle_buf_done_for_request_verify_addr(
 
 	unhandled_done.timestamp = done->timestamp;
 
-	for (i = 0; i < req_isp->num_fence_map_out; i++) {
-		if (done->resource_handle == req_isp->fence_map_out[i].resource_handle) {
-			cmp_addr = cam_smmu_is_expanded_memory() ? CAM_36BIT_INTF_GET_IOVA_BASE(
-				req_isp->fence_map_out[i].image_buf_addr[0]) :
-				req_isp->fence_map_out[i].image_buf_addr[0];
-			if (!verify_consumed_addr ||
-				(verify_consumed_addr && (done->last_consumed_addr == cmp_addr))) {
-				break;
-			}
-		}
-	}
+	if (__cam_isp_check_if_comp_grp_for_req_is_done(req_isp, done))
+		return rc;
+
+	if (verify_consumed_addr)
+		not_found = !__cam_isp_ctx_check_buf_done_match_for_request(ctx_isp,
+			req_isp, done, ctx_isp->frmhdr_verify_buf_done);
+	else
+		not_found = false;
+
 
 	if (done->hw_type == CAM_ISP_HW_TYPE_SFE)
 		comp_grp = &ctx_isp->sfe_bus_comp_grp[done->comp_group_id];
@@ -2457,71 +2622,12 @@ static int __cam_isp_ctx_handle_buf_done_for_request_verify_addr(
 		return rc;
 	}
 
-	if (i == req_isp->num_fence_map_out) {
-		not_found = true;
-		for (j = 0; j < comp_grp->num_res; j++) {
-			/* If the res is same with original res, we don't need to read again  */
-			if (comp_grp->res_id[j] == done->resource_handle)
-				continue;
-
-			/* Check if the res in the requested list */
-			for (k = 0; k < req_isp->num_fence_map_out; k++)
-				if (comp_grp->res_id[j] ==
-					req_isp->fence_map_out[k].resource_handle)
-					break;
-
-			/* If res_id[j] isn't in requested list, then try next res in the group */
-			if (k == req_isp->num_fence_map_out) {
-				if (j != comp_grp->num_res - 1)
-					continue;
-				else
-					break;
-			}
-
-			if (!verify_consumed_addr) {
-				not_found = false;
-				break;
-			}
-
-			/*
-			 * Find out the res from the requested list,
-			 * then we can get last consumed address from this port.
-			 */
-			done->resource_handle = comp_grp->res_id[j];
-			done->last_consumed_addr = 0;
-
-			hw_cmd_args.ctxt_to_hw_map = ctx_isp->hw_ctx;
-			hw_cmd_args.cmd_type = CAM_HW_MGR_CMD_INTERNAL;
-			isp_hw_cmd_args.cmd_type =
-				CAM_ISP_HW_MGR_GET_LAST_CONSUMED_ADDR;
-			isp_hw_cmd_args.cmd_data = done;
-			hw_cmd_args.u.internal_args = (void *)&isp_hw_cmd_args;
-			rc = ctx->hw_mgr_intf->hw_cmd(
-				ctx->hw_mgr_intf->hw_mgr_priv,
-				&hw_cmd_args);
-			if (rc) {
-				CAM_ERR(CAM_ISP, "HW command failed, ctx %u, link: 0x%x",
-					ctx->ctx_id, ctx->link_hdl);
-				return rc;
-			}
-
-			cmp_addr = cam_smmu_is_expanded_memory() ?
-				CAM_36BIT_INTF_GET_IOVA_BASE(
-				req_isp->fence_map_out[k].image_buf_addr[0]) :
-				req_isp->fence_map_out[k].image_buf_addr[0];
-			CAM_DBG(CAM_ISP,
-				"Get res %s comp_grp_rec_idx:%d fence_map_idx:%d last_consumed_addr:0x%x cmp_addr:0x%x",
-				__cam_isp_resource_handle_id_to_type(
-				ctx_isp->isp_device_type, done->resource_handle), j, k,
-				done->last_consumed_addr, cmp_addr);
-			if (done->last_consumed_addr == cmp_addr) {
-				CAM_DBG(CAM_ISP, "Consumed addr compare success for res:%s ",
-					__cam_isp_resource_handle_id_to_type(
-				ctx_isp->isp_device_type, done->resource_handle));
-				not_found = false;
-				break;
-			}
-		}
+	if (not_found) {
+		rc = __cam_isp_context_try_match_buf_done_with_other_ports(ctx_isp,
+			comp_grp, done, req_isp, ctx_isp->frmhdr_verify_buf_done);
+		if (rc < 0)
+			return rc;
+		not_found = !rc;
 	}
 
 	if (not_found) {
@@ -2900,15 +3006,10 @@ static void __cam_isp_ctx_buf_done_match_req(
 	struct cam_isp_hw_done_event_data *done,
 	bool *irq_delay_detected)
 {
-	int rc = 0;
-	int i, j, k;
+	int rc;
 	uint32_t match_count = 0;
 	struct cam_isp_ctx_req *req_isp;
-	uint32_t cmp_addr = 0;
 	struct cam_isp_context_comp_record *comp_grp = NULL;
-	struct cam_hw_cmd_args hw_cmd_args;
-	struct cam_isp_hw_cmd_args isp_hw_cmd_args;
-	struct cam_context *ctx = ctx_isp->base;
 
 	req_isp = (struct cam_isp_ctx_req *) req->req_priv;
 
@@ -2917,77 +3018,13 @@ static void __cam_isp_ctx_buf_done_match_req(
 	else
 		comp_grp = &ctx_isp->vfe_bus_comp_grp[done->comp_group_id];
 
-	for (i = 0; i < req_isp->num_fence_map_out; i++) {
-		cmp_addr = cam_smmu_is_expanded_memory() ? CAM_36BIT_INTF_GET_IOVA_BASE(
-			req_isp->fence_map_out[i].image_buf_addr[0]) :
-			req_isp->fence_map_out[i].image_buf_addr[0];
-		if ((done->resource_handle ==
-			 req_isp->fence_map_out[i].resource_handle) &&
-			(done->last_consumed_addr == cmp_addr)) {
-			match_count++;
-			break;
-		}
-	}
+	match_count += __cam_isp_ctx_check_buf_done_match_for_request(ctx_isp,
+		req_isp, done, ctx_isp->frmhdr_verify_buf_done);
 
-	if (i == req_isp->num_fence_map_out) {
-		for (j = 0; j < comp_grp->num_res; j++) {
-			/* If the res is same with original res, we don't need to read again  */
-			if (comp_grp->res_id[j] == done->resource_handle)
-				continue;
-
-			/* Check if the res in the requested list */
-			for (k = 0; k < req_isp->num_fence_map_out; k++)
-				if (comp_grp->res_id[j] ==
-					req_isp->fence_map_out[k].resource_handle)
-					break;
-
-			/* If res_id[j] isn't in requested list, then try next res in the group */
-			if (k == req_isp->num_fence_map_out) {
-				if (j != comp_grp->num_res - 1)
-					continue;
-				else {
-					CAM_ERR(CAM_ISP, "not in this group and exit.");
-					break;
-				}
-			}
-
-			/*
-			 * Find out the res from the requested list,
-			 * then we can get last consumed address from this port.
-			 */
-			done->resource_handle = comp_grp->res_id[j];
-			done->last_consumed_addr = 0;
-
-			hw_cmd_args.ctxt_to_hw_map = ctx_isp->hw_ctx;
-			hw_cmd_args.cmd_type = CAM_HW_MGR_CMD_INTERNAL;
-			isp_hw_cmd_args.cmd_type =
-				CAM_ISP_HW_MGR_GET_LAST_CONSUMED_ADDR;
-			isp_hw_cmd_args.cmd_data = done;
-			hw_cmd_args.u.internal_args = (void *)&isp_hw_cmd_args;
-			rc = ctx->hw_mgr_intf->hw_cmd(
-				ctx->hw_mgr_intf->hw_mgr_priv,
-				&hw_cmd_args);
-			if (rc) {
-				CAM_ERR(CAM_ISP, "HW command failed, ctx %u, link: 0x%x",
-					ctx->ctx_id, ctx->link_hdl);
-			}
-
-			cmp_addr = cam_smmu_is_expanded_memory() ?
-				CAM_36BIT_INTF_GET_IOVA_BASE(
-				req_isp->fence_map_out[k].image_buf_addr[0]) :
-				req_isp->fence_map_out[k].image_buf_addr[0];
-			CAM_DBG(CAM_ISP, "Get res %s last_consumed_addr:0x%x, cmp_addr:0x%x",
-				__cam_isp_resource_handle_id_to_type(
-						ctx_isp->isp_device_type, done->resource_handle),
-				cmp_addr, done->last_consumed_addr);
-			if (done->last_consumed_addr == cmp_addr) {
-				CAM_DBG(CAM_ISP, "Consumed addr compare success for res:%s ",
-					__cam_isp_resource_handle_id_to_type(
-				ctx_isp->isp_device_type, done->resource_handle));
-				match_count++;
-				break;
-			}
-		}
+	if (!match_count) {
+		rc = __cam_isp_context_try_match_buf_done_with_other_ports(ctx_isp,
+			comp_grp, done, req_isp, ctx_isp->frmhdr_verify_buf_done);
+		match_count += (rc > 0);
 	}
 
 	if (match_count > 0)
@@ -3237,7 +3274,8 @@ static int __cam_isp_ctx_handle_buf_done_in_activated_state(
 {
 	int rc = 0;
 
-	if (ctx_isp->support_consumed_addr && (!done->is_early_done))
+	if ((ctx_isp->support_consumed_addr ||
+		ctx_isp->frmhdr_verify_buf_done) && (!done->is_early_done))
 		rc = __cam_isp_ctx_handle_buf_done_verify_addr(
 			ctx_isp, done, bubble_state);
 	else
@@ -3442,13 +3480,15 @@ static int __cam_isp_ctx_reg_upd_in_epoch_bubble_state(
 			__cam_isp_ctx_send_sof_timestamp(ctx_isp, req->request_id,
 				CAM_REQ_MGR_SOF_EVENT_SUCCESS);
 		}
-	} else
+	} else {
+		atomic_set(&ctx_isp->unserved_rup, 1);
 		CAM_WARN_RATE_LIMIT(CAM_ISP,
 			"ctx:%u Unexpected regupdate in activated Substate[%s] for frame_id:%lld",
 			ctx_isp->base->ctx_id,
 			__cam_isp_ctx_substate_val_to_type(
 			ctx_isp->substate_activated),
 			ctx_isp->frame_id);
+	}
 	return 0;
 }
 
@@ -4492,6 +4532,29 @@ end:
 	return rc;
 }
 
+static int cam_isp_ctx_rup_miss_handler(struct cam_context *ctx,
+	struct cam_isp_hw_error_event_data  *error_event_data)
+{
+	struct cam_ctx_request *pending_req = NULL, *wait_req = NULL, *active_req = NULL;
+
+	if (!list_empty(&ctx->pending_req_list))
+		pending_req = list_first_entry(&ctx->pending_req_list, struct cam_ctx_request,
+				list);
+
+	if (!list_empty(&ctx->wait_req_list))
+		wait_req = list_first_entry(&ctx->wait_req_list, struct cam_ctx_request, list);
+
+	if (!list_empty(&ctx->active_req_list))
+		active_req = list_first_entry(&ctx->active_req_list, struct cam_ctx_request, list);
+
+	CAM_WARN(CAM_ISP, "RUP miss recived for ctx:%u, link:0x%x, pending_req:%llu wait_req:%llu active_req:%llu",
+		ctx->ctx_id, ctx->link_hdl, (pending_req) ? pending_req->request_id : -1,
+		(wait_req) ? wait_req->request_id : -1,
+		(active_req) ? active_req->request_id : -1);
+
+	return 0;
+}
+
 static int __cam_isp_ctx_handle_error(struct cam_isp_context *ctx_isp,
 	void *evt_data)
 {
@@ -4517,6 +4580,13 @@ static int __cam_isp_ctx_handle_error(struct cam_isp_context *ctx_isp,
 	CAM_DBG(CAM_ISP, "Enter HW error_type = %d, ctx:%u on link 0x%x",
 		error_event_data->error_type, ctx->ctx_id, ctx->link_hdl);
 
+	if (error_event_data->error_type & CAM_ISP_HW_ERROR_CSID_RUP_MISS) {
+		rc = cam_isp_ctx_rup_miss_handler(ctx, error_event_data);
+		if (rc)
+			CAM_ERR(CAM_ISP, "rup miss handler failed rc=%d", rc);
+		return rc;
+	}
+
 	if (error_event_data->try_internal_recovery) {
 		rc = __cam_isp_ctx_trigger_error_req_reapply(error_event_data, ctx_isp);
 		if (!rc)
@@ -4529,6 +4599,7 @@ static int __cam_isp_ctx_handle_error(struct cam_isp_context *ctx_isp,
 	__cam_isp_ctx_dump_frame_timing_record(ctx_isp);
 	__cam_isp_ctx_print_event_record(ctx_isp);
 	__cam_isp_ctx_trigger_reg_dump(CAM_HW_MGR_CMD_REG_DUMP_ON_ERROR, ctx, NULL);
+	__cam_isp_ctx_dump_state_monitor_array(ctx_isp);
 
 	__cam_isp_get_notification_evt_params(error_event_data->error_type,
 		&fence_evt_cause, &req_mgr_err_code, &recovery_type);
@@ -5136,6 +5207,7 @@ static int __cam_isp_ctx_handle_secondary_events(
 		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
 			CAM_ISP_STATE_CHANGE_TRIGGER_SEC_EVT_EPOCH,
 			ctx_isp->last_applied_req_id);
+
 		ctx_isp->out_of_sync_cnt = 0;
 
 		/*
@@ -7410,6 +7482,7 @@ static int __cam_isp_ctx_release_hw_in_top_state(struct cam_context *ctx,
 	ctx_isp->aeb_enabled = false;
 	ctx_isp->sfe_en = false;
 	ctx_isp->bubble_recover_dis = false;
+	ctx_isp->frmhdr_verify_buf_done = false;
 	ctx_isp->req_info.last_bufdone_req_id = 0;
 	CAM_MEM_FREE(ctx_isp->vfe_bus_comp_grp);
 	CAM_MEM_FREE(ctx_isp->sfe_bus_comp_grp);
@@ -7491,6 +7564,7 @@ static int __cam_isp_ctx_release_dev_in_top_state(struct cam_context *ctx,
 	ctx_isp->offline_context = false;
 	ctx_isp->vfps_aux_context = false;
 	ctx_isp->rdi_only_context = false;
+	ctx_isp->frmhdr_verify_buf_done = false;
 	ctx_isp->req_info.last_bufdone_req_id = 0;
 	ctx_isp->v4l2_event_sub_ids = 0;
 	ctx_isp->resume_hw_in_flushed = false;
@@ -8577,6 +8651,8 @@ static int __cam_isp_ctx_acquire_hw_v2(struct cam_context *ctx,
 		(param.op_flags & CAM_IFE_CTX_DYNAMIC_SWITCH_EN);
 	ctx_isp->sfe_en =
 		(param.op_flags & CAM_IFE_CTX_SFE_EN);
+	ctx_isp->frmhdr_verify_buf_done =
+		(param.op_flags & CAM_IFE_CTX_FRMHDR_BUF_DONE);
 
 	/* Query the context bus comp group information */
 	ctx_isp->vfe_bus_comp_grp = CAM_MEM_ZALLOC_ARRAY(CAM_IFE_BUS_COMP_NUM_MAX,
@@ -9323,6 +9399,7 @@ static int __cam_isp_ctx_stop_dev_in_activated_unlock(
 	ctx_isp->bubble_frame_cnt = 0;
 	ctx_isp->congestion_cnt = 0;
 	ctx_isp->sof_dbg_irq_en = false;
+	ctx_isp->frmhdr_verify_buf_done = false;
 	atomic_set(&ctx_isp->process_bubble, 0);
 	atomic_set(&ctx_isp->internal_recovery_set, 0);
 	atomic_set(&ctx_isp->rxd_epoch, 0);
@@ -9927,9 +10004,6 @@ static int __cam_isp_ctx_handle_irq_in_activated(void *context,
 			ctx_isp->substate_activated), evt_id,
 			ctx->ctx_id, ctx->link_hdl);
 	}
-
-	if (evt_id == CAM_ISP_HW_EVENT_ERROR)
-		__cam_isp_ctx_dump_state_monitor_array(ctx_isp);
 
 	if ((evt_id == CAM_ISP_HW_EVENT_SOF) ||
 		(evt_id == CAM_ISP_HW_EVENT_EOF) ||

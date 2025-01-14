@@ -11,6 +11,7 @@
 #include <linux/of_gpio.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_opp.h>
 #include "cam_soc_util.h"
 #include "cam_debug_util.h"
 #include "cam_cx_ipeak.h"
@@ -35,6 +36,8 @@
 #define CAM_MAX_CLK_NAME_LEN 128
 bool clk_rgltr_bus_ops_profiling;
 bool clk_ops_profiling_hw_and_sw_voting;
+
+#define SRC_CLOCK_OFF_RATE 0
 
 static uint skip_mmrm_set_rate;
 module_param(skip_mmrm_set_rate, uint, 0644);
@@ -245,7 +248,8 @@ bool cam_is_crmb_supported(struct cam_hw_soc_info *soc_info)
 }
 #endif
 
-static inline int cam_wrapper_clk_set_rate(struct clk *clk, unsigned long rate, const char *name)
+static inline int cam_wrapper_clk_set_rate(struct clk *clk, unsigned long rate,
+	const char *name, struct cam_hw_soc_info *soc_info)
 {
 	struct timespec64 ts1, ts2;
 	long usec = 0;
@@ -258,10 +262,28 @@ static inline int cam_wrapper_clk_set_rate(struct clk *clk, unsigned long rate, 
 
 	CAM_SAVE_START_TIMESTAMP_IF(ts1);
 
-	temp = clk_set_rate(clk, rate);
+	if (!soc_info->is_an_opp_device ||
+		strcmp(name, soc_info->clk_name[soc_info->src_clk_idx])) {
+		temp = clk_set_rate(clk, rate);
+		CAM_COMPUTE_TIME_TAKEN_IF(ts1, ts2, usec,
+			"ClkRegBusOpsProfile: clk_set_rate (name, time taken in usec)", name);
 
-	CAM_COMPUTE_TIME_TAKEN_IF(ts1, ts2, usec,
-		"ClkRegBusOpsProfile: clk_set_rate (name, time taken in usec)", name);
+	} else {
+		/* This is done only for the main SRC clock in the device.
+		 * As of now, camera driver doesn't support multiple OPP tables in
+		 * the DTSI per device, one per SRC clock, and hence the other SRC clocks
+		 * are set with the clock API. As for the branch clocks, camera driver
+		 * doesn't set any specific rate and hence this function is never called.
+		 */
+		temp = dev_pm_opp_set_rate(soc_info->dev, rate);
+		if (temp) {
+			CAM_ERR(CAM_UTIL, "%s: Failed to set rate (%ul) to %s through OPP",
+				soc_info->dev_name, rate, name);
+		}
+		CAM_COMPUTE_TIME_TAKEN_IF(ts1, ts2, usec,
+			"ClkRegBusOpsProfile: dev_pm_opp_set_rate (name, time taken in usec)", name);
+	}
+
 
 	return temp;
 }
@@ -1270,7 +1292,8 @@ static int cam_soc_util_clk_wrapper_set_clk_rate(
 
 		if (!set_rate_finish && final_clk_rate &&
 			(final_clk_rate != wrapper_clk->curr_clk_rate)) {
-			rc = cam_wrapper_clk_set_rate(clk, final_clk_rate, wrapper_clk->name);
+			rc = cam_wrapper_clk_set_rate(clk, final_clk_rate,
+				wrapper_clk->name, soc_info);
 			if (rc) {
 				CAM_ERR(CAM_UTIL, "set_rate failed on clk %d",
 					wrapper_clk->clk_id);
@@ -1798,7 +1821,8 @@ static int cam_soc_util_set_clk_rate(struct cam_hw_soc_info *soc_info,
 			}
 
 			if (!set_rate_finish) {
-				rc = cam_wrapper_clk_set_rate(clk, clk_rate_round, clk_name);
+				rc = cam_wrapper_clk_set_rate(clk, clk_rate_round,
+					clk_name, soc_info);
 				if (rc) {
 					CAM_ERR(CAM_UTIL, "set_rate failed on %s", clk_name);
 					return rc;
@@ -1935,6 +1959,8 @@ int cam_soc_util_set_src_clk_rate(struct cam_hw_soc_info *soc_info, int cesta_cl
 	}
 
 end:
+	if (soc_info->is_an_opp_device)
+		soc_info->current_main_src_clk_level = apply_level;
 	return 0;
 }
 
@@ -2236,9 +2262,12 @@ int cam_soc_util_clk_enable(struct cam_hw_soc_info *soc_info, int cesta_client_i
 		return rc;
 	}
 
-
 end:
 	CAM_DBG(CAM_UTIL, "[%s] : clk enable %s", soc_info->dev_name, clk_name);
+
+	if (clk_idx == soc_info->src_clk_idx && soc_info->is_an_opp_device)
+		soc_info->current_main_src_clk_level = apply_level;
+
 	rc = cam_wrapper_clk_prepare_enable(clk, clk_name);
 	if (rc) {
 		CAM_ERR(CAM_UTIL, "enable failed for %s: rc(%d)", clk_name, rc);
@@ -2277,6 +2306,15 @@ int cam_soc_util_clk_disable(struct cam_hw_soc_info *soc_info, int cesta_client_
 	CAM_DBG(CAM_UTIL, "disable %s", clk_name);
 	if (!clk)
 		return 0;
+
+	if (clk_idx == soc_info->src_clk_idx && soc_info->is_an_opp_device) {
+		/* In the case of using OPP framework for upstream kernel,
+		 * the client driver holds the responsibility to explicitly
+		 * set the SRC clock rate to 0 to remove the voting for the
+		 * voltage rail.
+		 */
+		dev_pm_opp_set_rate(soc_info->dev, SRC_CLOCK_OFF_RATE);
+	}
 
 	cam_wrapper_clk_disable_unprepare(clk, clk_name);
 
@@ -2421,6 +2459,7 @@ clk_disable:
 	for (i--; i >= 0; i--) {
 		cam_soc_util_clk_disable(soc_info, cesta_client_idx, false, i);
 	}
+
 
 	return rc;
 }
@@ -2624,6 +2663,19 @@ static int cam_soc_util_get_dt_clk_info(struct cam_hw_soc_info *soc_info)
 			soc_info->clk_id[i]);
 	}
 
+	if (of_find_property(of_node, "operating-points-v2", NULL)) {
+		/* The src clock rates can be parsed from the OPP table as well
+		 * and can skip the whole 'clock-rates' and 'clock-cntl-level'
+		 * parsing from above for the upstream kernel. Moreover, camera
+		 * driver doesn't use specific rates for the branch clocks.
+		 * However, keeping the parsing logic same for upstream downstream
+		 * kernels for now until we move to the OPP framework for downstream.
+		 */
+		soc_info->is_an_opp_device = true;
+	} else {
+		soc_info->is_an_opp_device = false;
+	}
+
 	CAM_DBG(CAM_UTIL, "Dev %s src_clk_idx %d, lowest_clk_level %d highest_clk_level: %d",
 		soc_info->dev_name, soc_info->src_clk_idx,
 		soc_info->lowest_clk_level, soc_info->highest_clk_level);
@@ -2770,7 +2822,15 @@ int cam_soc_util_set_clk_rate_level(struct cam_hw_soc_info *soc_info,
 		cam_cx_ipeak_update_vote_cx_ipeak(soc_info, apply_level_high);
 
 	for (i = 0; i < soc_info->num_clk; i++) {
-		if (do_not_set_src_clk && (i == soc_info->src_clk_idx)) {
+		/* When OPP is used, we need to scale up the main SRC clock
+		 * as well if the other SRC clocks are scaling up as the
+		 * clock driver doesn't take the responsibility to accordingly
+		 * scale the voltage rail for these other SRC clocks unless
+		 * we set the rate at that level to the main SRC clock as well.
+		 */
+		if (do_not_set_src_clk && (i == soc_info->src_clk_idx) &&
+			(!soc_info->is_an_opp_device ||
+			apply_level_high <= soc_info->current_main_src_clk_level)) {
 			CAM_DBG(CAM_UTIL, "Skipping set rate for src clk %s",
 				soc_info->clk_name[i]);
 			continue;
@@ -2820,6 +2880,9 @@ int cam_soc_util_set_clk_rate_level(struct cam_hw_soc_info *soc_info,
 	}
 
 end:
+	if (!rc && soc_info->is_an_opp_device)
+		soc_info->current_main_src_clk_level = apply_level_high;
+
 	return rc;
 };
 
@@ -3923,6 +3986,27 @@ int cam_soc_util_request_irq(struct device *dev,
 }
 #endif
 
+int cam_soc_util_register_with_opp_framework(struct cam_hw_soc_info *soc_info)
+{
+	int ret;
+
+	ret = devm_pm_opp_set_clkname(soc_info->dev,
+		soc_info->clk_name[soc_info->src_clk_idx]);
+	if (ret) {
+		CAM_ERR(CAM_UTIL, "%s: Failed to set the SRC clk name (%s) to OPP",
+			soc_info->dev_name, soc_info->clk_name[soc_info->src_clk_idx]);
+		return ret;
+	}
+
+	ret = devm_pm_opp_of_add_table(soc_info->dev);
+	if (ret) {
+		CAM_ERR(CAM_UTIL, "%s: Failed to add OPP table", soc_info->dev_name);
+		return ret;
+	}
+
+	return 0;
+}
+
 int cam_soc_util_request_platform_resource(
 	struct cam_hw_soc_info *soc_info,
 	irq_handler_t handler, void **irq_data)
@@ -4061,6 +4145,14 @@ int cam_soc_util_request_platform_resource(
 					goto put_clk;
 				}
 			}
+		}
+	}
+
+	if (soc_info->is_an_opp_device) {
+		rc = cam_soc_util_register_with_opp_framework(soc_info);
+		if (rc) {
+			CAM_ERR(CAM_UTIL, "Failed in registering with OPP, rc: %d", rc);
+			goto put_clk;
 		}
 	}
 

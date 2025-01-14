@@ -67,12 +67,12 @@ static int cam_ife_csid_get_cid(struct cam_ife_csid_cid_data *cid_data,
 
 	for (i = 0; i < reserve->in_port->num_valid_vc_dt; i++) {
 
-		if (cid_data->vc_dt[i].vc == reserve->in_port->vc[i] &&
-			cid_data->vc_dt[i].dt == reserve->in_port->dt[i])
-			return 0;
+		if (cid_data->vc_dt[i].vc != reserve->in_port->vc[i] ||
+			cid_data->vc_dt[i].dt != reserve->in_port->dt[i])
+			return -EINVAL;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 int cam_ife_csid_is_pix_res_format_supported(

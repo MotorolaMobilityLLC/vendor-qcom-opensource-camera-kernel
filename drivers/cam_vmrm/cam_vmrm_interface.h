@@ -3,26 +3,68 @@
  * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
-#include "cam_vmrm.h"
-#include "cam_cpas_api.h"
-
 #ifndef _CAM_VMRM_INTERFACE_H_
 #define _CAM_VMRM_INTERFACE_H_
 
+#include "cam_cpas_api.h"
+#include "cam_vmrm_msg_handler.h"
+
+/* message callback */
+typedef int (*msg_cb_func) (void *cb_data, void *msg, uint32_t size);
+
+/**
+ * struct cam_driver_node -    camera driver node
+ *
+ * @driver_id:                 Driver id
+ * @driver_name:               Driver name
+ * @driver_msg_callback:       Driver message callback
+ * @driver_msg_callback_data:  Data pass to callback
+ * @wait_response:             Completion info
+ * @response_result:           Response result
+ * @msg_comm_lock:             Message communication lock
+ * @list:                      Link list entry
+ */
+struct cam_driver_node {
+	uint32_t          driver_id;
+	char              driver_name[CAM_SOC_MAX_LENGTH_NAME];
+	msg_cb_func       driver_msg_callback;
+	void             *driver_msg_callback_data;
+	struct completion wait_response;
+	int               response_result;
+	struct mutex      msg_comm_lock;
+	struct list_head  list;
+};
+
+/* message destination id for hw instance */
+#define CAM_HW_ID_BASE          0x3000
+#define CAM_HW_ID_CSIPHY0       (CAM_HW_ID_BASE + 0)
+#define CAM_HW_ID_CCI0          (CAM_HW_ID_BASE + 0x100)
+#define CAM_HW_ID_CPAS          (CAM_HW_ID_BASE + 0x200)
+#define CAM_HW_ID_CDM0          (CAM_HW_ID_BASE + 0x300)
+#define CAM_HW_ID_SFE0          (CAM_HW_ID_BASE + 0x400)
+#define CAM_HW_ID_CSID0         (CAM_HW_ID_BASE + 0x500)
+#define CAM_HW_ID_IFE0          (CAM_HW_ID_BASE + 0x600)
+#define CAM_HW_ID_ICP           (CAM_HW_ID_BASE + 0x700)
+#define CAM_HW_ID_IPE           (CAM_HW_ID_BASE + 0x800)
+#define CAM_HW_ID_BPS           (CAM_HW_ID_BASE + 0x900)
+#define CAM_HW_ID_OFE           (CAM_HW_ID_BASE + 0xa00)
+#define CAM_HW_ID_SENSOR0       (CAM_HW_ID_BASE + 0xb00)
+#define CAM_HW_ID_EEPROM0       (CAM_HW_ID_BASE + 0xc00)
+
+/* message destination id for driver node*/
+#define CAM_DRIVER_ID_BASE          0xa000
+#define CAM_DRIVER_ID_ISP           (CAM_DRIVER_ID_BASE + 0)
+#define CAM_DRIVER_ID_ICP           (CAM_DRIVER_ID_BASE + 0x100)
+#define CAM_DRIVER_ID_CPAS          (CAM_DRIVER_ID_BASE + 0x200)
+
 #ifdef CONFIG_SPECTRA_VMRM
+
+#include "cam_vmrm.h"
+
 #define CAM_IS_PRIMARY_VM() ((cam_vmrm_intf_get_vmid() == CAM_PVM) \
 ? true : false)
 #define CAM_IS_SECONDARY_VM() ((cam_vmrm_intf_get_vmid() != CAM_PVM) \
 ? true : false)
-#else
-#ifdef CONFIG_ARCH_QTI_VM
-#define CAM_IS_PRIMARY_VM() false
-#define CAM_IS_SECONDARY_VM() true
-#else
-#define CAM_IS_PRIMARY_VM() true
-#define CAM_IS_SECONDARY_VM() false
-#endif
-#endif
 
 /**
  * cam_vmrm_is_supported()
@@ -279,5 +321,114 @@ int cam_vmrm_sensor_power_down(uint32_t hw_id);
  */
 int cam_vmrm_icp_send_msg(uint32_t dest_vm, uint32_t hw_mgr_id, uint32_t vmrm_msg_type,
 	bool need_ack, void *msg, uint32_t msg_size, uint32_t timeout);
+#else
+#ifdef CONFIG_ARCH_QTI_VM
+#define CAM_IS_PRIMARY_VM() false
+#define CAM_IS_SECONDARY_VM() true
+#else
+#define CAM_IS_PRIMARY_VM() true
+#define CAM_IS_SECONDARY_VM() false
+#endif
 
+static inline bool cam_vmrm_is_supported(void)
+{
+	return false;
+}
+
+static inline uint32_t cam_vmrm_intf_get_vmid(void)
+{
+	return CAM_PVM;
+}
+
+static inline bool cam_vmrm_proxy_clk_rgl_voting_enable(void)
+{
+	return false;
+}
+
+static inline bool cam_vmrm_proxy_icc_voting_enable(void)
+{
+	return false;
+}
+
+static inline bool cam_vmrm_no_register_read_on_bind(void)
+{
+	return false;
+}
+
+static inline int cam_vmvm_populate_hw_instance_info(struct cam_hw_soc_info *soc_info,
+	msg_cb_func hw_msg_callback, void *hw_msg_callback_data)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_populate_driver_node_info(struct cam_driver_node *driver_node)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_populate_io_resource_info(void)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_register_gh_callback(void)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_unregister_gh_callback(void)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_send_msg(uint32_t source_vmid, uint32_t des_vmid, uint32_t msg_dst_type,
+	uint32_t msg_dst_id, uint32_t msg_type, bool response_msg, bool need_response,
+	void *msg_data, uint32_t data_size, struct completion *complete, uint32_t timeout)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_soc_acquire_resources(uint32_t hw_id)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_soc_release_resources(uint32_t hw_id)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_soc_enable_disable_resources(uint32_t hw_id, bool flag)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_set_src_clk_rate(uint32_t hw_id, int cesta_client_idx,
+	unsigned long clk_rate_high, unsigned long clk_rate_low)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_set_clk_rate_level(uint32_t hw_id, int cesta_client_idx,
+	enum cam_vote_level clk_level_high, enum cam_vote_level clk_level_low,
+	bool do_not_set_src_clk, unsigned long clk_rate)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_icc_vote(const char *name, uint64_t ab, uint64_t ib)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_sensor_power_up(uint32_t hw_id)
+{
+	return 0;
+}
+
+static inline int cam_vmrm_sensor_power_down(uint32_t hw_id)
+{
+	return 0;
+}
+#endif /* CONFIG_SPECTRA_VMRM */
 #endif /* _CAM_VMRM_INTERFACE_H_ */

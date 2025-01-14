@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
-#ifdef CONFIG_SPECTRA_VMRM
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/pinctrl/qcom-pinctrl.h>
@@ -10,14 +9,12 @@
 #include "camera_main.h"
 #include "cam_debug_util.h"
 #include "cam_common_util.h"
-#endif
 #include "cam_vmrm.h"
 #include "cam_vmrm_interface.h"
 #include "cam_cpas_api.h"
 #include "cam_req_mgr_dev.h"
 #include "cam_mem_mgr_api.h"
 
-#ifdef CONFIG_SPECTRA_VMRM
 extern struct cam_vmrm_intf_dev *g_vmrm_intf_dev;
 
 bool cam_vmrm_is_supported(void)
@@ -870,106 +867,3 @@ int cam_vmrm_icp_send_msg(uint32_t dest_vm, uint32_t hw_mgr_id, uint32_t msg_typ
 
 	return rc;
 }
-
-#else
-bool cam_vmrm_is_supported(void)
-{
-	return false;
-}
-
-uint32_t cam_vmrm_intf_get_vmid(void)
-{
-	return CAM_PVM;
-}
-
-bool cam_vmrm_proxy_clk_rgl_voting_enable(void)
-{
-	return false;
-}
-
-bool cam_vmrm_proxy_icc_voting_enable(void)
-{
-	return false;
-}
-
-bool cam_vmrm_no_register_read_on_bind(void)
-{
-	return false;
-}
-
-int cam_vmvm_populate_hw_instance_info(struct cam_hw_soc_info *soc_info,
-	msg_cb_func hw_msg_callback, void *hw_msg_callback_data)
-{
-	return 0;
-}
-
-int cam_vmrm_populate_driver_node_info(struct cam_driver_node *driver_node)
-{
-	return 0;
-}
-
-int cam_vmrm_populate_io_resource_info(void)
-{
-	return 0;
-}
-
-int cam_vmrm_register_gh_callback(void)
-{
-	return 0;
-}
-
-int cam_vmrm_unregister_gh_callback(void)
-{
-	return 0;
-}
-
-int cam_vmrm_send_msg(uint32_t source_vmid, uint32_t des_vmid, uint32_t msg_dst_type,
-	uint32_t msg_dst_id, uint32_t msg_type, bool response_msg, bool need_response,
-	void *msg_data, uint32_t data_size, struct completion *complete, uint32_t timeout)
-{
-	return 0;
-}
-
-int cam_vmrm_soc_acquire_resources(uint32_t hw_id)
-{
-	return 0;
-}
-
-int cam_vmrm_soc_release_resources(uint32_t hw_id)
-{
-	return 0;
-}
-
-int cam_vmrm_soc_enable_disable_resources(uint32_t hw_id, bool flag)
-{
-	return 0;
-}
-
-int cam_vmrm_set_src_clk_rate(uint32_t hw_id, int cesta_client_idx,
-	unsigned long clk_rate_high, unsigned long clk_rate_low)
-{
-	return 0;
-}
-
-int cam_vmrm_set_clk_rate_level(uint32_t hw_id, int cesta_client_idx,
-	enum cam_vote_level clk_level_high, enum cam_vote_level clk_level_low,
-	bool do_not_set_src_clk, unsigned long clk_rate)
-{
-	return 0;
-}
-
-int cam_vmrm_icc_vote(const char *name, uint64_t ab, uint64_t ib)
-{
-	return 0;
-}
-
-int cam_vmrm_sensor_power_up(uint32_t hw_id)
-{
-	return 0;
-}
-
-int cam_vmrm_sensor_power_down(uint32_t hw_id)
-{
-	return 0;
-}
-#endif

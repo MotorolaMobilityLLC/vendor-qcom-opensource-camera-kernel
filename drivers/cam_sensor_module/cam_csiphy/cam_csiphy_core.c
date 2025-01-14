@@ -797,8 +797,10 @@ static int cam_csiphy_update_secure_info(struct csiphy_device *csiphy_dev, int32
 	uint32_t cpas_version;
 	int rc;
 
-	if (csiphy_dev->domain_id_security) {
-		CAM_DBG(CAM_CSIPHY, "Target supports domain ID security, skipping legacy update");
+	if (cam_is_mink_api_available()) {
+		CAM_DBG(CAM_CSIPHY, "Using MINK API for CSIPHY [%u], skipping legacy update",
+			csiphy_dev->soc_info.index);
+
 		return 0;
 	}
 
@@ -1354,8 +1356,6 @@ int32_t cam_cmd_buf_parser(struct csiphy_device *csiphy_dev,
 	struct cam_cmd_buf_desc *cmd_desc = NULL;
 	size_t                   len, remain_len;
 	uint32_t                 cmd_buf_type;
-	size_t                   packet_size = 0;
-
 
 	if (!cfg_dev || !csiphy_dev) {
 		CAM_ERR(CAM_CSIPHY, "Invalid Args");
@@ -1383,27 +1383,11 @@ int32_t cam_cmd_buf_parser(struct csiphy_device *csiphy_dev,
 	remain_len -= (size_t)cfg_dev->offset;
 	csl_packet_u = (struct cam_packet *)
 		(generic_pkt_ptr + (uint32_t)cfg_dev->offset);
-	packet_size = csl_packet_u->header.size;
-	if (packet_size <= remain_len) {
-		rc = cam_common_mem_kdup((void **)&csl_packet,
-			csl_packet_u, packet_size);
-		if (rc) {
-			CAM_ERR(CAM_CSIPHY, "Alloc and copy request: %lld packet fail",
-				csl_packet_u->header.request_id);
-			goto put_buf;
-		}
-	} else {
-		CAM_ERR(CAM_CSIPHY, "Invalid packet header size %u",
-			packet_size);
-		rc = -EINVAL;
-		goto put_buf;
-	}
 
-	if (cam_packet_util_validate_packet(csl_packet,
-		remain_len)) {
-		CAM_ERR(CAM_CSIPHY, "Invalid packet params");
-		rc = -EINVAL;
-		goto end;
+	rc = cam_packet_util_copy_pkt_to_kmd(csl_packet_u, &csl_packet, remain_len);
+	if (rc) {
+		CAM_ERR(CAM_CSIPHY, "Copying packet to KMD failed");
+		goto put_buf;
 	}
 
 	if (csl_packet->num_cmd_buf)
@@ -1764,15 +1748,16 @@ static int cam_csiphy_program_secure_mode(struct csiphy_device *csiphy_dev,
 {
 	int rc = 0;
 
+	if (!csiphy_dev->csiphy_info[offset].secure_info_updated &&
+		cam_is_mink_api_available()) {
+		CAM_ERR(CAM_CSIPHY,
+			"PHY[%u] domain id info not updated, aborting secure call",
+			csiphy_dev->soc_info.index);
+
+		return -EINVAL;
+	}
+
 	if (csiphy_dev->domain_id_security) {
-		if (!csiphy_dev->csiphy_info[offset].secure_info_updated) {
-			CAM_ERR(CAM_CSIPHY,
-				"PHY[%u] domain id info not updated, aborting secure call",
-				csiphy_dev->soc_info.index);
-
-			return -EINVAL;
-		}
-
 		rc = cam_cpas_enable_clks_for_domain_id(true);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Failed to enable the Domain ID clocks");
@@ -1785,10 +1770,10 @@ static int cam_csiphy_program_secure_mode(struct csiphy_device *csiphy_dev,
 	if (csiphy_dev->domain_id_security) {
 		if (cam_cpas_enable_clks_for_domain_id(false))
 			CAM_ERR(CAM_CSIPHY, "Failed to disable the Domain ID clocks");
-
-		if (!protect)
-			csiphy_dev->csiphy_info[offset].secure_info_updated = false;
 	}
+
+	if (!protect && cam_is_mink_api_available())
+		csiphy_dev->csiphy_info[offset].secure_info_updated = false;
 
 	return rc;
 }

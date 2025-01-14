@@ -15,109 +15,6 @@
 #include "cam_debug_util.h"
 
 /**
- * @e_ctrl: ctrl structure
- *
- * Parses ois dt
- */
-static int cam_ois_get_dt_data(struct cam_ois_ctrl_t *o_ctrl)
-{
-	int                             i, rc = 0;
-	struct cam_hw_soc_info         *soc_info = &o_ctrl->soc_info;
-	struct cam_ois_soc_private     *soc_private =
-		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
-	struct cam_sensor_power_ctrl_t *power_info = &soc_private->power_info;
-	struct device_node             *of_node = NULL;
-
-	of_node = soc_info->dev->of_node;
-
-	if (!of_node) {
-		CAM_ERR(CAM_OIS, "of_node is NULL, device type %d",
-			o_ctrl->ois_device_type);
-		return -EINVAL;
-	}
-	rc = cam_soc_util_get_dt_properties(soc_info);
-	if (rc < 0) {
-		CAM_ERR(CAM_OIS, "cam_soc_util_get_dt_properties rc %d",
-			rc);
-		return rc;
-	}
-
-	rc = of_property_read_bool(of_node, "i3c-target");
-	if (rc) {
-		o_ctrl->is_i3c_device = true;
-		o_ctrl->io_master_info.master_type = I3C_MASTER;
-	}
-
-	CAM_DBG(CAM_SENSOR, "I3C Target: %s", CAM_BOOL_TO_YESNO(o_ctrl->is_i3c_device));
-
-	if (soc_info->is_a_genpd_device) {
-		rc = cam_soc_util_initialize_power_domain(soc_info);
-		if (rc) {
-			CAM_ERR(CAM_SENSOR, "Failed to initalize the GDSC for dev: %s",
-				soc_info->dev_name);
-			return rc;
-		}
-	}
-
-	/* Initialize regulators to default parameters */
-	for (i = 0; i < soc_info->num_rgltr; i++) {
-		soc_info->rgltr[i] = devm_regulator_get(soc_info->dev,
-					soc_info->rgltr_name[i]);
-		if (IS_ERR_OR_NULL(soc_info->rgltr[i])) {
-			rc = PTR_ERR(soc_info->rgltr[i]);
-			rc = rc ? rc : -EINVAL;
-			CAM_ERR(CAM_OIS, "get failed for regulator %s",
-				 soc_info->rgltr_name[i]);
-			goto uninitialize_power_domain;
-		}
-		CAM_DBG(CAM_OIS, "get for regulator %s",
-			soc_info->rgltr_name[i]);
-	}
-
-	cam_sensor_utils_parse_pm_ctrl_flag(of_node, &(o_ctrl->io_master_info));
-
-	if (!soc_info->gpio_data) {
-		CAM_INFO(CAM_OIS, "No GPIO found");
-		return 0;
-	}
-
-	if (!soc_info->gpio_data->cam_gpio_common_tbl_size) {
-		CAM_INFO(CAM_OIS, "No GPIO found");
-		rc = -EINVAL;
-		goto uninitialize_power_domain;
-	}
-
-	rc = cam_sensor_util_init_gpio_pin_tbl(soc_info,
-		&power_info->gpio_num_info);
-	if ((rc < 0) || (!power_info->gpio_num_info)) {
-		CAM_ERR(CAM_OIS, "No/Error OIS GPIOs");
-		rc = -EINVAL;
-		goto uninitialize_power_domain;
-	}
-
-	for (i = 0; i < soc_info->num_clk; i++) {
-		soc_info->clk[i] = devm_clk_get(soc_info->dev,
-			soc_info->clk_name[i]);
-		if (IS_ERR(soc_info->clk[i])) {
-			CAM_ERR(CAM_OIS, "get failed for %s",
-				soc_info->clk_name[i]);
-			rc = -ENOENT;
-			goto uninitialize_power_domain;
-		} else if (!soc_info->clk[i]) {
-			CAM_DBG(CAM_OIS, "%s handle is NULL skip get",
-				soc_info->clk_name[i]);
-			continue;
-		}
-	}
-
-	return rc;
-
-uninitialize_power_domain:
-	if (soc_info->is_a_genpd_device)
-		cam_soc_util_uninitialize_power_domain(soc_info);
-	return rc;
-}
-/**
  * @o_ctrl: ctrl structure
  *
  * This function is called from cam_ois_platform/i2c_driver_probe, it parses
@@ -127,8 +24,10 @@ int cam_ois_driver_soc_init(struct cam_ois_ctrl_t *o_ctrl)
 {
 	int                             rc = 0, i = 0;
 	struct cam_hw_soc_info         *soc_info = &o_ctrl->soc_info;
+	struct cam_ois_soc_private     *soc_private =
+		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
+	struct cam_sensor_power_ctrl_t *power_info = &soc_private->power_info;
 	struct device_node             *of_node = NULL;
-	struct device_node             *of_parent = NULL;
 
 	if (!soc_info->dev) {
 		CAM_ERR(CAM_OIS, "soc_info is not initialized");
@@ -141,28 +40,37 @@ int cam_ois_driver_soc_init(struct cam_ois_ctrl_t *o_ctrl)
 		return -EINVAL;
 	}
 
-	if (o_ctrl->ois_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
-		rc = of_property_read_u32(of_node, "cci-master",
-			&o_ctrl->cci_i2c_master);
-		if (rc < 0) {
-			CAM_DBG(CAM_OIS, "failed rc %d", rc);
-			return rc;
-		}
-
-		of_parent = of_get_parent(of_node);
-		if (of_property_read_u32(of_parent, "cell-index",
-				&o_ctrl->cci_num) < 0)
-			/* Set default master 0 */
-			o_ctrl->cci_num = CCI_DEVICE_0;
-
-		o_ctrl->io_master_info.cci_client->cci_device = o_ctrl->cci_num;
-		CAM_DBG(CAM_OIS, "cci-device %d", o_ctrl->cci_num, rc);
+	rc = cam_sensor_util_parse_and_request_resources(&(o_ctrl->io_master_info),
+		soc_info);
+	if (rc < 0) {
+		CAM_ERR(CAM_EEPROM, "Failed in parse_and_request_resources rc : %d", rc);
+		return rc;
 	}
 
-	rc = cam_ois_get_dt_data(o_ctrl);
-	if (rc < 0)
-		CAM_DBG(CAM_OIS, "failed: ois get dt data rc %d", rc);
+	if (!soc_info->gpio_data) {
+		CAM_INFO(CAM_OIS, "No GPIO found");
+		goto end;
+	}
 
+	if (!soc_info->gpio_data->cam_gpio_common_tbl_size) {
+		CAM_INFO(CAM_OIS, "No GPIO found");
+		rc = -EINVAL;
+		goto release_resources;
+	}
+
+	rc = cam_sensor_util_init_gpio_pin_tbl(soc_info,
+		&power_info->gpio_num_info);
+	if ((rc < 0) || (!power_info->gpio_num_info)) {
+		CAM_ERR(CAM_OIS, "No/Error OIS GPIOs");
+		rc = -EINVAL;
+		goto release_resources;
+	}
+	goto end;
+
+release_resources:
+	cam_sensor_util_release_resources(&(o_ctrl->io_master_info), soc_info);
+
+end:
 	memset(&o_ctrl->fw_info, 0, sizeof(struct cam_cmd_ois_fw_info));
 
 	INIT_LIST_HEAD(&(o_ctrl->i2c_init_data.list_head));

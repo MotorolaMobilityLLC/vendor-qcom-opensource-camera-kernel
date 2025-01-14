@@ -108,6 +108,27 @@ enum cam_vfe_bus_ver3_vfe_out_type {
 	CAM_VFE_BUS_VER3_VFE_OUT_MAX,
 };
 
+enum cam_vfe_bus_ver3_packer_format {
+	PACKER_FMT_VER3_PLAIN_128,
+	PACKER_FMT_VER3_PLAIN_8,
+	PACKER_FMT_VER3_PLAIN_8_ODD_EVEN,
+	PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10,
+	PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10_ODD_EVEN,
+	PACKER_FMT_VER3_PLAIN_16_10BPP,
+	PACKER_FMT_VER3_PLAIN_16_12BPP,
+	PACKER_FMT_VER3_PLAIN_16_14BPP,
+	PACKER_FMT_VER3_PLAIN_16_16BPP,
+	PACKER_FMT_VER3_PLAIN_32,
+	PACKER_FMT_VER3_PLAIN_64,
+	PACKER_FMT_VER3_TP_10,
+	PACKER_FMT_VER3_MIPI10,
+	PACKER_FMT_VER3_MIPI12,
+	PACKER_FMT_VER3_MIPI14,
+	PACKER_FMT_VER3_MIPI20,
+	PACKER_FMT_VER3_PLAIN32_20BPP,
+	PACKER_FMT_VER3_MAX,
+};
+
 /*
  * struct cam_vfe_bus_ver3_err_irq_desc:
  *
@@ -227,6 +248,7 @@ struct cam_vfe_bus_ver3_reg_offset_bus_client {
 	uint32_t hw_ctxt_cfg;
 	uint32_t bw_limiter_addr;
 	uint32_t comp_group;
+	uint64_t supported_pack_formats;
 	uint64_t supported_formats;
 	uint32_t rcs_en_mask;
 };
@@ -259,35 +281,39 @@ struct cam_vfe_bus_ver3_vfe_out_hw_info {
  *
  * @Brief:            HW register info for entire Bus
  *
- * @common_reg:                   Common register details
- * @client_offsets:               Offsets for client registers
- * @num_client:                   Total number of write clients
- * @bus_client_reg:               Bus client register info
- * @vfe_out_hw_info:              VFE output capability
- * @num_cons_err:                 Number of constraint errors in list
- * @constraint_error_list:        Static list of all constraint errors
- * @num_comp_grp:                 Number of composite groups
- * @comp_done_mask:               Mask shift for comp done mask
- * @mc_comp_done_mask:            Mask shift for hw multi-context comp done irq
- * @top_irq_shift:                Mask shift for top level BUS WR irq
- * @support_consumed_addr:        Indicate if bus support consumed address
- * @max_out_res:                  Max vfe out resource value supported for hw
- * @supported_irq:                Mask to indicate the IRQ supported
- * @comp_cfg_needed:              Composite group config is needed for hw
- * @pack_align_shift:             Shift value for alignment of packer format
- * @max_bw_counter_limit:         Max BW counter limit
- * @support_burst_limit:          flag for supporting bust limit
- * @skip_regdump:                 Skip regdump
- * @skip_regdump_start_offset:    Start offset for skipping reg dump
- * @skip_regdump_stop_offset:     End offset for skipping reg dump
- * @client_base:                  Base address for clients
- * @client_reg_size:              Reg size for clients
- * @ubwc_client_mask:             Mask for clients supporting UBWC.
- * @support_dyn_offset:           Flag for supporting dynamic offset
+ * @common_reg:                      Common register details
+ * @client_offsets:                  Offsets for client registers
+ * @num_client:                      Total number of write clients
+ * @bus_client_reg:                  Bus client register info
+ * @vfe_out_hw_info:                 VFE output capability
+ * @num_cons_err:                    Number of constraint errors in list
+ * @constraint_error_list:           Static list of all constraint errors
+ * @num_comp_grp:                    Number of composite groups
+ * @comp_done_mask:                  Mask shift for comp done mask
+ * @mc_comp_done_mask:               Mask shift for hw multi-context comp done irq
+ * @top_irq_shift:                   Mask shift for top level BUS WR irq
+ * @support_consumed_addr:           Indicate if bus support consumed address
+ * @support_buf_done_with_framehdr:  Indicate if bus supports frameheader to
+ *                                   verify buf done
+ * @max_out_res:                     Max vfe out resource value supported for hw
+ * @supported_irq:                   Mask to indicate the IRQ supported
+ * @comp_cfg_needed:                 Composite group config is needed for hw
+ * @pack_align_shift:                Shift value for alignment of packer format
+ * @max_bw_counter_limit:            Max BW counter limit
+ * @support_burst_limit:             flag for supporting bust limit
+ * @skip_regdump:                    Skip regdump
+ * @skip_regdump_start_offset:       Start offset for skipping reg dump
+ * @skip_regdump_stop_offset:        End offset for skipping reg dump
+ * @client_base:                     Base address for clients
+ * @client_reg_size:                 Reg size for clients
+ * @ubwc_client_mask:                Mask for clients supporting UBWC.
+ * @support_dyn_offset:              Flag for supporting dynamic offset
  */
 struct cam_vfe_bus_ver3_hw_info {
 	struct cam_vfe_bus_ver3_reg_offset_common common_reg;
 	struct cam_vfe_bus_ver3_reg_offset_bus_client client_offsets;
+	uint64_t     valid_out_ports;
+	uint64_t     valid_wm_mask;
 	uint32_t num_client;
 	struct cam_vfe_bus_ver3_reg_offset_bus_client
 		bus_client_reg[CAM_VFE_BUS_VER3_MAX_CLIENTS];
@@ -304,6 +330,7 @@ struct cam_vfe_bus_ver3_hw_info {
 	uint32_t mc_comp_done_mask[CAM_VFE_BUS_VER3_COMP_GRP_MAX];
 	uint32_t top_irq_shift;
 	bool support_consumed_addr;
+	bool support_buf_done_with_framehdr;
 	uint32_t max_out_res;
 	uint32_t supported_irq;
 	bool comp_cfg_needed;

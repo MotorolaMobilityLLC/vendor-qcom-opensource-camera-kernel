@@ -192,51 +192,6 @@ ERROR:
 }
 
 /**
- * @e_ctrl: ctrl structure
- *
- * Parses eeprom dt
- */
-static int cam_eeprom_get_dt_data(struct cam_eeprom_ctrl_t *e_ctrl)
-{
-	int                             rc = 0;
-	struct cam_hw_soc_info         *soc_info = &e_ctrl->soc_info;
-	struct cam_eeprom_soc_private  *soc_private =
-		(struct cam_eeprom_soc_private *)e_ctrl->soc_info.soc_private;
-	struct cam_sensor_power_ctrl_t *power_info = &soc_private->power_info;
-	struct device_node             *of_node = NULL;
-
-	of_node = soc_info->dev->of_node;
-
-	if (e_ctrl->userspace_probe == false) {
-		rc = cam_get_dt_power_setting_data(of_node,
-			soc_info, power_info);
-		if (rc < 0) {
-			CAM_ERR(CAM_EEPROM, "failed in getting power settings");
-			return rc;
-		}
-	}
-
-	if (!soc_info->gpio_data) {
-		CAM_INFO(CAM_EEPROM, "No GPIO found");
-		return 0;
-	}
-
-	if (!soc_info->gpio_data->cam_gpio_common_tbl_size) {
-		CAM_INFO(CAM_EEPROM, "No GPIO found");
-		return -EINVAL;
-	}
-
-	rc = cam_sensor_util_init_gpio_pin_tbl(soc_info,
-		&power_info->gpio_num_info);
-	if ((rc < 0) || (!power_info->gpio_num_info)) {
-		CAM_ERR(CAM_EEPROM, "No/Error EEPROM GPIOs");
-		return -EINVAL;
-	}
-
-	return rc;
-}
-
-/**
  * @eb_info: eeprom private data structure
  * @of_node: eeprom device node
  *
@@ -282,12 +237,12 @@ static int cam_eeprom_cmm_dts(struct cam_eeprom_soc_private *eb_info,
  */
 int cam_eeprom_parse_dt(struct cam_eeprom_ctrl_t *e_ctrl)
 {
-	int                             i, rc = 0;
+	int                             rc = 0;
 	struct cam_hw_soc_info         *soc_info = &e_ctrl->soc_info;
 	struct device_node             *of_node = NULL;
-	struct device_node             *of_parent = NULL;
 	struct cam_eeprom_soc_private  *soc_private =
 		(struct cam_eeprom_soc_private *)e_ctrl->soc_info.soc_private;
+	struct cam_sensor_power_ctrl_t *power_info = &soc_private->power_info;
 	uint32_t                        temp;
 
 	if (!soc_info->dev) {
@@ -297,21 +252,14 @@ int cam_eeprom_parse_dt(struct cam_eeprom_ctrl_t *e_ctrl)
 
 	e_ctrl->is_multimodule_mode = false;
 
-	rc = cam_soc_util_get_dt_properties(soc_info);
+	rc = cam_sensor_util_parse_and_request_resources(&(e_ctrl->io_master_info),
+		soc_info);
 	if (rc < 0) {
-		CAM_ERR(CAM_EEPROM, "Failed to read DT properties rc : %d", rc);
+		CAM_ERR(CAM_EEPROM, "Failed in parse_and_request_resources rc : %d", rc);
 		return rc;
 	}
 
 	of_node = soc_info->dev->of_node;
-
-	rc = of_property_read_bool(of_node, "i3c-target");
-	if (rc) {
-		e_ctrl->is_i3c_device = true;
-		e_ctrl->io_master_info.master_type = I3C_MASTER;
-	}
-
-	CAM_DBG(CAM_SENSOR, "I3C Target: %s", CAM_BOOL_TO_YESNO(e_ctrl->is_i3c_device));
 
 	if (of_property_read_bool(of_node, "multimodule-support")) {
 		CAM_DBG(CAM_UTIL, "Multi Module is Supported");
@@ -325,34 +273,20 @@ int cam_eeprom_parse_dt(struct cam_eeprom_ctrl_t *e_ctrl)
 		e_ctrl->userspace_probe = true;
 	}
 
-	if (e_ctrl->io_master_info.master_type == CCI_MASTER) {
-		rc = of_property_read_u32(of_node, "cci-master",
-			&e_ctrl->cci_i2c_master);
-		if (rc < 0 || (e_ctrl->cci_i2c_master >= MASTER_MAX)) {
-			CAM_DBG(CAM_EEPROM, "failed rc %d", rc);
-			rc = -EFAULT;
-			return rc;
-		}
-
-		of_parent = of_get_parent(of_node);
-		if (of_property_read_u32(of_parent, "cell-index",
-				&e_ctrl->cci_num) < 0)
-			/* Set default master 0 */
-			e_ctrl->cci_num = CCI_DEVICE_0;
-
-		e_ctrl->io_master_info.cci_client->cci_device = e_ctrl->cci_num;
-		CAM_DBG(CAM_EEPROM, "cci-index %d", e_ctrl->cci_num, rc);
-	}
-
 	if (e_ctrl->io_master_info.master_type == SPI_MASTER) {
-		rc = cam_eeprom_cmm_dts(soc_private, soc_info->dev->of_node);
+		rc = cam_eeprom_cmm_dts(soc_private, of_node);
 		if (rc < 0)
 			CAM_DBG(CAM_EEPROM, "MM data not available rc %d", rc);
 	}
 
-	rc = cam_eeprom_get_dt_data(e_ctrl);
-	if (rc < 0)
-		CAM_DBG(CAM_EEPROM, "failed: eeprom get dt data rc %d", rc);
+	if (!e_ctrl->userspace_probe) {
+		rc = cam_get_dt_power_setting_data(of_node,
+			soc_info, power_info);
+		if (rc < 0) {
+			CAM_ERR(CAM_EEPROM, "failed in getting power settings");
+			goto release_resources;
+		}
+	}
 
 	if ((e_ctrl->userspace_probe == false) &&
 			(e_ctrl->io_master_info.master_type != SPI_MASTER)) {
@@ -378,50 +312,28 @@ int cam_eeprom_parse_dt(struct cam_eeprom_ctrl_t *e_ctrl)
 			soc_private->i2c_info.slave_addr);
 	}
 
-	if (soc_info->is_a_genpd_device) {
-		rc = cam_soc_util_initialize_power_domain(soc_info);
-		if (rc) {
-			CAM_ERR(CAM_EEPROM, "Failed to initalize the GDSC for dev: %s",
-				soc_info->dev_name);
-			return rc;
-		}
+	if (!soc_info->gpio_data) {
+		CAM_INFO(CAM_EEPROM, "No GPIO found");
+		return 0;
 	}
 
-	for (i = 0; i < soc_info->num_clk; i++) {
-		soc_info->clk[i] = devm_clk_get(soc_info->dev,
-			soc_info->clk_name[i]);
-		if (IS_ERR(soc_info->clk[i])) {
-			CAM_ERR(CAM_EEPROM, "get failed for %s",
-				soc_info->clk_name[i]);
-			rc = -ENOENT;
-			goto uninitialize_power_domain;
-		} else if (!soc_info->clk[i]) {
-			CAM_DBG(CAM_EEPROM, "%s handle is NULL skip get",
-				soc_info->clk_name[i]);
-			continue;
-		}
+	if (!soc_info->gpio_data->cam_gpio_common_tbl_size) {
+		CAM_INFO(CAM_EEPROM, "No GPIO found");
+		rc = -EINVAL;
+		goto release_resources;
 	}
 
-	/* Initialize regulators to default parameters */
-	for (i = 0; i < soc_info->num_rgltr; i++) {
-		soc_info->rgltr[i] = devm_regulator_get(soc_info->dev,
-					soc_info->rgltr_name[i]);
-		if (IS_ERR_OR_NULL(soc_info->rgltr[i])) {
-			rc = PTR_ERR(soc_info->rgltr[i]);
-			rc = rc ? rc : -EINVAL;
-			CAM_ERR(CAM_EEPROM, "get failed for regulator %s",
-				 soc_info->rgltr_name[i]);
-			goto uninitialize_power_domain;
-		}
-		CAM_DBG(CAM_EEPROM, "get for regulator %s",
-			soc_info->rgltr_name[i]);
+	rc = cam_sensor_util_init_gpio_pin_tbl(soc_info,
+		&power_info->gpio_num_info);
+	if ((rc < 0) || (!power_info->gpio_num_info)) {
+		CAM_ERR(CAM_EEPROM, "No/Error EEPROM GPIOs");
+		rc = -EINVAL;
+		goto release_resources;
 	}
-	cam_sensor_utils_parse_pm_ctrl_flag(of_node, &(e_ctrl->io_master_info));
 
 	return rc;
 
-uninitialize_power_domain:
-	if (soc_info->is_a_genpd_device)
-		cam_soc_util_uninitialize_power_domain(soc_info);
+release_resources:
+	cam_sensor_util_release_resources(&(e_ctrl->io_master_info), soc_info);
 	return rc;
 }

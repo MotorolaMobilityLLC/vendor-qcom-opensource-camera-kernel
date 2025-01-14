@@ -143,6 +143,7 @@
 #define CAM_ISP_GENERIC_BLOB_TYPE_IFE_FCG_CFG               33
 #define CAM_ISP_GENERIC_BLOB_TYPE_UBWC_CONFIG_V3            34
 #define CAM_ISP_GENERIC_BLOB_TYPE_EXP_ORDER_UPDATE          35
+#define CAM_ISP_GENERIC_BLOB_TYPE_FRAMEHEADER_CFG           36
 
 #define CAM_ISP_VC_DT_CFG                4
 #define CAM_ISP_INVALID_VC_VALUE         0xFFFF
@@ -1051,6 +1052,50 @@ struct cam_isp_sfe_init_scratch_buf_config {
 	};
 };
 
+/**
+ * struct cam_isp_frame_header_buf_info - Frameheader buf info
+ *
+ * @mem_handle:          Frame header buf handle
+ * @offset:              Offset to the buffer
+ * @resource_type:       Out port resource
+ * @hw_ctxt_id:          Ctxt of port, valid values being one of:
+ *                        - CAM_ISP_MULTI_CTXT0_MASK
+ *                        - CAM_ISP_MULTI_CTXT1_MASK
+ *                        - CAM_ISP_MULTI_CTXT2_MASK
+ * @num_valid_params:    Number of valid params
+ * @valid_param_mask:    Param mask
+ * @params:              Reserved fields
+ */
+struct cam_isp_frame_header_buf_info {
+	__s32     mem_handle;
+	__u32     offset;
+	__u32     resource_type;
+	__u32     hw_ctxt_id;
+	__u32     num_valid_params;
+	__u32     valid_param_mask;
+	__u32     params[6];
+};
+
+/**
+ * struct cam_isp_frame_header_buf_config - Buffer cfg
+ *		for WM ports to write req id upon buf done,
+ *		as part of INIT packet
+ *
+ * @version:             Version info
+ * @num_ports:           Number of ports to configure
+ * @num_valid_params:    Number of valid params
+ * @valid_param_mask:    Param mask
+ * @params:              Reserved fields
+ * @frame_header_cfg:    Pointer to frame header config buffer
+ */
+struct cam_isp_frame_header_buf_cfg {
+	__u32  version;
+	__u32  num_ports;
+	__u32  num_valid_params;
+	__u32  valid_param_mask;
+	__u32  params[6];
+	struct cam_isp_frame_header_buf_info frame_header_cfg[];
+};
 /**
  * struct cam_isp_predict_fcg_config - FCG config in a single prediction
  *

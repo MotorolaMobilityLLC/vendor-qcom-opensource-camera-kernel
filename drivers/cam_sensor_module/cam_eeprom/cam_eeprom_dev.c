@@ -95,7 +95,6 @@ int32_t cam_eeprom_update_i2c_info(struct cam_eeprom_ctrl_t *e_ctrl,
 				cci_client);
 			return -EINVAL;
 		}
-		cci_client->cci_i2c_master = e_ctrl->cci_i2c_master;
 		cci_client->sid = (i2c_info->slave_addr) >> 1;
 		cci_client->retries = 3;
 		cci_client->id_map = 0;
@@ -300,7 +299,6 @@ probe_failure:
 static void cam_eeprom_i2c_component_unbind(struct device *dev,
 	struct device *master_dev, void *data)
 {
-	int                             i;
 	struct i2c_client              *client = NULL;
 	struct cam_eeprom_ctrl_t       *e_ctrl;
 	struct cam_eeprom_soc_private  *soc_private;
@@ -329,27 +327,13 @@ static void cam_eeprom_i2c_component_unbind(struct device *dev,
 	CAM_INFO(CAM_EEPROM, "i2c driver remove invoked");
 	soc_info = &e_ctrl->soc_info;
 
-	if (soc_info->is_a_genpd_device)
-		cam_soc_util_uninitialize_power_domain(soc_info);
-
-	for (i = 0; i < soc_info->num_clk; i++) {
-		if (!soc_info->clk[i]) {
-			CAM_DBG(CAM_EEPROM, "%s handle is NULL skip put",
-				soc_info->clk_name[i]);
-			continue;
-		}
-		devm_clk_put(soc_info->dev, soc_info->clk[i]);
-	}
-
 	mutex_lock(&(e_ctrl->eeprom_mutex));
 	cam_eeprom_shutdown(e_ctrl);
 	mutex_unlock(&(e_ctrl->eeprom_mutex));
 	mutex_destroy(&(e_ctrl->eeprom_mutex));
 	cam_unregister_subdev(&(e_ctrl->v4l2_dev_str));
-	CAM_MEM_FREE(soc_private);
+	cam_sensor_util_release_resources(&(e_ctrl->io_master_info), soc_info);
 	v4l2_set_subdevdata(&e_ctrl->v4l2_dev_str.sd, NULL);
-	CAM_MEM_FREE(e_ctrl->io_master_info.qup_client);
-	e_ctrl->io_master_info.qup_client = NULL;
 	CAM_MEM_FREE(e_ctrl);
 }
 
@@ -522,7 +506,6 @@ static int cam_eeprom_component_bind(struct device *dev,
 	struct device *master_dev, void *data)
 {
 	int32_t                         rc = 0;
-	bool                            i3c_i2c_target;
 	struct cam_eeprom_ctrl_t       *e_ctrl = NULL;
 	struct cam_eeprom_soc_private  *soc_private = NULL;
 	struct platform_device         *pdev = to_platform_device(dev);
@@ -530,9 +513,6 @@ static int cam_eeprom_component_bind(struct device *dev,
 	long                            microsec = 0;
 
 	CAM_GET_TIMESTAMP(ts_start);
-	i3c_i2c_target = of_property_read_bool(pdev->dev.of_node, "i3c-i2c-target");
-	if (i3c_i2c_target)
-		return 0;
 
 	e_ctrl = CAM_MEM_ZALLOC(sizeof(struct cam_eeprom_ctrl_t), GFP_KERNEL);
 	if (!e_ctrl)
@@ -611,15 +591,9 @@ free_e_ctrl:
 static void cam_eeprom_component_unbind(struct device *dev,
 	struct device *master_dev, void *data)
 {
-	int                        i;
-	bool                       i3c_i2c_target;
 	struct cam_eeprom_ctrl_t  *e_ctrl;
 	struct cam_hw_soc_info    *soc_info;
 	struct platform_device *pdev = to_platform_device(dev);
-
-	i3c_i2c_target = of_property_read_bool(pdev->dev.of_node, "i3c-i2c-target");
-	if (i3c_i2c_target)
-		return;
 
 	e_ctrl = platform_get_drvdata(pdev);
 	if (!e_ctrl) {
@@ -630,25 +604,12 @@ static void cam_eeprom_component_unbind(struct device *dev,
 	CAM_DBG(CAM_EEPROM, "Component unbind called for: %s", pdev->name);
 	soc_info = &e_ctrl->soc_info;
 
-	if (soc_info->is_a_genpd_device)
-		cam_soc_util_uninitialize_power_domain(soc_info);
-
-	for (i = 0; i < soc_info->num_clk; i++) {
-		if (!soc_info->clk[i]) {
-			CAM_DBG(CAM_EEPROM, "%s handle is NULL skip put",
-				soc_info->clk_name[i]);
-			continue;
-		}
-		devm_clk_put(soc_info->dev, soc_info->clk[i]);
-	}
-
 	mutex_lock(&(e_ctrl->eeprom_mutex));
 	cam_eeprom_shutdown(e_ctrl);
 	mutex_unlock(&(e_ctrl->eeprom_mutex));
 	mutex_destroy(&(e_ctrl->eeprom_mutex));
 	cam_unregister_subdev(&(e_ctrl->v4l2_dev_str));
-	CAM_MEM_FREE(soc_info->soc_private);
-	CAM_MEM_FREE(e_ctrl->io_master_info.cci_client);
+	cam_sensor_util_release_resources(&(e_ctrl->io_master_info), soc_info);
 	platform_set_drvdata(pdev, NULL);
 	v4l2_set_subdevdata(&e_ctrl->v4l2_dev_str.sd, NULL);
 	CAM_MEM_FREE(e_ctrl);

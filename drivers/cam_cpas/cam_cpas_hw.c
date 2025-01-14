@@ -2097,42 +2097,42 @@ static int cam_cpas_util_apply_client_axi_vote(
 
 update_l0_mnoc:
 		/* Check and update mnoc ab and ib */
-		if (cesta_drv_idx > CAM_CPAS_PORT_HLOS_DRV) {
+		if (ddr_drv_idx > CAM_CPAS_PORT_HLOS_DRV) {
 			if ((apply_type != CAM_CPAS_APPLY_TYPE_STOP) && camnoc_unchanged &&
-				(curr_tree_node->bw_info[cesta_drv_idx].drv_vote.high.ab
+				(curr_tree_node->bw_info[ddr_drv_idx].drv_vote.high.ab
 				== con_axi_vote->axi_path[i].drv_vote.high.ab) &&
-				(curr_tree_node->bw_info[cesta_drv_idx].drv_vote.low.ab
+				(curr_tree_node->bw_info[ddr_drv_idx].drv_vote.low.ab
 				== con_axi_vote->axi_path[i].drv_vote.low.ab) &&
-				(curr_tree_node->bw_info[cesta_drv_idx].drv_vote.high.ib
+				(curr_tree_node->bw_info[ddr_drv_idx].drv_vote.high.ib
 				== con_axi_vote->axi_path[i].drv_vote.high.ib) &&
-				(curr_tree_node->bw_info[cesta_drv_idx].drv_vote.low.ib
+				(curr_tree_node->bw_info[ddr_drv_idx].drv_vote.low.ib
 				== con_axi_vote->axi_path[i].drv_vote.low.ib)) {
 				continue;
 			}
 
-			curr_tree_node->bw_info[cesta_drv_idx].drv_vote.high.ab =
+			curr_tree_node->bw_info[ddr_drv_idx].drv_vote.high.ab =
 				con_axi_vote->axi_path[i].drv_vote.high.ab;
-			curr_tree_node->bw_info[cesta_drv_idx].drv_vote.low.ab =
+			curr_tree_node->bw_info[ddr_drv_idx].drv_vote.low.ab =
 				con_axi_vote->axi_path[i].drv_vote.low.ab;
-			curr_tree_node->bw_info[cesta_drv_idx].drv_vote.high.ib =
+			curr_tree_node->bw_info[ddr_drv_idx].drv_vote.high.ib =
 				con_axi_vote->axi_path[i].drv_vote.high.ib;
-			curr_tree_node->bw_info[cesta_drv_idx].drv_vote.low.ib =
+			curr_tree_node->bw_info[ddr_drv_idx].drv_vote.low.ib =
 				con_axi_vote->axi_path[i].drv_vote.low.ib;
 		} else {
 			if (camnoc_unchanged &&
-				(curr_tree_node->bw_info[cesta_drv_idx].hlos_vote.ab ==
+				(curr_tree_node->bw_info[ddr_drv_idx].hlos_vote.ab ==
 				(con_axi_vote->axi_path[i].drv_vote.high.ab +
 				con_axi_vote->axi_path[i].drv_vote.low.ab)) &&
-				(curr_tree_node->bw_info[cesta_drv_idx].hlos_vote.ib ==
+				(curr_tree_node->bw_info[ddr_drv_idx].hlos_vote.ib ==
 				(con_axi_vote->axi_path[i].drv_vote.high.ib +
 				con_axi_vote->axi_path[i].drv_vote.low.ib))) {
 				continue;
 			}
 
-			curr_tree_node->bw_info[cesta_drv_idx].hlos_vote.ab =
+			curr_tree_node->bw_info[ddr_drv_idx].hlos_vote.ab =
 				(con_axi_vote->axi_path[i].drv_vote.high.ab +
 				con_axi_vote->axi_path[i].drv_vote.low.ab);
-			curr_tree_node->bw_info[cesta_drv_idx].hlos_vote.ib =
+			curr_tree_node->bw_info[ddr_drv_idx].hlos_vote.ib =
 				(con_axi_vote->axi_path[i].drv_vote.high.ib +
 				con_axi_vote->axi_path[i].drv_vote.low.ib);
 		}
