@@ -54,12 +54,13 @@
 
 /*
  * If synx fencing is enabled, send FW memory mapping
- * for synx hw_mutex, ipc hw_mutex, synx global mem
- * and global cntr for qtimer
+ * for synx hw_mutex, ipc hw_mutex, synx global mem for qtimer
  */
-#define ICP_NUM_MEM_REGIONS_FOR_SYNX 4
+#define ICP_NUM_MEM_REGIONS_FOR_SYNX 3
 
 #define ICP_NUM_MEM_REGIONS_FOR_LLCC 1
+
+#define ICP_NUM_MEM_REGIONS_FOR_GLOBAL_CNTR 1
 
 DECLARE_RWSEM(frame_in_process_sem);
 
@@ -3625,9 +3626,10 @@ static void cam_icp_free_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
 			CAM_SMMU_SUBREGION_SYNX_HWMUTEX);
 		cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_DEVICE,
 			CAM_SMMU_SUBREGION_IPC_HWMUTEX);
-		cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_DEVICE,
-			CAM_SMMU_SUBREGION_GLOBAL_CNTR);
 	}
+
+	cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_DEVICE,
+		CAM_SMMU_SUBREGION_GLOBAL_CNTR);
 }
 
 static int cam_icp_alloc_secheap_mem(struct cam_icp_hw_mgr *hw_mgr,
@@ -3896,16 +3898,8 @@ static int cam_icp_allocate_mem_for_fence_signaling(
 	if (rc)
 		goto unmap_synx_hwmutex;
 
-	rc = cam_icp_allocate_device_global_cnt_mem(hw_mgr);
-	if (rc)
-		goto unmap_ipc_mutex;
-
 	return 0;
 
-unmap_ipc_mutex:
-	cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
-		CAM_SMMU_REGION_DEVICE,
-		CAM_SMMU_SUBREGION_IPC_HWMUTEX);
 unmap_synx_hwmutex:
 	cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
 		CAM_SMMU_REGION_DEVICE,
@@ -4170,46 +4164,62 @@ static int cam_icp_allocate_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
 		}
 	}
 
-	if (hw_mgr->fw_based_sys_caching || hw_mgr->synx_signaling_en) {
-		rc = cam_smmu_get_region_info(hw_mgr->iommu_hdl,
-			CAM_SMMU_REGION_DEVICE, &hw_mgr->hfi_mem.device);
-		if (!rc) {
-			if (hw_mgr->fw_based_sys_caching) {
-				rc = cam_icp_allocate_llcc_register_mem(hw_mgr);
-				if (rc) {
-					CAM_ERR(CAM_ICP, "[%s] Unable to allocate llcc memory rc %d",
-						hw_mgr->hw_mgr_name, rc);
-					if (fwuncached_region_exists) {
-						cam_mem_mgr_free_memory_region(
-							&hw_mgr->hfi_mem.fw_uncached_generic);
-						goto qtbl_alloc_failed;
-					} else {
-						goto get_io_mem_failed;
-					}
+	rc = cam_smmu_get_region_info(hw_mgr->iommu_hdl,
+		CAM_SMMU_REGION_DEVICE, &hw_mgr->hfi_mem.device);
+	if (!rc) {
+		if (hw_mgr->fw_based_sys_caching) {
+			rc = cam_icp_allocate_llcc_register_mem(hw_mgr);
+			if (rc) {
+				CAM_ERR(CAM_ICP, "[%s] Unable to allocate llcc memory rc %d",
+					hw_mgr->hw_mgr_name, rc);
+				if (fwuncached_region_exists) {
+					cam_mem_mgr_free_memory_region(
+						&hw_mgr->hfi_mem.fw_uncached_generic);
+					goto qtbl_alloc_failed;
+				} else {
+					goto get_io_mem_failed;
 				}
 			}
+		}
 
-			/* Allocate sync global mem & hwmutex for IPC */
-			if (hw_mgr->synx_signaling_en) {
-				rc = cam_icp_allocate_mem_for_fence_signaling(hw_mgr);
-				if (rc) {
-					if (hw_mgr->fw_based_sys_caching) {
-						cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
-							CAM_SMMU_REGION_DEVICE,
-							CAM_SMMU_SUBREGION_LLCC_REGISTER);
-					}
-					if (fwuncached_region_exists) {
-						cam_mem_mgr_free_memory_region(
-							&hw_mgr->hfi_mem.fw_uncached_generic);
-						goto qtbl_alloc_failed;
-					} else {
-						goto get_io_mem_failed;
-					}
+		/* Allocate sync global mem & hwmutex for IPC */
+		if (hw_mgr->synx_signaling_en) {
+			rc = cam_icp_allocate_mem_for_fence_signaling(hw_mgr);
+			if (rc) {
+				if (hw_mgr->fw_based_sys_caching) {
+					cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
+						CAM_SMMU_REGION_DEVICE,
+						CAM_SMMU_SUBREGION_LLCC_REGISTER);
+				}
+				if (fwuncached_region_exists) {
+					cam_mem_mgr_free_memory_region(
+						&hw_mgr->hfi_mem.fw_uncached_generic);
+					goto qtbl_alloc_failed;
+				} else {
+					goto get_io_mem_failed;
 				}
 			}
-		} else {
-			CAM_ERR(CAM_ICP, "[%s] Unable to get device memory info rc %d",
-				hw_mgr->hw_mgr_name, rc);
+		}
+
+		/* Allocate global cntr mem */
+		rc = cam_icp_allocate_device_global_cnt_mem(hw_mgr);
+		if (rc) {
+			if (hw_mgr->fw_based_sys_caching) {
+				cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
+					CAM_SMMU_REGION_DEVICE,
+					CAM_SMMU_SUBREGION_LLCC_REGISTER);
+			}
+			if (hw_mgr->synx_signaling_en) {
+				cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
+					CAM_SMMU_REGION_DEVICE,
+					CAM_SMMU_SUBREGION_IPC_HWMUTEX);
+				cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
+					CAM_SMMU_REGION_DEVICE,
+					CAM_SMMU_SUBREGION_SYNX_HWMUTEX);
+				cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
+					CAM_SMMU_REGION_DEVICE,
+					CAM_SMMU_SUBREGION_GLOBAL_SYNC_MEM);
+			}
 			if (fwuncached_region_exists) {
 				cam_mem_mgr_free_memory_region(
 					&hw_mgr->hfi_mem.fw_uncached_generic);
@@ -4217,6 +4227,15 @@ static int cam_icp_allocate_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
 			} else {
 				goto get_io_mem_failed;
 			}
+		}
+	} else {
+		CAM_ERR(CAM_ICP, "[%s] Unable to get device memory info rc %d",
+			hw_mgr->hw_mgr_name, rc);
+		if (fwuncached_region_exists) {
+			cam_mem_mgr_free_memory_region(&hw_mgr->hfi_mem.fw_uncached_generic);
+			goto qtbl_alloc_failed;
+		} else {
+			goto get_io_mem_failed;
 		}
 	}
 
@@ -5479,7 +5498,7 @@ static int cam_icp_mgr_send_memory_region_info(
 {
 	struct hfi_cmd_prop *set_prop = NULL;
 	struct hfi_cmd_config_mem_regions *region_info = NULL;
-	uint32_t num_regions = 0;
+	uint32_t num_regions = ICP_NUM_MEM_REGIONS_FOR_GLOBAL_CNTR;
 	size_t payload_size;
 
 	if (hw_mgr->synx_signaling_en)
@@ -5487,9 +5506,6 @@ static int cam_icp_mgr_send_memory_region_info(
 
 	if (hw_mgr->fw_based_sys_caching)
 		num_regions += ICP_NUM_MEM_REGIONS_FOR_LLCC;
-
-	if (!num_regions)
-		return 0;
 
 	payload_size = sizeof(struct hfi_cmd_prop) +
 		(sizeof(struct hfi_cmd_config_mem_regions)) +
@@ -5542,25 +5558,27 @@ static int cam_icp_mgr_send_memory_region_info(
 
 		region_info->num_valid_regions++;
 
-		/* Update global cntr mem */
-		region_info->region_info_flex[region_info->num_valid_regions].region_id =
-			HFI_MEM_REGION_ID_GLOBAL_CNTR;
-		region_info->region_info_flex[region_info->num_valid_regions].region_type =
-			HFI_MEM_REGION_TYPE_DEVICE;
-		region_info->region_info_flex[region_info->num_valid_regions].start_addr =
-			hw_mgr->hfi_mem.global_cntr.iova;
-		region_info->region_info_flex[region_info->num_valid_regions].size =
-			hw_mgr->hfi_mem.global_cntr.len;
-
-		region_info->num_valid_regions++;
 		CAM_DBG(CAM_ICP,
-			"Synx mem regions global_sync[0x%x:0x%x] synx_hw_mutex[0x%x:0x%x] ipc_hw_mutex[0x%x:0x%x] global_cntr[0x%x:0x%x]",
+			"Synx mem regions global_sync[0x%x:0x%x] synx_hw_mutex[0x%x:0x%x] ipc_hw_mutex[0x%x:0x%x]",
 			hw_mgr->hfi_mem.fw_uncached_global_sync.iova,
 			hw_mgr->hfi_mem.fw_uncached_global_sync.len,
 			hw_mgr->hfi_mem.synx_hwmutex.iova, hw_mgr->hfi_mem.synx_hwmutex.len,
-			hw_mgr->hfi_mem.ipc_hwmutex.iova, hw_mgr->hfi_mem.ipc_hwmutex.len,
-			hw_mgr->hfi_mem.global_cntr.iova, hw_mgr->hfi_mem.global_cntr.len);
+			hw_mgr->hfi_mem.ipc_hwmutex.iova, hw_mgr->hfi_mem.ipc_hwmutex.len);
 	}
+
+	/* Update global cntr mem */
+	region_info->region_info_flex[region_info->num_valid_regions].region_id =
+		HFI_MEM_REGION_ID_GLOBAL_CNTR;
+	region_info->region_info_flex[region_info->num_valid_regions].region_type =
+		HFI_MEM_REGION_TYPE_DEVICE;
+	region_info->region_info_flex[region_info->num_valid_regions].start_addr =
+		hw_mgr->hfi_mem.global_cntr.iova;
+	region_info->region_info_flex[region_info->num_valid_regions].size =
+		hw_mgr->hfi_mem.global_cntr.len;
+	CAM_DBG(CAM_ICP, "Global_cntr[0x%x:0x%x]",
+		hw_mgr->hfi_mem.global_cntr.iova, hw_mgr->hfi_mem.global_cntr.len);
+
+	region_info->num_valid_regions++;
 
 	if (hw_mgr->fw_based_sys_caching) {
 		/* Update ipc llcc mem */
