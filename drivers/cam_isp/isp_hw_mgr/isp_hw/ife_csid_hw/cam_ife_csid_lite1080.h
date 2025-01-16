@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_IFE_CSID_LITE_1080_H_
@@ -832,7 +832,7 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.min_hbi_shift_val                    = 4,
 		.start_master_sel_shift_val           = 4,
 		.fatal_err_mask                       = 0x2c1c6081,
-		.non_fatal_err_mask                   = 0x12000100,
+		.non_fatal_err_mask                   = 0x12000000,
 		.sof_irq_mask                         = 0x10,
 		.rup_irq_mask                         = 0x800000,
 		.rup_miss_irq_mask                    = 0x100,
@@ -923,7 +923,7 @@ static struct cam_ife_csid_ver2_path_reg_info
 		.debug_byte_cntr_rst_shift_val       = 2,
 		.ccif_violation_en                   = 1,
 		.fatal_err_mask                      = 0x2c1c6081,
-		.non_fatal_err_mask                  = 0x12000100,
+		.non_fatal_err_mask                  = 0x12000000,
 		.sof_irq_mask                        = 0x10,
 		.rup_irq_mask                        = 0x800000,
 		.rup_miss_irq_mask                   = 0x100,
