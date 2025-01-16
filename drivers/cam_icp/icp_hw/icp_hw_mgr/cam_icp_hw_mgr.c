@@ -6823,7 +6823,7 @@ static int cam_icp_packet_generic_blob_handler(void *user_data,
 
 		soc_req = (struct cam_icp_clk_bw_request *)blob_data;
 		*clk_info = *soc_req;
-		CAM_DBG(CAM_PERF|CAM_ICP, "%s: budget:%llu fc: %llu %d BW %lld %lld",
+		CAM_DBG(CAM_PERF|CAM_ICP, "%s: budget:%llu fc: %u %d BW %lld %lld",
 			ctx_data->ctx_id_string, clk_info->budget_ns, clk_info->frame_cycles,
 			clk_info->rt_flag, clk_info->uncompressed_bw,
 			clk_info->compressed_bw);
@@ -6911,7 +6911,7 @@ static int cam_icp_packet_generic_blob_handler(void *user_data,
 		clk_info->rt_flag = clk_info_v2->rt_flag;
 
 		CAM_DBG(CAM_PERF|CAM_ICP,
-			"%s: budget=%llu, frame_cycle=%llu, rt_flag=%d, num_paths=%d, index=%d, ctx_data=%pK",
+			"%s: budget=%llu, frame_cycle=%u, rt_flag=%d, num_paths=%d, index=%d, ctx_data=%pK",
 			ctx_data->ctx_id_string, clk_info_v2->budget_ns,
 			clk_info_v2->frame_cycles, clk_info_v2->rt_flag, clk_info_v2->num_paths,
 			index, ctx_data);
