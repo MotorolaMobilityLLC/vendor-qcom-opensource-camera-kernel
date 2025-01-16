@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -1736,6 +1736,7 @@ void cam_tfe_cam_cdm_callback(uint32_t handle, void *userdata,
 {
 	struct cam_isp_prepare_hw_update_data *hw_update_data = NULL;
 	struct cam_tfe_hw_mgr_ctx *ctx = NULL;
+	struct cam_hw_dump_pf_args *pf_args = cookie;
 	uint32_t *buf_start, *buf_end;
 	int i, rc = 0;
 	size_t len = 0;
@@ -1803,7 +1804,7 @@ void cam_tfe_cam_cdm_callback(uint32_t handle, void *userdata,
 			cam_packet_util_dump_patch_info(ctx->packet,
 				g_tfe_hw_mgr.mgr_common.img_iommu_hdl,
 				g_tfe_hw_mgr.mgr_common.img_iommu_hdl_secure,
-				NULL);
+				pf_args);
 
 	} else {
 		CAM_WARN(CAM_ISP,
@@ -5098,6 +5099,9 @@ static void cam_tfe_mgr_dump_pf_data(
 	if ((*ctx_found) && (*resource_type))
 		goto outportlog;
 
+	if (!cam_smmu_is_fault_ids_valid(pf_cmd_args->pf_args->pf_smmu_info))
+		goto pf_dump;
+
 	for (i = 0; i < CAM_TFE_HW_NUM_MAX; i++) {
 		if (!g_tfe_hw_mgr.tfe_devices[i])
 			continue;
@@ -5170,11 +5174,12 @@ static void cam_tfe_mgr_dump_pf_data(
 		get_res.out_res_id, ctx->ctx_index, packet->header.request_id);
 	*resource_type = get_res.out_res_id;
 
+pfdump:
 	cam_tfe_mgr_pf_dump(get_res.out_res_id, ctx);
 
 outportlog:
 	cam_packet_util_dump_io_bufs(packet, hw_mgr->mgr_common.img_iommu_hdl,
-		hw_mgr->mgr_common.img_iommu_hdl_secure, pf_cmd_args->pf_args, true);
+		hw_mgr->mgr_common.img_iommu_hdl_secure, pf_cmd_args->pf_args, hw_id_found);
 }
 
 static void *cam_tfe_mgr_user_dump_stream_info(

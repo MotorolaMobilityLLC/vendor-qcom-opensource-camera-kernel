@@ -146,3 +146,11 @@ config SPECTRA_VMRM
 		the resource sharing and message exchanges
 		between PVM and TVM that is required for
 		camera security framework 3.0.
+
+config SPECTRA_GET_IOMMU_FAULT_IDS
+	bool "enable retrieving HW port IDs when S1 fault happens"
+	help
+		This config enables retrieving BID, PID
+		and MID info on an IOMMU fault. These IDs help
+		the driver match with the exact instance of a
+		particular HW type.

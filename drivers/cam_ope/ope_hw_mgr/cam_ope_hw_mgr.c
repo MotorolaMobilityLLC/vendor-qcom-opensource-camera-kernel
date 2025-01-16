@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/uaccess.h>
@@ -4246,6 +4246,9 @@ static void cam_ope_mgr_dump_pf_data(
 	} else {
 		*ctx_found = false;
 	}
+
+	if (!cam_smmu_is_fault_ids_valid(pf_args->pf_smmu_info))
+		goto iodump;
 
 	for (i = 0; i < ope_hw_mgr->num_ope; i++) {
 		if (!ope_hw_mgr->ope_dev_data[i]->hw_intf)

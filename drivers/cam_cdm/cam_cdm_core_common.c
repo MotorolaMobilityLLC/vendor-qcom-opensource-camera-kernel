@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -312,11 +312,14 @@ void cam_cdm_notify_clients(struct cam_hw_info *cdm_hw,
 					&pf_args);
 				if (pf_args.pf_context_info.ctx_found ||
 					pf_args.pf_context_info.force_send_pf_evt) {
-					if (pf_args.pf_context_info.ctx_found)
+					if (pf_args.pf_context_info.ctx_found) {
 						CAM_ERR(CAM_CDM,
 							"Page Fault found on client: [%s][%u]",
 							client->data.identifier,
 							client->data.cell_index);
+						pf_args.pf_smmu_info->fault_dev_found =
+							pf_args.pf_context_info.ctx_found;
+					}
 					mutex_unlock(&client->lock);
 					cam_cdm_put_client_refcount(client);
 					break;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -479,6 +479,16 @@ bool cam_smmu_is_expanded_memory(void)
 	return iommu_cb_set.is_expanded_memory;
 }
 
+inline bool cam_smmu_is_fault_ids_valid(struct cam_smmu_pf_info *pf_info)
+{
+	if (!pf_info)
+		return false;
+
+	return (pf_info->bid != CAM_SMMU_INVALID_HW_PORT_ID &&
+		pf_info->pid != CAM_SMMU_INVALID_HW_PORT_ID &&
+		pf_info->mid != CAM_SMMU_INVALID_HW_PORT_ID);
+}
+
 int cam_smmu_need_force_alloc_cached(bool *force_alloc_cached)
 {
 	int idx;
@@ -667,8 +677,7 @@ static inline int cam_smmu_get_multiregion_client_dev_idx(
 
 static void cam_smmu_page_fault_work(struct work_struct *work)
 {
-	int j;
-	int idx;
+	int idx, j;
 	struct cam_smmu_work_payload *payload;
 	uint32_t buf_info = 0;
 	struct cam_smmu_pf_info pf_info;
@@ -705,13 +714,18 @@ static void cam_smmu_page_fault_work(struct work_struct *work)
 	pf_info.buf_info = buf_info;
 	pf_info.is_secure = iommu_cb_set.cb_info[idx].is_secure;
 	pf_info.in_map_region = in_map;
+	pf_info.fault_dev_found = false;
+	pf_info.must_notify = false;
 
-	for (j = 0; j < CAM_SMMU_CB_MAX; j++) {
+	for (j = 0; j < iommu_cb_set.cb_info[idx].cb_count &&
+		!pf_info.fault_dev_found; j++) {
 		if ((iommu_cb_set.cb_info[idx].handler[j])) {
+			pf_info.must_notify = ((j+1) == iommu_cb_set.cb_info[idx].cb_count);
 			pf_info.token = iommu_cb_set.cb_info[idx].token[j];
 			iommu_cb_set.cb_info[idx].handler[j](&pf_info);
 		}
 	}
+
 	cam_smmu_dump_cb_info(idx);
 	CAM_MEM_FREE(payload);
 }
@@ -831,7 +845,7 @@ static uint32_t cam_smmu_find_closest_mapping(int idx, void *vaddr, bool *in_map
 		start_addr = (unsigned long)mapping->paddr;
 		end_addr = (unsigned long)mapping->paddr + mapping->len;
 
-		if (start_addr <= current_addr && current_addr <= end_addr) {
+		if (start_addr <= current_addr && current_addr < end_addr) {
 			closest_mapping = mapping;
 			CAM_INFO(CAM_SMMU,
 				"Found va 0x%lx in:0x%lx-0x%lx, fd %d i_ino %lu cb:%s",

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-mapping.h>
@@ -562,6 +562,7 @@ end:
 	return rc;
 }
 
+#ifdef CONFIG_SPECTRA_GET_IOMMU_FAULT_IDS
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 #include <linux/qcom-iommu-util.h>
 void cam_check_iommu_faults(struct iommu_domain *domain,
@@ -594,6 +595,17 @@ void cam_check_iommu_faults(struct iommu_domain *domain,
 	pf_info->bid = fault_ids.bid;
 	pf_info->pid = fault_ids.pid;
 	pf_info->mid = fault_ids.mid;
+}
+#endif
+#else
+void cam_check_iommu_faults(struct iommu_domain *domain,
+	struct cam_smmu_pf_info *pf_info)
+{
+	pf_info->bid = CAM_SMMU_INVALID_HW_PORT_ID;
+	pf_info->pid = CAM_SMMU_INVALID_HW_PORT_ID;
+	pf_info->mid = CAM_SMMU_INVALID_HW_PORT_ID;
+
+	CAM_INFO(CAM_SMMU, "HW Port IDs unavailable");
 }
 #endif
 

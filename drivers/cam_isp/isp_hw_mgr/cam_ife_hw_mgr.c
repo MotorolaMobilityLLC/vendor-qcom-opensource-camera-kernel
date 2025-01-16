@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -15427,6 +15427,9 @@ static void cam_ife_mgr_dump_pf_data(
 	if ((*ctx_found) && (ctx->flags.pf_mid_found))
 		goto outportlog;
 
+	if (!cam_smmu_is_fault_ids_valid(pf_args->pf_smmu_info))
+		goto pf_dump;
+
 	/* Determine if the current context is the faulted context based on pid */
 	for (i = 0; i < ctx->num_base; i++) {
 		if (ctx->base[i].hw_type == CAM_ISP_HW_TYPE_VFE)
@@ -15476,11 +15479,15 @@ static void cam_ife_mgr_dump_pf_data(
 			"This context does not cause pf:pid:%d ctx_id:%u",
 			pf_args->pf_smmu_info->pid, ctx->ctx_index);
 
+pf_dump:
 	cam_ife_mgr_pf_dump(ctx);
 
 outportlog:
 	cam_packet_util_dump_io_bufs(packet, hw_mgr->mgr_common.img_iommu_hdl,
-		hw_mgr->mgr_common.img_iommu_hdl_secure, pf_args, true);
+		hw_mgr->mgr_common.img_iommu_hdl_secure, pf_args, ctx->flags.pf_mid_found);
+
+	cam_packet_util_dump_patch_info(packet, hw_mgr->mgr_common.img_iommu_hdl,
+		hw_mgr->mgr_common.img_iommu_hdl_secure, pf_args);
 }
 
 int cam_isp_config_csid_rup_aup(

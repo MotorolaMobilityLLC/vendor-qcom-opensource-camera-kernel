@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/uaccess.h>
@@ -1976,7 +1976,8 @@ static void cam_jpeg_mgr_dump_pf_data(
 	jpeg_pid_mid_args.pid = pf_args->pf_smmu_info->pid;
 	dev_type = ctx_data->jpeg_dev_acquire_info.dev_type;
 
-	if (!hw_mgr->num_pid[dev_type]) {
+	if (!hw_mgr->num_pid[dev_type] ||
+		!cam_smmu_is_fault_ids_valid(pf_args->pf_smmu_info)) {
 		hw_pid_support = false;
 		goto iodump;
 	}

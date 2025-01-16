@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -62,12 +62,14 @@ static void cam_isp_dev_iommu_fault_handler(struct cam_smmu_pf_info *pf_smmu_inf
 
 	for (i = 0; i < node->ctx_size; i++) {
 		cam_context_dump_pf_info(&(node->ctx_list[i]), &pf_args);
-		if (pf_args.pf_context_info.ctx_found)
+		if (pf_args.pf_context_info.ctx_found) {
 			/* Faulted ctx found */
+			pf_smmu_info->fault_dev_found = true;
 			break;
+		}
 	}
 
-	if (i == node->ctx_size) {
+	if (i == node->ctx_size && pf_smmu_info->must_notify) {
 		/* Faulted ctx not found. Report PF to userspace */
 		rc = cam_context_send_pf_evt(NULL, &pf_args);
 		if (rc)
