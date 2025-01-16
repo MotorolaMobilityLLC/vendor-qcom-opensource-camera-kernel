@@ -2339,10 +2339,9 @@ static int cam_icp_hw_mgr_create_debugfs_entry(struct cam_icp_hw_mgr *hw_mgr)
 	debugfs_create_file("test_irq_line", 0644,
 		hw_mgr->dentry, hw_mgr, &cam_icp_irq_line_test);
 
+	debugfs_create_bool("enable_kernel_panic", 0644,
+		hw_mgr->dentry, &hw_mgr->enable_panic);
 end:
-
-	/* Set default hang dump lvl */
-	hw_mgr->icp_fw_dump_lvl = HFI_FW_DUMP_ON_FAILURE;
 
 	/* By default, FW ramdump is disabled on both ICPs to avoid potential perf issue */
 	hw_mgr->icp_fw_ramdump_lvl = HFI_FW_RAMDUMP_DISABLED;
@@ -2741,6 +2740,9 @@ static int cam_icp_mgr_handle_frame_process(
 		if (ctx_data->ctxt_event_cb)
 			ctx_data->ctxt_event_cb(ctx_data->context_priv, CAM_ICP_EVT_ID_ERROR,
 				&icp_err_evt);
+
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] ENOMEM......", hw_mgr->hw_mgr_name);
 		mutex_unlock(&hw_mgr->ctx_mutex[ctx_id]);
 	}
 
@@ -3267,6 +3269,9 @@ static int cam_icp_mgr_trigger_recovery(struct cam_icp_hw_mgr *hw_mgr)
 		CAM_ERR(CAM_ICP,
 			"[%s] Fail to report system failure to userspace due to no active ctx",
 			hw_mgr->hw_mgr_name);
+
+	if (hw_mgr->enable_panic)
+		CAM_TRIGGER_PANIC("[%s] WD......", hw_mgr->hw_mgr_name);
 
 	/*
 	 * Restart only if ICP has been booted up successfully
@@ -4889,6 +4894,8 @@ static int cam_icp_mgr_abort_handle(struct cam_icp_hw_ctx_data *ctx_data)
 		rc = -ETIMEDOUT;
 		cam_icp_dump_debug_info(ctx_data->hw_mgr_priv, false);
 		ctx_data->abort_timed_out = true;
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] Abort Timeout......", hw_mgr->hw_mgr_name);
 	}
 
 	CAM_MEM_FREE(abort_cmd);
@@ -4966,6 +4973,9 @@ static int cam_icp_mgr_destroy_handle(
 	if (!rem_jiffies) {
 		rc = -ETIMEDOUT;
 		cam_icp_dump_debug_info(hw_mgr, ctx_data->abort_timed_out);
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] Destroy Timeout......",
+				hw_mgr->hw_mgr_name);
 	}
 	CAM_MEM_FREE(destroy_cmd);
 	return rc;
@@ -7591,6 +7601,9 @@ static int cam_icp_mgr_enqueue_abort(
 		rc = -ETIMEDOUT;
 		cam_icp_dump_debug_info(hw_mgr, false);
 		ctx_data->abort_timed_out = true;
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] FLUSH abort timeout......",
+				hw_mgr->hw_mgr_name);
 		goto end;
 	}
 

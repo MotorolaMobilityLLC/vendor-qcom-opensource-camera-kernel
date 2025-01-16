@@ -525,6 +525,7 @@ struct cam_icp_hw_ctx_data {
  * @fw_based_sys_caching: to check llcc cache feature is enabled or not
  * @hfi_init_done: hfi initialisation is done
  * @num_secure_contexts: Number of the existing secure contexts
+ * @enable_panic: debugfs bool to enable kernel panic upon FW fatal errors
  */
 struct cam_icp_hw_mgr {
 	struct mutex hw_mgr_mutex;
@@ -582,6 +583,7 @@ struct cam_icp_hw_mgr {
 	bool fw_based_sys_caching;
 	bool hfi_init_done;
 	uint32_t num_secure_contexts[CAM_ICP_MAX_NUM_OF_DEV_TYPES];
+	bool enable_panic;
 };
 
 /**
