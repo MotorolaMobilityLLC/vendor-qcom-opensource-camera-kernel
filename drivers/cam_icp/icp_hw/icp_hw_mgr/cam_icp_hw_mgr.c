@@ -451,7 +451,7 @@ static int32_t cam_icp_deinit_idle_clk(void *priv, void *data)
 	struct cam_icp_hw_device_info *dev_info = task_data->data;
 	struct cam_icp_clk_info *clk_info = &dev_info->clk_info;
 	struct cam_icp_hw_ctx_data *ctx_data = NULL;
-	struct cam_hw_intf *dev_intf = NULL;
+	struct cam_hw_intf *dev_intf;
 	struct cam_icp_dev_clk_update_cmd clk_upd_cmd;
 	int rc = 0, i;
 	bool busy = false;
@@ -462,20 +462,25 @@ static int32_t cam_icp_deinit_idle_clk(void *priv, void *data)
 	clk_info->curr_clk = 0;
 	clk_info->over_clked = 0;
 
-	list_for_each_entry(ctx_data, &hw_mgr->active_ctx_info.active_ctx_list, list) {
-		mutex_lock(&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
+	for (i = 0; i < CAM_ICP_CTX_MAX; i++) {
+		mutex_lock(&hw_mgr->ctx_mutex[i]);
+		if (!hw_mgr->ctx_data[i]) {
+			mutex_unlock(&hw_mgr->ctx_mutex[i]);
+			continue;
+		}
+
+		ctx_data = hw_mgr->ctx_data[i];
 		if (ctx_data->state == CAM_ICP_CTX_STATE_ACQUIRED) {
 			if (ctx_data->device_info->hw_dev_type == dev_info->hw_dev_type) {
 				busy = cam_icp_frame_pending(ctx_data);
 				if (busy) {
-					mutex_unlock(
-						&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
+					mutex_unlock(&hw_mgr->ctx_mutex[i]);
 					break;
 				}
 				cam_icp_ctx_clk_info_init(ctx_data);
 			}
 		}
-		mutex_unlock(&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
+		mutex_unlock(&hw_mgr->ctx_mutex[i]);
 	}
 
 	if (busy) {
@@ -484,7 +489,7 @@ static int32_t cam_icp_deinit_idle_clk(void *priv, void *data)
 		goto done;
 	}
 
-	if (!ctx_data) {
+	if (i == CAM_ICP_CTX_MAX) {
 		CAM_ERR(CAM_ICP, "[%s] No acquired ctx data found", hw_mgr->hw_mgr_name);
 		rc = -EFAULT;
 		goto done;
@@ -794,9 +799,7 @@ static int32_t cam_icp_ctx_timer(void *priv, void *data)
 	}
 
 	mutex_lock(&hw_mgr->ctx_mutex[ctx_id]);
-	if ((!test_bit(ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) ||
-		(ctx_info->ctx_acquired_timestamp !=
-			hw_mgr->ctx_acquired_timestamp[ctx_id])) {
+	if (ctx_data != hw_mgr->ctx_data[ctx_id]) {
 		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u",
 			ctx_id);
 		goto end;
@@ -852,7 +855,6 @@ static void cam_icp_ctx_timer_cb(struct timer_list *timer_data)
 
 	ctx_info->ctx_data = ctx_data;
 	ctx_info->ctx_id = ctx_data->ctx_id;
-	ctx_info->ctx_acquired_timestamp = hw_mgr->ctx_acquired_timestamp[ctx_data->ctx_id];
 
 	spin_lock_irqsave(&hw_mgr->hw_mgr_lock, flags);
 	task = cam_req_mgr_workq_get_task(hw_mgr->timer_work);
@@ -1073,10 +1075,15 @@ static int cam_icp_calc_total_clk(struct cam_icp_hw_mgr *hw_mgr,
 	struct cam_icp_clk_info *dev_clk_info, enum cam_icp_hw_type hw_dev_type)
 {
 	struct cam_icp_hw_ctx_data *ctx_data;
+	int                         i;
 
 	dev_clk_info->base_clk = 0;
-	list_for_each_entry(ctx_data, &hw_mgr->active_ctx_info.active_ctx_list, list) {
-		if (ctx_data->state == CAM_ICP_CTX_STATE_ACQUIRED &&
+	for (i = 0; i < CAM_ICP_CTX_MAX; i++) {
+		if (!hw_mgr->ctx_data[i])
+			continue;
+
+		ctx_data = hw_mgr->ctx_data[i];
+		if ((ctx_data->state == CAM_ICP_CTX_STATE_ACQUIRED) &&
 			(ctx_data->device_info->hw_dev_type == hw_dev_type))
 			dev_clk_info->base_clk += ctx_data->clk_info.base_clk;
 	}
@@ -1395,6 +1402,7 @@ static bool cam_icp_update_bw(struct cam_icp_hw_mgr *hw_mgr,
 	bool busy)
 {
 	struct cam_icp_hw_ctx_data *ctx;
+	int                         i;
 
 	/*
 	 * If current request bandwidth is different from previous frames, then
@@ -1429,7 +1437,11 @@ static bool cam_icp_update_bw(struct cam_icp_hw_mgr *hw_mgr,
 	hw_mgr_clk_info->uncompressed_bw = 0;
 	hw_mgr_clk_info->compressed_bw = 0;
 
-	list_for_each_entry(ctx, &hw_mgr->active_ctx_info.active_ctx_list, list) {
+	for (i = 0; i < CAM_ICP_CTX_MAX; i++) {
+		if (!hw_mgr->ctx_data[i])
+			continue;
+
+		ctx = hw_mgr->ctx_data[i];
 		if (ctx->state == CAM_ICP_CTX_STATE_ACQUIRED &&
 			(ctx_data->device_info->hw_dev_type == ctx->device_info->hw_dev_type)) {
 			hw_mgr_clk_info->uncompressed_bw +=
@@ -2537,15 +2549,16 @@ static void cam_icp_mgr_dump_active_req_info(struct cam_icp_hw_mgr *hw_mgr)
 	char log_info[256];
 	size_t buf_size, len;
 	uint32_t total_active_streams = 0, total_active_requests = 0;
-	int j;
+	int i, j;
 
 	buf_size = sizeof(log_info);
 
 	mutex_lock(&hw_mgr->hw_mgr_mutex);
-	list_for_each_entry(ctx_data, &hw_mgr->active_ctx_info.active_ctx_list, list) {
-		mutex_lock(&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
-		if (ctx_data->state != CAM_ICP_CTX_STATE_ACQUIRED) {
-			mutex_unlock(&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
+	for (i = 0; i < CAM_ICP_CTX_MAX; i++) {
+		mutex_lock(&hw_mgr->ctx_mutex[i]);
+		ctx_data = hw_mgr->ctx_data[i];
+		if (!ctx_data || (ctx_data->state != CAM_ICP_CTX_STATE_ACQUIRED)) {
+			mutex_unlock(&hw_mgr->ctx_mutex[i]);
 			continue;
 		}
 
@@ -2561,7 +2574,7 @@ static void cam_icp_mgr_dump_active_req_info(struct cam_icp_hw_mgr *hw_mgr)
 		total_active_streams++;
 		CAM_INFO(CAM_ICP, "%s: Active Requests IDs: %s",
 			ctx_data->ctx_id_string, len ? log_info : " None");
-		mutex_unlock(&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
+		mutex_unlock(&hw_mgr->ctx_mutex[i]);
 	}
 	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 
@@ -2618,7 +2631,7 @@ static int cam_icp_mgr_handle_frame_process(
 	ctx_data = ctx_info->ctx_data;
 	ctx_id = ctx_info->ctx_id;
 	mutex_lock(&hw_mgr->ctx_mutex[ctx_id]);
-	if (!test_bit(ctx_info->ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) {
+	if (ctx_data != hw_mgr->ctx_data[ctx_id]) {
 		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u",
 			ctx_id);
 		mutex_unlock(&hw_mgr->ctx_mutex[ctx_id]);
@@ -2809,7 +2822,7 @@ static int cam_icp_mgr_process_msg_config_io(
 	if (ctx_info->need_lock)
 		mutex_lock(&hw_mgr->ctx_mutex[ctx_id]);
 
-	if (!test_bit(ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) {
+	if (ctx_info->ctx_data != hw_mgr->ctx_data[ctx_id]) {
 		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u",
 			ctx_id);
 		goto end;
@@ -2896,7 +2909,7 @@ static int cam_icp_mgr_process_msg_create_handle(
 		return -EINVAL;
 	}
 
-	if (!test_bit(ctx_info->ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) {
+	if (ctx_info->ctx_data != hw_mgr->ctx_data[ctx_info->ctx_id]) {
 		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u",
 			ctx_info->ctx_id);
 		goto end;
@@ -2949,7 +2962,7 @@ static int cam_icp_mgr_process_msg_ping_ack(
 		return -EINVAL;
 	}
 
-	if (!test_bit(ctx_info->ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) {
+	if (ctx_info->ctx_data != hw_mgr->ctx_data[ctx_info->ctx_id]) {
 		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u",
 			ctx_info->ctx_id);
 		goto end;
@@ -3026,7 +3039,7 @@ static inline int cam_icp_mgr_process_msg_ofe_config_io(
 	if (ctx_info->need_lock)
 		mutex_lock(&hw_mgr->ctx_mutex[ctx_id]);
 
-	if (!test_bit(ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) {
+	if (ctx_data != hw_mgr->ctx_data[ctx_id]) {
 		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u",
 			ctx_id);
 		goto end;
@@ -3212,8 +3225,7 @@ static int cam_icp_mgr_process_direct_ack_msg(
 
 static int cam_icp_mgr_trigger_recovery(struct cam_icp_hw_mgr *hw_mgr)
 {
-	int rc = 0;
-	bool found_active = false;
+	int rc = 0, i;
 	struct sfr_buf *sfr_buffer = NULL;
 	struct cam_icp_hw_ctx_data *ctx_data;
 	struct cam_icp_hw_error_evt_data icp_err_evt = {0};
@@ -3237,21 +3249,21 @@ static int cam_icp_mgr_trigger_recovery(struct cam_icp_hw_mgr *hw_mgr)
 
 	/* Find any active context and notify userspace of system failure */
 	mutex_lock(&hw_mgr->hw_mgr_mutex);
-	list_for_each_entry(ctx_data, &hw_mgr->active_ctx_info.active_ctx_list, list) {
-		mutex_lock(&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
-		if (ctx_data->state != CAM_CTX_ACQUIRED) {
-			mutex_unlock(&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
+	for (i = 0; i < CAM_ICP_CTX_MAX; i++) {
+		mutex_lock(&hw_mgr->ctx_mutex[i]);
+		ctx_data = hw_mgr->ctx_data[i];
+		if (!ctx_data || (ctx_data->state != CAM_CTX_ACQUIRED)) {
+			mutex_unlock(&hw_mgr->ctx_mutex[i]);
 			continue;
 		}
 
 		icp_err_evt.err_type = CAM_ICP_HW_ERROR_SYSTEM_FAILURE;
 		ctx_data->ctxt_event_cb(ctx_data->context_priv, CAM_ICP_EVT_ID_ERROR,
 			&icp_err_evt);
-		mutex_unlock(&hw_mgr->ctx_mutex[ctx_data->ctx_id]);
-		found_active = true;
+		mutex_unlock(&hw_mgr->ctx_mutex[i]);
 		break;
 	}
-	if (!found_active)
+	if (i == CAM_ICP_CTX_MAX)
 		CAM_ERR(CAM_ICP,
 			"[%s] Fail to report system failure to userspace due to no active ctx",
 			hw_mgr->hw_mgr_name);
@@ -4260,15 +4272,11 @@ fw_alloc_failed:
 	return rc;
 }
 
-static int cam_icp_mgr_allocate_ctx(
-	struct cam_icp_hw_mgr       *hw_mgr,
-	struct cam_icp_hw_ctx_data **icp_ctx_data,
-	uint32_t                    *icp_ctx_id)
+static int cam_icp_mgr_allocate_ctx(struct cam_icp_hw_mgr *hw_mgr)
 {
-	struct cam_icp_hw_ctx_data *cur_ctx_data;
 	struct cam_icp_hw_ctx_data *ctx_data;
-	struct list_head *next_list_head = &hw_mgr->active_ctx_info.active_ctx_list;
-	uint32_t i = 0, size;
+	int                         i;
+	uint32_t                    size;
 
 	ctx_data = CAM_MEM_ZALLOC(sizeof(struct cam_icp_hw_ctx_data), GFP_KERNEL);
 	if (!ctx_data) {
@@ -4276,51 +4284,41 @@ static int cam_icp_mgr_allocate_ctx(
 		return -ENOMEM;
 	}
 
-	*icp_ctx_data = ctx_data;
-	if (list_empty(&hw_mgr->active_ctx_info.active_ctx_list))
-		goto add_ctx_data;
-
-	/* Context data queue should be in ascending order */
-	list_for_each_entry(cur_ctx_data,
-		&hw_mgr->active_ctx_info.active_ctx_list, list) {
-		if (i != cur_ctx_data->ctx_id) {
-			next_list_head = &cur_ctx_data->list;
-			goto add_ctx_data;
+	for (i = 0; i < CAM_ICP_CTX_MAX; i++) {
+		if (!hw_mgr->ctx_data[i]) {
+			hw_mgr->ctx_data[i] = ctx_data;
+			ctx_data->ctx_id = i;
+			ctx_data->state = CAM_ICP_CTX_STATE_IN_USE;
+			break;
 		}
-		i += 1;
 	}
 
-add_ctx_data:
-	*icp_ctx_id = i;
-	ctx_data->ctx_id = i;
-	ctx_data->state = CAM_ICP_CTX_STATE_IN_USE;
+	if (i == CAM_ICP_CTX_MAX) {
+		CAM_ERR(CAM_ICP, "No enough slots for ctx data");
+		CAM_MEM_FREE(ctx_data);
+		return -ENOMEM;
+	}
+
 	if (cam_presil_mode_enabled()) {
 		size = CAM_FRAME_CMD_MAX * sizeof(struct cam_hangdump_mem_regions);
 		ctx_data->hfi_frame_process.hangdump_mem_regions =
 			CAM_MEM_ZALLOC(size, GFP_KERNEL);
 	}
-	list_add_tail(&ctx_data->list, next_list_head);
 
-	hw_mgr->ctx_acquired_timestamp[i] = ktime_get_boottime_ns();
-
-	set_bit(i, hw_mgr->active_ctx_info.active_ctx_bitmap);
-	return 0;
+	return i;
 }
 
 static inline void cam_icp_mgr_put_ctx(
 	struct cam_icp_hw_mgr      *hw_mgr,
-	struct cam_icp_hw_ctx_data *ctx_data)
+	uint32_t                    ctx_id)
 {
-	/* Reset bit for that ctx data to indicate its unavailable now */
-	clear_bit(ctx_data->ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap);
-
 	if (cam_presil_mode_enabled()) {
-		CAM_MEM_FREE(ctx_data->hfi_frame_process.hangdump_mem_regions);
-		ctx_data->hfi_frame_process.hangdump_mem_regions = NULL;
+		CAM_MEM_FREE(hw_mgr->ctx_data[ctx_id]->hfi_frame_process.hangdump_mem_regions);
+		hw_mgr->ctx_data[ctx_id]->hfi_frame_process.hangdump_mem_regions = NULL;
 	}
-	list_del(&ctx_data->list);
-	CAM_MEM_FREE(ctx_data);
-	ctx_data = NULL;
+
+	CAM_MEM_FREE(hw_mgr->ctx_data[ctx_id]);
+	hw_mgr->ctx_data[ctx_id] = NULL;
 }
 
 static int cam_icp_mgr_send_pc_prep(struct cam_icp_hw_mgr *hw_mgr)
@@ -4827,7 +4825,7 @@ static int cam_icp_mgr_abort_handle_wq(
 	}
 
 	hw_mgr = ctx_info->hw_mgr;
-	if (!test_bit(ctx_info->ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) {
+	if (ctx_info->ctx_data != hw_mgr->ctx_data[ctx_info->ctx_id]) {
 		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u",
 			ctx_info->ctx_id);
 		goto free_ctx_info;
@@ -5107,10 +5105,7 @@ static int cam_icp_mgr_release_ctx(
 
 	CAM_DBG(CAM_ICP, "[%s] X: ctx_id = %d", hw_mgr->hw_mgr_name, ctx_data->ctx_id);
 
-	hw_mgr->ctx_acquired_timestamp[ctx_id] = 0;
-
-	/* Free ctx data in the queue */
-	cam_icp_mgr_put_ctx(hw_mgr, ctx_data);
+	cam_icp_mgr_put_ctx(hw_mgr, ctx_id);
 	mutex_unlock(&hw_mgr->ctx_mutex[ctx_id]);
 	return 0;
 }
@@ -5125,7 +5120,7 @@ static unsigned long cam_icp_hw_mgr_mini_dump_cb(void *dst, unsigned long len,
 	struct cam_hw_mini_dump_args        hw_dump_args;
 	struct cam_icp_hw_dump_args         icp_dump_args;
 	struct cam_hw_intf                 *icp_dev_intf = NULL;
-	uint32_t                            i = 0, j = 0;
+	uint32_t                            i, j;
 	unsigned long                       dumped_len = 0;
 	unsigned long                       remain_len = len;
 	int                                 rc = 0;
@@ -5166,13 +5161,9 @@ static unsigned long cam_icp_hw_mgr_mini_dump_cb(void *dst, unsigned long len,
 
 	dumped_len += sizeof(*md);
 	remain_len = len -  dumped_len;
-	list_for_each_entry(ctx, &hw_mgr->active_ctx_info.active_ctx_list, list) {
-		if (i >= CAM_ICP_CTX_MAX) {
-			CAM_WARN(CAM_ICP, "Mini dump can not hold that much ctx data");
-			break;
-		}
-
-		if (ctx->state == CAM_ICP_CTX_STATE_RELEASE)
+	for (i = 0; i < CAM_ICP_CTX_MAX; i++) {
+		ctx = hw_mgr->ctx_data[i];
+		if (!ctx || (ctx->state == CAM_ICP_CTX_STATE_RELEASE))
 			continue;
 
 		if (remain_len < sizeof(*ctx_md))
@@ -5234,7 +5225,6 @@ static unsigned long cam_icp_hw_mgr_mini_dump_cb(void *dst, unsigned long len,
 		ctx_md->hw_ctx = hw_dump_args.start_addr;
 		dumped_len += hw_dump_args.bytes_written;
 		remain_len = len - dumped_len;
-		i += 1;
 	}
 
 	/* Dump fw image */
@@ -7404,7 +7394,7 @@ static int cam_icp_mgr_delete_sync(void *priv, void *data)
 	}
 
 	mutex_lock(&hw_mgr->ctx_mutex[ctx_id]);
-	if (!test_bit(ctx_id, hw_mgr->active_ctx_info.active_ctx_bitmap)) {
+	if (ctx_data != hw_mgr->ctx_data[ctx_id]) {
 		CAM_DBG(CAM_ICP, "ctx data is already released before accessing, ctx_id: %u",
 			ctx_id);
 		goto end;
@@ -8588,20 +8578,22 @@ static int cam_icp_validate_secure_port_config(struct cam_icp_hw_mgr *hw_mgr,
 	struct cam_icp_hw_ctx_data *ctx_data)
 {
 	struct cam_icp_hw_ctx_data *cur_ctx_data;
-	int i;
+	int i, j;
 
-	list_for_each_entry(cur_ctx_data,
-		&hw_mgr->active_ctx_info.active_ctx_list, list) {
-		if (cur_ctx_data->icp_dev_acquire_info->secure_mode
-			== CAM_SECURE_MODE_SECURE) {
-			for (i = 0; i < CAM_MAX_OUTPUT_PORTS_PER_DEVICE; i++) {
-				if (cur_ctx_data->port_security_map[i] !=
-					ctx_data->port_security_map[i]) {
+	for (i = 0; i < CAM_ICP_CTX_MAX; i++) {
+		if (!hw_mgr->ctx_data[i])
+			continue;
+
+		cur_ctx_data = hw_mgr->ctx_data[i];
+		if (cur_ctx_data->icp_dev_acquire_info->secure_mode == CAM_SECURE_MODE_SECURE) {
+			for (j = 0; j < CAM_MAX_OUTPUT_PORTS_PER_DEVICE; j++) {
+				if (cur_ctx_data->port_security_map[j] !=
+					ctx_data->port_security_map[j]) {
 					CAM_ERR(CAM_ICP,
 						"%s: port security map mismatch %d prev: 0x%x, curr: 0x%x",
-						ctx_data->ctx_id_string, i,
-						cur_ctx_data->port_security_map[i],
-						ctx_data->port_security_map[i]);
+						ctx_data->ctx_id_string, j,
+						cur_ctx_data->port_security_map[j],
+						ctx_data->port_security_map[j]);
 					return -EINVAL;
 				}
 			}
@@ -8620,7 +8612,7 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	int rc = 0, bitmap_size = 0, i, ctx_id;
 	dma_addr_t io_buf_addr;
 	size_t io_buf_size;
-	struct cam_icp_hw_ctx_data *ctx_data = NULL;
+	struct cam_icp_hw_ctx_data *ctx_data;
 	struct cam_icp_acquire_dev_info_unified *icp_dev_acquire_info;
 	struct cam_cmd_mem_regions cmd_mem_region;
 	enum cam_icp_hw_type hw_dev_type;
@@ -8645,14 +8637,15 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	hw_args.use_proxy_boot_up = CAM_IS_SECONDARY_VM();
 
 	mutex_lock(&hw_mgr->hw_mgr_mutex);
-	rc = cam_icp_mgr_allocate_ctx(hw_mgr, &ctx_data, &ctx_id);
-	if (rc)
+	ctx_id = cam_icp_mgr_allocate_ctx(hw_mgr);
+	if (ctx_id < 0)
 		goto end;
 
+	mutex_lock(&hw_mgr->ctx_mutex[ctx_id]);
+	ctx_data = hw_mgr->ctx_data[ctx_id];
 	ctx_data->hw_mgr_priv = hw_mgr_priv;
 	ctx_data->acquire_dev_api_version = args->api_version;
 
-	mutex_lock(&hw_mgr->ctx_mutex[ctx_id]);
 	if (args->api_version == CAM_ACQUIRE_DEV_STRUCT_VERSION_1) {
 		rc = cam_icp_get_acquire_info_v1(hw_mgr, args, ctx_data);
 		if (rc)
@@ -8934,7 +8927,7 @@ get_io_buf_failed:
 	ctx_data->device_info = NULL;
 acquire_info_failed:
 	cam_icp_mgr_process_dbg_buf(hw_mgr);
-	cam_icp_mgr_put_ctx(hw_mgr, ctx_data);
+	cam_icp_mgr_put_ctx(hw_mgr, ctx_id);
 	mutex_unlock(&hw_mgr->ctx_mutex[ctx_id]);
 end:
 	mutex_unlock(&hw_mgr->hw_mgr_mutex);
@@ -9893,13 +9886,22 @@ int cam_icp_hw_mgr_init(struct device_node *of_node, uint64_t *hw_mgr_hdl,
 	if (!hw_mgr)
 		return -ENOMEM;
 
-	/* Init linked list for context data */
-	INIT_LIST_HEAD(&hw_mgr->active_ctx_info.active_ctx_list);
-	hw_mgr->ctx_mutex = CAM_MEM_ZALLOC(sizeof(struct mutex) * CAM_ICP_CTX_MAX,
-		GFP_KERNEL);
+	/* Init context data */
+	hw_mgr->ctx_data = CAM_MEM_ZALLOC_ARRAY(CAM_ICP_CTX_MAX,
+		sizeof(struct cam_icp_hw_ctx_data *), GFP_KERNEL);
+	if (!hw_mgr->ctx_data) {
+		CAM_ERR(CAM_ICP, "Failed at allocating memory for context data");
+		rc = -ENOMEM;
+		goto free_hw_mgr;
+	}
+
+	/* Init mutex list for context data*/
+	hw_mgr->ctx_mutex = CAM_MEM_ZALLOC_ARRAY(CAM_ICP_CTX_MAX,
+		sizeof(struct mutex), GFP_KERNEL);
 	if (!hw_mgr->ctx_mutex) {
 		CAM_ERR(CAM_ICP, "Failed at allocating memory for mutex of each ctx");
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto free_ctx_data;
 	}
 
 	for (i = 0; i < CAM_ICP_CTX_MAX; i++)
@@ -9911,7 +9913,7 @@ int cam_icp_hw_mgr_init(struct device_node *of_node, uint64_t *hw_mgr_hdl,
 	if (rc) {
 		CAM_ERR(CAM_ICP, "Fail to get hw mgr name rc: %d for icp dev[%u]",
 			rc, device_idx);
-		goto free_hw_mgr;
+		goto free_ctx_mutex;
 	}
 
 	CAM_DBG(CAM_ICP, "Initailize hw mgr[%u] with name: %s",
@@ -9947,7 +9949,7 @@ int cam_icp_hw_mgr_init(struct device_node *of_node, uint64_t *hw_mgr_hdl,
 	rc = cam_vmrm_populate_driver_node_info(&icp_driver_node);
 	if (rc) {
 		CAM_ERR(CAM_ICP, "%s sw node populate failed: %d", hw_mgr->hw_mgr_name, rc);
-		goto free_hw_mgr;
+		goto free_ctx_mutex;
 	}
 #endif
 	mutex_init(&hw_mgr->hw_mgr_mutex);
@@ -10049,10 +10051,13 @@ icp_get_hdl_failed:
 	cam_icp_mgr_free_hw_devs(hw_mgr);
 destroy_mutex:
 	mutex_destroy(&hw_mgr->hw_mgr_mutex);
-free_hw_mgr:
+free_ctx_mutex:
 	for (i = 0; i < CAM_ICP_CTX_MAX; i++)
 		mutex_destroy(&hw_mgr->ctx_mutex[i]);
 	CAM_MEM_FREE(hw_mgr->ctx_mutex);
+free_ctx_data:
+	CAM_MEM_FREE(hw_mgr->ctx_data);
+free_hw_mgr:
 	CAM_MEM_FREE(hw_mgr);
 	return rc;
 }
@@ -10060,7 +10065,7 @@ free_hw_mgr:
 void cam_icp_hw_mgr_deinit(int device_idx)
 {
 	struct cam_icp_hw_mgr *hw_mgr = NULL;
-	struct cam_icp_hw_ctx_data *ctx_data, *temp;
+	struct cam_icp_hw_ctx_data *ctx_data;
 	int i;
 
 	hw_mgr = g_icp_hw_mgr[device_idx];
@@ -10077,22 +10082,22 @@ void cam_icp_hw_mgr_deinit(int device_idx)
 	cam_icp_mgr_destroy_wq(hw_mgr);
 	cam_smmu_destroy_handle(hw_mgr->iommu_hdl);
 	cam_icp_mgr_free_hw_devs(hw_mgr);
-	for (i = 0; i < CAM_ICP_CTX_MAX; i++)
+	for (i = 0; i < CAM_ICP_CTX_MAX; i++) {
 		mutex_destroy(&hw_mgr->ctx_mutex[i]);
-	mutex_destroy(&hw_mgr->hw_mgr_mutex);
-	if (unlikely(!list_empty(&hw_mgr->active_ctx_info.active_ctx_list))) {
-		list_for_each_entry_safe(ctx_data, temp,
-			&hw_mgr->active_ctx_info.active_ctx_list, list) {
-			cam_icp_cpas_deactivate_llcc(ctx_data);
-			if (cam_presil_mode_enabled())
-				CAM_MEM_FREE(ctx_data->hfi_frame_process.hangdump_mem_regions);
-			list_del(&ctx_data->list);
-			CAM_MEM_FREE(ctx_data);
-			ctx_data = NULL;
-		}
+
+		if (!hw_mgr->ctx_data[i])
+			continue;
+
+		ctx_data = hw_mgr->ctx_data[i];
+		cam_icp_cpas_deactivate_llcc(ctx_data);
+		if (cam_presil_mode_enabled())
+			CAM_MEM_FREE(ctx_data->hfi_frame_process.hangdump_mem_regions);
+		CAM_MEM_FREE(hw_mgr->ctx_data[i]);
 	}
+	mutex_destroy(&hw_mgr->hw_mgr_mutex);
 
 	CAM_MEM_FREE(hw_mgr->ctx_mutex);
+	CAM_MEM_FREE(hw_mgr->ctx_data);
 	CAM_MEM_FREE(hw_mgr);
 	g_icp_hw_mgr[device_idx] = NULL;
 }
