@@ -80,20 +80,20 @@ static void cam_mem_mgr_print_tbl(void)
 
 	CAM_GET_TIMESTAMP(current_ts);
 	CAM_CONVERT_TIMESTAMP_FORMAT(current_ts, hrs, min, sec, ms);
-
 	CAM_INFO(CAM_MEM, "***%llu:%llu:%llu:%llu Mem mgr table dump***",
 		hrs, min, sec, ms);
 	for (i = 1; i < CAM_MEM_BUFQ_MAX; i++) {
 		if (tbl.bufq[i].active) {
 			CAM_CONVERT_TIMESTAMP_FORMAT((tbl.bufq[i].timestamp), hrs, min, sec, ms);
 			CAM_INFO(CAM_MEM,
-				"%llu:%llu:%llu:%llu idx %d fd %d i_ino %lu size %llu krefCount %d urefCount %d",
+				"%llu:%llu:%llu:%llu idx %d fd %d i_ino %lu size %llu active %d\
+					buf_handle %d krefCount %d urefCount %d",
 				hrs, min, sec, ms, i, tbl.bufq[i].fd, tbl.bufq[i].i_ino,
-				tbl.bufq[i].len, kref_read(&tbl.bufq[i].krefcount),
+				tbl.bufq[i].len, tbl.bufq[i].active, tbl.bufq[i].buf_handle,
+				kref_read(&tbl.bufq[i].krefcount),
 				kref_read(&tbl.bufq[i].urefcount));
 		}
 	}
-
 }
 
 static int cam_mem_util_get_dma_dir(uint32_t flags)
@@ -259,6 +259,7 @@ static int32_t cam_mem_get_slot(void)
 
 	mutex_lock(&tbl.bufq[idx].q_lock);
 	tbl.bufq[idx].active = true;
+	tbl.bufq[idx].release_deferred = false;
 	CAM_GET_TIMESTAMP((tbl.bufq[idx].timestamp));
 	mutex_unlock(&tbl.bufq[idx].q_lock);
 
@@ -269,6 +270,7 @@ static void cam_mem_put_slot(int32_t idx)
 {
 	mutex_lock(&tbl.bufq[idx].q_lock);
 	tbl.bufq[idx].active = false;
+	tbl.bufq[idx].release_deferred = false;
 	tbl.bufq[idx].is_internal = false;
 	memset(&tbl.bufq[idx].timestamp, 0, sizeof(struct timespec64));
 	kref_init(&tbl.bufq[idx].krefcount);
@@ -974,6 +976,7 @@ int cam_mem_mgr_alloc_and_map(struct cam_mem_mgr_alloc_cmd *cmd)
 	if (idx < 0) {
 		CAM_ERR(CAM_MEM, "Failed in getting mem slot, idx=%d", idx);
 		rc = -ENOMEM;
+		cam_mem_mgr_print_tbl();
 		goto slot_fail;
 	}
 
@@ -1141,6 +1144,7 @@ int cam_mem_mgr_map(struct cam_mem_mgr_map_cmd *cmd)
 		CAM_ERR(CAM_MEM, "Failed in getting mem slot, idx=%d, fd=%d",
 			idx, cmd->fd);
 		rc = -ENOMEM;
+		cam_mem_mgr_print_tbl();
 		goto slot_fail;
 	}
 
@@ -1333,6 +1337,7 @@ static int cam_mem_mgr_cleanup_table(void)
 		tbl.bufq[i].num_hdl = 0;
 		tbl.bufq[i].dma_buf = NULL;
 		tbl.bufq[i].active = false;
+		tbl.bufq[i].release_deferred = false;
 		tbl.bufq[i].is_internal = false;
 		cam_mem_mgr_reset_presil_params(i);
 		kref_init(&tbl.bufq[i].krefcount);
@@ -1472,6 +1477,8 @@ void cam_mem_put_cpu_buf(int32_t buf_handle)
 	int idx;
 	uint32_t krefcount = 0, urefcount = 0;
 	bool unmap = false;
+	uint64_t ms, hrs, min, sec;
+	struct timespec64 current_ts;
 
 	/* Check to avoid kernel panic - cannot call mutex in softirq/atomic context */
 	if (!in_task()) {
@@ -1513,8 +1520,24 @@ void cam_mem_put_cpu_buf(int32_t buf_handle)
 
 	if (unmap) {
 		cam_mem_util_unmap(idx);
+		CAM_GET_TIMESTAMP(current_ts);
+		CAM_CONVERT_TIMESTAMP_FORMAT(current_ts, hrs, min, sec, ms);
 		CAM_DBG(CAM_MEM,
-			"Called unmap from here, buf_handle: %u, idx: %d", buf_handle, idx);
+			"%llu:%llu:%llu:%llu  Called unmap from here, buf_handle: %u, idx: %d",
+			hrs, min, sec, ms, buf_handle, idx);
+	} else if (tbl.bufq[idx].release_deferred) {
+		CAM_CONVERT_TIMESTAMP_FORMAT((tbl.bufq[idx].timestamp), hrs, min, sec, ms);
+		CAM_ERR(CAM_MEM,
+			"%llu:%llu:%llu:%llu idx %d fd %d i_ino %lu size %llu active %d\
+				buf_handle %d krefCount %u urefCount %u",
+			hrs, min, sec, ms, idx, tbl.bufq[idx].fd, tbl.bufq[idx].i_ino,
+			tbl.bufq[idx].len, tbl.bufq[idx].active, tbl.bufq[idx].buf_handle,
+			krefcount, urefcount);
+		CAM_GET_TIMESTAMP(current_ts);
+		CAM_CONVERT_TIMESTAMP_FORMAT(current_ts, hrs, min, sec, ms);
+		CAM_ERR(CAM_MEM,
+			"%llu:%llu:%llu:%llu  Not unmapping even after defer, buf_handle: %u, idx: %d",
+			hrs, min, sec, ms, buf_handle, idx);
 	} else if (krefcount == 0) {
 		CAM_ERR(CAM_MEM,
 			"Unbalanced release Called buf_handle: %u, idx: %d",
@@ -1533,6 +1556,8 @@ int cam_mem_mgr_release(struct cam_mem_mgr_release_cmd *cmd)
 	int rc = 0;
 	uint32_t krefcount = 0, urefcount = 0;
 	bool unmap = false;
+	uint64_t ms, hrs, min, sec;
+	struct timespec64 current_ts;
 
 	if (!atomic_read(&cam_mem_mgr_state)) {
 		CAM_ERR(CAM_MEM, "failed. mem_mgr not initialized");
@@ -1584,6 +1609,18 @@ int cam_mem_mgr_release(struct cam_mem_mgr_release_cmd *cmd)
 		cam_mem_util_unmap(idx);
 		CAM_DBG(CAM_MEM,
 			"Called unmap from here, buf_handle: %u, idx: %d", cmd->buf_handle, idx);
+	} else {
+		rc = -EINVAL;
+		CAM_GET_TIMESTAMP(current_ts);
+		CAM_CONVERT_TIMESTAMP_FORMAT(current_ts, hrs, min, sec, ms);
+		CAM_CONVERT_TIMESTAMP_FORMAT((tbl.bufq[idx].timestamp), hrs, min, sec, ms);
+		CAM_ERR(CAM_MEM,
+			"%llu:%llu:%llu:%llu idx %d fd %d i_ino %lu size %llu active %d\
+			buf_handle %d krefCount %u urefCount %u",
+			hrs, min, sec, ms, idx, tbl.bufq[idx].fd, tbl.bufq[idx].i_ino,
+			tbl.bufq[idx].len, tbl.bufq[idx].active, tbl.bufq[idx].buf_handle,
+			krefcount, urefcount);
+		tbl.bufq[idx].release_deferred = true;
 	}
 
 end:
@@ -1681,6 +1718,7 @@ int cam_mem_mgr_request_mem(struct cam_mem_mgr_request_desc *inp,
 	if (idx < 0) {
 		CAM_ERR(CAM_MEM, "Failed in getting mem slot, idx=%d", idx);
 		rc = -ENOMEM;
+		cam_mem_mgr_print_tbl();
 		goto slot_fail;
 	}
 
@@ -1851,6 +1889,7 @@ int cam_mem_mgr_reserve_memory_region(struct cam_mem_mgr_request_desc *inp,
 	if (idx < 0) {
 		CAM_ERR(CAM_MEM, "Failed in getting mem slot, idx=%d", idx);
 		rc = -ENOMEM;
+		cam_mem_mgr_print_tbl();
 		goto slot_fail;
 	}
 
