@@ -2781,7 +2781,8 @@ static int cam_smmu_map_buffer_validate(struct dma_buf *buf,
 		iommu_cb_set.cb_info[idx].shared_mapping_size += *len_ptr;
 	} else if (region_id == CAM_SMMU_REGION_IO) {
 		if (!dis_delayed_unmap)
-			attach->dma_map_attrs |= DMA_ATTR_DELAYED_UNMAP;
+			cam_update_dma_map_attributes(attach,
+				CAM_SMMU_DMA_MAP_ATTRS_DELAYED_UNMAP);
 		table = cam_compat_dmabuf_map_attach(attach, dma_dir);
 		if (IS_ERR_OR_NULL(table)) {
 			rc = PTR_ERR(table);
@@ -2810,7 +2811,8 @@ static int cam_smmu_map_buffer_validate(struct dma_buf *buf,
 		(unsigned int)table->sgl->dma_address);
 	CAM_DBG(CAM_SMMU,
 		"iova=%pK, region_id=%d, paddr=0x%llx, len=%zu, dma_map_attrs=%d",
-		iova, region_id, *paddr_ptr, *len_ptr, attach->dma_map_attrs);
+		iova, region_id, *paddr_ptr, *len_ptr,
+		cam_get_dma_map_attributes(attach));
 
 	if (iommu_cb_set.debug_cfg.map_profile_enable) {
 		CAM_GET_TIMESTAMP(ts2);
@@ -2975,7 +2977,7 @@ static int cam_smmu_unmap_buf_and_remove_from_list(
 	CAM_DBG(CAM_SMMU,
 		"region_id=%d, paddr=0x%llx, len=%d, dma_map_attrs=%d",
 		mapping_info->region_id, mapping_info->paddr, mapping_info->len,
-		mapping_info->attach->dma_map_attrs);
+		cam_get_dma_map_attributes(mapping_info->attach));
 
 	if (iommu_cb_set.debug_cfg.map_profile_enable)
 		CAM_GET_TIMESTAMP(ts1);
@@ -3009,8 +3011,8 @@ static int cam_smmu_unmap_buf_and_remove_from_list(
 			mapping_info->len;
 	} else if (mapping_info->region_id == CAM_SMMU_REGION_IO) {
 		if (mapping_info->is_internal)
-			mapping_info->attach->dma_map_attrs |=
-				DMA_ATTR_SKIP_CPU_SYNC;
+			cam_update_dma_map_attributes(mapping_info->attach,
+				CAM_SMMU_DMA_MAP_ATTRS_SKIP_CPU_SYNC);
 
 		cam_compat_dmabuf_unmap_attach(mapping_info->attach,
 			mapping_info->table, mapping_info->dir);
@@ -3613,12 +3615,14 @@ static int cam_smmu_map_stage2_buffer_and_add_to_list(int idx, int ion_fd,
 		goto err_out;
 	}
 
-	attach->dma_map_attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+	cam_update_dma_map_attributes(attach,
+		CAM_SMMU_DMA_MAP_ATTRS_SKIP_CPU_SYNC);
 
 	if (IS_CSF25(iommu_cb_set.csf_version.arch_ver,
 		iommu_cb_set.csf_version.max_ver))
-		attach->dma_map_attrs =
-			cam_update_dma_map_attributes(attach->dma_map_attrs);
+		cam_update_dma_map_attributes(attach,
+			CAM_SMMU_DMA_MAP_ATTRS_SMMU_PROXY_MAP);
+
 	table = cam_compat_dmabuf_map_attach(attach, dma_dir);
 	if (IS_ERR_OR_NULL(table)) {
 		CAM_ERR(CAM_SMMU, "Error: dma buf map attachment failed");
@@ -3764,7 +3768,8 @@ static int cam_smmu_secure_unmap_buf_and_remove_from_list(
 	}
 
 	/* skip cache operations */
-	mapping_info->attach->dma_map_attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+	cam_update_dma_map_attributes(mapping_info->attach,
+		CAM_SMMU_DMA_MAP_ATTRS_SKIP_CPU_SYNC);
 
 	/* iommu buffer clean up */
 	cam_compat_dmabuf_unmap_attach(mapping_info->attach,
@@ -5750,6 +5755,9 @@ static int cam_smmu_component_bind(struct device *dev,
 		CAM_ERR(CAM_SMMU, "Failed to fetch CSF version: %d", rc);
 		return rc;
 	}
+
+	if (!IS_REACHABLE(CONFIG_SPECTRA_DMA_MAP_ATTRS))
+		CAM_INFO(CAM_SMMU, "DMA MAP attributes feature disabled");
 
 	CAM_DBG(CAM_SMMU, "Main component bound successfully");
 	CAM_GET_TIMESTAMP(ts_end);

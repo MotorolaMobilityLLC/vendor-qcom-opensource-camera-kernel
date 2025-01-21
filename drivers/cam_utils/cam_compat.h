@@ -148,7 +148,10 @@ bool cam_secure_get_vfe_fd_port_config(void);
 
 int cam_smmu_fetch_csf_version(struct cam_csf_version *csf_version);
 
-unsigned long cam_update_dma_map_attributes(unsigned long attr);
+void cam_update_dma_map_attributes(struct dma_buf_attachment *attach,
+	uint8_t attr_mask);
+
+unsigned long cam_get_dma_map_attributes(struct dma_buf_attachment *attach);
 
 size_t cam_align_dma_buf_size(size_t len);
 

@@ -683,92 +683,6 @@ end:
 }
 EXPORT_SYMBOL(cam_mem_get_cpu_buf);
 
-int cam_mem_mgr_cache_ops(struct cam_mem_cache_ops_cmd *cmd)
-{
-	int rc = 0, idx;
-	uint32_t cache_dir;
-	unsigned long dmabuf_flag = 0;
-
-	if (!atomic_read(&cam_mem_mgr_state)) {
-		CAM_ERR(CAM_MEM, "failed. mem_mgr not initialized");
-		return -EINVAL;
-	}
-
-	if (!cmd)
-		return -EINVAL;
-
-	idx = CAM_MEM_MGR_GET_HDL_IDX(cmd->buf_handle);
-	if (idx >= CAM_MEM_BUFQ_MAX || idx <= 0)
-		return -EINVAL;
-
-	mutex_lock(&tbl.m_lock);
-	if (!test_bit(idx, tbl.bitmap)) {
-		CAM_ERR(CAM_MEM, "Buffer at idx=%d is already unmapped,",
-			idx);
-		mutex_unlock(&tbl.m_lock);
-		return -EINVAL;
-	}
-	mutex_unlock(&tbl.m_lock);
-
-	mutex_lock(&tbl.bufq[idx].q_lock);
-	if (cmd->buf_handle != tbl.bufq[idx].buf_handle) {
-		rc = -EINVAL;
-		goto end;
-	}
-
-	rc = dma_buf_get_flags(tbl.bufq[idx].dma_buf, &dmabuf_flag);
-	if (rc) {
-		CAM_ERR(CAM_MEM, "cache get flags failed %d", rc);
-		goto end;
-	}
-
-#if IS_REACHABLE(CONFIG_DMABUF_HEAPS)
-	CAM_DBG(CAM_MEM, "Calling dmap buf APIs for cache operations");
-	cache_dir = DMA_BIDIRECTIONAL;
-#else
-	if (dmabuf_flag & ION_FLAG_CACHED) {
-		switch (cmd->mem_cache_ops) {
-		case CAM_MEM_CLEAN_CACHE:
-			cache_dir = DMA_TO_DEVICE;
-			break;
-		case CAM_MEM_INV_CACHE:
-			cache_dir = DMA_FROM_DEVICE;
-			break;
-		case CAM_MEM_CLEAN_INV_CACHE:
-			cache_dir = DMA_BIDIRECTIONAL;
-			break;
-		default:
-			CAM_ERR(CAM_MEM,
-				"invalid cache ops :%d", cmd->mem_cache_ops);
-			rc = -EINVAL;
-			goto end;
-		}
-	} else {
-		CAM_DBG(CAM_MEM, "BUF is not cached");
-		goto end;
-	}
-#endif
-	rc = dma_buf_begin_cpu_access(tbl.bufq[idx].dma_buf,
-		(cmd->mem_cache_ops == CAM_MEM_CLEAN_INV_CACHE) ?
-		DMA_BIDIRECTIONAL : DMA_TO_DEVICE);
-	if (rc) {
-		CAM_ERR(CAM_MEM, "dma begin access failed rc=%d", rc);
-		goto end;
-	}
-
-	rc = dma_buf_end_cpu_access(tbl.bufq[idx].dma_buf,
-		cache_dir);
-	if (rc) {
-		CAM_ERR(CAM_MEM, "dma end access failed rc=%d", rc);
-		goto end;
-	}
-
-end:
-	mutex_unlock(&tbl.bufq[idx].q_lock);
-	return rc;
-}
-EXPORT_SYMBOL(cam_mem_mgr_cache_ops);
-
 int cam_mem_mgr_cpu_access_op(struct cam_mem_cpu_access_op *cmd)
 {
 	int rc = 0, idx;
@@ -858,6 +772,64 @@ EXPORT_SYMBOL(cam_mem_mgr_cpu_access_op);
 #if IS_REACHABLE(CONFIG_DMABUF_HEAPS)
 
 #define CAM_MAX_VMIDS 4
+
+int cam_mem_mgr_cache_ops(struct cam_mem_cache_ops_cmd *cmd)
+{
+	int rc = 0, idx;
+	uint32_t cache_dir;
+
+	if (!atomic_read(&cam_mem_mgr_state)) {
+		CAM_ERR(CAM_MEM, "failed. mem_mgr not initialized");
+		return -EINVAL;
+	}
+
+	if (!cmd)
+		return -EINVAL;
+
+	idx = CAM_MEM_MGR_GET_HDL_IDX(cmd->buf_handle);
+	if (idx >= CAM_MEM_BUFQ_MAX || idx <= 0)
+		return -EINVAL;
+
+	mutex_lock(&tbl.m_lock);
+	if (!test_bit(idx, tbl.bitmap)) {
+		CAM_ERR(CAM_MEM, "Buffer at idx=%d is already unmapped,",
+			idx);
+		mutex_unlock(&tbl.m_lock);
+		return -EINVAL;
+	}
+	mutex_unlock(&tbl.m_lock);
+
+	mutex_lock(&tbl.bufq[idx].q_lock);
+	if (cmd->buf_handle != tbl.bufq[idx].buf_handle) {
+		rc = -EINVAL;
+		goto end;
+	}
+
+	CAM_DBG(CAM_MEM, "Cache ops. Idx %d, dma_buf %pK, buf_handle 0x%x, mem_cahe_ops %d",
+		idx, tbl.bufq[idx].dma_buf, cmd->buf_handle, cmd->mem_cache_ops);
+
+	cache_dir = DMA_BIDIRECTIONAL;
+
+	rc = dma_buf_begin_cpu_access(tbl.bufq[idx].dma_buf,
+		(cmd->mem_cache_ops == CAM_MEM_CLEAN_INV_CACHE) ?
+		DMA_BIDIRECTIONAL : DMA_TO_DEVICE);
+	if (rc) {
+		CAM_ERR(CAM_MEM, "dma begin access failed rc=%d", rc);
+		goto end;
+	}
+
+	rc = dma_buf_end_cpu_access(tbl.bufq[idx].dma_buf,
+		cache_dir);
+	if (rc) {
+		CAM_ERR(CAM_MEM, "dma end access failed rc=%d", rc);
+		goto end;
+	}
+
+end:
+	mutex_unlock(&tbl.bufq[idx].q_lock);
+	return rc;
+}
+EXPORT_SYMBOL(cam_mem_mgr_cache_ops);
 
 static void cam_mem_mgr_put_dma_heaps(void)
 {
@@ -1298,7 +1270,99 @@ release_heap:
 #endif
 	return rc;
 }
+
+#elif IS_REACHABLE(CONFIG_ION)
+
+int cam_mem_mgr_cache_ops(struct cam_mem_cache_ops_cmd *cmd)
+{
+	int rc = 0, idx;
+	uint32_t cache_dir;
+#if IS_REACHABLE(CONFIG_SPECTRA_DMABUF_GET_FLAGS)
+	unsigned long dmabuf_flag = 0;
+#endif
+
+	if (!atomic_read(&cam_mem_mgr_state)) {
+		CAM_ERR(CAM_MEM, "failed. mem_mgr not initialized");
+		return -EINVAL;
+	}
+
+	if (!cmd)
+		return -EINVAL;
+
+	idx = CAM_MEM_MGR_GET_HDL_IDX(cmd->buf_handle);
+	if (idx >= CAM_MEM_BUFQ_MAX || idx <= 0)
+		return -EINVAL;
+
+	mutex_lock(&tbl.m_lock);
+	if (!test_bit(idx, tbl.bitmap)) {
+		CAM_ERR(CAM_MEM, "Buffer at idx=%d is already unmapped,",
+			idx);
+		mutex_unlock(&tbl.m_lock);
+		return -EINVAL;
+	}
+	mutex_unlock(&tbl.m_lock);
+
+	mutex_lock(&tbl.bufq[idx].q_lock);
+	if (cmd->buf_handle != tbl.bufq[idx].buf_handle) {
+		rc = -EINVAL;
+		goto end;
+	}
+
+#if IS_REACHABLE(CONFIG_SPECTRA_DMABUF_GET_FLAGS)
+	rc = dma_buf_get_flags(tbl.bufq[idx].dma_buf, &dmabuf_flag);
+	if (rc) {
+		CAM_ERR(CAM_MEM, "cache get flags failed %d", rc);
+		goto end;
+	}
+
+	if (dmabuf_flag & ION_FLAG_CACHED) {
+		switch (cmd->mem_cache_ops) {
+		case CAM_MEM_CLEAN_CACHE:
+			cache_dir = DMA_TO_DEVICE;
+			break;
+		case CAM_MEM_INV_CACHE:
+			cache_dir = DMA_FROM_DEVICE;
+			break;
+		case CAM_MEM_CLEAN_INV_CACHE:
+			cache_dir = DMA_BIDIRECTIONAL;
+			break;
+		default:
+			CAM_ERR(CAM_MEM,
+				"invalid cache ops :%d", cmd->mem_cache_ops);
+			rc = -EINVAL;
+			goto end;
+		}
+	} else {
+		CAM_DBG(CAM_MEM, "BUF is not cached");
+		goto end;
+	}
 #else
+	CAM_ERR(CAM_MEM,
+		"DMA BUF API to get flags is not available to handle cache ops :%d",
+		cmd->mem_cache_ops);
+	rc = -EOPNOTSUPP;
+	goto end;
+#endif
+	rc = dma_buf_begin_cpu_access(tbl.bufq[idx].dma_buf,
+		(cmd->mem_cache_ops == CAM_MEM_CLEAN_INV_CACHE) ?
+		DMA_BIDIRECTIONAL : DMA_TO_DEVICE);
+	if (rc) {
+		CAM_ERR(CAM_MEM, "dma begin access failed rc=%d", rc);
+		goto end;
+	}
+
+	rc = dma_buf_end_cpu_access(tbl.bufq[idx].dma_buf,
+		cache_dir);
+	if (rc) {
+		CAM_ERR(CAM_MEM, "dma end access failed rc=%d", rc);
+		goto end;
+	}
+
+end:
+	mutex_unlock(&tbl.bufq[idx].q_lock);
+	return rc;
+}
+EXPORT_SYMBOL(cam_mem_mgr_cache_ops);
 
 bool cam_mem_mgr_ubwc_p_heap_supported(void)
 {
@@ -1367,6 +1431,26 @@ static int cam_mem_util_get_dma_buf(size_t len,
 
 	return rc;
 }
+
+#else
+
+int cam_mem_mgr_cache_ops(struct cam_mem_cache_ops_cmd *cmd)
+{
+	CAM_ERR(CAM_MEM,
+		"DMA BUF API is not available to handle cache ops");
+	return -EOPNOTSUPP;
+}
+static int cam_mem_util_get_dma_buf(size_t len,
+	unsigned int cam_flags,
+	enum cam_mem_mgr_allocator alloc_type,
+	struct dma_buf **buf,
+	unsigned long *i_ino,
+	enum cam_dma_heap_type *heap_type)
+{
+	CAM_ERR(CAM_MEM, "No API available to allocate DMA buffers in the kernel");
+	return -EOPNOTSUPP;
+}
+
 #endif
 
 static int cam_mem_util_buffer_alloc(size_t len, uint32_t flags,

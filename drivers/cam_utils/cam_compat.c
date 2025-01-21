@@ -142,12 +142,31 @@ int cam_smmu_fetch_csf_version(struct cam_csf_version *csf_version)
 	return 0;
 }
 
-unsigned long cam_update_dma_map_attributes(unsigned long attrs)
+unsigned long cam_get_dma_map_attributes(struct dma_buf_attachment *attach)
 {
-#ifdef CONFIG_SPECTRA_SECURE_CAMERA_25
-	attrs |= DMA_ATTR_QTI_SMMU_PROXY_MAP;
+#if IS_REACHABLE(CONFIG_SPECTRA_DMA_MAP_ATTRS)
+	return attach->dma_map_attrs;
+#else
+	return -EINVAL;
 #endif
-	return attrs;
+}
+
+void cam_update_dma_map_attributes(struct dma_buf_attachment *attach,
+	uint8_t attr_mask)
+{
+#if IS_REACHABLE(CONFIG_SPECTRA_DMA_MAP_ATTRS)
+	if (attr_mask & CAM_SMMU_DMA_MAP_ATTRS_SMMU_PROXY_MAP) {
+#ifdef CONFIG_SPECTRA_SECURE_CAMERA_25
+		attach->dma_map_attrs |= DMA_ATTR_QTI_SMMU_PROXY_MAP;
+#endif
+	}
+
+	if (attr_mask & CAM_SMMU_DMA_MAP_ATTRS_DELAYED_UNMAP)
+		attach->dma_map_attrs |= DMA_ATTR_DELAYED_UNMAP;
+
+	if (attr_mask & CAM_SMMU_DMA_MAP_ATTRS_SKIP_CPU_SYNC)
+		attach->dma_map_attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+#endif
 }
 
 size_t cam_align_dma_buf_size(size_t len)

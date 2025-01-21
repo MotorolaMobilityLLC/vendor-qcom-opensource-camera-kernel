@@ -33,6 +33,10 @@
 	(val1) > (val2) ? (val1) - (val2) : (val2) - (val1);               \
 })
 
+#define CAM_SMMU_DMA_MAP_ATTRS_DELAYED_UNMAP      (1<<0)
+#define CAM_SMMU_DMA_MAP_ATTRS_SKIP_CPU_SYNC      (1<<1)
+#define CAM_SMMU_DMA_MAP_ATTRS_SMMU_PROXY_MAP     (1<<2)
+
 /*Enum for possible CAM SMMU operations */
 enum cam_smmu_ops_param {
 	CAM_SMMU_ATTACH,

@@ -96,6 +96,7 @@ config SPECTRA_QULTIVATE_API
 
 config SPECTRA_SECURE_CAMERA_25
 	bool "enable secure camera 2.5"
+	depends on SPECTRA_DMA_MAP_ATTRS
 	help
 		This config enables 2.5 secure camera
 		feature that allows the usage of non contiguous
@@ -154,3 +155,19 @@ config SPECTRA_GET_IOMMU_FAULT_IDS
 		and MID info on an IOMMU fault. These IDs help
 		the driver match with the exact instance of a
 		particular HW type.
+
+config SPECTRA_DMA_MAP_ATTRS
+	bool "enable the API required to handle some specialized DMA ops"
+	help
+		This config enables the APIs to perform
+		some of the operations on the DMA buffers
+		like delayed unmap, skip cpu sync, map
+		buffers to SMMY proxy etc.
+
+config SPECTRA_DMABUF_GET_FLAGS
+	bool "enable the API required to handle cache ops"
+	help
+		This config enables the APIs
+		to perform some of the cache
+		operations like cache clean,
+		invalidate etc.
