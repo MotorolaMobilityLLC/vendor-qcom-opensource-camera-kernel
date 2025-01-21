@@ -1,5 +1,35 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+CAMERA_KERNEL_ROOT=$(shell pwd)/$(srctree)/$(src)/$(M)
+
+CAMERA_COMPILE_TIME = $(shell date)
+CAMERA_COMPILE_BY = $(shell whoami | sed 's/\\/\\\\/')
+CAMERA_COMPILE_HOST = $(shell uname -n)
+
+.PHONY: $(CAMERA_KERNEL_ROOT)/cam_generated_h
+
+# Target to generate cam_generated_h
+$(CAMERA_KERNEL_ROOT)/cam_generated_h: $(shell echo '#define CAMERA_COMPILE_TIME "$(CAMERA_COMPILE_TIME)"' > $(CAMERA_KERNEL_ROOT)/cam_generated_h)
+$(shell echo '#define CAMERA_COMPILE_BY "$(CAMERA_COMPILE_BY)"' >> $(CAMERA_KERNEL_ROOT)/cam_generated_h)
+$(shell echo '#define CAMERA_COMPILE_HOST "$(CAMERA_COMPILE_HOST)"' >> $(CAMERA_KERNEL_ROOT)/cam_generated_h)
+
+# Dependency: Ensure cam_generated_h is generated before compiling camera_main.o
+$(obj)/camera_main.o: $(CAMERA_KERNEL_ROOT)/cam_generated_h
+
+modules: cam_generated_h
+
+# List of all camera-kernel headers
+cam_include_dirs := $(shell dirname `find $(src) -name '*.h'` | uniq)
+
+ccflags-y :=  $(addprefix -I,$(cam_include_dirs))
+ccflags-y += -I$(srctree)/$(src)
+ccflags-y += -I$(srctree)/$(src)/include/uapi/camera/
+
+
+CONFIG_QCOM_CAMERA_DEBUG := y
+ccflags-y += -DCONFIG_QCOM_CAMERA_DEBUG=1
+CONFIG_CAMERA_FLAG_FOUND := n
+
 ifeq ($(CONFIG_QCOM_CAMERA_DEBUG), y)
 $(info "CAMERA_KERNEL_ROOT is: $(CAMERA_KERNEL_ROOT)")
 $(info "KERNEL_ROOT is: $(KERNEL_ROOT)")
@@ -9,57 +39,74 @@ endif
 ifeq ($(CONFIG_ARCH_PINEAPPLE), y)
 ifeq ($(CONFIG_ARCH_QTI_VM), y)
 include $(CAMERA_KERNEL_ROOT)/config/pineapple_tuivm.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 else
 include $(CAMERA_KERNEL_ROOT)/config/pineapple.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 endif
 
 ifeq ($(CONFIG_ARCH_KALAMA), y)
 include $(CAMERA_KERNEL_ROOT)/config/kalama.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_WAIPIO), y)
 include $(CAMERA_KERNEL_ROOT)/config/waipio.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_LAHAINA), y)
 include $(CAMERA_KERNEL_ROOT)/config/lahaina.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_KONA), y)
 include $(CAMERA_KERNEL_ROOT)/config/kona.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_BENGAL), y)
 include $(CAMERA_KERNEL_ROOT)/config/holi.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_HOLI), y)
 include $(CAMERA_KERNEL_ROOT)/config/holi.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_LITO), y)
 include $(CAMERA_KERNEL_ROOT)/config/lito.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_SHIMA), y)
 include $(CAMERA_KERNEL_ROOT)/config/shima.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_DIWALI), y)
 include $(CAMERA_KERNEL_ROOT)/config/diwali.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_CAPE), y)
 include $(CAMERA_KERNEL_ROOT)/config/cape.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifeq ($(CONFIG_ARCH_PARROT), y)
 include $(CAMERA_KERNEL_ROOT)/config/parrot.mk
+CONFIG_CAMERA_FLAG_FOUND := y
 endif
 
 ifneq ($(KBUILD_EXTRA_CONFIGS),)
 include $(KBUILD_EXTRA_CONFIGS)
+endif
+
+ifeq ($(CONFIG_CAMERA_FLAG_FOUND), n)
+include $(CAMERA_KERNEL_ROOT)/config/camera_default.mk
 endif
 
 # List of all camera-kernel headers
@@ -118,8 +165,7 @@ camera-y := \
 	drivers/cam_cdm/cam_cdm_intf.o \
 	drivers/cam_cdm/cam_cdm_core_common.o \
 	drivers/cam_cdm/cam_cdm_virtual_core.o \
-	drivers/cam_cdm/cam_cdm_hw_core.o \
-	drivers/cam_vmrm/cam_vmrm_interface.o
+	drivers/cam_cdm/cam_cdm_hw_core.o
 
 ifeq (,$(filter $(CONFIG_CAM_PRESIL),y m))
 	camera-y += drivers/cam_presil/stub/cam_presil_hw_access_stub.o
@@ -315,7 +361,8 @@ camera-$(CONFIG_SPECTRA_TFE) += \
 camera-$(CONFIG_SPECTRA_VMRM) += \
 	drivers/cam_vmrm/qrtr/cam_qrtr_comms.o \
 	drivers/cam_vmrm/cam_vmrm.o \
-	drivers/cam_vmrm/cam_vmrm_gh_wrapper.o
+	drivers/cam_vmrm/cam_vmrm_gh_wrapper.o \
+	drivers/cam_vmrm/cam_vmrm_interface.o
 
 camera-y += drivers/camera_main.o
 

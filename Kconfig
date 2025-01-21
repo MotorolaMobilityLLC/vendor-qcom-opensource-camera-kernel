@@ -70,14 +70,6 @@ config MSM_MMRM
 	  mmrm knows about all clients' clock rates.
 	  MMRM can decide whether new peak power usage is within allowed value
 
-config INTERCONNECT_QCOM
-	bool "enabling icc bus driver"
-	help
-		This is to access icc driver api.
-		To cache AB and IB vote will
-		use ICC kernel driver API.
-		So that ICC driver can consolidate the vote
-
 config SPECTRA_DOMAIN_ID_SECURE_CAMERA
 	bool "enable domain ID based secure camera flow"
 	help
@@ -179,3 +171,15 @@ config SPECTRA_SOC_QCOM_SOCINFO
 		header file, which provides detatils about the system-on-chip
 		configuration and capabilities. It is required for features
 		relying on SoC-specific information.
+
+config VIDEO_QCOM_CAMERA
+	tristate "enable camera module compilation"
+	depends on VIDEO_DEV && MEDIA_CONTROLLER && m
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEO_V4L2_I2C
+	default n
+	help
+	  This will enable the camera kernel
+	  driver compilation.
+	  To compile this driver as a module named camera.ko
+	  choose m here.
