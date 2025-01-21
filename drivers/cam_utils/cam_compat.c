@@ -8,8 +8,11 @@
 #include <linux/dma-buf.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
+#if IS_ENABLED(CONFIG_SPECTRA_SOC_QCOM_SOCINFO)
 #include <soc/qcom/socinfo.h>
+#endif
 #include "cam_compat.h"
 #include "cam_debug_util.h"
 #include "cam_cpas_api.h"
@@ -175,6 +178,30 @@ size_t cam_align_dma_buf_size(size_t len)
 	len = ALIGN(len, SMMU_PROXY_MEM_ALIGNMENT);
 #endif
 	return len;
+}
+
+/**
+ * cam_get_ddr_type - Return the type of ddr (4/5) on the current device
+ *
+ * On match, returns a non-zero positive value which matches the ddr type.
+ * Otherwise returns -ENOENT.
+ */
+inline int cam_get_ddr_type(void)
+{
+	int ret;
+	u32 ddr_type;
+	struct device_node *mem_node;
+
+	mem_node = of_find_node_by_path("/memory");
+	if (!mem_node)
+		return -ENOENT;
+
+	ret = of_property_read_u32(mem_node, "ddr_device_type", &ddr_type);
+	of_node_put(mem_node);
+	if (ret < 0)
+		return -ENOENT;
+
+	return ddr_type;
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
@@ -773,7 +800,7 @@ int cam_req_mgr_ordered_list_cmp(void *priv,
 }
 #endif
 
-#if (KERNEL_VERSION(6, 7, 0) >= LINUX_VERSION_CODE)
+#if ((KERNEL_VERSION(6, 7, 0) >= LINUX_VERSION_CODE) && IS_ENABLED(CONFIG_QCOM_MEM_BUF))
 long cam_dma_buf_set_name(struct dma_buf *dmabuf, const char *name)
 {
 	long ret = 0;

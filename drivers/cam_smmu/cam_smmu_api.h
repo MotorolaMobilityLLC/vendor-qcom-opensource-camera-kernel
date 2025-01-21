@@ -16,7 +16,9 @@
 #include <linux/random.h>
 #include <linux/spinlock_types.h>
 #include <linux/mutex.h>
+#if IS_ENABLED(CONFIG_ION)
 #include <linux/msm_ion.h>
+#endif
 
 #define BYTE_SIZE 8
 #define COOKIE_NUM_BYTE 2

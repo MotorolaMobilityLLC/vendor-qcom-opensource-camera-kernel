@@ -11,8 +11,10 @@
 #include <linux/dma-buf.h>
 #include <linux/version.h>
 #include <linux/debugfs.h>
-#if IS_REACHABLE(CONFIG_DMABUF_HEAPS)
+#if IS_ENABLED(CONFIG_QCOM_MEM_BUF)
 #include <linux/mem-buf.h>
+#endif
+#if IS_ENABLED(CONFIG_QCOM_SECURE_BUFFER)
 #include <soc/qcom/secure_buffer.h>
 #endif
 
@@ -1014,39 +1016,39 @@ static int cam_mem_util_mem_buf_lend(int num_vmids,
 static int cam_mem_util_check_mem_lend_needed(
 	int *vmids, int *perms, int *num_vmids, unsigned int flags)
 {
-	if (flags & CAM_MEM_FLAG_PROTECTED_MODE) {
-		if (IS_CSF25(tbl.csf_version.arch_ver, tbl.csf_version.max_ver)) {
+	if (flags & CAM_MEM_FLAG_PROTECTED_MODE)
+		if (IS_CSF25(tbl.csf_version.arch_ver, tbl.csf_version.max_ver))
 			return 0;
-		} else if (IS_ENABLED(CONFIG_QCOM_MEM_BUF)) {
-			vmids[*num_vmids] = VMID_CP_CAMERA;
+
+#if IS_ENABLED(CONFIG_QCOM_MEM_BUF)
+	if (flags & CAM_MEM_FLAG_PROTECTED_MODE) {
+		vmids[*num_vmids] = VMID_CP_CAMERA;
+		perms[*num_vmids] = PERM_READ | PERM_WRITE;
+		(*num_vmids)++;
+
+		if (flags & CAM_MEM_FLAG_CDSP_OUTPUT) {
+			vmids[*num_vmids] = VMID_CP_CDSP;
 			perms[*num_vmids] = PERM_READ | PERM_WRITE;
 			(*num_vmids)++;
-			if (flags & CAM_MEM_FLAG_CDSP_OUTPUT) {
-				vmids[*num_vmids] = VMID_CP_CDSP;
-				perms[*num_vmids] = PERM_READ | PERM_WRITE;
-				(*num_vmids)++;
-			}
-		} else {
-			goto err;
 		}
+
 	} else if (flags & CAM_MEM_FLAG_EVA_NOPIXEL) {
-		if (IS_ENABLED(CONFIG_QCOM_MEM_BUF)) {
-			vmids[*num_vmids] = VMID_CP_NON_PIXEL;
-			perms[*num_vmids] = PERM_READ | PERM_WRITE;
-			(*num_vmids)++;
-		} else {
-			goto err;
-		}
+		vmids[*num_vmids] = VMID_CP_NON_PIXEL;
+		perms[*num_vmids] = PERM_READ | PERM_WRITE;
+		(*num_vmids)++;
 	}
 
 	return 0;
 
-err:
-	CAM_ERR(CAM_MEM,
-		"Mem buf lend not available, num_vmids: %d, vmids [0]=0x%x, [1]=0x%x, [2]=0x%x",
-		num_vmids, vmids[0], vmids[1], vmids[2]);
+#else
+	if ((flags & CAM_MEM_FLAG_PROTECTED_MODE) || (flags & CAM_MEM_FLAG_EVA_NOPIXEL)) {
+		CAM_ERR(CAM_MEM,
+			"Mem buf lend not available, flags: %u", flags);
 
-	return -EOPNOTSUPP;
+		return -EOPNOTSUPP;
+	}
+	return 0;
+#endif
 }
 
 static int cam_mem_util_get_dma_buf(size_t len,
@@ -1432,6 +1434,12 @@ static int cam_mem_util_get_dma_buf(size_t len,
 	return rc;
 }
 
+int cam_mem_mgr_check_for_supported_heaps(uint64_t *heap_mask)
+{
+	CAM_ERR(CAM_MEM, "No API available to check supported heaps in the kernel");
+	return -EOPNOTSUPP;
+}
+
 #else
 
 int cam_mem_mgr_cache_ops(struct cam_mem_cache_ops_cmd *cmd)
@@ -1450,6 +1458,13 @@ static int cam_mem_util_get_dma_buf(size_t len,
 	CAM_ERR(CAM_MEM, "No API available to allocate DMA buffers in the kernel");
 	return -EOPNOTSUPP;
 }
+
+int cam_mem_mgr_check_for_supported_heaps(uint64_t *heap_mask)
+{
+	CAM_ERR(CAM_MEM, "No API available to check supported heaps in the kernel");
+	return -EOPNOTSUPP;
+}
+
 
 #endif
 

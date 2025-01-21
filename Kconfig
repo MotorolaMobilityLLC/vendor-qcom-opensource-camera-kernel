@@ -171,3 +171,11 @@ config SPECTRA_DMABUF_GET_FLAGS
 		to perform some of the cache
 		operations like cache clean,
 		invalidate etc.
+
+config SPECTRA_SOC_QCOM_SOCINFO
+	bool "Enable support for Qcom SoC information"
+	help
+		This option enables inclusion of the Qcom SoC information
+		header file, which provides detatils about the system-on-chip
+		configuration and capabilities. It is required for features
+		relying on SoC-specific information.
