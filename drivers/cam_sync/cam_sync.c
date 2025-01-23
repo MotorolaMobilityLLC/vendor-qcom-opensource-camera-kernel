@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/init.h>
@@ -1161,7 +1161,7 @@ static int cam_generic_fence_alloc_validate_input_info_util(
 		return -EINVAL;
 	}
 
-	fence_input = memdup_user(u64_to_user_ptr(fence_cmd_args->input_handle),
+	fence_input = CAM_MEMDUP_USER(u64_to_user_ptr(fence_cmd_args->input_handle),
 		fence_cmd_args->input_data_size);
 	if (IS_ERR_OR_NULL(fence_input)) {
 		CAM_ERR(CAM_SYNC, "memdup failed for hdl: %d size: 0x%x",
@@ -1474,7 +1474,7 @@ static int cam_generic_fence_validate_signal_input_info_util(
 		return -EINVAL;
 	}
 
-	signal_info = memdup_user(u64_to_user_ptr(fence_cmd_args->input_handle),
+	signal_info = CAM_MEMDUP_USER(u64_to_user_ptr(fence_cmd_args->input_handle),
 		fence_cmd_args->input_data_size);
 	if (IS_ERR_OR_NULL(signal_info)) {
 		CAM_ERR(CAM_SYNC, "memdup failed for hdl: %d size: 0x%x",
@@ -1522,7 +1522,7 @@ static int cam_generic_fence_validate_signal_input_info_util(
 		goto free_mem;
 	}
 
-	signal_data = memdup_user(u64_to_user_ptr(signal_info->fence_info_hdl),
+	signal_data = CAM_MEMDUP_USER(u64_to_user_ptr(signal_info->fence_info_hdl),
 		signal_info->fence_data_size);
 	if (IS_ERR_OR_NULL(signal_data)) {
 		CAM_ERR(CAM_SYNC, "memdup failed for hdl: %d size: 0x%x",
