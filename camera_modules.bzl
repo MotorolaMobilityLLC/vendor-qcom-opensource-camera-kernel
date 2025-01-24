@@ -5,6 +5,7 @@ load(":project_defconfig.bzl", "get_project_defconfig")
 
 def _define_module(target, variant):
     tv = "{}_{}".format(target, variant)
+    sun_deps = []
     base_deps = []
     deps = []
     base_deps = select({
@@ -22,8 +23,6 @@ def _define_module(target, variant):
             "//soc-repo:{}/drivers/soc/qcom/llcc-qcom".format(tv),
             "//soc-repo:{}/drivers/soc/qcom/mdt_loader".format(tv),
             "//soc-repo:{}/drivers/leds/flash/leds-qcom-flash".format(tv),
-            "//soc-repo:{}/drivers/soc/qcom/qcom_va_minidump".format(tv),
-            "//soc-repo:{}/drivers/leds/leds-qti-flash".format(tv),
         ],
         "//build/kernel/kleaf:socrepo_false": [
             ":camera_headers",
@@ -31,6 +30,15 @@ def _define_module(target, variant):
             "//msm-kernel:all_headers",
         ],
     })
+
+    if target == "sun":
+        sun_deps += select({
+            "//build/kernel/kleaf:socrepo_true": [
+                "//soc-repo:{}/drivers/soc/qcom/qcom_va_minidump".format(tv),
+                "//soc-repo:{}/drivers/leds/leds-qti-flash".format(tv),
+            ],
+            "//build/kernel/kleaf:socrepo_false": [],
+        })
 
     kernel_build = select({
         "//build/kernel/kleaf:socrepo_true": "//soc-repo:{}_base_kernel".format(tv),
@@ -284,7 +292,7 @@ def _define_module(target, variant):
             },
         },
         copts = ["-include", "$(location :camera_banner)"],
-        deps = base_deps + deps,
+        deps = base_deps + sun_deps +deps,
         kconfig = "Kconfig",
         defconfig = "{}_defconfig_generated".format(tv),
         kernel_build = kernel_build,
