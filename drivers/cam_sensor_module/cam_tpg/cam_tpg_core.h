@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __CAM_TPG_CORE_H__
@@ -35,5 +36,14 @@ int tpg_crm_intf_init(struct cam_tpg_device *tpg_dev);
  * @return        : 0 on success
  */
 int32_t cam_tpg_core_cfg(struct cam_tpg_device *tpg_dev, void *arg);
+
+/**
+ * @brief : Trigger full TPG register dump for IO memory
+ *
+ * @param tpg_dev : tpg device instance
+ *
+ * @return        : void
+ */
+void cam_tpg_trigger_memdump(struct cam_tpg_device *tpg_dev);
 
 #endif

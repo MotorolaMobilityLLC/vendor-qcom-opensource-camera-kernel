@@ -505,7 +505,7 @@ end:
 static void __cam_isp_ctx_update_state_monitor_array(
 	struct cam_isp_context *ctx_isp,
 	enum cam_isp_state_change_trigger trigger_type,
-	uint64_t req_id)
+	int64_t req_id)
 {
 	int iterator;
 	struct cam_context *ctx = ctx_isp->base;
@@ -690,7 +690,7 @@ static void __cam_isp_ctx_dump_state_monitor_array(
 		time64_to_tm(ctx_isp->dbg_monitors.state_monitor[index].evt_time_stamp.tv_sec,
 			0, &ts);
 		CAM_ERR(CAM_ISP,
-			"Idx[%d] time[%d-%d %d:%d:%d.%lld]:Substate[%s] Frame[%lld] Req[%llu] evt[%s] at time[%llu: %09llu]",
+			"Idx[%d] time[%d-%d %d:%d:%d.%lld]:Substate[%s] Frame[%lld] Req[%lld] evt[%s] at time[%llu: %09llu]",
 			index, ts.tm_mon + 1, ts.tm_mday, ts.tm_hour, ts.tm_min, ts.tm_sec,
 			ctx_isp->dbg_monitors.state_monitor[index].evt_time_stamp.tv_nsec / 1000000,
 			__cam_isp_ctx_substate_val_to_type(
@@ -1326,10 +1326,14 @@ end:
 static inline void __cam_isp_ctx_move_req_to_free_list(
 	struct cam_context *ctx, struct cam_ctx_request *req)
 {
+	struct cam_isp_ctx_req *req_isp = (struct cam_isp_ctx_req *) req->req_priv;
+	struct cam_kmd_buf_info *kmd_cmd_buff_info = &(req_isp->hw_update_data.kmd_cmd_buff_info);
+
 	CAM_DBG(CAM_ISP,
 		"Free req id: %lld, packet: 0x%x, ctx_idx: %u, link: 0x%x",
 		req->request_id, req->packet, ctx->ctx_id, ctx->link_hdl);
 	if (req->packet) {
+		cam_mem_put_kref(kmd_cmd_buff_info->handle);
 		cam_common_mem_free(req->packet);
 		req->packet = NULL;
 	}
@@ -4035,18 +4039,19 @@ static int __cam_isp_ctx_sof_in_epoch(struct cam_isp_context *ctx_isp,
 
 	__cam_isp_ctx_update_sof_ts_util(sof_event_data, ctx_isp);
 
-	if (list_empty(&ctx->active_req_list))
+	if (list_empty(&ctx->active_req_list)) {
 		ctx_isp->substate_activated = CAM_ISP_CTX_ACTIVATED_SOF;
-	else
+		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
+			CAM_ISP_STATE_CHANGE_TRIGGER_SOF, 0);
+	} else {
 		CAM_DBG(CAM_ISP, "Still need to wait for the buf done, ctx: %u, link: 0x%x",
 			ctx->ctx_id, ctx->link_hdl);
 
-	req = list_last_entry(&ctx->active_req_list,
-		struct cam_ctx_request, list);
-	if (req)
+		req = list_last_entry(&ctx->active_req_list,
+			struct cam_ctx_request, list);
 		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
-			CAM_ISP_STATE_CHANGE_TRIGGER_SOF,
-			req->request_id);
+			CAM_ISP_STATE_CHANGE_TRIGGER_SOF, req->request_id);
+	}
 
 	if (ctx_isp->frame_id == 1)
 		CAM_INFO(CAM_ISP,

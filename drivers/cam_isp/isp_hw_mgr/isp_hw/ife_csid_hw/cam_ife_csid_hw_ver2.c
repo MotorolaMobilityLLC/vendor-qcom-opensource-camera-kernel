@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/iopoll.h>
@@ -1904,6 +1904,7 @@ static int cam_ife_csid_ver2_handle_event_err(
 	struct cam_isp_hw_error_event_info   err_evt_info;
 	struct cam_isp_hw_event_info         evt = {0};
 	struct cam_ife_csid_ver2_path_data  *path_data;
+	uint32_t                             data_idx;
 
 	if (!csid_hw->event_cb) {
 		CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID[%u] event cb not registered",
@@ -1935,6 +1936,18 @@ static int cam_ife_csid_ver2_handle_event_err(
 				csid_hw->hw_intf->hw_idx, res->res_name, err_type,
 				irq_status, path_data->path_cfg.error_ts.tv_sec,
 				path_data->path_cfg.error_ts.tv_nsec);
+
+			/* Dump TPG registers if applicable in case of fatal error */
+			if (csid_hw->rx_cfg.tpg_mux_sel) {
+				/* tpg_num_sel(N) to TPG Idx mapping is N-1 */
+				data_idx = csid_hw->rx_cfg.tpg_num_sel - 1;
+				CAM_ERR(CAM_ISP, "CSID:%u fatal error. Notify TPG: %d",
+					csid_hw->hw_intf->hw_idx,
+					data_idx);
+				cam_subdev_notify_message(CAM_TPG_DEVICE_TYPE,
+					CAM_SUBDEV_MESSAGE_REG_DUMP, (void *)&data_idx);
+			}
+
 		} else {
 			CAM_ERR(CAM_ISP,
 				"csid[%u] Rx Err: 0x%x status 0x%x",
@@ -1947,8 +1960,7 @@ static int cam_ife_csid_ver2_handle_event_err(
 
 	cam_ife_csid_ver2_print_camif_timestamps(csid_hw);
 
-	if (err_type ^ CAM_ISP_HW_ERROR_CSID_RUP_MISS)
-		cam_ife_csid_ver2_read_debug_err_vectors(csid_hw);
+	cam_ife_csid_ver2_read_debug_err_vectors(csid_hw);
 
 	csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_ERROR, (void *)&evt);
 
@@ -3124,7 +3136,6 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 	uint32_t                                      eof_irq_mask = 0;
 	uint32_t                                      epoch0_irq_mask = 0;
 	uint32_t                                      rup_irq_mask = 0;
-	uint32_t                                      rup_miss_irq_mask = 0;
 	int                                           rc = 0;
 	bool                                          out_of_sync_fatal = false;
 
@@ -3184,14 +3195,12 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 		sof_irq_mask = csid_reg->ipp_mc_reg->comp_sof_mask;
 		eof_irq_mask = csid_reg->ipp_mc_reg->comp_eof_mask;
 		rup_irq_mask = csid_reg->ipp_mc_reg->comp_rup_mask;
-		rup_miss_irq_mask = csid_reg->ipp_mc_reg->comp_rup_miss_mask;
 		epoch0_irq_mask = csid_reg->ipp_mc_reg->comp_epoch0_mask;
 		evt_info.res_id   = CAM_IFE_PIX_PATH_RES_IPP;
 	} else {
 		sof_irq_mask = path_data->reg_offsets->sof_irq_mask;
 		eof_irq_mask = path_data->reg_offsets->eof_irq_mask;
 		rup_irq_mask = path_data->reg_offsets->rup_irq_mask;
-		rup_miss_irq_mask = path_data->reg_offsets->rup_miss_irq_mask;
 		epoch0_irq_mask = path_data->reg_offsets->epoch0_irq_mask;
 		evt_info.res_id   = res->res_id;
 	}
@@ -3213,9 +3222,10 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 	if (irq_status_ipp & rup_irq_mask)
 		csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_REG_UPDATE, (void *)&evt_info);
 
-	if (irq_status_ipp & path_reg->rup_miss_irq_mask)
-		cam_ife_csid_ver2_handle_event_err(csid_hw, irq_status_ipp,
-			CAM_ISP_HW_ERROR_CSID_RUP_MISS, false, res);
+	if (irq_status_ipp & path_data->reg_offsets->rup_miss_irq_mask)
+		CAM_WARN(CAM_ISP, "CSID[%u] %s occurred at [%llu: %09llu]",
+			csid_hw->hw_intf->hw_idx, "RUP_MISS_IRQ", payload->timestamp.tv_sec,
+			payload->timestamp.tv_nsec);
 
 	if (irq_status_ipp & epoch0_irq_mask) {
 		if ((!csid_hw->flags.last_exp_valid) ||
@@ -3494,8 +3504,9 @@ static int cam_ife_csid_ver2_rdi_bottom_half(
 		csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_REG_UPDATE, (void *)&evt_info);
 
 	if (irq_status_rdi & path_data->reg_offsets->rup_miss_irq_mask)
-		cam_ife_csid_ver2_handle_event_err(csid_hw, irq_status_rdi,
-			CAM_ISP_HW_ERROR_CSID_RUP_MISS, false, res);
+		CAM_WARN(CAM_ISP, "CSID[%u] %s occurred at [%llu: %09llu]",
+			csid_hw->hw_intf->hw_idx, "RUP_MISS_IRQ", payload->timestamp.tv_sec,
+			payload->timestamp.tv_nsec);
 
 	if ((irq_status_rdi & path_data->reg_offsets->epoch0_irq_mask)) {
 		if (path_data->path_cfg.sec_evt_config.en_secondary_evt &&
@@ -5229,6 +5240,10 @@ static int cam_ife_csid_ver2_path_irq_subscribe(
 			csid_hw->hw_intf->hw_idx, res->res_name);
 	}
 
+	CAM_DBG(CAM_ISP, "Path IRQ masks for CSID[%u] %s, dbg: 0x%x, err: 0x%x",
+		csid_hw->hw_intf->hw_idx, res->res_name, dbg_frm_irq_mask,
+		err_irq_mask);
+
 	if ((res->res_id == CAM_IFE_PIX_PATH_RES_IPP) &&
 		csid_reg->path_reg[res->res_id]->capabilities &
 		CAM_IFE_CSID_CAP_MULTI_CTXT) {
@@ -5510,7 +5525,7 @@ static int cam_ife_csid_ver2_program_ipp_path(
 			path_data->path_cfg.sync_mode == CAM_ISP_HW_SYNC_MASTER)) {
 		dbg_frm_irq_mask |= path_data->reg_offsets->rup_irq_mask;
 		if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_RUP_MISS)
-			dbg_frm_irq_mask |= path_reg->rup_miss_irq_mask;
+			dbg_frm_irq_mask |= path_data->reg_offsets->rup_miss_irq_mask;
 
 		if (path_data->path_cfg.handle_camif_irq)
 			dbg_frm_irq_mask |= (path_data->reg_offsets->sof_irq_mask |
@@ -5523,7 +5538,7 @@ static int cam_ife_csid_ver2_program_ipp_path(
 		(csid_reg->path_reg[res->res_id]->capabilities & CAM_IFE_CSID_CAP_MULTI_CTXT)) {
 		dbg_frm_irq_mask |= path_data->reg_offsets->rup_irq_mask;
 		if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_RUP_MISS)
-			dbg_frm_irq_mask |= path_reg->rup_miss_irq_mask;
+			dbg_frm_irq_mask |= path_data->reg_offsets->rup_miss_irq_mask;
 
 		if (path_data->path_cfg.handle_camif_irq)
 			dbg_frm_irq_mask |= path_data->reg_offsets->sof_irq_mask;

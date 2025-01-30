@@ -881,11 +881,14 @@ static inline uint32_t cam_soc_util_r_mb(struct cam_hw_soc_info *soc_info,
  * @base_index:         Index of register space in the HW block
  * @offset:             Start register offset for the dump
  * @size:               Size specifying the range for dump
+ * @client_mask:        Module mask of the client calling
+ * @is_error_case:      Flag to indicate whether an error condition triggered
  *
  * @return:             Success or Failure
  */
 int cam_soc_util_reg_dump(struct cam_hw_soc_info *soc_info,
-	uint32_t base_index, uint32_t offset, int size);
+	uint32_t base_index, uint32_t offset, int size,
+	uint64_t client_mask, bool is_error_case);
 
 void cam_soc_util_clk_disable_default(struct cam_hw_soc_info *soc_info,
 	int cesta_client_idx);

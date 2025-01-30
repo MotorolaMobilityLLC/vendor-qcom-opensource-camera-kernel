@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -1476,11 +1476,18 @@ static void cam_hw_cdm_iommu_fault_handler(struct cam_smmu_pf_info *pf_info)
 		CAM_ERR_RATE_LIMIT(CAM_CDM, "Page fault iova addr %pK\n",
 			(void *)pf_info->iova);
 
+	if (cam_smmu_is_fault_ids_valid(pf_info)) {
 		/* Check if the PID and MID are valid, if not handle the pf */
 		if (((pf_info->pid == pvt_data->pid) && (pf_info->mid == pvt_data->mid)))
 			goto handle_cdm_pf;
 		else
 			return;
+	} else {
+		if (pf_info->must_notify)
+			goto handle_cdm_pf;
+		else
+			return;
+	}
 
 handle_cdm_pf:
 

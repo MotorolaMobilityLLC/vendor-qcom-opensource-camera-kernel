@@ -70,14 +70,6 @@ config MSM_MMRM
 	  mmrm knows about all clients' clock rates.
 	  MMRM can decide whether new peak power usage is within allowed value
 
-config INTERCONNECT_QCOM
-	bool "enabling icc bus driver"
-	help
-		This is to access icc driver api.
-		To cache AB and IB vote will
-		use ICC kernel driver API.
-		So that ICC driver can consolidate the vote
-
 config SPECTRA_DOMAIN_ID_SECURE_CAMERA
 	bool "enable domain ID based secure camera flow"
 	help
@@ -96,6 +88,7 @@ config SPECTRA_QULTIVATE_API
 
 config SPECTRA_SECURE_CAMERA_25
 	bool "enable secure camera 2.5"
+	depends on SPECTRA_DMA_MAP_ATTRS
 	help
 		This config enables 2.5 secure camera
 		feature that allows the usage of non contiguous
@@ -146,3 +139,47 @@ config SPECTRA_VMRM
 		the resource sharing and message exchanges
 		between PVM and TVM that is required for
 		camera security framework 3.0.
+
+config SPECTRA_GET_IOMMU_FAULT_IDS
+	bool "enable retrieving HW port IDs when S1 fault happens"
+	help
+		This config enables retrieving BID, PID
+		and MID info on an IOMMU fault. These IDs help
+		the driver match with the exact instance of a
+		particular HW type.
+
+config SPECTRA_DMA_MAP_ATTRS
+	bool "enable the API required to handle some specialized DMA ops"
+	help
+		This config enables the APIs to perform
+		some of the operations on the DMA buffers
+		like delayed unmap, skip cpu sync, map
+		buffers to SMMY proxy etc.
+
+config SPECTRA_DMABUF_GET_FLAGS
+	bool "enable the API required to handle cache ops"
+	help
+		This config enables the APIs
+		to perform some of the cache
+		operations like cache clean,
+		invalidate etc.
+
+config SPECTRA_SOC_QCOM_SOCINFO
+	bool "Enable support for Qcom SoC information"
+	help
+		This option enables inclusion of the Qcom SoC information
+		header file, which provides detatils about the system-on-chip
+		configuration and capabilities. It is required for features
+		relying on SoC-specific information.
+
+config VIDEO_QCOM_CAMERA
+	tristate "enable camera module compilation"
+	depends on VIDEO_DEV && MEDIA_CONTROLLER && m
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEO_V4L2_I2C
+	default n
+	help
+	  This will enable the camera kernel
+	  driver compilation.
+	  To compile this driver as a module named camera.ko
+	  choose m here.

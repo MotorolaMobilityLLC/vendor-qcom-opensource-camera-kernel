@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -12,12 +12,16 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_address.h>
+#if IS_ENABLED(CONFIG_QCOM_LAZY_MAPPING)
 #include <linux/msm_dma_iommu_mapping.h>
+#endif
 #include <linux/workqueue.h>
 #include <linux/genalloc.h>
 #include <linux/debugfs.h>
 
+#if IS_ENABLED(CONFIG_QCOM_SECURE_BUFFER)
 #include <soc/qcom/secure_buffer.h>
+#endif
 
 #include <media/cam_req_mgr.h>
 
@@ -479,6 +483,16 @@ bool cam_smmu_is_expanded_memory(void)
 	return iommu_cb_set.is_expanded_memory;
 }
 
+inline bool cam_smmu_is_fault_ids_valid(struct cam_smmu_pf_info *pf_info)
+{
+	if (!pf_info)
+		return false;
+
+	return (pf_info->bid != CAM_SMMU_INVALID_HW_PORT_ID &&
+		pf_info->pid != CAM_SMMU_INVALID_HW_PORT_ID &&
+		pf_info->mid != CAM_SMMU_INVALID_HW_PORT_ID);
+}
+
 int cam_smmu_need_force_alloc_cached(bool *force_alloc_cached)
 {
 	int idx;
@@ -667,8 +681,7 @@ static inline int cam_smmu_get_multiregion_client_dev_idx(
 
 static void cam_smmu_page_fault_work(struct work_struct *work)
 {
-	int j;
-	int idx;
+	int idx, j;
 	struct cam_smmu_work_payload *payload;
 	uint32_t buf_info = 0;
 	struct cam_smmu_pf_info pf_info;
@@ -705,13 +718,18 @@ static void cam_smmu_page_fault_work(struct work_struct *work)
 	pf_info.buf_info = buf_info;
 	pf_info.is_secure = iommu_cb_set.cb_info[idx].is_secure;
 	pf_info.in_map_region = in_map;
+	pf_info.fault_dev_found = false;
+	pf_info.must_notify = false;
 
-	for (j = 0; j < CAM_SMMU_CB_MAX; j++) {
+	for (j = 0; j < iommu_cb_set.cb_info[idx].cb_count &&
+		!pf_info.fault_dev_found; j++) {
 		if ((iommu_cb_set.cb_info[idx].handler[j])) {
+			pf_info.must_notify = ((j+1) == iommu_cb_set.cb_info[idx].cb_count);
 			pf_info.token = iommu_cb_set.cb_info[idx].token[j];
 			iommu_cb_set.cb_info[idx].handler[j](&pf_info);
 		}
 	}
+
 	cam_smmu_dump_cb_info(idx);
 	CAM_MEM_FREE(payload);
 }
@@ -831,7 +849,7 @@ static uint32_t cam_smmu_find_closest_mapping(int idx, void *vaddr, bool *in_map
 		start_addr = (unsigned long)mapping->paddr;
 		end_addr = (unsigned long)mapping->paddr + mapping->len;
 
-		if (start_addr <= current_addr && current_addr <= end_addr) {
+		if (start_addr <= current_addr && current_addr < end_addr) {
 			closest_mapping = mapping;
 			CAM_INFO(CAM_SMMU,
 				"Found va 0x%lx in:0x%lx-0x%lx, fd %d i_ino %lu cb:%s",
@@ -2767,7 +2785,8 @@ static int cam_smmu_map_buffer_validate(struct dma_buf *buf,
 		iommu_cb_set.cb_info[idx].shared_mapping_size += *len_ptr;
 	} else if (region_id == CAM_SMMU_REGION_IO) {
 		if (!dis_delayed_unmap)
-			attach->dma_map_attrs |= DMA_ATTR_DELAYED_UNMAP;
+			cam_update_dma_map_attributes(attach,
+				CAM_SMMU_DMA_MAP_ATTRS_DELAYED_UNMAP);
 		table = cam_compat_dmabuf_map_attach(attach, dma_dir);
 		if (IS_ERR_OR_NULL(table)) {
 			rc = PTR_ERR(table);
@@ -2796,7 +2815,8 @@ static int cam_smmu_map_buffer_validate(struct dma_buf *buf,
 		(unsigned int)table->sgl->dma_address);
 	CAM_DBG(CAM_SMMU,
 		"iova=%pK, region_id=%d, paddr=0x%llx, len=%zu, dma_map_attrs=%d",
-		iova, region_id, *paddr_ptr, *len_ptr, attach->dma_map_attrs);
+		iova, region_id, *paddr_ptr, *len_ptr,
+		cam_get_dma_map_attributes(attach));
 
 	if (iommu_cb_set.debug_cfg.map_profile_enable) {
 		CAM_GET_TIMESTAMP(ts2);
@@ -2961,7 +2981,7 @@ static int cam_smmu_unmap_buf_and_remove_from_list(
 	CAM_DBG(CAM_SMMU,
 		"region_id=%d, paddr=0x%llx, len=%d, dma_map_attrs=%d",
 		mapping_info->region_id, mapping_info->paddr, mapping_info->len,
-		mapping_info->attach->dma_map_attrs);
+		cam_get_dma_map_attributes(mapping_info->attach));
 
 	if (iommu_cb_set.debug_cfg.map_profile_enable)
 		CAM_GET_TIMESTAMP(ts1);
@@ -2995,8 +3015,8 @@ static int cam_smmu_unmap_buf_and_remove_from_list(
 			mapping_info->len;
 	} else if (mapping_info->region_id == CAM_SMMU_REGION_IO) {
 		if (mapping_info->is_internal)
-			mapping_info->attach->dma_map_attrs |=
-				DMA_ATTR_SKIP_CPU_SYNC;
+			cam_update_dma_map_attributes(mapping_info->attach,
+				CAM_SMMU_DMA_MAP_ATTRS_SKIP_CPU_SYNC);
 
 		cam_compat_dmabuf_unmap_attach(mapping_info->attach,
 			mapping_info->table, mapping_info->dir);
@@ -3599,12 +3619,14 @@ static int cam_smmu_map_stage2_buffer_and_add_to_list(int idx, int ion_fd,
 		goto err_out;
 	}
 
-	attach->dma_map_attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+	cam_update_dma_map_attributes(attach,
+		CAM_SMMU_DMA_MAP_ATTRS_SKIP_CPU_SYNC);
 
 	if (IS_CSF25(iommu_cb_set.csf_version.arch_ver,
 		iommu_cb_set.csf_version.max_ver))
-		attach->dma_map_attrs =
-			cam_update_dma_map_attributes(attach->dma_map_attrs);
+		cam_update_dma_map_attributes(attach,
+			CAM_SMMU_DMA_MAP_ATTRS_SMMU_PROXY_MAP);
+
 	table = cam_compat_dmabuf_map_attach(attach, dma_dir);
 	if (IS_ERR_OR_NULL(table)) {
 		CAM_ERR(CAM_SMMU, "Error: dma buf map attachment failed");
@@ -3750,7 +3772,8 @@ static int cam_smmu_secure_unmap_buf_and_remove_from_list(
 	}
 
 	/* skip cache operations */
-	mapping_info->attach->dma_map_attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+	cam_update_dma_map_attributes(mapping_info->attach,
+		CAM_SMMU_DMA_MAP_ATTRS_SKIP_CPU_SYNC);
 
 	/* iommu buffer clean up */
 	cam_compat_dmabuf_unmap_attach(mapping_info->attach,
@@ -5736,6 +5759,9 @@ static int cam_smmu_component_bind(struct device *dev,
 		CAM_ERR(CAM_SMMU, "Failed to fetch CSF version: %d", rc);
 		return rc;
 	}
+
+	if (!IS_REACHABLE(CONFIG_SPECTRA_DMA_MAP_ATTRS))
+		CAM_INFO(CAM_SMMU, "DMA MAP attributes feature disabled");
 
 	CAM_DBG(CAM_SMMU, "Main component bound successfully");
 	CAM_GET_TIMESTAMP(ts_end);

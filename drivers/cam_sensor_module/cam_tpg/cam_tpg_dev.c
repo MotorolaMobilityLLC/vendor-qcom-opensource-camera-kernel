@@ -152,6 +152,42 @@ static irqreturn_t cam_tpg_irq_handler(int irq_num, void *data)
 	return rc;
 }
 
+static void tpg_subdev_handle_message(struct v4l2_subdev *sd,
+	enum cam_subdev_message_type_t message_type, void *data)
+{
+	struct cam_tpg_device *tpg_dev = v4l2_get_subdevdata(sd);
+	uint32_t tpg_idx;
+
+	if (!data) {
+		CAM_ERR(CAM_TPG, "Empty Payload");
+		return;
+	}
+
+	if (!tpg_dev) {
+		CAM_ERR(CAM_TPG, "Invalid tpg_dev : NULL");
+		return;
+	}
+
+	tpg_idx = *(uint32_t *)data;
+	if (tpg_idx != tpg_dev->phy_id) {
+		CAM_DBG(CAM_TPG, "TPG[%u] Expected IDX: %u, Received IDX: %u",
+			tpg_dev->soc_info.index,
+			tpg_idx,
+			tpg_dev->phy_id);
+		return;
+	}
+
+	switch (message_type) {
+	case CAM_SUBDEV_MESSAGE_REG_DUMP:
+		cam_tpg_trigger_memdump(tpg_dev);
+		break;
+	default:
+		CAM_ERR(CAM_TPG, "TPG[%u] Invalid subdev msg type: %d",
+			tpg_dev->soc_info.index,
+			message_type);
+	}
+}
+
 static int tpg_subdev_init(struct cam_tpg_device *tpg_dev,
 		struct device *dev)
 {
@@ -165,7 +201,7 @@ static int tpg_subdev_init(struct cam_tpg_device *tpg_dev,
 	tpg_dev->tpg_subdev.sd_flags =
 		(V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS);
 	tpg_dev->tpg_subdev.ent_function = CAM_TPG_DEVICE_TYPE;
-	tpg_dev->tpg_subdev.msg_cb = NULL;
+	tpg_dev->tpg_subdev.msg_cb = tpg_subdev_handle_message;
 	tpg_dev->tpg_subdev.token = tpg_dev;
 
 	rc = cam_register_subdev(&(tpg_dev->tpg_subdev));
@@ -196,7 +232,7 @@ static int tpg_soc_info_init(struct cam_tpg_device *tpg_dev,
 
 	rc = cam_soc_util_get_dt_properties(&tpg_dev->soc_info);
 	if (rc < 0) {
-		CAM_ERR(CAM_CSIPHY, "parsing common soc dt(rc %d)", rc);
+		CAM_ERR(CAM_TPG, "parsing common soc dt(rc %d)", rc);
 		return  rc;
 	}
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of.h>
@@ -660,12 +660,14 @@ int cam_jpeg_dma_dump_debug_regs(struct cam_hw_info *jpeg_dma_dev)
 	/* JPEG DMA TOP, Interrupt, core config, command registers & Fetch Engine Registers */
 	cam_soc_util_reg_dump(soc_info, CAM_JPEG_MEM_BASE_INDEX,
 		core_info->jpeg_dma_hw_info->debug_reg_offset.top_offset,
-		core_info->jpeg_dma_hw_info->debug_reg_offset.top_range);
+		core_info->jpeg_dma_hw_info->debug_reg_offset.top_range,
+		CAM_JPEG, false);
 
 	/* Write Engine */
 	cam_soc_util_reg_dump(soc_info, CAM_JPEG_MEM_BASE_INDEX,
 		core_info->jpeg_dma_hw_info->debug_reg_offset.we_offset,
-		core_info->jpeg_dma_hw_info->debug_reg_offset.we_range);
+		core_info->jpeg_dma_hw_info->debug_reg_offset.we_range,
+		CAM_JPEG, false);
 
 	/*
 	 * WE qos cfg, test bus and debug regs, spare regs, bus misr, scale reg, core status regs
@@ -673,12 +675,14 @@ int cam_jpeg_dma_dump_debug_regs(struct cam_hw_info *jpeg_dma_dev)
 	 */
 	cam_soc_util_reg_dump(soc_info, CAM_JPEG_MEM_BASE_INDEX,
 		core_info->jpeg_dma_hw_info->debug_reg_offset.we_qos_offset,
-		core_info->jpeg_dma_hw_info->debug_reg_offset.we_qos_range);
+		core_info->jpeg_dma_hw_info->debug_reg_offset.we_qos_range,
+		CAM_JPEG, false);
 
 	/* Perf Registers */
 	cam_soc_util_reg_dump(soc_info, CAM_JPEG_MEM_BASE_INDEX,
 		core_info->jpeg_dma_hw_info->debug_reg_offset.perf_offset,
-		core_info->jpeg_dma_hw_info->debug_reg_offset.perf_range);
+		core_info->jpeg_dma_hw_info->debug_reg_offset.perf_range,
+		CAM_JPEG, false);
 
 	return 0;
 }

@@ -231,7 +231,7 @@ struct cam_isp_ctx_req {
 struct cam_isp_context_state_monitor {
 	enum cam_isp_ctx_activated_substate  curr_state;
 	enum cam_isp_state_change_trigger    trigger;
-	uint64_t                             req_id;
+	int64_t                              req_id;
 	int64_t                              frame_id;
 	struct timespec64                    evt_time_stamp;
 };

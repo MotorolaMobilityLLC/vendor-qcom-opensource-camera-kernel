@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_SMMU_API_H_
@@ -16,7 +16,9 @@
 #include <linux/random.h>
 #include <linux/spinlock_types.h>
 #include <linux/mutex.h>
+#if IS_ENABLED(CONFIG_ION)
 #include <linux/msm_ion.h>
+#endif
 
 #define BYTE_SIZE 8
 #define COOKIE_NUM_BYTE 2
@@ -26,11 +28,16 @@
 #define CAM_SMMU_HDL_MASK ((BIT(MULTI_CLIENT_REGION_SHIFT)) - 1)
 #define GET_SMMU_TABLE_IDX(x) ((((x) & CAM_SMMU_HDL_MASK) >> COOKIE_SIZE) & COOKIE_MASK)
 #define CAM_SMMU_GET_BASE_HDL(x) ((x) & CAM_SMMU_HDL_MASK)
+#define CAM_SMMU_INVALID_HW_PORT_ID 0xFFFFFFFF
 
 #define CAM_SMMU_GET_IOVA_DELTA(val1, val2)                                \
 ({                                                                         \
 	(val1) > (val2) ? (val1) - (val2) : (val2) - (val1);               \
 })
+
+#define CAM_SMMU_DMA_MAP_ATTRS_DELAYED_UNMAP      (1<<0)
+#define CAM_SMMU_DMA_MAP_ATTRS_SKIP_CPU_SYNC      (1<<1)
+#define CAM_SMMU_DMA_MAP_ATTRS_SMMU_PROXY_MAP     (1<<2)
 
 /*Enum for possible CAM SMMU operations */
 enum cam_smmu_ops_param {
@@ -116,6 +123,9 @@ struct cam_smmu_buffer_tracker {
  * @param mid              : port id of hw
  * @param is_secure        : Faulted memory in secure or non-secure region
  * @param in_map_region    : Faulted memory fall in mapped region or not
+ * @param must_notify      : Force notification to userspace, usually in
+ *                           the case of the last dev instance in ctxt bank
+ * @param fault_dev_found  : Faulted device found or not
  */
 
 struct cam_smmu_pf_info {
@@ -130,6 +140,8 @@ struct cam_smmu_pf_info {
 	uint32_t              mid;
 	bool                  is_secure;
 	bool                  in_map_region;
+	bool                  must_notify;
+	bool                  fault_dev_found;
 };
 
 /**
@@ -589,5 +601,10 @@ void cam_smmu_buffer_tracker_buffer_putref(struct cam_smmu_buffer_tracker *entry
  */
 int cam_smmu_add_buf_to_track_list(int ion_fd, unsigned long inode,
 	struct kref **ref_count, struct list_head *buf_tracker, int idx);
+
+/**
+ * @brief : Checks if the BID, PID and MID info are valid
+ */
+inline bool cam_smmu_is_fault_ids_valid(struct cam_smmu_pf_info *pf_info);
 
 #endif /* _CAM_SMMU_API_H_ */
