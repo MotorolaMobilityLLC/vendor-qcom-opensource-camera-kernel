@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CPASTOP_V1080_100_H_
@@ -1625,6 +1625,19 @@ static struct cam_cpas_secure_info cam1080_cpas100_secure_info = {
 	.secure_access_ctrl_value = 0xFFFFFFFF,
 };
 
+static struct cam_cpas_subpart_info cam1080_cpas_camera_subpart_info = {
+	.num_bits = 3,
+	/*
+	 * Below fuse indexing is based on software fuse definition which is in SMEM and provided
+	 * by XBL team.
+	 */
+	.hw_bitmap_mask = {
+		{CAM_CPAS_ISP_FUSE, BIT(0)},
+		{CAM_CPAS_ISP_FUSE, BIT(1)},
+		{CAM_CPAS_ISP_FUSE, BIT(2)},
+	}
+};
+
 static struct cam_cpas_info cam1080_cpas100_cpas_info = {
 	.hw_caps_info = {
 		.num_caps_registers = 2,
@@ -1635,6 +1648,7 @@ static struct cam_cpas_info cam1080_cpas100_cpas_info = {
 		&cam1080_cpas100_qchannel_info_pdx},
 	.num_qchannel = 3,
 	.hw_caps_secure_info = &cam1080_cpas100_secure_info,
+	.subpart_info = &cam1080_cpas_camera_subpart_info,
 };
 
 #endif /* _CPASTOP_V1080_100_H_ */
