@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_IFE_HW_MGR_H_
@@ -435,7 +435,8 @@ struct cam_cmd_buf_desc_addr_len {
  * @major_version:          Major version for acquire
  * @vfe_bus_comp_grp:       VFE composite group placeholder
  * @sfe_bus_comp_grp:       SFE composite group placeholder
- * @cdm_done_ts:            CDM callback done timestamp
+ * @cdm_done_tai_ts:        CDM callback done TAI timestamp
+ * @cdm_done_boot_ts:       CDM callback done boot timestamp
  * @acq_hw_ctxt_src_dst_map: Src to dst hw ctxt map for acquired pixel paths
  * @pri_rdi_out_res:         Primary RDI res for RDI only cases
  * @drv_info:                Array to include the per request drv info
@@ -505,7 +506,8 @@ struct cam_ife_hw_mgr_ctx {
 	uint32_t                                   major_version;
 	struct cam_isp_context_comp_record        *vfe_bus_comp_grp;
 	struct cam_isp_context_comp_record        *sfe_bus_comp_grp;
-	struct timespec64                          cdm_done_ts;
+	struct timespec64                          cdm_done_tai_ts;
+	struct timespec64                          cdm_done_boot_ts;
 	uint32_t                                   acq_hw_ctxt_src_dst_map[CAM_ISP_MULTI_CTXT_MAX];
 	uint32_t                                   pri_rdi_out_res;
 	struct cam_isp_hw_per_req_info             per_req_info[MAX_DRV_REQUEST_DEPTH];

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_IFE_CSID_COMMON_H_
@@ -91,6 +91,7 @@
 #define CAM_IFE_CSID_DEBUG_ENABLE_VOTE_UP_IRQ             BIT(10)
 #define CAM_IFE_CSID_DEBUG_ENABLE_VOTE_DN_IRQ             BIT(11)
 #define CAM_IFE_CSID_DEBUG_ENABLE_ERR_NO_VOTE_DN_IRQ      BIT(12)
+#define CAM_IFE_CSID_DEBUG_ENABLE_CAMIF_SOF_IRQ           BIT(13)
 
 /* Binning supported masks. Binning support changes for specific paths
  * and also for targets. With the mask, we handle the supported features
@@ -105,8 +106,12 @@
 
 #define CAM_IFE_CSID_RUP_AUP_SET_VAL                      BIT(0)
 
-/* factor to conver qtime to boottime */
-extern int64_t qtime_to_boottime;
+/* convert qtime to boottime */
+struct csid_ref_time {
+	int64_t btime;
+	int64_t qtime;
+};
+extern struct csid_ref_time g_ref_time;
 
 /* enum for multiple mem base in some of the targets */
 enum cam_ife_csid_mem_base_id {

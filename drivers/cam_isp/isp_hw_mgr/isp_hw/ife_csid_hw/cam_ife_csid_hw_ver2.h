@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_IFE_CSID_HW_VER2_H_
@@ -243,10 +243,9 @@ struct cam_ife_csid_ver2_rup_aup_mask {
 /*
  * struct cam_ife_csid_ver2_path_cfg: place holder for path parameters
  *
- * @error_ts:               Error timestamp
- * @sof_ts:                 SOF timestamp
- * @epoch_ts:               Epoch timestamp
- * @eof_ts:                 EOF timestamp
+ * @error_ts:               Error boot timestamp
+ * @epoch_ts:               Epoch boot timestamp
+ * @eof_ts:                 EOF boot timestamp
  * @cid:                    cid value for path
  * @path_format:            Array of Path format which contains format
  *                          info i.e Decode format, Packing format etc
@@ -294,7 +293,6 @@ struct cam_ife_csid_ver2_rup_aup_mask {
  */
 struct cam_ife_csid_ver2_path_cfg {
 	struct timespec64                    error_ts;
-	struct timespec64                    sof_ts;
 	struct timespec64                    epoch_ts;
 	struct timespec64                    eof_ts;
 	struct cam_ife_csid_path_format      path_format[CAM_ISP_VC_DT_CFG];

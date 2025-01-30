@@ -121,7 +121,7 @@ static int cam_ife_mgr_prog_default_settings(int64_t last_applied_max_pd_req,
 
 static int cam_ife_mgr_cmd_get_sof_timestamp(struct cam_ife_hw_mgr_ctx *ife_ctx,
 	uint64_t *time_stamp, uint64_t *boot_time_stamp, uint64_t *prev_time_stamp,
-	struct timespec64 *boot_ts, bool get_curr_timestamp);
+	bool get_curr_timestamp);
 
 static int cam_convert_rdi_out_res_id_to_src(int res_id);
 
@@ -5927,7 +5927,8 @@ void cam_ife_cam_cdm_callback(uint32_t handle, void *userdata,
 			"Called by CDM hdl=0x%x, udata=%pK, status=%d, cdm_req=%llu ctx_idx: %u",
 			 handle, userdata, status, ctx->cdm_userdata.request_id, ctx->ctx_index);
 	}
-	ktime_get_clocktai_ts64(&ctx->cdm_done_ts);
+	ktime_get_clocktai_ts64(&ctx->cdm_done_tai_ts);
+	ktime_get_boottime_ts64(&ctx->cdm_done_boot_ts);
 }
 
 static int cam_ife_mgr_acquire_get_unified_structure_v0(
@@ -16169,8 +16170,10 @@ static int cam_ife_mgr_cmd(void *hw_mgr_priv, void *cmd_args)
 				CAM_ISP_PACKET_UPDATE_DEV;
 			break;
 		case CAM_ISP_HW_MGR_GET_LAST_CDM_DONE:
-			isp_hw_cmd_args->cdm_done_ts =
-				ctx->cdm_done_ts;
+			isp_hw_cmd_args->cdm_done_tai_ts =
+				ctx->cdm_done_tai_ts;
+			isp_hw_cmd_args->cdm_done_boot_ts =
+				ctx->cdm_done_boot_ts;
 			isp_hw_cmd_args->u.last_cdm_done =
 				ctx->last_cdm_done_req;
 			break;
@@ -16194,7 +16197,7 @@ static int cam_ife_mgr_cmd(void *hw_mgr_priv, void *cmd_args)
 			rc = cam_ife_mgr_cmd_get_sof_timestamp(ctx,
 				&isp_hw_cmd_args->u.sof_ts.curr,
 				&isp_hw_cmd_args->u.sof_ts.boot,
-				&isp_hw_cmd_args->u.sof_ts.prev, NULL, true);
+				&isp_hw_cmd_args->u.sof_ts.prev, true);
 			break;
 		case CAM_ISP_HW_MGR_DUMP_STREAM_INFO:
 			rc = cam_common_user_dump_helper(
@@ -16469,7 +16472,6 @@ static int cam_ife_mgr_cmd_get_sof_timestamp(
 	uint64_t                             *time_stamp,
 	uint64_t                             *boot_time_stamp,
 	uint64_t                             *prev_time_stamp,
-	struct timespec64                    *raw_boot_ts,
 	bool                                  get_curr_timestamp)
 {
 	int                                   rc = -EINVAL;
@@ -16506,7 +16508,6 @@ static int cam_ife_mgr_cmd_get_sof_timestamp(
 			csid_get_time.get_prev_timestamp = (prev_time_stamp != NULL);
 			csid_get_time.get_curr_timestamp = get_curr_timestamp;
 			csid_get_time.time_stamp_val = *time_stamp;
-			csid_get_time.raw_boot_time = raw_boot_ts;
 			rc = hw_intf->hw_ops.process_cmd(
 				hw_intf->hw_priv,
 				CAM_IFE_CSID_CMD_GET_TIME_STAMP,
@@ -16979,13 +16980,15 @@ end:
 }
 
 static int cam_ife_hw_mgr_handle_csid_rup(
-	struct cam_ife_hw_mgr_ctx        *ife_hw_mgr_ctx,
+	struct cam_ife_hw_mgr_ctx        *ctx,
 	struct cam_isp_hw_event_info     *event_info)
 {
 	cam_hw_event_cb_func                     ife_hwr_irq_rup_cb;
 	struct cam_isp_hw_reg_update_event_data  rup_event_data;
+	struct cam_isp_sof_ts_data              *sof_and_boot_time;
+	struct timespec64                        ts;
 
-	ife_hwr_irq_rup_cb = ife_hw_mgr_ctx->common.event_cb;
+	ife_hwr_irq_rup_cb = ctx->common.event_cb;
 
 	switch (event_info->res_id) {
 	case CAM_IFE_PIX_PATH_RES_IPP:
@@ -16995,16 +16998,48 @@ static int cam_ife_hw_mgr_handle_csid_rup(
 	case CAM_IFE_PIX_PATH_RES_RDI_3:
 	case CAM_IFE_PIX_PATH_RES_RDI_4:
 	case CAM_IFE_PIX_PATH_RES_PPP:
-		if (atomic_read(&ife_hw_mgr_ctx->overflow_pending))
+		if (atomic_read(&ctx->overflow_pending))
 			break;
-		ife_hwr_irq_rup_cb(ife_hw_mgr_ctx->common.cb_priv,
+		rup_event_data.camif_irq = true;
+
+		if (ctx->ctx_config & CAM_IFE_CTX_CFG_FRAME_HEADER_TS) {
+			rup_event_data.timestamp = 0x0;
+			ktime_get_boottime_ts64(&ts);
+			rup_event_data.boot_time =
+				(uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
+			CAM_DBG(CAM_ISP, "CSID RUP ACK, boot_time %llu, ctx_idx: %u",
+				rup_event_data.boot_time, ctx->ctx_index);
+		} else {
+			if (ctx->flags.is_offline)
+				cam_ife_hw_mgr_get_offline_sof_timestamp(
+					&rup_event_data.timestamp,
+					&rup_event_data.boot_time);
+			else {
+				if (!event_info->event_data) {
+					CAM_ERR(CAM_ISP, "SOF timestamp data is null: %s",
+						CAM_IS_NULL_TO_STR(event_info->event_data));
+					break;
+				}
+				sof_and_boot_time =
+					(struct cam_isp_sof_ts_data *)event_info->event_data;
+				rup_event_data.timestamp =
+					sof_and_boot_time->sof_ts;
+				cam_ife_mgr_cmd_get_sof_timestamp(
+					ctx, &rup_event_data.timestamp,
+					&rup_event_data.boot_time, NULL, false);
+			}
+		}
+
+		cam_hw_mgr_reset_out_of_sync_cnt(ctx);
+
+		ife_hwr_irq_rup_cb(ctx->common.cb_priv,
 			CAM_ISP_HW_EVENT_REG_UPDATE, &rup_event_data);
 		CAM_DBG(CAM_ISP, "RUP done for CSID:%d source %d ctx_idx: %u", event_info->hw_idx,
-			event_info->res_id, ife_hw_mgr_ctx->ctx_index);
+			event_info->res_id, ctx->ctx_index);
 		break;
 	default:
 		CAM_ERR_RATE_LIMIT(CAM_ISP, "Invalid res_id: %d, ctx_idx: %u",
-			event_info->res_id, ife_hw_mgr_ctx->ctx_index);
+			event_info->res_id, ctx->ctx_index);
 		break;
 	}
 
@@ -17050,7 +17085,7 @@ static int cam_ife_hw_mgr_handle_csid_camif_sof(
 	struct cam_isp_hw_event_info         *event_info)
 {
 	int                                    rc = 0;
-	cam_hw_event_cb_func ife_hw_irq_sof_cb     = ctx->common.event_cb;
+	cam_hw_event_cb_func                   ife_hw_irq_sof_cb = ctx->common.event_cb;
 	struct cam_isp_hw_sof_event_data       sof_done_event_data = {0};
 	struct timespec64                      ts;
 	struct cam_isp_sof_ts_data            *sof_and_boot_time;
@@ -17078,20 +17113,18 @@ static int cam_ife_hw_mgr_handle_csid_camif_sof(
 	case CAM_IFE_PIX_PATH_RES_PPP:
 		if (atomic_read(&ctx->overflow_pending))
 			break;
-		if (ctx->ctx_config &
-			CAM_IFE_CTX_CFG_FRAME_HEADER_TS) {
+		if (ctx->ctx_config & CAM_IFE_CTX_CFG_FRAME_HEADER_TS) {
 			sof_done_event_data.timestamp = 0x0;
 			ktime_get_boottime_ts64(&ts);
 			sof_done_event_data.boot_time =
-			(uint64_t)((ts.tv_sec * 1000000000) +
-			ts.tv_nsec);
+				(uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
 			CAM_DBG(CAM_ISP, "boot_time 0x%llx, ctx_idx: %u",
 				sof_done_event_data.boot_time, ctx->ctx_index);
 		} else {
 			if (ctx->flags.is_offline)
 				cam_ife_hw_mgr_get_offline_sof_timestamp(
-				&sof_done_event_data.timestamp,
-				&sof_done_event_data.boot_time);
+					&sof_done_event_data.timestamp,
+					&sof_done_event_data.boot_time);
 			else {
 				if (!event_info->event_data) {
 					CAM_ERR(CAM_ISP, "SOF timestamp data is null: %s",
@@ -17104,8 +17137,7 @@ static int cam_ife_hw_mgr_handle_csid_camif_sof(
 					sof_and_boot_time->sof_ts;
 				cam_ife_mgr_cmd_get_sof_timestamp(
 					ctx, &sof_done_event_data.timestamp,
-					&sof_done_event_data.boot_time, NULL,
-					&sof_and_boot_time->boot_time, false);
+					&sof_done_event_data.boot_time, NULL, false);
 			}
 		}
 
@@ -17132,9 +17164,11 @@ static int cam_ife_hw_mgr_handle_csid_camif_epoch(
 	struct cam_ife_hw_mgr_ctx            *ctx,
 	struct cam_isp_hw_event_info         *event_info)
 {
-	int rc = 0;
-	cam_hw_event_cb_func ife_hw_irq_epoch_cb = ctx->common.event_cb;
-	struct cam_isp_hw_epoch_event_data    epoch_done_event_data  = {0};
+	int                                rc = 0;
+	cam_hw_event_cb_func               ife_hw_irq_epoch_cb = ctx->common.event_cb;
+	struct cam_isp_hw_epoch_event_data epoch_event_data  = {0};
+	struct timespec64                  ts;
+	struct cam_isp_sof_ts_data        *sof_and_boot_time;
 
 	if (event_info->is_secondary_evt) {
 		struct cam_isp_hw_secondary_event_data sec_evt_data;
@@ -17160,9 +17194,40 @@ static int cam_ife_hw_mgr_handle_csid_camif_epoch(
 		if (atomic_read(&ctx->overflow_pending))
 			break;
 
-		epoch_done_event_data.frame_id_meta = event_info->reg_val;
+		epoch_event_data.frame_id_meta = event_info->reg_val;
+		epoch_event_data.camif_irq = true;
+		if (ctx->ctx_config & CAM_IFE_CTX_CFG_FRAME_HEADER_TS) {
+			epoch_event_data.timestamp = 0x0;
+			ktime_get_boottime_ts64(&ts);
+			epoch_event_data.boot_time =
+				(uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
+			CAM_DBG(CAM_ISP, "boot_time 0x%llx, ctx_idx: %u",
+				epoch_event_data.boot_time, ctx->ctx_index);
+		} else {
+			if (ctx->flags.is_offline)
+				cam_ife_hw_mgr_get_offline_sof_timestamp(
+					&epoch_event_data.timestamp,
+					&epoch_event_data.boot_time);
+			else {
+				if (!event_info->event_data) {
+					CAM_ERR(CAM_ISP, "SOF timestamp data is null: %s",
+						CAM_IS_NULL_TO_STR(event_info->event_data));
+					break;
+				}
+				sof_and_boot_time =
+					(struct cam_isp_sof_ts_data *)event_info->event_data;
+				epoch_event_data.timestamp =
+					sof_and_boot_time->sof_ts;
+				cam_ife_mgr_cmd_get_sof_timestamp(
+					ctx, &epoch_event_data.timestamp,
+					&epoch_event_data.boot_time, NULL, false);
+			}
+		}
+
+		cam_hw_mgr_reset_out_of_sync_cnt(ctx);
+
 		ife_hw_irq_epoch_cb(ctx->common.cb_priv,
-			CAM_ISP_HW_EVENT_EPOCH, (void *)&epoch_done_event_data);
+			CAM_ISP_HW_EVENT_EPOCH, (void *)&epoch_event_data);
 
 		CAM_DBG(CAM_ISP,
 			"Received CSID[%u] CAMIF Epoch res: %d, ctx_idx: %u", event_info->hw_idx,
@@ -17554,8 +17619,7 @@ static int cam_ife_hw_mgr_handle_hw_sof(
 				sof_done_event_data.timestamp = sof_and_boot_time->sof_ts;
 				cam_ife_mgr_cmd_get_sof_timestamp(
 					ife_hw_mgr_ctx, &sof_done_event_data.timestamp,
-					&sof_done_event_data.boot_time, NULL,
-					&sof_and_boot_time->boot_time, false);
+					&sof_done_event_data.boot_time, NULL, false);
 			}
 		}
 
@@ -17587,8 +17651,7 @@ static int cam_ife_hw_mgr_handle_hw_sof(
 		sof_done_event_data.timestamp = sof_and_boot_time->sof_ts;
 		cam_ife_mgr_cmd_get_sof_timestamp(
 			ife_hw_mgr_ctx, &sof_done_event_data.timestamp,
-			&sof_done_event_data.boot_time, NULL,
-			&sof_and_boot_time->boot_time, false);
+			&sof_done_event_data.boot_time, NULL, false);
 
 		cam_hw_mgr_reset_out_of_sync_cnt(ife_hw_mgr_ctx);
 
