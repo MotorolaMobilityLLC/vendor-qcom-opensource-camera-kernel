@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_CCI_DEV_H_
@@ -39,6 +40,9 @@
 #define CCI_I2C_QUEUE_1_SIZE 32
 #define CCI_I2C_QUEUE_0_SIZE_V_1_2 64
 #define CCI_I2C_QUEUE_1_SIZE_V_1_2 16
+#define CCI_I2C_QUEUE_0_SIZE_V_1_10 1024
+#define CCI_I2C_QUEUE_1_SIZE_V_1_10 32
+
 #define CYCLES_PER_MICRO_SEC_DEFAULT 4915
 #define CCI_MAX_DELAY 1000000
 
@@ -70,7 +74,9 @@
 #define CAM_CCI_NACK_DUMP_EN      BIT(1)
 #define CAM_CCI_TIMEOUT_DUMP_EN   BIT(2)
 
-#define CCI_VERSION_1_2_9 0x10020009
+#define CCI_VERSION_1_2_9  0x10020009
+#define CCI_VERSION_1_10_0 0x100a0000
+
 #define REPORT_IDSIZE 16
 enum cci_i2c_sync {
 	MSM_SYNC_DISABLE,
