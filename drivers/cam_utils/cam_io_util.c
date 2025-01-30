@@ -10,6 +10,7 @@
 #include <linux/err.h>
 #include "cam_io_util.h"
 #include "cam_debug_util.h"
+#include "cam_soc_util.h"
 
 int cam_io_w(uint32_t data, void __iomem *addr)
 {
@@ -278,6 +279,68 @@ int cam_io_dump(void __iomem *base_addr, uint32_t start_offset, int size,
 	}
 	if (line_str[0] != '\0')
 		CAM_INFO_IF(client_mask, is_error_case, "%s", line_str);
+
+	return 0;
+}
+
+int cam_io_print_info(struct cam_io_print_data *io_data)
+{
+	char          line_str[128];
+	char         *p_str;
+	int           i;
+	int           bytes_written, used_size;
+	uint32_t      data;
+	uint32_t      start_offset;
+	void __iomem *base_addr = NULL;
+	void __iomem *end_addr;
+	uint32_t      cam_base;
+	char         *token = "";
+
+	if (!base_addr || (io_data->num_reg <= 0))
+		return -EINVAL;
+
+	base_addr = io_data->soc_info->reg_map[io_data->blk_id].mem_base;
+	cam_base = io_data->soc_info->mem_block[io_data->blk_id]->start;
+	end_addr = io_data->soc_info->reg_map[io_data->blk_id].mem_base +
+			io_data->soc_info->reg_map[io_data->blk_id].size;
+	start_offset = io_data->start_offset;
+
+	line_str[0] = '\0';
+	p_str = line_str;
+	used_size = 0;
+
+	if (io_data->token)
+		token = io_data->token;
+
+	for (i = 0; i < io_data->num_reg; i++) {
+
+		if ((base_addr + REG_OFFSET(start_offset, i)) >= end_addr) {
+			CAM_INFO(io_data->mod_id,
+				"Invalid size start:0x%x base: 0x%X end: 0x%x i:%d",
+				start_offset, base_addr, end_addr, i);
+			return -EINVAL;
+		}
+		if (i % NUM_REGISTER_PER_LINE == 0) {
+			bytes_written = scnprintf(p_str,
+				sizeof(line_str) - used_size, "0x%x: ",
+				cam_base + REG_OFFSET(start_offset, i));
+			p_str += bytes_written;
+			used_size += bytes_written;
+		}
+		data = readl_relaxed(base_addr + REG_OFFSET(start_offset, i));
+		bytes_written = scnprintf(p_str, sizeof(line_str) - used_size,
+			"0x%08x  ", data);
+		p_str += bytes_written;
+		used_size += bytes_written;
+		if ((i + 1) % NUM_REGISTER_PER_LINE == 0) {
+			CAM_INFO(io_data->mod_id, "%s %s", token, line_str);
+			line_str[0] = '\0';
+			p_str = line_str;
+			used_size = 0;
+		}
+	}
+	if (line_str[0] != '\0')
+		CAM_INFO(io_data->mod_id, "%s %s", token, line_str);
 
 	return 0;
 }

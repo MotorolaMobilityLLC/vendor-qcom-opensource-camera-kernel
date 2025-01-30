@@ -8,6 +8,23 @@
 #define _CAM_IO_UTIL_H_
 
 #include <linux/types.h>
+/**
+ * struct cam_io_print_data - Place holder for printing the registers
+ *
+ * @soc_info:        SOC Info of the calling hw block
+ * @start_offset:    Start offset to print
+ * @num_reg:         Number of registers
+ * @mod_id:          Module ID of calling module
+ */
+
+struct cam_io_print_data {
+	struct cam_hw_soc_info *soc_info;
+	char                   *token;
+	uint32_t                start_offset;
+	uint32_t                num_reg;
+	uint32_t                mod_id;
+	uint32_t                blk_id;
+};
 
 #define CAM_INFO_IF(__module, is_error_case, fmt, args...)  \
 ({ \
@@ -241,4 +258,19 @@ int32_t cam_io_w_mb_offset_val_block(const uint32_t data[][2],
 int cam_io_dump(void __iomem *base_addr, uint32_t start_offset, int size,
 	uint64_t client_mask, bool is_error_case);
 
+/**
+ * cam_io_print_info()
+ *
+ * @brief:              Camera IO util for dumping a range of register
+ *
+ * @base_addr:          Start register address for the dumping
+ * @cam_base:           Cam_base of IP
+ * @start_offset:       Start register offset for the dump
+ * @size:               Size specifying the range for dumping
+ * @mod_id:             Driver module dumping the reg info
+ * @token:              Token by Client to filter while debug
+ *
+ * @return:             Success or Failure
+ */
+int cam_io_print_info(struct cam_io_print_data *io_data);
 #endif /* _CAM_IO_UTIL_H_ */

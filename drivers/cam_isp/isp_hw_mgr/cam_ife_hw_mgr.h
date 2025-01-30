@@ -68,6 +68,34 @@ enum cam_ife_ctx_master_type {
 
 #define CAM_IFE_HW_ERR_NAME_LEN 32
 
+/* Num of entries for debug reg dump*/
+#define CAM_IFE_REG_READ_EVT_MAX_NUM 20
+
+/*enum for kernel reg dump events*/
+enum  cam_ife_debug_reg_rd_wr_event {
+	CAM_IFE_REG_RD_WR_EVENT_INVALID = -1,
+	CAM_IFE_REG_RD_WR_EVENT_SOF = 0,
+	CAM_IFE_REG_RD_WR_EVENT_RUP = 1,
+	CAM_IFE_REG_RD_WR_EVENT_EPOCH = 2,
+	CAM_IFE_REG_RD_WR_EVENT_EOF = 3,
+	CAM_IFE_REG_RD_WR_EVENT_BUF_DONE = 4,
+	CAM_IFE_REG_RD_WR_EVENT_STREAM_ON = 5,
+	CAM_IFE_REG_RD_WR_EVENT_STREAM_OFF = 6,
+	CAM_IFE_REG_RD_WR_EVENT_APPLY = 7,
+	CAM_IFE_REG_RD_WR_EVENT_ERROR = 8,
+};
+
+/**
+ * struct cam_ife_hw_debug_reg_dump - Placeholder for register dump
+ * mask:  Debugfs based value.
+ * index: Keep track of number of masks set.
+ */
+
+struct cam_isp_reg_read_evt_param {
+	uint64_t mask[CAM_IFE_REG_READ_EVT_MAX_NUM];
+	int      index;
+};
+
 /**
  * struct cam_ife_hw_mgr_debug - contain the debug information
  *
@@ -619,12 +647,6 @@ enum cam_isp_irq_inject_common_param_pos {
  * @work q                 work queue for IFE hw manager
  * @debug_cfg              debug configuration
  * @ctx_lock               context lock
- * @hw_pid_support         hw pid support for this target
- * @csid_aup_rup_en        Reg update at CSID side
- * @csid_global_reset_en   CSID global reset enable
- * @csid_camif_irq_support CSID camif IRQ support
- * @cam_ddr_drv_support    DDR DRV support
- * @cam_clk_drv_support    CLK DRV support
  * @isp_caps               Capability of underlying SFE/IFE HW
  * @path_port_map          Mapping of outport to IFE mux
  * @num_caches_found       Number of caches supported
@@ -633,6 +655,13 @@ enum cam_isp_irq_inject_common_param_pos {
  * @isp_device_type:       If device supports single-context(ife) or multi-
  *                         context(mc_tfe)
  * @irq_inject_param       Param for isp irq injection
+ * @reg_read_evt_param     Param for reg read triggered by SW based on events
+ * @hw_pid_support         hw pid support for this target
+ * @csid_aup_rup_en        Reg update at CSID side
+ * @csid_global_reset_en   CSID global reset enable
+ * @csid_camif_irq_support CSID camif IRQ support
+ * @cam_ddr_drv_support    DDR DRV support
+ * @cam_clk_drv_support    CLK DRV support
  */
 struct cam_ife_hw_mgr {
 	struct cam_isp_hw_mgr          mgr_common;
@@ -641,33 +670,32 @@ struct cam_ife_hw_mgr {
 	struct cam_isp_hw_intf_data   *sfe_devices[CAM_SFE_HW_NUM_MAX];
 	struct cam_soc_reg_map        *cdm_reg_map[CAM_IFE_HW_NUM_MAX];
 
-	struct mutex                     ctx_mutex;
-	atomic_t                         active_ctx_cnt;
-	struct list_head                 free_ctx_list;
-	struct list_head                 used_ctx_list;
-	struct cam_ife_hw_mgr_ctx        ctx_pool[CAM_IFE_CTX_MAX];
+	struct mutex                      ctx_mutex;
+	atomic_t                          active_ctx_cnt;
+	struct list_head                  free_ctx_list;
+	struct list_head                  used_ctx_list;
+	struct cam_ife_hw_mgr_ctx         ctx_pool[CAM_IFE_CTX_MAX];
 
-	struct cam_ife_csid_hw_caps      csid_hw_caps[
+	struct cam_ife_csid_hw_caps       csid_hw_caps[
 						CAM_IFE_CSID_HW_NUM_MAX];
-	struct cam_vfe_hw_get_hw_cap     ife_dev_caps[CAM_IFE_HW_NUM_MAX];
-	struct cam_req_mgr_core_workq   *workq;
-	struct cam_ife_hw_mgr_debug      debug_cfg;
-	spinlock_t                       ctx_lock;
-	struct cam_isp_hw_caps           isp_caps;
-	struct cam_isp_hw_path_port_map  path_port_map;
-
-	uint32_t                         num_caches_found;
-	struct cam_isp_sys_cache_info    sys_cache_info[CAM_LLCC_LARGE_4 + 1];
-	struct cam_isp_sfe_cache_info    sfe_cache_info[CAM_SFE_HW_NUM_MAX];
-	uint32_t                         isp_device_type;
-
-	struct cam_isp_irq_inject_param  irq_inject_param[MAX_INJECT_SET];
-	bool                             hw_pid_support;
-	bool                             csid_aup_rup_en;
-	bool                             csid_global_reset_en;
-	bool                             csid_camif_irq_support;
-	bool                             cam_ddr_drv_support;
-	bool                             cam_clk_drv_support;
+	struct cam_vfe_hw_get_hw_cap      ife_dev_caps[CAM_IFE_HW_NUM_MAX];
+	struct cam_req_mgr_core_workq    *workq;
+	struct cam_ife_hw_mgr_debug       debug_cfg;
+	spinlock_t                        ctx_lock;
+	struct cam_isp_hw_caps            isp_caps;
+	struct cam_isp_hw_path_port_map   path_port_map;
+	uint32_t                          num_caches_found;
+	struct cam_isp_sys_cache_info     sys_cache_info[CAM_LLCC_LARGE_4 + 1];
+	struct cam_isp_sfe_cache_info     sfe_cache_info[CAM_SFE_HW_NUM_MAX];
+	uint32_t                          isp_device_type;
+	struct cam_isp_irq_inject_param   irq_inject_param[MAX_INJECT_SET];
+	struct cam_isp_reg_read_evt_param reg_read_evt_param;
+	bool                              hw_pid_support;
+	bool                              csid_aup_rup_en;
+	bool                              csid_global_reset_en;
+	bool                              csid_camif_irq_support;
+	bool                              cam_ddr_drv_support;
+	bool                              cam_clk_drv_support;
 };
 
 /**
