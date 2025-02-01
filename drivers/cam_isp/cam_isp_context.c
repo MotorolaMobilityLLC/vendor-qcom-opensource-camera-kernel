@@ -1235,6 +1235,7 @@ static int __cam_isp_ctx_enqueue_init_request(
 	struct cam_isp_prepare_hw_update_data *req_update_old;
 	struct cam_isp_prepare_hw_update_data *req_update_new;
 	struct cam_isp_prepare_hw_update_data *hw_update_data;
+	struct cam_kmd_buf_info *kmd_buff_old = NULL;
 
 	spin_lock_bh(&ctx->lock);
 	if (list_empty(&ctx->pending_req_list)) {
@@ -1293,6 +1294,9 @@ static int __cam_isp_ctx_enqueue_init_request(
 				req->request_id, req_old->request_id, ctx->ctx_id, ctx->link_hdl);
 
 			if (req_old->packet) {
+
+				kmd_buff_old = &(req_isp_old->hw_update_data.kmd_cmd_buff_info);
+				cam_mem_put_kref(kmd_buff_old->handle);
 				cam_common_mem_free(req_old->packet);
 				req_old->packet = req->packet;
 				req->packet = NULL;
@@ -7817,6 +7821,7 @@ static int __cam_isp_ctx_config_dev_in_top_state(
 	struct cam_isp_hw_cmd_args       isp_hw_cmd_args;
 	uint32_t                         packet_opcode = 0;
 	struct cam_isp_ch_ctx_fcg_config_internal *sfe_ch_ctx_fcg, *ife_ch_ctx_fcg;
+	struct cam_kmd_buf_info *kmd_buff = NULL;
 
 	CAM_DBG(CAM_ISP, "get free request object......ctx_idx: %u, link: 0x%x",
 		ctx->ctx_id, ctx->link_hdl);
@@ -8069,6 +8074,8 @@ put_ref:
 	}
 free_req_and_buf_tracker_list:
 	cam_smmu_buffer_tracker_putref(&req->buf_tracker);
+	kmd_buff = &(req_isp->hw_update_data.kmd_cmd_buff_info);
+	cam_mem_put_kref(kmd_buff->handle);
 free_packet:
 	cam_common_mem_free(packet);
 free_req:
