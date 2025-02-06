@@ -33,6 +33,12 @@
 
 #define CAM_PKT_NOP_OPCODE 127
 
+/* Sensor Driver cmd buffer meta type */
+#define CAM_SENSOR_PACKET_GENERIC_BLOB             1
+
+/* Sensor Res Blob Type */
+#define CAM_SENSOR_GENERIC_BLOB_RES_INFO           0
+
 enum camera_sensor_cmd_type {
 	CAMERA_SENSOR_CMD_TYPE_INVALID,
 	CAMERA_SENSOR_CMD_TYPE_PROBE,
@@ -158,6 +164,7 @@ enum cam_sensor_packet_opcodes {
 	CAM_SENSOR_PACKET_OPCODE_SENSOR_FRAME_SKIP_UPDATE,
 	CAM_SENSOR_PACKET_OPCODE_SENSOR_REG_BANK_UNLOCK,
 	CAM_SENSOR_PACKET_OPCODE_SENSOR_REG_BANK_LOCK,
+	CAM_SENSOR_PACKET_OPCODE_SENSOR_RESCONFIG = 126,
 	CAM_SENSOR_PACKET_OPCODE_SENSOR_NOP = 127
 };
 
@@ -423,5 +430,28 @@ struct msm_camera_gpio_conf {
 	uint8_t camera_on_table_size;
 	struct msm_camera_gpio_num_info *gpio_num_info;
 };
+
+/**
+ * struct cam_cmd_sensor_res_info - Contains sensor res info
+ *
+ * res_index is the key property, it specifies the
+ * combinations of other properties enclosed in this
+ * structure.
+ *
+ * @version           :Version to indicate the change
+ * @res_index         : Sensor resolution index
+ * @num_batched_frames: Number of batched frames
+ * @num_valid_params  : Number of valid params
+ * @valid_param_mask  : Valid param mask
+ * @params            : params
+ */
+struct cam_sensor_res_info {
+	__u32 version;
+	__u16 res_index;
+	__u16 num_batched_frames;
+	__u32 num_valid_params;
+	__u32 valid_param_mask;
+	__u16 params[4];
+} __attribute__((packed));
 
 #endif /* _CAM_SENSOR_CMN_HEADER_ */
