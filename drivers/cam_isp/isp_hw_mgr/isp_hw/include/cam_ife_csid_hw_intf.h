@@ -348,6 +348,7 @@ struct cam_csid_hw_stop_args {
  * @start_only:         start only, no init required
  * @is_drv_config_en:   If drv config is enabled
  * @aup_write:          Indicates if AUP needs to be programmed during starting CSID
+ * @dyn_eof_enable:     Indicates if dynamic EOF feature is enabled
  *
  */
 struct cam_csid_hw_start_args {
@@ -359,6 +360,7 @@ struct cam_csid_hw_start_args {
 	bool                                      start_only;
 	bool                                      is_drv_config_en;
 	bool                                      aup_write;
+	bool                                      dyn_eof_enable;
 };
 
 

@@ -1663,7 +1663,8 @@ static int cam_ife_mgr_csid_start_hw(
 	uint32_t primary_rdi_csid_res,
 	bool     is_internal_start,
 	bool     start_only,
-	bool     aup_write)
+	bool     aup_write,
+	bool     dyn_eof_enable)
 {
 	struct cam_isp_hw_mgr_res      *hw_mgr_res;
 	struct cam_isp_resource_node   *isp_res;
@@ -1729,6 +1730,7 @@ static int cam_ife_mgr_csid_start_hw(
 			start_args.start_only = start_only;
 			start_args.is_drv_config_en = (bool) ctx->drv_path_idle_en;
 			start_args.aup_write = aup_write;
+			start_args.dyn_eof_enable = dyn_eof_enable;
 			hw_intf->hw_ops.start(hw_intf->hw_priv, &start_args,
 			    sizeof(start_args));
 		}
@@ -8673,7 +8675,7 @@ static int cam_ife_mgr_restart_hw(void *start_hw_args)
 
 	CAM_DBG(CAM_ISP, "START CSID HW ... in ctx id:%u", ctx->ctx_index);
 	/* Start the IFE CSID HW devices */
-	rc = cam_ife_mgr_csid_start_hw(ctx, CAM_IFE_PIX_PATH_RES_MAX, false, false, false);
+	rc = cam_ife_mgr_csid_start_hw(ctx, CAM_IFE_PIX_PATH_RES_MAX, false, false, false, false);
 	if (rc) {
 		CAM_ERR(CAM_ISP, "Error in starting CSID HW in ctx id:%u", ctx->ctx_index);
 		goto err;
@@ -9097,7 +9099,7 @@ start_only:
 	/* Start the IFE CSID HW devices */
 	rc = cam_ife_mgr_csid_start_hw(ctx, primary_rdi_csid_res,
 		start_isp->is_internal_start, start_isp->start_only,
-		start_isp->aup_write);
+		start_isp->aup_write, start_isp->dyn_eof_enable);
 	if (rc)
 		goto err;
 
@@ -15456,6 +15458,38 @@ static int cam_ife_mgr_sof_irq_debug(
 	return rc;
 }
 
+static inline int cam_ife_mgr_eof_irq_enable(
+	struct cam_ife_hw_mgr_ctx *ctx, bool eof_irq_enable)
+{
+	uint32_t                       i, hw_idx;
+	struct cam_ife_hw_mgr         *hw_mgr = ctx->hw_mgr;
+	int                            rc = 0;
+
+	for (i = 0; i < ctx->num_base; i++) {
+		if ((ctx->base[i].hw_type != CAM_ISP_HW_TYPE_CSID) ||
+			(ctx->base[i].split_id != CAM_ISP_HW_SPLIT_LEFT))
+			continue;
+
+		hw_idx = ctx->base[i].idx;
+		CAM_DBG(CAM_ISP,
+			"%s EOF IRQ for CSID[%u]",
+			(eof_irq_enable) ? "enable" : "disable", hw_idx);
+		if (hw_mgr->csid_devices[hw_idx]) {
+			rc = hw_mgr->csid_devices[hw_idx]->hw_ops.process_cmd(
+				hw_mgr->csid_devices[hw_idx]->hw_priv,
+				CAM_IFE_CSID_EOF_IRQ_ENABLE,
+				&eof_irq_enable, sizeof(eof_irq_enable));
+			if (rc)
+				CAM_DBG(CAM_ISP,
+					"Failed to %s CSID[%u] EOF IRQ rc: %d",
+					(eof_irq_enable) ? "enable" : "disable", hw_idx, rc);
+			break;
+		}
+	}
+
+	return rc;
+}
+
 static inline void cam_ife_hw_mgr_stop_bus_rd_for_res(struct cam_ife_hw_mgr_ctx *ctx,
 	uint32_t res_id)
 {
@@ -16192,7 +16226,7 @@ static int cam_ife_mgr_cmd(void *hw_mgr_priv, void *cmd_args)
 				isp_hw_cmd_args->u.default_cfg_params.force_disable_drv,
 				skip_rup_aup, ctx);
 		}
-		break;
+			break;
 		case CAM_ISP_HW_MGR_GET_SOF_TS:
 			rc = cam_ife_mgr_cmd_get_sof_timestamp(ctx,
 				&isp_hw_cmd_args->u.sof_ts.curr,
@@ -16234,6 +16268,9 @@ static int cam_ife_mgr_cmd(void *hw_mgr_priv, void *cmd_args)
 		case CAM_ISP_HW_MGR_RESET_OUT_OF_SYNC_CNT:
 			cam_hw_mgr_reset_out_of_sync_cnt(ctx);
 			ctx->try_recovery_cnt = 0;
+			break;
+		case CAM_ISP_HW_MGR_REGISTER_EOF_IRQ:
+			cam_ife_mgr_eof_irq_enable(ctx, isp_hw_cmd_args->u.eof_irq_enable);
 			break;
 		default:
 			CAM_ERR(CAM_ISP, "Invalid HW mgr command:0x%x, ctx_idx: %u",

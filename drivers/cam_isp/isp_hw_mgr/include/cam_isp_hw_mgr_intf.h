@@ -530,6 +530,7 @@ enum cam_isp_hw_mgr_command {
 	CAM_ISP_HW_MGR_GET_LAST_CONSUMED_ADDR,
 	CAM_ISP_HW_MGR_SET_DRV_INFO,
 	CAM_ISP_HW_MGR_RESET_OUT_OF_SYNC_CNT,
+	CAM_ISP_HW_MGR_REGISTER_EOF_IRQ,
 	CAM_ISP_HW_MGR_CMD_MAX,
 };
 
@@ -588,6 +589,7 @@ struct cam_isp_hw_per_req_info {
  * @cmd_type:              HW command type
  * @cmd_data:              Command data
  * @sof_irq_enable:        To debug if SOF irq is enabled
+ * @eof_irq_enable:        To enable EOF irq for EOF triggered requests
  * @packet_op_code:        Packet opcode
  * @last_cdm_done:         Last cdm done request
  * @ctx_info:              Gives info about context(RDI, PIX, bubble recovery)
@@ -602,6 +604,7 @@ struct cam_isp_hw_cmd_args {
 	void                             *cmd_data;
 	union {
 		uint32_t                      sof_irq_enable;
+		bool                          eof_irq_enable;
 		uint32_t                      packet_op_code;
 		uint64_t                      last_cdm_done;
 		struct {
@@ -630,6 +633,7 @@ struct cam_isp_hw_cmd_args {
  * @is_internal_start:         Start triggered internally for reset & recovery
  * @start_only:                Send start only to hw drivers. No init to be done.
  * @aup_write:                 Indicates if AUP needs to be programmed during CSID start
+ * @dyn_eof_enable:            Indicates if dynamic EOF feature is enabled
  *
  */
 struct cam_isp_start_args {
@@ -637,6 +641,7 @@ struct cam_isp_start_args {
 	bool                      is_internal_start;
 	bool                      start_only;
 	bool                      aup_write;
+	bool                      dyn_eof_enable;
 };
 
 /**

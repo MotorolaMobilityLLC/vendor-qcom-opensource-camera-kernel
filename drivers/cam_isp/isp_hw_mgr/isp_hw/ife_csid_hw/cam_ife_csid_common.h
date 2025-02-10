@@ -447,6 +447,7 @@ struct cam_ife_csid_debug_info {
  * @device_enabled:         flag to indicate if device enabled
  * @binning_enabled:        flag to indicate if binning enabled
  * @sof_irq_triggered:      flag to indicate if sof irq triggered
+ * @eof_irq_triggered:      flag to indicate if eof irq triggered
  * @fatal_err_detected:     flag to indicate if fatal err detected
  * @rx_enabled:             flag to indicate if rx is enabled
  * @tpg_configured:         flag to indicate if internal_tpg is configured
@@ -458,11 +459,13 @@ struct cam_ife_csid_debug_info {
  *                          error - page fault
  * @domain_id_security      Flag to determine if target has domain-id based security
  * @last_exp_valid:         Flag to indicate if last exp info is valid for epoch callback
+ * @dyn_eof_enabled:        Flag to indicate if CSID listens to EOF IRQ dyanmically
  */
 struct cam_ife_csid_hw_flags {
 	bool                  device_enabled;
 	bool                  binning_enabled;
 	bool                  sof_irq_triggered;
+	bool                  eof_irq_triggered;
 	bool                  process_reset;
 	bool                  fatal_err_detected;
 	bool                  rx_enabled;
@@ -475,6 +478,7 @@ struct cam_ife_csid_hw_flags {
 	bool                  pf_err_detected;
 	bool                  domain_id_security;
 	bool                  last_exp_valid;
+	bool                  dyn_eof_enabled;
 };
 
 /*

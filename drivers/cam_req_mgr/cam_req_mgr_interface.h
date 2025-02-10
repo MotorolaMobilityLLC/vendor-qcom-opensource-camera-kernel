@@ -235,6 +235,7 @@ enum cam_req_mgr_device_id {
  *                                                 updating
  * @CAM_REQ_MGR_LINK_EVT_SENSOR_FRAME_INFO       : Notify sub devices of the sensor frame info
  * @CAM_REQ_MGR_LINK_EVT_FRAME_DURATION_CHANGING : Check if the frame skip packet is avaliable
+ * @CAM_REQ_MGR_LINK_EVT_REGISTER_EOF            : Indicate if EOF IRQ needs to be listened or not
  * @CAM_REQ_MGR_LINK_EVT_MAX                     : invalid event type
  */
 enum cam_req_mgr_link_evt_type {
@@ -248,6 +249,7 @@ enum cam_req_mgr_link_evt_type {
 	CAM_REQ_MGR_LINK_EVT_UPDATE_PROPERTIES,
 	CAM_REQ_MGR_LINK_EVT_SENSOR_FRAME_INFO,
 	CAM_REQ_MGR_LINK_EVT_FRAME_DURATION_CHANGING,
+	CAM_REQ_MGR_LINK_EVT_REGISTER_EOF,
 	CAM_REQ_MGR_LINK_EVT_MAX,
 };
 
@@ -491,6 +493,7 @@ struct cam_req_mgr_flush_request {
  * @frame_info              : Frame info structure includes frame duration and
  *                          : vertical blanking
  * @frame_duration_changing : Indicate if the sensor changes frame duration
+ * @enable_eof_irq          : Indicate if EOF IRQ should be started listening to
  */
 struct cam_req_mgr_link_evt_data {
 	int32_t  link_hdl;
@@ -504,6 +507,7 @@ struct cam_req_mgr_link_evt_data {
 		struct cam_req_mgr_sensor_frame_info frame_info;
 		bool frame_duration_changing;
 		bool is_recovery;
+		bool enable_eof_irq;
 	} u;
 };
 

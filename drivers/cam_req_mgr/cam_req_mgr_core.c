@@ -1263,7 +1263,7 @@ static int __cam_req_mgr_send_req(struct cam_req_mgr_core_link *link,
 	int                                  rc = 0, pd, i, j, idx;
 	bool                                 found = false;
 	int64_t                              req_applied_to_min_pd = -1;
-	struct cam_req_mgr_connected_device *dev = NULL;
+	struct cam_req_mgr_connected_device *dev = NULL, *tmp_dev;
 	struct cam_req_mgr_apply_request     apply_req;
 	struct cam_req_mgr_link_evt_data     evt_data;
 	struct cam_req_mgr_tbl_slot          *slot = NULL;
@@ -1433,6 +1433,24 @@ static int __cam_req_mgr_send_req(struct cam_req_mgr_core_link *link,
 			slot->ops.apply_at_eof = false;
 			if (atomic_read(&link->eof_event_cnt) > 0)
 				atomic_dec(&link->eof_event_cnt);
+
+			/*
+			 * When dynamic EOF IRQ feature is enabled, we should unregister
+			 * EOF IRQ if all EOF requests are already applied
+			 */
+			if (!atomic_read(&link->eof_event_cnt) &&
+				!(link->properties_mask &
+				CAM_LINK_PROPERTY_SENSOR_STANDBY_AFTER_EOF)) {
+				for (j = 0; j < link->num_devs; j++) {
+					tmp_dev = &link->l_dev[j];
+					evt_data.evt_type = CAM_REQ_MGR_LINK_EVT_REGISTER_EOF;
+					evt_data.dev_hdl = tmp_dev->dev_hdl;
+					evt_data.link_hdl = link->link_hdl;
+					evt_data.u.enable_eof_irq = false;
+					if (tmp_dev->ops && tmp_dev->ops->process_evt)
+						tmp_dev->ops->process_evt(&evt_data);
+				}
+			}
 			return 0;
 		}
 	}
@@ -3454,16 +3472,17 @@ end:
  */
 int cam_req_mgr_process_add_req(void *priv, void *data)
 {
-	int                                  rc = 0, i = 0;
+	int                                  rc = 0, i;
 	int                                  idx, next_idx = 0;
 	struct cam_req_mgr_add_request      *add_req = NULL;
 	struct cam_req_mgr_core_link        *link = NULL;
-	struct cam_req_mgr_connected_device *device = NULL;
+	struct cam_req_mgr_connected_device *device = NULL, *tmp_dev;
 	struct cam_req_mgr_req_tbl          *tbl = NULL;
 	struct cam_req_mgr_tbl_slot         *slot = NULL;
 	struct crm_task_payload             *task_data = NULL;
 	struct cam_req_mgr_slot             *link_slot = NULL, *next_slot = NULL;
 	struct cam_req_mgr_state_monitor     state;
+	struct cam_req_mgr_link_evt_data     evt_data = {0};
 
 	if (!data || !priv) {
 		CAM_ERR(CAM_CRM, "input args NULL %pK %pK", data, priv);
@@ -3597,8 +3616,9 @@ int cam_req_mgr_process_add_req(void *priv, void *data)
 
 		slot->ops.dev_hdl[slot->ops.num_dev++] = add_req->dev_hdl;
 		CAM_DBG(CAM_REQ|CAM_CRM,
-			"Req_id %llu slot:%d added for EOF tigger for Device: %s on link 0x%x",
-			add_req->req_id, idx, device->dev_info.name, link->link_hdl);
+			"Req_id %llu slot:%d added for EOF trigger for Device: %s on link 0x%x, property_mask: 0x%x",
+			add_req->req_id, idx, device->dev_info.name,
+			link->link_hdl, link->properties_mask);
 
 		if (link_slot->sync_mode == CAM_REQ_MGR_SYNC_MODE_SYNC) {
 			rc = cam_req_mgr_sync_info_for_sync_mode(
@@ -3619,6 +3639,23 @@ int cam_req_mgr_process_add_req(void *priv, void *data)
 					idx,
 					device->dev_info.name,
 					link->link_hdl);
+			}
+		}
+
+		if (!(link->properties_mask & CAM_LINK_PROPERTY_SENSOR_STANDBY_AFTER_EOF)) {
+			/*
+			 * If dynamic EOF feature is enabled, CSID does not listen to EOF IRQ
+			 * by default except only when there're requests that need to be triggered
+			 * at EOF
+			 */
+			for (i = 0; i < link->num_devs; i++) {
+				tmp_dev = &link->l_dev[i];
+				evt_data.evt_type = CAM_REQ_MGR_LINK_EVT_REGISTER_EOF;
+				evt_data.dev_hdl = tmp_dev->dev_hdl;
+				evt_data.link_hdl = link->link_hdl;
+				evt_data.u.enable_eof_irq = true;
+				if (tmp_dev->ops && tmp_dev->ops->process_evt)
+					tmp_dev->ops->process_evt(&evt_data);
 			}
 		}
 	}

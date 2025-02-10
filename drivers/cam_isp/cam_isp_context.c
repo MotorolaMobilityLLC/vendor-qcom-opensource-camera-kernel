@@ -9353,6 +9353,18 @@ static int __cam_isp_ctx_start_dev_in_ready(struct cam_context *ctx,
 		start_isp.aup_write = true;
 	}
 
+	/*
+	 * During CSID start, if VFPS is enabled, dynamic EOF feature should be disabled to
+	 * avoid potential stability issue between continuous stream on and off
+	 */
+	if (!ctx_isp->vfps_aux_context) {
+		CAM_DBG(CAM_ISP,
+			"VFPS is not set, thus enabling dynamic EOF, ctx_idx: %u, link: 0x%x",
+			ctx->ctx_id, ctx->link_hdl);
+		start_isp.dyn_eof_enable = true;
+	}
+
+
 	ctx_isp->last_applied_req_id = req->request_id;
 
 	if (ctx->state == CAM_CTX_FLUSHED)
@@ -9994,6 +10006,21 @@ static int __cam_isp_ctx_process_evt(struct cam_context *ctx,
 				"Failed to process drv info on ctx:%u link:0x%x, req_id:%llu rc:%d",
 				ctx->ctx_id, ctx->link_hdl, link_evt_data->req_id, rc);
 	}
+		break;
+	case CAM_REQ_MGR_LINK_EVT_REGISTER_EOF:
+		hw_cmd_args.ctxt_to_hw_map = ctx->ctxt_to_hw_map;
+		hw_cmd_args.cmd_type = CAM_HW_MGR_CMD_INTERNAL;
+		isp_hw_cmd_args.cmd_type = CAM_ISP_HW_MGR_REGISTER_EOF_IRQ;
+		isp_hw_cmd_args.u.eof_irq_enable = link_evt_data->u.enable_eof_irq;
+		hw_cmd_args.u.internal_args = (void *)&isp_hw_cmd_args;
+
+		rc = ctx->hw_mgr_intf->hw_cmd(ctx->hw_mgr_intf->hw_mgr_priv,
+			&hw_cmd_args);
+		if (rc)
+			CAM_ERR(CAM_ISP,
+				"Failed to process EOF register info on ctx: %u, link: 0x%x, req_id: %llu rc: %d",
+				ctx->ctx_id, ctx->link_hdl, link_evt_data->req_id, rc);
+
 		break;
 	default:
 		CAM_WARN(CAM_ISP,

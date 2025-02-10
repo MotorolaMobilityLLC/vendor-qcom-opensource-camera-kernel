@@ -657,6 +657,72 @@ static int cam_ife_csid_ver2_sof_irq_debug(
 	return 0;
 }
 
+static int cam_ife_csid_ver2_eof_irq_enable(
+	struct cam_ife_csid_ver2_hw *csid_hw,
+	void *cmd_args)
+{
+	bool                                  eof_irq_enable;
+	struct cam_ife_csid_ver2_reg_info    *csid_reg;
+	struct cam_ife_csid_ver2_path_data   *path_data;
+	struct cam_isp_resource_node         *res;
+	uint32_t                              i, irq_mask = 0;
+	void                                 *irq_controller;
+	int                                   irq_handle;
+
+	eof_irq_enable = *((bool *)cmd_args);
+	if (csid_hw->hw_info->hw_state == CAM_HW_STATE_POWER_DOWN) {
+		CAM_WARN(CAM_ISP,
+			"CSID[%u] powered down unable to %s CSID EOF IRQ",
+			csid_hw->hw_intf->hw_idx,
+			(eof_irq_enable) ? "enable" : "disable");
+		return 0;
+	}
+
+	csid_reg = (struct cam_ife_csid_ver2_reg_info *)csid_hw->core_info->csid_reg;
+	for (i = CAM_IFE_PIX_PATH_RES_RDI_0; i < CAM_IFE_PIX_PATH_RES_MAX; i++) {
+		res = &csid_hw->path_res[i];
+		path_data = (struct cam_ife_csid_ver2_path_data *)res->res_priv;
+		if (!path_data || !path_data->path_cfg.irq_handle)
+			continue;
+
+		switch (res->res_id) {
+		case CAM_IFE_PIX_PATH_RES_IPP:
+			if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_MULTI_CTXT) {
+				irq_mask = csid_reg->ipp_mc_reg->comp_eof_mask;
+				irq_handle = csid_hw->top_mc_irq_handle;
+				irq_controller = csid_hw->top_irq_controller[
+					CAM_IFE_CSID_TOP_IRQ_STATUS_REG0];
+			} else {
+				irq_mask = path_data->reg_offsets->eof_irq_mask;
+				irq_handle = path_data->path_cfg.irq_handle;
+				irq_controller = csid_hw->path_irq_controller[res->res_id];
+			}
+
+			cam_irq_controller_update_irq(
+				irq_controller, irq_handle, eof_irq_enable, &irq_mask);
+			break;
+		case CAM_IFE_PIX_PATH_RES_RDI_0:
+			if (!res->is_rdi_primary_res)
+				continue;
+
+			irq_mask = path_data->reg_offsets->eof_irq_mask;
+			irq_handle = path_data->path_cfg.irq_handle;
+			irq_controller = csid_hw->path_irq_controller[res->res_id];
+			cam_irq_controller_update_irq(
+				irq_controller, irq_handle, eof_irq_enable, &irq_mask);
+			break;
+		default:
+			continue;
+		}
+	}
+
+	csid_hw->flags.eof_irq_triggered = eof_irq_enable;
+	CAM_DBG(CAM_ISP, "CSID[%u] EOF IRQ %s",
+		csid_hw->hw_intf->hw_idx, (eof_irq_enable) ? "enabled" : "disabled");
+
+	return 0;
+}
+
 static int cam_ife_csid_ver2_get_evt_payload(
 	struct cam_ife_csid_ver2_hw *csid_hw,
 	struct cam_ife_csid_ver2_evt_payload **evt_payload,
@@ -5198,7 +5264,11 @@ static int cam_ife_csid_ver2_mc_irq_subscribe(struct cam_ife_csid_ver2_hw  *csid
 		return 0;
 
 	/* For multi context cases, we only need composite epoch and eof */
-	tmp_mask = csid_reg->ipp_mc_reg->comp_eof_mask | csid_reg->ipp_mc_reg->comp_epoch0_mask;
+	tmp_mask = csid_reg->ipp_mc_reg->comp_epoch0_mask;
+
+	/* Register EOF IRQ by default only when dynamic EOF feature is not enabled */
+	if (!csid_hw->flags.dyn_eof_enabled)
+		tmp_mask |= csid_reg->ipp_mc_reg->comp_eof_mask;
 
 	csid_hw->top_mc_irq_handle = cam_irq_controller_subscribe_irq(
 		csid_hw->top_irq_controller[top_index],
@@ -5442,9 +5512,13 @@ static int cam_ife_csid_ver2_program_rdi_path(
 		if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_RUP_MISS)
 			dbg_frm_irq_mask |= path_data->reg_offsets->rup_miss_irq_mask;
 
-		if (path_data->path_cfg.handle_camif_irq)
+		if (path_data->path_cfg.handle_camif_irq) {
 			dbg_frm_irq_mask |= path_data->reg_offsets->eof_irq_mask |
 				path_data->reg_offsets->epoch0_irq_mask;
+
+			if (!csid_hw->flags.dyn_eof_enabled)
+				dbg_frm_irq_mask |= path_data->reg_offsets->eof_irq_mask;
+		}
 
 		if ((csid_hw->debug_info.debug_val & CAM_IFE_CSID_DEBUG_ENABLE_CAMIF_SOF_IRQ) &&
 			path_data->path_cfg.handle_camif_irq)
@@ -5466,9 +5540,12 @@ static int cam_ife_csid_ver2_program_rdi_path(
 	}
 
 	if ((csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_MULTI_CTXT) &&
-		path_data->path_cfg.is_aeb_en && (res->res_id > CAM_IFE_PIX_PATH_RES_RDI_0))
-		dbg_frm_irq_mask |= (path_data->reg_offsets->epoch0_irq_mask |
-			path_data->reg_offsets->eof_irq_mask);
+		path_data->path_cfg.is_aeb_en && (res->res_id > CAM_IFE_PIX_PATH_RES_RDI_0)) {
+		dbg_frm_irq_mask |= path_data->reg_offsets->epoch0_irq_mask;
+
+		if (!csid_hw->flags.dyn_eof_enabled)
+			dbg_frm_irq_mask |= path_data->reg_offsets->eof_irq_mask;
+	}
 
 	res->res_state = CAM_ISP_RESOURCE_STATE_STREAMING;
 	path_data->path_cfg.irq_reg_idx =  cam_ife_csid_convert_res_to_irq_reg(res->res_id);
@@ -5553,9 +5630,12 @@ static int cam_ife_csid_ver2_program_ipp_path(
 		if (csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_RUP_MISS)
 			dbg_frm_irq_mask |= path_data->reg_offsets->rup_miss_irq_mask;
 
-		if (path_data->path_cfg.handle_camif_irq)
-			dbg_frm_irq_mask |= (path_data->reg_offsets->epoch0_irq_mask |
-				path_data->reg_offsets->eof_irq_mask);
+		if (path_data->path_cfg.handle_camif_irq) {
+			dbg_frm_irq_mask |= path_data->reg_offsets->epoch0_irq_mask;
+
+			if (!csid_hw->flags.dyn_eof_enabled)
+				dbg_frm_irq_mask |= path_data->reg_offsets->eof_irq_mask;
+		}
 	}
 
 	if ((csid_hw->debug_info.debug_val & CAM_IFE_CSID_DEBUG_ENABLE_CAMIF_SOF_IRQ) &&
@@ -6983,10 +7063,20 @@ int cam_ife_csid_ver2_start(void *hw_priv, void *args,
 	csid_hw->counters.irq_debug_cnt = 0;
 	csid_hw->is_drv_config_en = start_args->is_drv_config_en;
 
+	/*
+	 * For start dev in ready, this flag will be set based on whether VFPS feature is
+	 * enabled or not.
+	 * For hw recovery or ISP ctx reset, this flag will not be set, and CSID should follow
+	 * the flag that was set from previous start dev and keep the same setup.
+	 */
+	if (start_args->dyn_eof_enable)
+		csid_hw->flags.dyn_eof_enabled = true;
+
 	CAM_DBG(CAM_ISP,
-		"csid %d is_drv_config_en %d start_only %d is_internal_start %d, clk_rate=%lld",
+		"csid %d is_drv_config_en %d start_only %d is_internal_start %d, clk_rate=%lld, dyn EOF enabled: %s",
 		csid_hw->hw_intf->hw_idx, csid_hw->is_drv_config_en,
-		start_args->start_only, start_args->is_internal_start, csid_hw->clk_rate);
+		start_args->start_only, start_args->is_internal_start, csid_hw->clk_rate,
+		CAM_BOOL_TO_YESNO(csid_hw->flags.dyn_eof_enabled));
 
 	if (start_args->start_only) {
 		rc = cam_cpas_csid_process_resume(csid_hw->hw_intf->hw_idx);
@@ -7440,6 +7530,7 @@ int cam_ife_csid_ver2_stop(void *hw_priv,
 	csid_hw->debug_info.test_bus_enabled = false;
 	csid_hw->flags.pf_err_detected = false;
 	csid_hw->flags.rdi_lcr_en = false;
+	csid_hw->flags.dyn_eof_enabled = false;
 	mutex_unlock(&csid_hw->hw_info->hw_mutex);
 
 	return rc;
@@ -8864,6 +8955,9 @@ static int cam_ife_csid_ver2_process_cmd(void *hw_priv,
 		break;
 	case CAM_IFE_CSID_SOF_IRQ_DEBUG:
 		rc = cam_ife_csid_ver2_sof_irq_debug(csid_hw, cmd_args);
+		break;
+	case CAM_IFE_CSID_EOF_IRQ_ENABLE:
+		rc = cam_ife_csid_ver2_eof_irq_enable(csid_hw, cmd_args);
 		break;
 	case CAM_ISP_HW_CMD_CSID_CLOCK_UPDATE:
 		rc = cam_ife_csid_ver2_set_csid_clock(csid_hw, cmd_args);
