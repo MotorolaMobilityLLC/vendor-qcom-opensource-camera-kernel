@@ -37,6 +37,7 @@ project_configs = select({
         "CONFIG_INTERCONNECT_QCOM=y",
         "CONFIG_SPECTRA_DOMAIN_ID_SECURE_CAMERA=y",
         "CONFIG_SPECTRA_SECURE_CAMERA_25=y",
+        "CONFIG_SPECTRA_POWER_DOMAIN_SET_HW_MODE=y",
      ],
 })
 
