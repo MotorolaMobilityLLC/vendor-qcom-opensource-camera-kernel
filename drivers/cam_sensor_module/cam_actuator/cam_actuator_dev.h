@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 
@@ -83,22 +83,27 @@ struct actuator_intf_params {
 
 /**
  * struct cam_actuator_ctrl_t
- * @device_name      : Device name
- * @i2c_driver       : I2C device info
- * @pdev             : Platform device
- * @io_master_info   : Information about the communication master
- * @actuator_mutex   : Actuator mutex
- * @act_apply_state  : Actuator settings aRegulator config
- * @id               : Cell Index
- * @res_apply_state  : Actuator settings apply state
- * @cam_act_state    : Actuator state
- * @gconf            : GPIO config
- * @pinctrl_info     : Pinctrl information
- * @v4l2_dev_str     : V4L2 device structure
- * @i2c_data         : I2C register settings structure
- * @act_info         : Sensor query cap structure
- * @of_node          : Node ptr
- * @last_flush_req   : Last request to flush
+ * @device_name           : Device name
+ * @i2c_driver            : I2C device info
+ * @pdev                  : Platform device
+ * @io_master_info        : Information about the communication master
+ * @actuator_mutex        : Actuator mutex
+ * @act_apply_state       : Actuator settings aRegulator config
+ * @id                    : Cell Index
+ * @res_apply_state       : Actuator settings apply state
+ * @cam_act_state         : Actuator state
+ * @gconf                 : GPIO config
+ * @pinctrl_info          : Pinctrl information
+ * @v4l2_dev_str          : V4L2 device structure
+ * @i2c_data              : I2C register settings structure
+ * @act_info              : Sensor query cap structure
+ * @of_node               : Node ptr
+ * @last_flush_req        : Last request to flush
+ * @workq                 : work queue for actuator
+ * @actuator_park_mutex   : Mutex for actuator park
+ * @cam_act_park_state    : Actuator park state
+ * @is_deferred_park_lens : Flag to specify deferred park lens
+ * @park_lens_complete    : Indicator for park lens complete
  */
 struct cam_actuator_ctrl_t {
 	char device_name[CAM_CTX_DEV_NAME_MAX_LENGTH];
@@ -115,6 +120,10 @@ struct cam_actuator_ctrl_t {
 	struct cam_actuator_query_cap act_info;
 	struct actuator_intf_params bridge_intf;
 	uint32_t last_flush_req;
+	struct cam_req_mgr_core_workq *workq;
+	struct mutex actuator_park_mutex;
+	bool is_deferred_park_lens;
+	struct completion park_lens_complete;
 };
 
 /**
