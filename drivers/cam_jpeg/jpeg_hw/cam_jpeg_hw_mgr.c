@@ -265,6 +265,7 @@ static int cam_jpeg_process_next_hw_update(void *priv, void *data,
 	cdm_cmd->userdata = NULL;
 	cdm_cmd->cookie = 0;
 	cdm_cmd->cmd_arrary_count = 0;
+	cdm_cmd->fast_complete = NULL;
 
 	/* insert cdm chage base cmd */
 	rc = cam_jpeg_insert_cdm_change_base(config_args,

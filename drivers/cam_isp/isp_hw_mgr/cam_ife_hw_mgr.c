@@ -5919,8 +5919,8 @@ void cam_ife_cam_cdm_callback(uint32_t handle, void *userdata,
 		ctx->last_cdm_done_req = req_id;
 		CAM_DBG(CAM_ISP,
 			"CDM hdl=0x%x, udata=%pK, status=%d, cookie=%u ctx_index=%u cdm_req=%llu",
-			 handle, userdata, status, req_id, ctx->ctx_index,
-			 ctx->cdm_userdata.request_id);
+			handle, userdata, status, req_id, ctx->ctx_index,
+			ctx->cdm_userdata.request_id);
 	} else if (status == CAM_CDM_CB_STATUS_PAGEFAULT) {
 		if (ctx->common.sec_pf_evt_cb)
 			ctx->common.sec_pf_evt_cb(ctx->common.cb_priv, cookie);
@@ -5929,6 +5929,7 @@ void cam_ife_cam_cdm_callback(uint32_t handle, void *userdata,
 			"Called by CDM hdl=0x%x, udata=%pK, status=%d, cdm_req=%llu ctx_idx: %u",
 			 handle, userdata, status, ctx->cdm_userdata.request_id, ctx->ctx_index);
 	}
+
 	ktime_get_clocktai_ts64(&ctx->cdm_done_tai_ts);
 	ktime_get_boottime_ts64(&ctx->cdm_done_boot_ts);
 }
@@ -8007,11 +8008,11 @@ skip_bw_clk_update:
 		cdm_cmd->cookie            = cfg->request_id;
 		cdm_cmd->gen_irq_arb       = false;
 		cdm_cmd->genirq_buff       = &hw_update_data->kmd_cmd_buff_info;
+		cdm_cmd->flag              = wait_for_cdm;
+		cdm_cmd->fast_complete     = NULL;
 
 		if (wait_for_cdm)
-			cdm_cmd->flag              = true;
-		else
-			cdm_cmd->flag              = false;
+			cdm_cmd->fast_complete = &ctx->config_done_complete;
 
 		for (i = 0 ; i < cfg->num_hw_update_entries; i++) {
 			cmd = (cfg->hw_update_entries + i);
@@ -8162,6 +8163,19 @@ skip_bw_clk_update:
 						ctx->ctx_index);
 				}
 			} else {
+				/**
+				 * When MCTFE waits for CDM completion and fast callback is
+				 * enabled, update related fields here instead of CDM callback
+				 * to avoid potential delays between top half and bottom half
+				 */
+				if (cdm_cmd->fast_complete) {
+					ctx->last_cdm_done_req = cdm_cmd->cookie;
+					atomic_set(&ctx->cdm_done, 1);
+
+					ktime_get_clocktai_ts64(&ctx->cdm_done_tai_ts);
+					ktime_get_boottime_ts64(&ctx->cdm_done_boot_ts);
+				}
+
 				CAM_DBG(CAM_ISP,
 					"config done Success for req_id=%llu ctx_index %u",
 					cfg->request_id, ctx->ctx_index);
