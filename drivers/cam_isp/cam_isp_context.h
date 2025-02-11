@@ -391,6 +391,7 @@ struct cam_isp_fcg_prediction_tracker {
  * @dbg_monitors:              Debug monitors for ISP context
  * @apply_in_progress          Whether request apply is in progress
  * @unserved_rup:              Indicate there is unserved rup
+ * @last_applied_default:        Indicate last applied setting is default or not
  * @init_timestamp:            Timestamp at which this context is initialized
  * @isp_device_type:           ISP device type
  * @rxd_epoch:                 Indicate whether epoch has been received. Used to
@@ -467,6 +468,7 @@ struct cam_isp_context {
 	struct cam_isp_context_debug_monitors dbg_monitors;
 	atomic_t                              apply_in_progress;
 	atomic_t                              unserved_rup;
+	atomic_t                              last_applied_default;
 	atomic_t                              internal_recovery_set;
 	unsigned int                          init_timestamp;
 	uint32_t                              isp_device_type;
