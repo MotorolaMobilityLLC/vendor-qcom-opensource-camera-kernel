@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2011-2014, 2017-2018, 2020, The Linux Foundation.
  * All rights reserved.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -296,14 +296,14 @@ int cam_io_print_info(struct cam_io_print_data *io_data)
 	uint32_t      cam_base;
 	char         *token = "";
 
-	if (!base_addr || (io_data->num_reg <= 0))
-		return -EINVAL;
-
 	base_addr = io_data->soc_info->reg_map[io_data->blk_id].mem_base;
 	cam_base = io_data->soc_info->mem_block[io_data->blk_id]->start;
 	end_addr = io_data->soc_info->reg_map[io_data->blk_id].mem_base +
 			io_data->soc_info->reg_map[io_data->blk_id].size;
 	start_offset = io_data->start_offset;
+
+	if (!base_addr || (io_data->num_reg <= 0))
+		return -EINVAL;
 
 	line_str[0] = '\0';
 	p_str = line_str;

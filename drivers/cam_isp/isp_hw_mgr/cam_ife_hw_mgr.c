@@ -274,8 +274,9 @@ static int cam_ife_hw_mgr_print_debug_reg(struct cam_ife_hw_mgr_ctx *ctx,
 
 		hw_info = (struct cam_hw_info *)hw_intf->hw_priv;
 
-		CAM_INFO(CAM_ISP, "Reg_Read: ctx:%d, %s[%u] %s",
-			ctx->ctx_index, hw_type == CAM_ISP_HW_TYPE_VFE ? "IFE" : "CSID",
+		CAM_INFO(CAM_ISP, "Reg_Read: ctx:%d, Req: %llu %s[%u] %s",
+			ctx->ctx_index, ctx->applied_req_id,
+			hw_type == CAM_ISP_HW_TYPE_VFE ? "IFE" : "CSID",
 			hw_idx, evt_str);
 
 		io_data.soc_info = &hw_info->soc_info;
