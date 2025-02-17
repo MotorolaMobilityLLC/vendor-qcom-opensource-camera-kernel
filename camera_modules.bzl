@@ -22,7 +22,6 @@ def _define_module(target, variant):
             "//soc-repo:{}/drivers/soc/qcom/socinfo".format(tv),
             "//soc-repo:{}/drivers/soc/qcom/llcc-qcom".format(tv),
             "//soc-repo:{}/drivers/soc/qcom/mdt_loader".format(tv),
-            "//soc-repo:{}/drivers/leds/flash/leds-qcom-flash".format(tv),
         ],
         "//build/kernel/kleaf:socrepo_false": [
             ":camera_headers",
