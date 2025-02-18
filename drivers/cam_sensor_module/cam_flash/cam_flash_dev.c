@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -13,11 +13,40 @@
 #include "camera_main.h"
 #include "cam_mem_mgr_api.h"
 
+static void cam_flash_populate_query_current(struct cam_flash_ctrl *fctrl,
+	struct cam_flash_query_cap_info *flash_cap,
+	struct cam_flash_private_soc *soc_private)
+{
+	int i = 0;
+
+	for (i = 0; i < fctrl->flash_num_sources; i++) {
+#if IS_REACHABLE(CONFIG_LEDS_QCOM_FLASH)
+		/* Values got from DT are kept in ua/us, need conversion here. */
+		flash_cap->max_current_flash[i] =
+			soc_private->flash_max_current[i] / UA_PER_MA;
+		flash_cap->max_duration_flash[i] =
+			soc_private->flash_max_duration[i] / US_PER_MS;
+		flash_cap->max_current_torch[i] =
+			soc_private->torch_max_current[i] / UA_PER_MA;
+	}
+#elif __or(IS_REACHABLE(CONFIG_LEDS_QPNP_FLASH_V2), \
+			IS_REACHABLE(CONFIG_LEDS_QTI_FLASH))
+		flash_cap->max_current_flash[i] =
+			soc_private->flash_max_current[i];
+		flash_cap->max_duration_flash[i] =
+			soc_private->flash_max_duration[i];
+	}
+
+	for (i = 0; i < fctrl->torch_num_sources; i++)
+		flash_cap->max_current_torch[i] =
+			soc_private->torch_max_current[i];
+#endif
+}
+
 static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 		void *arg, struct cam_flash_private_soc *soc_private)
 {
 	int rc = 0;
-	int i = 0;
 	struct cam_control *cmd = (struct cam_control *)arg;
 
 	if (!fctrl || !arg) {
@@ -144,17 +173,7 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 
 		CAM_DBG(CAM_FLASH, "CAM_QUERY_CAP");
 		flash_cap.slot_info = fctrl->soc_info.index;
-		for (i = 0; i < fctrl->flash_num_sources; i++) {
-			flash_cap.max_current_flash[i] =
-				soc_private->flash_max_current[i];
-			flash_cap.max_duration_flash[i] =
-				soc_private->flash_max_duration[i];
-		}
-
-		for (i = 0; i < fctrl->torch_num_sources; i++)
-			flash_cap.max_current_torch[i] =
-				soc_private->torch_max_current[i];
-
+		cam_flash_populate_query_current(fctrl, &flash_cap, soc_private);
 		if (copy_to_user(u64_to_user_ptr(cmd->handle),
 			&flash_cap, sizeof(struct cam_flash_query_cap_info))) {
 			CAM_ERR(CAM_FLASH, "Failed Copy to User");
@@ -216,6 +235,75 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 release_mutex:
 	mutex_unlock(&(fctrl->flash_mutex));
 	return rc;
+}
+
+static inline int  precise_flash_timer_init(struct cam_flash_ctrl *flash_ctrl)
+{
+	int  rc = 0;
+	char wq_name[CAM_FLASH_WQ_NAME_SIZE];
+
+	if (!flash_ctrl) {
+		CAM_ERR(CAM_FLASH, "Fctrl is NULL");
+		return -EINVAL;
+	}
+
+	flash_ctrl->precise_flash.on_time_ms = 0;
+	flash_ctrl->precise_flash.off_time_ms = 0;
+	hrtimer_init(&flash_ctrl->precise_flash.on_timer,
+		CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&flash_ctrl->precise_flash.off_timer,
+		CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	flash_ctrl->precise_flash.on_timer.function = on_timer_function;
+	flash_ctrl->precise_flash.off_timer.function = off_timer_function;
+	flash_ctrl->precise_flash.enabled = false;
+	flash_ctrl->precise_flash.timer_state = TIMER_STATE_INIT;
+
+	snprintf(wq_name, CAM_FLASH_WQ_NAME_SIZE, "%s%d%s", "camflash",
+			flash_ctrl->soc_info.index, "_wq");
+
+	rc = cam_req_mgr_workq_create(wq_name, CAM_FLASH_WORKQ_NUM_TASK,
+			&flash_ctrl->precise_flash.timer_workq, CRM_WORKQ_USAGE_IRQ, 0,
+			cam_flash_work_queue_handler);
+	if (rc) {
+		CAM_ERR(CAM_FLASH, "unable to create workq for %s",
+			wq_name);
+		return rc;
+	}
+
+	for (int i = 0; i < CAM_FLASH_WORKQ_NUM_TASK; i++) {
+		flash_ctrl->precise_flash.timer_workq->task.pool[i].payload =
+			flash_ctrl;
+	}
+	CAM_DBG(CAM_FLASH,
+		"fctrl: %p on_timer: %p off_timer: %p ",
+		flash_ctrl, &flash_ctrl->precise_flash.on_timer,
+		&flash_ctrl->precise_flash.off_timer);
+
+	return rc;
+}
+
+static int precise_flash_timer_deinit(struct cam_flash_ctrl *flash_ctrl)
+{
+	int rc = 0, ret = 0;
+
+	if (!flash_ctrl) {
+		CAM_ERR(CAM_FLASH, "Fctrl is NULL");
+		return -EINVAL;
+	}
+
+	flash_ctrl->precise_flash.enabled = false;
+	flash_ctrl->precise_flash.timer_state = TIMER_STATE_INVALID;
+	cam_req_mgr_workq_destroy(&flash_ctrl->precise_flash.timer_workq);
+	rc = hrtimer_cancel(&flash_ctrl->precise_flash.on_timer);
+	if (rc)
+		CAM_ERR(CAM_FLASH,
+			"The HR ON Timer was still in use...rc: %d", rc);
+	ret = hrtimer_cancel(&flash_ctrl->precise_flash.off_timer);
+	if (ret)
+		CAM_ERR(CAM_FLASH,
+			"The HR OFF Timer was still in use...rc: %d", rc);
+
+	return (rc | ret);
 }
 
 static int32_t cam_flash_init_default_params(struct cam_flash_ctrl *fctrl)
@@ -406,8 +494,13 @@ static int cam_flash_init_subdev(struct cam_flash_ctrl *fctrl)
 	fctrl->v4l2_dev_str.close_seq_prior = CAM_SD_CLOSE_MEDIUM_PRIORITY;
 
 	rc = cam_register_subdev(&(fctrl->v4l2_dev_str));
-	if (rc)
+	if (rc) {
 		CAM_ERR(CAM_FLASH, "Fail to create subdev with %d", rc);
+		return rc;
+	}
+	rc = precise_flash_timer_init(fctrl);
+	if (rc < 0)
+		CAM_ERR(CAM_FLASH, "Precise Flash Init Failed: rc: %d", rc);
 
 	return rc;
 }
@@ -558,6 +651,8 @@ static void cam_flash_component_unbind(struct device *dev,
 	}
 
 	mutex_lock(&fctrl->flash_mutex);
+	if (precise_flash_timer_deinit(fctrl))
+		CAM_WARN(CAM_FLASH, "hrtimer deinit failed");
 	cam_flash_shutdown(fctrl);
 	mutex_unlock(&fctrl->flash_mutex);
 	cam_unregister_subdev(&(fctrl->v4l2_dev_str));
@@ -758,6 +853,8 @@ static void cam_flash_i2c_component_unbind(struct device *dev,
 		return;
 	}
 
+	if (precise_flash_timer_deinit(fctrl))
+		CAM_WARN(CAM_FLASH, "hrtimer deinit failed");
 	CAM_INFO(CAM_FLASH, "i2c driver remove invoked");
 	/*Free Allocated Mem */
 	CAM_MEM_FREE(fctrl->i2c_data.per_frame);

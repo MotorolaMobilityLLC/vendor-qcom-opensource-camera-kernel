@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -436,6 +436,99 @@ int32_t cam_actuator_publish_dev_info(struct cam_req_mgr_device_info *info)
 	return 0;
 }
 
+static int32_t cam_actuator_park_lens_cb(void *priv, void *data)
+{
+	int32_t rc = 0;
+	struct cam_actuator_ctrl_t *a_ctrl = priv;
+	struct cam_actuator_soc_private  *soc_private =
+		(struct cam_actuator_soc_private *)a_ctrl->soc_info.soc_private;
+	struct cam_sensor_power_ctrl_t *power_info =
+		&soc_private->power_info;
+
+	mutex_lock(&(a_ctrl->actuator_park_mutex));
+	CAM_DBG(CAM_ACTUATOR, "Actuator park start in state: %d",
+		a_ctrl->cam_act_state);
+	if (a_ctrl->cam_act_state < CAM_ACTUATOR_CONFIG) {
+		CAM_ERR(CAM_ACTUATOR, "Actuator park in invalid state: %d",
+			a_ctrl->cam_act_state);
+		rc = -EINVAL;
+		goto end;
+	}
+
+	rc = cam_actuator_apply_settings(a_ctrl, &a_ctrl->i2c_data.config_settings);
+	if (rc < 0) {
+		CAM_ERR(CAM_ACTUATOR, "Cannot apply park lens settings");
+		goto delete_req;
+	}
+
+	rc = cam_actuator_power_down(a_ctrl);
+	if (rc < 0) {
+		CAM_ERR(CAM_ACTUATOR, "Actuator Power Down Failed");
+		goto delete_req;
+	}
+
+	a_ctrl->is_deferred_park_lens = false;
+	a_ctrl->cam_act_state = CAM_ACTUATOR_INIT;
+
+delete_req:
+	/* Delete the request even if the apply is failed */
+	rc = delete_request(&a_ctrl->i2c_data.config_settings);
+	if (rc < 0)
+		CAM_ERR(CAM_ACTUATOR, "Fail in deleting the config settings");
+end:
+	CAM_MEM_FREE(power_info->power_setting);
+	CAM_MEM_FREE(power_info->power_down_setting);
+	power_info->power_setting = NULL;
+	power_info->power_down_setting = NULL;
+	power_info->power_down_setting_size = 0;
+	power_info->power_setting_size = 0;
+
+	CAM_DBG(CAM_ACTUATOR, "Actuator park end");
+	mutex_unlock(&(a_ctrl->actuator_park_mutex));
+	complete_all(&a_ctrl->park_lens_complete);
+	return rc;
+}
+
+void cam_actuator_process_workq(struct work_struct *w)
+{
+	cam_req_mgr_process_workq(w);
+}
+
+static int cam_actuator_schedule_park_lens_task(
+	struct cam_actuator_ctrl_t *a_ctrl)
+{
+	int32_t rc = 0;
+	struct crm_workq_task *task;
+
+	task = cam_req_mgr_workq_get_task(a_ctrl->workq);
+	if (!task) {
+		CAM_ERR(CAM_ACTUATOR, "No empty task available");
+		return -ENOMEM;
+	}
+
+	task->process_cb = &cam_actuator_park_lens_cb;
+	rc = cam_req_mgr_workq_enqueue_task(task,
+		(void *)a_ctrl, CRM_TASK_PRIORITY_0);
+
+	return rc;
+}
+
+static int cam_actuator_wait_for_park_done(
+	struct cam_actuator_ctrl_t *a_ctrl)
+{
+	int32_t rc = 0;
+	unsigned long rem_jiffies = 0;
+
+	rem_jiffies = cam_common_wait_for_completion_timeout(
+		&a_ctrl->park_lens_complete, msecs_to_jiffies(100));
+	if (rem_jiffies == 0) {
+		rc = -ETIMEDOUT;
+		CAM_ERR(CAM_ACTUATOR, "Async park done completion timeout");
+	}
+
+	return rc;
+}
+
 int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 	void *arg)
 {
@@ -806,6 +899,59 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 		}
 		break;
 		}
+	case CAM_ACTUATOR_PACKET_OPCODE_PARK_LENS:
+		mutex_lock(&(a_ctrl->actuator_park_mutex));
+		CAM_DBG(CAM_ACTUATOR,
+			"Receive park lens settings buffer in state: %d",
+			a_ctrl->cam_act_state);
+		if (a_ctrl->cam_act_state != CAM_ACTUATOR_CONFIG) {
+			CAM_WARN(CAM_ACTUATOR,
+				"Not in right state to park lens cam_act_state: %d",
+				a_ctrl->cam_act_state);
+			mutex_unlock(&(a_ctrl->actuator_park_mutex));
+			rc = -EINVAL;
+			break;
+		}
+
+		if (a_ctrl->is_deferred_park_lens) {
+			CAM_WARN(CAM_ACTUATOR,
+				"Park lens inprogress and receive unexpected park lens settings");
+			mutex_unlock(&(a_ctrl->actuator_park_mutex));
+			rc = -EINVAL;
+			break;
+		}
+
+		i2c_data = &(a_ctrl->i2c_data);
+		i2c_reg_settings =
+			&i2c_data->config_settings;
+		i2c_reg_settings->request_id = 0;
+		i2c_reg_settings->is_settings_valid = 1;
+
+		offset = (uint32_t *)&csl_packet->payload_flex;
+		offset += (csl_packet->cmd_buf_offset / sizeof(uint32_t));
+		cmd_desc = (struct cam_cmd_buf_desc *)(offset);
+		rc = cam_sensor_i2c_command_parser(
+			&a_ctrl->io_master_info,
+			i2c_reg_settings,
+			cmd_desc, 1, NULL);
+		if (rc < 0) {
+			CAM_ERR(CAM_ACTUATOR,
+				"Park lens parsing failed: %d", rc);
+			mutex_unlock(&(a_ctrl->actuator_park_mutex));
+			break;
+		}
+
+		a_ctrl->is_deferred_park_lens = true;
+		reinit_completion(&a_ctrl->park_lens_complete);
+		rc = cam_actuator_schedule_park_lens_task(a_ctrl);
+		if (rc) {
+			CAM_ERR(CAM_ACTUATOR, "Worker task scheduling failed %d", rc);
+			mutex_unlock(&(a_ctrl->actuator_park_mutex));
+			break;
+		}
+
+		mutex_unlock(&(a_ctrl->actuator_park_mutex));
+		break;
 	default:
 		CAM_ERR(CAM_ACTUATOR, "Wrong Opcode: %d",
 			csl_packet->header.op_code & 0xFFFFFF);
@@ -827,6 +973,15 @@ void cam_actuator_shutdown(struct cam_actuator_ctrl_t *a_ctrl)
 		(struct cam_actuator_soc_private *)a_ctrl->soc_info.soc_private;
 	struct cam_sensor_power_ctrl_t *power_info =
 		&soc_private->power_info;
+
+	CAM_DBG(CAM_ACTUATOR,
+		"Actuator shutdown in state: %d is_deferred_park_lens: %d",
+		a_ctrl->cam_act_state, a_ctrl->is_deferred_park_lens);
+
+	if (a_ctrl->is_deferred_park_lens)
+		cam_actuator_wait_for_park_done(a_ctrl);
+
+	a_ctrl->is_deferred_park_lens = false;
 
 	if (a_ctrl->cam_act_state == CAM_ACTUATOR_INIT)
 		return;
@@ -890,6 +1045,15 @@ int32_t cam_actuator_driver_cmd(struct cam_actuator_ctrl_t *a_ctrl,
 		struct cam_sensor_acquire_dev actuator_acq_dev;
 		struct cam_create_dev_hdl bridge_params;
 
+		if ((a_ctrl->cam_act_state != CAM_ACTUATOR_INIT) &&
+			a_ctrl->is_deferred_park_lens) {
+			CAM_DBG(CAM_ACTUATOR, "Wait for park done in state: %d",
+				a_ctrl->cam_act_state);
+			rc = cam_actuator_wait_for_park_done(a_ctrl);
+			if (rc)
+				goto release_mutex;
+		}
+
 		if (a_ctrl->bridge_intf.device_hdl != -1) {
 			CAM_ERR(CAM_ACTUATOR, "Device is already acquired");
 			rc = -EINVAL;
@@ -951,11 +1115,23 @@ int32_t cam_actuator_driver_cmd(struct cam_actuator_ctrl_t *a_ctrl,
 		}
 
 		if (a_ctrl->cam_act_state == CAM_ACTUATOR_CONFIG) {
-			rc = cam_actuator_power_down(a_ctrl);
-			if (rc < 0) {
-				CAM_ERR(CAM_ACTUATOR,
-					"Actuator Power Down Failed");
-				goto release_mutex;
+			if (a_ctrl->is_deferred_park_lens) {
+				CAM_DBG(CAM_ACTUATOR, "Actuator park in deferred task");
+			} else {
+				rc = cam_actuator_power_down(a_ctrl);
+				if (rc < 0) {
+					CAM_ERR(CAM_ACTUATOR,
+						"Actuator Power Down Failed");
+					goto release_mutex;
+				}
+
+				a_ctrl->cam_act_state = CAM_ACTUATOR_INIT;
+				CAM_MEM_FREE(power_info->power_setting);
+				CAM_MEM_FREE(power_info->power_down_setting);
+				power_info->power_setting = NULL;
+				power_info->power_down_setting = NULL;
+				power_info->power_down_setting_size = 0;
+				power_info->power_setting_size = 0;
 			}
 		}
 
@@ -974,14 +1150,7 @@ int32_t cam_actuator_driver_cmd(struct cam_actuator_ctrl_t *a_ctrl,
 		a_ctrl->bridge_intf.device_hdl = -1;
 		a_ctrl->bridge_intf.link_hdl = -1;
 		a_ctrl->bridge_intf.session_hdl = -1;
-		a_ctrl->cam_act_state = CAM_ACTUATOR_INIT;
 		a_ctrl->last_flush_req = 0;
-		CAM_MEM_FREE(power_info->power_setting);
-		CAM_MEM_FREE(power_info->power_down_setting);
-		power_info->power_setting = NULL;
-		power_info->power_down_setting = NULL;
-		power_info->power_down_setting_size = 0;
-		power_info->power_setting_size = 0;
 	}
 		break;
 	case CAM_QUERY_CAP: {

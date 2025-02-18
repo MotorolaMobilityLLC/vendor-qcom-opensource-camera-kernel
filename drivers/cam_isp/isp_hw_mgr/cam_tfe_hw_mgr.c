@@ -2444,7 +2444,7 @@ static int cam_tfe_mgr_acquire_dev(void *hw_mgr_priv, void *acquire_hw_args)
 			goto free_res;
 		}
 
-		in_port = memdup_user(
+		in_port = CAM_MEMDUP_USER(
 			u64_to_user_ptr(isp_resource[i].res_hdl),
 			isp_resource[i].length);
 		if (!IS_ERR(in_port)) {
@@ -2856,6 +2856,7 @@ static int cam_tfe_mgr_config_hw(void *hw_mgr_priv,
 	cdm_cmd->cookie               = cfg->request_id;
 	cdm_cmd->gen_irq_arb          = false;
 	cdm_cmd->genirq_buff          = &hw_update_data->kmd_cmd_buff_info;
+	cdm_cmd->fast_complete        = NULL;
 
 	for (i = 0; i < cfg->num_hw_update_entries; i++) {
 		cmd = (cfg->hw_update_entries + i);

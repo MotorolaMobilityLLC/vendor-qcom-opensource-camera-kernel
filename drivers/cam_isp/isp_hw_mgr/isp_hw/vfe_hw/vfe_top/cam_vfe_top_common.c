@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "cam_vfe_top_common.h"
@@ -105,11 +105,7 @@ static int cam_vfe_top_set_hw_clk_rate(struct cam_vfe_top_priv_common *top_commo
 
 	if (soc_info->is_clk_drv_en) {
 		cesta_client_idx = top_common->hw_idx;
-		if (is_drv_config_en)
-			cesta_clk_rate_low =
-				soc_info->clk_rate[lowest_clk_lvl][soc_info->src_clk_idx];
-		else
-			cesta_clk_rate_low = final_clk_rate;
+		cesta_clk_rate_low = soc_info->clk_rate[lowest_clk_lvl][soc_info->src_clk_idx];
 	}
 
 	CAM_DBG(CAM_PERF|CAM_ISP,

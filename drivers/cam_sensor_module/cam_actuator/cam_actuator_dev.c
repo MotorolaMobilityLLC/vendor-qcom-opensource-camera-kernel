@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "cam_actuator_dev.h"
@@ -258,9 +258,20 @@ static int cam_actuator_i2c_component_bind(struct device *dev,
 	cam_sensor_module_add_i2c_device((void *) a_ctrl, CAM_SENSOR_ACTUATOR);
 
 	INIT_LIST_HEAD(&(a_ctrl->i2c_data.init_settings.list_head));
+	INIT_LIST_HEAD(&(a_ctrl->i2c_data.config_settings.list_head));
 
 	for (i = 0; i < MAX_PER_FRAME_ARRAY; i++)
 		INIT_LIST_HEAD(&(a_ctrl->i2c_data.per_frame[i].list_head));
+
+	init_completion(&a_ctrl->park_lens_complete);
+
+	/* Create worker for actuator park with 1 task */
+	rc = cam_req_mgr_workq_create("cam_actuator_worker", 1, &a_ctrl->workq,
+		CRM_WORKQ_USAGE_NON_IRQ, 0, cam_actuator_process_workq);
+	if (rc < 0) {
+		CAM_ERR(CAM_ACTUATOR, "Unable to create worker");
+		goto free_mem;
+	}
 
 	a_ctrl->bridge_intf.device_hdl = -1;
 	a_ctrl->bridge_intf.link_hdl = -1;
@@ -279,6 +290,9 @@ static int cam_actuator_i2c_component_bind(struct device *dev,
 
 	return rc;
 
+free_mem:
+	CAM_MEM_FREE(a_ctrl->i2c_data.per_frame);
+	a_ctrl->i2c_data.per_frame = NULL;
 unreg_subdev:
 	cam_unregister_subdev(&(a_ctrl->v4l2_dev_str));
 free_soc:
@@ -315,6 +329,7 @@ static void cam_actuator_i2c_component_unbind(struct device *dev,
 	cam_actuator_shutdown(a_ctrl);
 	mutex_unlock(&(a_ctrl->actuator_mutex));
 	cam_unregister_subdev(&(a_ctrl->v4l2_dev_str));
+	cam_req_mgr_workq_destroy(&(a_ctrl->workq));
 	cam_sensor_util_release_resources(&(a_ctrl->io_master_info), &(a_ctrl->soc_info));
 
 	/*Free Allocated Mem */
@@ -448,14 +463,26 @@ static int cam_actuator_platform_component_bind(struct device *dev,
 	cam_sensor_module_add_i2c_device((void *) a_ctrl, CAM_SENSOR_ACTUATOR);
 
 	INIT_LIST_HEAD(&(a_ctrl->i2c_data.init_settings.list_head));
+	INIT_LIST_HEAD(&(a_ctrl->i2c_data.config_settings.list_head));
 
 	for (i = 0; i < MAX_PER_FRAME_ARRAY; i++)
 		INIT_LIST_HEAD(&(a_ctrl->i2c_data.per_frame[i].list_head));
 
+	init_completion(&a_ctrl->park_lens_complete);
+
+	/* Create worker for actuator park with 1 task */
+	rc = cam_req_mgr_workq_create("cam_actuator_worker", 1,
+			&a_ctrl->workq, CRM_WORKQ_USAGE_NON_IRQ, 0,
+			cam_actuator_process_workq);
+	if (rc < 0) {
+		CAM_ERR(CAM_ACTUATOR, "Unable to create worker");
+		goto free_mem;
+	}
+
 	rc = cam_actuator_parse_dt(a_ctrl, &(pdev->dev));
 	if (rc < 0) {
 		CAM_ERR(CAM_ACTUATOR, "Paring actuator dt failed rc %d", rc);
-		goto free_mem;
+		goto destroy_workq;
 	}
 
 	/* Fill platform device id*/
@@ -463,7 +490,7 @@ static int cam_actuator_platform_component_bind(struct device *dev,
 
 	rc = cam_actuator_init_subdev(a_ctrl);
 	if (rc)
-		goto free_mem;
+		goto destroy_workq;
 
 	a_ctrl->bridge_intf.device_hdl = -1;
 	a_ctrl->bridge_intf.link_hdl = -1;
@@ -490,6 +517,8 @@ static int cam_actuator_platform_component_bind(struct device *dev,
 
 	return rc;
 
+destroy_workq:
+	cam_req_mgr_workq_destroy(&(a_ctrl->workq));
 free_mem:
 	CAM_MEM_FREE(a_ctrl->i2c_data.per_frame);
 free_soc:
@@ -517,6 +546,7 @@ static void cam_actuator_platform_component_unbind(struct device *dev,
 	cam_actuator_shutdown(a_ctrl);
 	mutex_unlock(&(a_ctrl->actuator_mutex));
 	cam_unregister_subdev(&(a_ctrl->v4l2_dev_str));
+	cam_req_mgr_workq_destroy(&(a_ctrl->workq));
 	cam_sensor_util_release_resources(&(a_ctrl->io_master_info), &(a_ctrl->soc_info));
 	CAM_MEM_FREE(a_ctrl->i2c_data.per_frame);
 	a_ctrl->i2c_data.per_frame = NULL;

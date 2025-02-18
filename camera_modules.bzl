@@ -21,6 +21,7 @@ def _define_module(target, variant):
             "//soc-repo:{}/drivers/soc/qcom/socinfo".format(tv),
             "//soc-repo:{}/drivers/soc/qcom/llcc-qcom".format(tv),
             "//soc-repo:{}/drivers/soc/qcom/mdt_loader".format(tv),
+            "//soc-repo:{}/drivers/leds/flash/leds-qcom-flash".format(tv),
             "//soc-repo:{}/drivers/soc/qcom/qcom_va_minidump".format(tv),
             "//soc-repo:{}/drivers/leds/leds-qti-flash".format(tv),
         ],

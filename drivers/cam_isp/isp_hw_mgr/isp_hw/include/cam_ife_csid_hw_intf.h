@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_CSID_HW_INTF_H_
@@ -348,6 +348,7 @@ struct cam_csid_hw_stop_args {
  * @start_only:         start only, no init required
  * @is_drv_config_en:   If drv config is enabled
  * @aup_write:          Indicates if AUP needs to be programmed during starting CSID
+ * @dyn_eof_enable:     Indicates if dynamic EOF feature is enabled
  *
  */
 struct cam_csid_hw_start_args {
@@ -359,6 +360,7 @@ struct cam_csid_hw_start_args {
 	bool                                      start_only;
 	bool                                      is_drv_config_en;
 	bool                                      aup_write;
+	bool                                      dyn_eof_enable;
 };
 
 
@@ -396,7 +398,6 @@ struct cam_csid_reset_out_of_sync_count_args {
 /**
  * struct cam_csid_get_time_stamp_args-  time stamp capture arguments
  * @node_res            : resource to get the time stamp
- * @raw_boot_time       : Pointer to raw boot ts captured from top-half, if available
  * @time_stamp_val      : captured time stamp
  * @boot_timestamp      : boot time stamp
  * @prev_time_stamp_val : previous captured time stamp
@@ -405,7 +406,6 @@ struct cam_csid_reset_out_of_sync_count_args {
  */
 struct cam_csid_get_time_stamp_args {
 	struct cam_isp_resource_node      *node_res;
-	struct timespec64                 *raw_boot_time;
 	uint64_t                           time_stamp_val;
 	uint64_t                           boot_timestamp;
 	uint64_t                           prev_time_stamp_val;

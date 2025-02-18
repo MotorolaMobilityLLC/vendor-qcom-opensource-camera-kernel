@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_ISP_CONTEXT_H_
@@ -225,7 +225,8 @@ struct cam_isp_ctx_req {
  * @trigger:             Event type of incoming req
  * @req_id:              Request id
  * @frame_id:            Frame id based on SOFs
- * @evt_time_stamp       Current time stamp
+ * @evt_tai_time_stamp:  Current TAI time stamp
+ * @evt_boot_time_stamp: Current boot time stamp
  *
  */
 struct cam_isp_context_state_monitor {
@@ -233,7 +234,8 @@ struct cam_isp_context_state_monitor {
 	enum cam_isp_state_change_trigger    trigger;
 	int64_t                              req_id;
 	int64_t                              frame_id;
-	struct timespec64                    evt_time_stamp;
+	struct timespec64                    evt_tai_time_stamp;
+	struct timespec64                    evt_boot_time_stamp;
 };
 
 /**
@@ -389,6 +391,7 @@ struct cam_isp_fcg_prediction_tracker {
  * @dbg_monitors:              Debug monitors for ISP context
  * @apply_in_progress          Whether request apply is in progress
  * @unserved_rup:              Indicate there is unserved rup
+ * @last_applied_default:        Indicate last applied setting is default or not
  * @init_timestamp:            Timestamp at which this context is initialized
  * @isp_device_type:           ISP device type
  * @rxd_epoch:                 Indicate whether epoch has been received. Used to
@@ -465,6 +468,7 @@ struct cam_isp_context {
 	struct cam_isp_context_debug_monitors dbg_monitors;
 	atomic_t                              apply_in_progress;
 	atomic_t                              unserved_rup;
+	atomic_t                              last_applied_default;
 	atomic_t                              internal_recovery_set;
 	unsigned int                          init_timestamp;
 	uint32_t                              isp_device_type;

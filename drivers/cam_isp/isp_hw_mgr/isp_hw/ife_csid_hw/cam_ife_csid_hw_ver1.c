@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/iopoll.h>
@@ -3479,7 +3479,6 @@ static int cam_ife_csid_ver1_get_time_stamp(
 	struct cam_hw_soc_info              *soc_info;
 	struct cam_csid_get_time_stamp_args *timestamp_args;
 	struct cam_ife_csid_ver1_reg_info *csid_reg;
-	struct timespec64 ts;
 	uint32_t curr_0_sof_addr, curr_1_sof_addr;
 
 	timestamp_args = (struct cam_csid_get_time_stamp_args *)cmd_args;
@@ -3541,15 +3540,15 @@ static int cam_ife_csid_ver1_get_time_stamp(
 		CAM_IFE_CSID_QTIMER_MUL_FACTOR,
 		CAM_IFE_CSID_QTIMER_DIV_FACTOR);
 
-	if (qtime_to_boottime == 0) {
-		ktime_get_boottime_ts64(&ts);
-		qtime_to_boottime =
-			(uint64_t)((ts.tv_sec * 1000000000) +
-			ts.tv_nsec) - (int64_t)timestamp_args->time_stamp_val;
+	if (g_ref_time.btime == 0) {
+		g_ref_time.qtime = arch_timer_read_counter();
+		g_ref_time.btime = ktime_get_boottime_ns();
+		g_ref_time.qtime = mul_u64_u32_div(g_ref_time.qtime,
+			CAM_IFE_CSID_QTIMER_MUL_FACTOR, CAM_IFE_CSID_QTIMER_DIV_FACTOR);
 	}
 
-	timestamp_args->boot_timestamp = timestamp_args->time_stamp_val +
-		qtime_to_boottime;
+	timestamp_args->boot_timestamp = g_ref_time.btime + timestamp_args->time_stamp_val -
+		g_ref_time.qtime;
 	CAM_DBG(CAM_ISP, "timestamp:%lld",
 		timestamp_args->boot_timestamp);
 	csid_hw->timestamp.prev_sof_ts = timestamp_args->time_stamp_val;

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_ISP_HW_MGR_INTF_H_
@@ -416,8 +416,8 @@ struct cam_isp_prepare_hw_update_data {
 /**
  * struct cam_isp_hw_sof_event_data - Event payload for CAM_HW_EVENT_SOF
  *
- * @timestamp           : Time stamp for the sof event
- * @boot_time           : Boot time stamp for the sof event
+ * @timestamp:     Qtimer time stamp for the sof event
+ * @boot_time:     Boot time stamp for the sof event
  *
  */
 struct cam_isp_hw_sof_event_data {
@@ -429,22 +429,30 @@ struct cam_isp_hw_sof_event_data {
  * struct cam_isp_hw_reg_update_event_data - Event payload for
  *                         CAM_HW_EVENT_REG_UPDATE
  *
- * @timestamp:     Time stamp for the reg update event
+ * @timestamp:     Qtimer time stamp for the sof event in the current frame
+ * @boot_time:     Boot time stamp for the sof event in the current frame
+ * @camif_irq:     Indicate whether camif irq is enabled or not
  *
  */
 struct cam_isp_hw_reg_update_event_data {
 	uint64_t       timestamp;
+	uint64_t       boot_time;
+	bool           camif_irq;
 };
 
 /**
  * struct cam_isp_hw_epoch_event_data - Event payload for CAM_HW_EVENT_EPOCH
  *
- * @timestamp:     Time stamp for the epoch event
+ * @timestamp:     Qtimer time stamp for the sof event in the current frame
  * @frame_id_meta: Frame id value corresponding to this frame
+ * @boot_time:     Boot time stamp for the sof event in the current frame
+ * @camif_irq:     Indicate whether camif irq is enabled or not
  */
 struct cam_isp_hw_epoch_event_data {
 	uint64_t       timestamp;
 	uint32_t       frame_id_meta;
+	uint64_t       boot_time;
+	bool           camif_irq;
 };
 
 /**
@@ -522,6 +530,7 @@ enum cam_isp_hw_mgr_command {
 	CAM_ISP_HW_MGR_GET_LAST_CONSUMED_ADDR,
 	CAM_ISP_HW_MGR_SET_DRV_INFO,
 	CAM_ISP_HW_MGR_RESET_OUT_OF_SYNC_CNT,
+	CAM_ISP_HW_MGR_REGISTER_EOF_IRQ,
 	CAM_ISP_HW_MGR_CMD_MAX,
 };
 
@@ -580,19 +589,22 @@ struct cam_isp_hw_per_req_info {
  * @cmd_type:              HW command type
  * @cmd_data:              Command data
  * @sof_irq_enable:        To debug if SOF irq is enabled
+ * @eof_irq_enable:        To enable EOF irq for EOF triggered requests
  * @packet_op_code:        Packet opcode
  * @last_cdm_done:         Last cdm done request
  * @ctx_info:              Gives info about context(RDI, PIX, bubble recovery)
  * @sof_ts:                SOF timestamps (current, boot and previous)
  * @default_cfg_params:    The params for default config
  * @drv_info:              DRV info for corresponding req
- * @cdm_done_ts:           CDM callback done timestamp
+ * @cdm_done_tai_ts:       CDM callback done TAI timestamp
+ * @cdm_done_boot_ts:      CDM callback done boot timestamp
  */
 struct cam_isp_hw_cmd_args {
 	uint32_t                          cmd_type;
 	void                             *cmd_data;
 	union {
 		uint32_t                      sof_irq_enable;
+		bool                          eof_irq_enable;
 		uint32_t                      packet_op_code;
 		uint64_t                      last_cdm_done;
 		struct {
@@ -610,7 +622,8 @@ struct cam_isp_hw_cmd_args {
 		} default_cfg_params;
 		struct cam_isp_hw_drv_info    drv_info;
 	} u;
-	struct timespec64 cdm_done_ts;
+	struct timespec64 cdm_done_tai_ts;
+	struct timespec64 cdm_done_boot_ts;
 };
 
 /**
@@ -620,6 +633,7 @@ struct cam_isp_hw_cmd_args {
  * @is_internal_start:         Start triggered internally for reset & recovery
  * @start_only:                Send start only to hw drivers. No init to be done.
  * @aup_write:                 Indicates if AUP needs to be programmed during CSID start
+ * @dyn_eof_enable:            Indicates if dynamic EOF feature is enabled
  *
  */
 struct cam_isp_start_args {
@@ -627,6 +641,7 @@ struct cam_isp_start_args {
 	bool                      is_internal_start;
 	bool                      start_only;
 	bool                      aup_write;
+	bool                      dyn_eof_enable;
 };
 
 /**

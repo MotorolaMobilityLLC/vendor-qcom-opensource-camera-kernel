@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -522,12 +522,17 @@ static void __cam_isp_ctx_update_state_monitor_array(
 	ctx_isp->dbg_monitors.state_monitor[iterator].req_id =
 		req_id;
 
-	if (trigger_type == CAM_ISP_STATE_CHANGE_TRIGGER_CDM_DONE)
-		ctx_isp->dbg_monitors.state_monitor[iterator].evt_time_stamp =
-			ctx->cdm_done_ts;
-	else
+	if (trigger_type == CAM_ISP_STATE_CHANGE_TRIGGER_CDM_DONE) {
+		ctx_isp->dbg_monitors.state_monitor[iterator].evt_tai_time_stamp =
+			ctx->cdm_done_tai_ts;
+		ctx_isp->dbg_monitors.state_monitor[iterator].evt_boot_time_stamp =
+			ctx->cdm_done_boot_ts;
+	} else {
 		ktime_get_clocktai_ts64(
-			&ctx_isp->dbg_monitors.state_monitor[iterator].evt_time_stamp);
+			&ctx_isp->dbg_monitors.state_monitor[iterator].evt_tai_time_stamp);
+		ktime_get_boottime_ts64(
+			&ctx_isp->dbg_monitors.state_monitor[iterator].evt_boot_time_stamp);
+	}
 }
 
 static int __cam_isp_ctx_update_frame_timing_record(
@@ -535,8 +540,8 @@ static int __cam_isp_ctx_update_frame_timing_record(
 {
 	uint32_t index = 0;
 
-	/* Update event index on IFE SOF - primary event */
-	if (hw_evt == CAM_ISP_HW_EVENT_SOF)
+	/* Update event index on IFE EPOCH - primary event */
+	if (hw_evt == CAM_ISP_HW_EVENT_EPOCH)
 		INC_HEAD(&ctx_isp->dbg_monitors.frame_monitor_head,
 			CAM_ISP_CTX_MAX_FRAME_RECORDS, &index);
 	else
@@ -552,6 +557,12 @@ static int __cam_isp_ctx_update_frame_timing_record(
 		break;
 	case CAM_ISP_HW_EVENT_EPOCH:
 		CAM_GET_BOOT_TIMESTAMP(ctx_isp->dbg_monitors.frame_monitor[index].epoch_ts);
+
+		/* SOF boot timestamp needs to be update at EPOCH when SOF IRQ is suppressed */
+		ctx_isp->dbg_monitors.frame_monitor[index].sof_ts.tv_sec =
+			ctx_isp->boot_timestamp/NSEC_PER_SEC;
+		ctx_isp->dbg_monitors.frame_monitor[index].sof_ts.tv_nsec =
+			ctx_isp->boot_timestamp%NSEC_PER_SEC;
 		break;
 	case CAM_ISP_HW_SECONDARY_EVENT:
 		CAM_GET_BOOT_TIMESTAMP(ctx_isp->dbg_monitors.frame_monitor[index].secondary_sof_ts);
@@ -666,6 +677,7 @@ static void __cam_isp_ctx_dump_state_monitor_array(
 	int64_t state_head = 0;
 	uint32_t index, num_entries, oldest_entry;
 	struct tm ts;
+	struct cam_isp_context_state_monitor *state_monitor;
 
 	state_head = atomic64_read(&ctx_isp->dbg_monitors.state_monitor_head);
 
@@ -685,22 +697,19 @@ static void __cam_isp_ctx_dump_state_monitor_array(
 		"Dumping state information for preceding requests");
 
 	index = oldest_entry;
-
 	for (i = 0; i < num_entries; i++) {
-		time64_to_tm(ctx_isp->dbg_monitors.state_monitor[index].evt_time_stamp.tv_sec,
-			0, &ts);
+		state_monitor = &ctx_isp->dbg_monitors.state_monitor[index];
+		time64_to_tm(state_monitor->evt_tai_time_stamp.tv_sec, 0, &ts);
 		CAM_ERR(CAM_ISP,
-			"Idx[%d] time[%d-%d %d:%d:%d.%lld]:Substate[%s] Frame[%lld] Req[%lld] evt[%s] at time[%llu: %09llu]",
+			"Idx[%d] time[%d-%d %d:%d:%d.%lld]:Substate[%s] Frame[%lld] Req[%lld] evt[%s] at boot time[%llu:%llu]",
 			index, ts.tm_mon + 1, ts.tm_mday, ts.tm_hour, ts.tm_min, ts.tm_sec,
-			ctx_isp->dbg_monitors.state_monitor[index].evt_time_stamp.tv_nsec / 1000000,
-			__cam_isp_ctx_substate_val_to_type(
-			ctx_isp->dbg_monitors.state_monitor[index].curr_state),
-			ctx_isp->dbg_monitors.state_monitor[index].frame_id,
-			ctx_isp->dbg_monitors.state_monitor[index].req_id,
-			__cam_isp_hw_evt_val_to_type(
-				ctx_isp->dbg_monitors.state_monitor[index].trigger),
-			ctx_isp->dbg_monitors.state_monitor[index].evt_time_stamp.tv_sec,
-			ctx_isp->dbg_monitors.state_monitor[index].evt_time_stamp.tv_nsec);
+			state_monitor->evt_tai_time_stamp.tv_nsec / 1000000,
+			__cam_isp_ctx_substate_val_to_type(state_monitor->curr_state),
+			state_monitor->frame_id,
+			state_monitor->req_id,
+			__cam_isp_hw_evt_val_to_type(state_monitor->trigger),
+			state_monitor->evt_boot_time_stamp.tv_sec,
+			state_monitor->evt_boot_time_stamp.tv_nsec);
 
 		index = (index + 1) % CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES;
 	}
@@ -716,8 +725,8 @@ static void *cam_isp_ctx_user_dump_state_monitor_array_info(
 
 	addr = (uint64_t *)addr_ptr;
 
-	*addr++ = evt->evt_time_stamp.tv_sec;
-	*addr++ = evt->evt_time_stamp.tv_nsec / NSEC_PER_USEC;
+	*addr++ = evt->evt_tai_time_stamp.tv_sec;
+	*addr++ = evt->evt_tai_time_stamp.tv_nsec/NSEC_PER_USEC;
 	*addr++ = evt->frame_id;
 	*addr++ = evt->req_id;
 	return addr;
@@ -1168,6 +1177,53 @@ static inline void __cam_isp_ctx_copy_fcg_params(
 	}
 }
 
+static int __cam_isp_ctx_update_sof_ts(
+	struct cam_isp_context *ctx_isp,
+	uint64_t                sof_ts,
+	uint64_t                boot_ts)
+{
+	struct cam_ctx_request *req = NULL;
+	struct cam_context     *ctx = ctx_isp->base;
+	uint64_t                request_id = 0;
+
+	ctx_isp->last_sof_jiffies = jiffies;
+
+	/* First check if there is a valid request in active list */
+	list_for_each_entry(req, &ctx->active_req_list, list) {
+		if (req->request_id > ctx_isp->reported_req_id) {
+			request_id = req->request_id;
+			break;
+		}
+	}
+
+	/*
+	 * If nothing in active list, current request might have not moved
+	 * from wait to active list. This could happen if REG_UPDATE to sw
+	 * is not coming immediately after SOF or currently updating ts at RUP
+	 */
+	if (request_id == 0) {
+		req = list_first_entry_or_null(&ctx->wait_req_list,
+			struct cam_ctx_request, list);
+		if (req)
+			request_id = req->request_id;
+	}
+
+	ctx_isp->frame_id++;
+	ctx_isp->sof_timestamp_val = sof_ts;
+	ctx_isp->boot_timestamp = boot_ts;
+
+	CAM_DBG(CAM_ISP,
+		"Frame id: %llu, SOF qtimer timestamp: [%llu:%09llu], boot timestamp: [%llu:%09llu], ctx %u, request id: %llu, link: 0x%x",
+		ctx_isp->frame_id,
+		ctx_isp->sof_timestamp_val / NSEC_PER_SEC,
+		ctx_isp->sof_timestamp_val % NSEC_PER_SEC,
+		ctx_isp->boot_timestamp / NSEC_PER_SEC,
+		ctx_isp->boot_timestamp % NSEC_PER_SEC,
+		ctx->ctx_id, request_id, ctx->link_hdl);
+
+	return 0;
+}
+
 static int __cam_isp_ctx_enqueue_init_request(
 	struct cam_context *ctx, struct cam_ctx_request *req)
 {
@@ -1179,6 +1235,7 @@ static int __cam_isp_ctx_enqueue_init_request(
 	struct cam_isp_prepare_hw_update_data *req_update_old;
 	struct cam_isp_prepare_hw_update_data *req_update_new;
 	struct cam_isp_prepare_hw_update_data *hw_update_data;
+	struct cam_kmd_buf_info *kmd_buff_old = NULL;
 
 	spin_lock_bh(&ctx->lock);
 	if (list_empty(&ctx->pending_req_list)) {
@@ -1237,6 +1294,9 @@ static int __cam_isp_ctx_enqueue_init_request(
 				req->request_id, req_old->request_id, ctx->ctx_id, ctx->link_hdl);
 
 			if (req_old->packet) {
+
+				kmd_buff_old = &(req_isp_old->hw_update_data.kmd_cmd_buff_info);
+				cam_mem_put_kref(kmd_buff_old->handle);
 				cam_common_mem_free(req_old->packet);
 				req_old->packet = req->packet;
 				req->packet = NULL;
@@ -1540,13 +1600,16 @@ static int __cam_isp_ctx_get_cdm_done_timestamp(struct cam_context *ctx,
 		return rc;
 
 	*last_cdm_done_req = isp_hw_cmd_args.u.last_cdm_done;
-	ctx->cdm_done_ts = isp_hw_cmd_args.cdm_done_ts;
-	time64_to_tm(isp_hw_cmd_args.cdm_done_ts.tv_sec, 0, &ts);
+	ctx->cdm_done_tai_ts = isp_hw_cmd_args.cdm_done_tai_ts;
+	ctx->cdm_done_boot_ts = isp_hw_cmd_args.cdm_done_boot_ts;
+	time64_to_tm(isp_hw_cmd_args.cdm_done_tai_ts.tv_sec, 0, &ts);
 	CAM_DBG(CAM_ISP,
-		"last_cdm_done req: %llu ctx: %u link: 0x%x time[%d-%d %d:%d:%d.%lld]",
-		last_cdm_done_req, ctx->ctx_id, ctx->link_hdl,
+		"last_cdm_done req: %lld ctx: %u link: 0x%x TAI time[%d-%d %d:%d:%d.%lld] Boot time[%lld:%09lld]",
+		*last_cdm_done_req, ctx->ctx_id, ctx->link_hdl,
 		ts.tm_mon + 1, ts.tm_mday, ts.tm_hour, ts.tm_min, ts.tm_sec,
-		isp_hw_cmd_args.cdm_done_ts.tv_nsec / 1000000);
+		isp_hw_cmd_args.cdm_done_tai_ts.tv_nsec / 1000000,
+		isp_hw_cmd_args.cdm_done_boot_ts.tv_sec,
+		isp_hw_cmd_args.cdm_done_boot_ts.tv_nsec);
 
 	return 0;
 }
@@ -1650,10 +1713,13 @@ static void __cam_isp_ctx_send_unified_timestamp(
 	req_msg.u.frame_msg_v2.frame_id_meta = ctx_isp->frame_id_meta;
 
 	CAM_DBG(CAM_ISP,
-		"link hdl 0x%x request id:%lld frame number:%lld SOF time stamp:0x%llx ctx %d\
-		boot time stamp:0x%llx", ctx_isp->base->link_hdl, request_id,
-		ctx_isp->frame_id, ctx_isp->sof_timestamp_val,ctx_isp->base->ctx_id,
-		ctx_isp->boot_timestamp);
+		"link_hdl: 0x%x, request_id: %lld, frame number: %lld, ctx: %d, SOF qtimer timestamp: [%llu:%09llu], boot timestamp: [%llu:%09llu]",
+		ctx_isp->base->link_hdl, request_id,
+		ctx_isp->frame_id, ctx_isp->base->ctx_id,
+		ctx_isp->sof_timestamp_val / NSEC_PER_SEC,
+		ctx_isp->sof_timestamp_val % NSEC_PER_SEC,
+		ctx_isp->boot_timestamp / NSEC_PER_SEC,
+		ctx_isp->boot_timestamp % NSEC_PER_SEC);
 	shutter_event->frame_id = ctx_isp->frame_id;
 	shutter_event->req_id   = request_id;
 	shutter_event->boot_ts  = ctx_isp->boot_timestamp;
@@ -3384,6 +3450,7 @@ static int __cam_isp_ctx_apply_pending_req(
 
 		spin_unlock_bh(&ctx->lock);
 	} else {
+		atomic_set(&ctx_isp->last_applied_default, 0);
 		atomic_set(&ctx_isp->apply_in_progress, 0);
 		CAM_DBG(CAM_ISP, "New substate state %d, applied req %lld, ctx: %u, link: 0x%x",
 			CAM_ISP_CTX_ACTIVATED_APPLIED,
@@ -3424,6 +3491,21 @@ static int __cam_isp_ctx_offline_epoch_in_activated_state(
 	struct cam_context *ctx = ctx_isp->base;
 	struct cam_ctx_request *req, *req_temp;
 	uint64_t request_id = 0;
+	struct cam_isp_hw_epoch_event_data *epoch_done_event_data =
+		(struct cam_isp_hw_epoch_event_data *)evt_data;
+
+	if (epoch_done_event_data->camif_irq) {
+		if (epoch_done_event_data->timestamp != ctx_isp->sof_timestamp_val)
+			__cam_isp_ctx_update_sof_ts(ctx_isp, epoch_done_event_data->timestamp,
+				epoch_done_event_data->boot_time);
+		else
+			CAM_DBG(CAM_ISP,
+				"SOF timestamp is updated at early time, qtimer: [%llu:%09llu], boot: [%llu:%09llu]",
+				ctx_isp->sof_timestamp_val/NSEC_PER_SEC,
+				ctx_isp->sof_timestamp_val%NSEC_PER_SEC,
+				ctx_isp->boot_timestamp/NSEC_PER_SEC,
+				ctx_isp->boot_timestamp%NSEC_PER_SEC);
+	}
 
 	atomic_set(&ctx_isp->rxd_epoch, 1);
 
@@ -3467,8 +3549,23 @@ static int __cam_isp_ctx_offline_epoch_in_activated_state(
 static int __cam_isp_ctx_reg_upd_in_epoch_bubble_state(
 	struct cam_isp_context *ctx_isp, void *evt_data)
 {
-	struct cam_context     *ctx = ctx_isp->base;
-	struct cam_ctx_request *req;
+	struct cam_context                      *ctx = ctx_isp->base;
+	struct cam_ctx_request                  *req;
+	struct cam_isp_hw_reg_update_event_data *rup_event_data =
+		(struct cam_isp_hw_reg_update_event_data *)evt_data;
+
+	if (rup_event_data->camif_irq) {
+		if (rup_event_data->timestamp != ctx_isp->sof_timestamp_val)
+			__cam_isp_ctx_update_sof_ts(ctx_isp, rup_event_data->timestamp,
+				rup_event_data->boot_time);
+		else
+			CAM_DBG(CAM_ISP,
+				"SOF timestamp is updated at early time, qtimer: [%llu:%09llu], boot: [%llu:%09llu]",
+				ctx_isp->sof_timestamp_val/NSEC_PER_SEC,
+				ctx_isp->sof_timestamp_val%NSEC_PER_SEC,
+				ctx_isp->boot_timestamp/NSEC_PER_SEC,
+				ctx_isp->boot_timestamp%NSEC_PER_SEC);
+	}
 
 	if (ctx_isp->frame_id == 1) {
 		CAM_DBG(CAM_ISP, "Reg update in Substate[%s] for early PCR",
@@ -3485,13 +3582,22 @@ static int __cam_isp_ctx_reg_upd_in_epoch_bubble_state(
 				CAM_REQ_MGR_SOF_EVENT_SUCCESS);
 		}
 	} else {
-		atomic_set(&ctx_isp->unserved_rup, 1);
+		if (!atomic_read(&ctx_isp->last_applied_default))
+			atomic_set(&ctx_isp->unserved_rup, 1);
 		CAM_WARN_RATE_LIMIT(CAM_ISP,
 			"ctx:%u Unexpected regupdate in activated Substate[%s] for frame_id:%lld",
+			"last_applied_default:%d, unserved_rup:%d",
 			ctx_isp->base->ctx_id,
 			__cam_isp_ctx_substate_val_to_type(
 			ctx_isp->substate_activated),
-			ctx_isp->frame_id);
+			ctx_isp->frame_id,
+			atomic_read(&ctx_isp->last_applied_default),
+			atomic_read(&ctx_isp->unserved_rup));
+
+		atomic_set(&ctx_isp->last_applied_default, 0);
+
+		__cam_isp_ctx_send_sof_timestamp(ctx_isp, 0,
+			CAM_REQ_MGR_SOF_EVENT_SUCCESS);
 	}
 	return 0;
 }
@@ -3500,10 +3606,12 @@ static int __cam_isp_ctx_reg_upd_in_applied_state(
 	struct cam_isp_context *ctx_isp, void *evt_data)
 {
 	int rc = 0;
-	struct cam_ctx_request  *req;
-	struct cam_context      *ctx = ctx_isp->base;
-	struct cam_isp_ctx_req  *req_isp;
-	uint64_t                 request_id = 0;
+	struct cam_ctx_request                  *req;
+	struct cam_context                      *ctx = ctx_isp->base;
+	struct cam_isp_ctx_req                  *req_isp;
+	uint64_t                                 request_id = 0;
+	struct cam_isp_hw_reg_update_event_data *rup_event_data =
+		(struct cam_isp_hw_reg_update_event_data *)evt_data;
 
 	if (list_empty(&ctx->wait_req_list)) {
 		CAM_ERR(CAM_ISP, "Reg upd ack with no waiting request, ctx_idx: %u, link: 0x%x",
@@ -3531,6 +3639,19 @@ static int __cam_isp_ctx_reg_upd_in_applied_state(
 		CAM_DBG(CAM_ISP,
 			"move active request %lld to free list(cnt = %d), ctx %u, link: 0x%x",
 			req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
+	}
+
+	if (rup_event_data->camif_irq) {
+		if (rup_event_data->timestamp != ctx_isp->sof_timestamp_val)
+			__cam_isp_ctx_update_sof_ts(ctx_isp, rup_event_data->timestamp,
+				rup_event_data->boot_time);
+		else
+			CAM_DBG(CAM_ISP,
+				"SOF timestamp is updated at early time, qtimer: [%llu:%09llu], boot: [%llu:%09llu]",
+				ctx_isp->sof_timestamp_val/NSEC_PER_SEC,
+				ctx_isp->sof_timestamp_val%NSEC_PER_SEC,
+				ctx_isp->boot_timestamp/NSEC_PER_SEC,
+				ctx_isp->boot_timestamp%NSEC_PER_SEC);
 	}
 
 	/*
@@ -3575,6 +3696,19 @@ static int __cam_isp_ctx_notify_sof_in_activated_state(
 	}
 
 	ctx_isp->frame_id_meta = epoch_done_event_data->frame_id_meta;
+
+	if (epoch_done_event_data->camif_irq) {
+		if (epoch_done_event_data->timestamp != ctx_isp->sof_timestamp_val)
+			__cam_isp_ctx_update_sof_ts(ctx_isp, epoch_done_event_data->timestamp,
+				epoch_done_event_data->boot_time);
+		else
+			CAM_DBG(CAM_ISP,
+				"SOF timestamp is updated at early time, qtimer: [%llu:%09llu], boot: [%llu:%09llu]",
+				ctx_isp->sof_timestamp_val/NSEC_PER_SEC,
+				ctx_isp->sof_timestamp_val%NSEC_PER_SEC,
+				ctx_isp->boot_timestamp/NSEC_PER_SEC,
+				ctx_isp->boot_timestamp%NSEC_PER_SEC);
+	}
 
 	if (atomic_read(&ctx_isp->process_bubble)) {
 		if (list_empty(&ctx->active_req_list)) {
@@ -3682,10 +3816,6 @@ notify_only:
 		if (request_id != 0)
 			ctx_isp->reported_req_id = request_id;
 
-		if (request_id == 0)
-			__cam_isp_ctx_send_sof_timestamp(ctx_isp, request_id,
-				CAM_REQ_MGR_SOF_EVENT_SUCCESS);
-
 		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
 			CAM_ISP_STATE_CHANGE_TRIGGER_EPOCH,
 			request_id);
@@ -3778,14 +3908,33 @@ static int __cam_isp_ctx_sof_in_activated_state(
 static int __cam_isp_ctx_reg_upd_in_sof(struct cam_isp_context *ctx_isp,
 	void *evt_data)
 {
-	int rc = 0;
-	struct cam_ctx_request *req = NULL;
-	struct cam_isp_ctx_req *req_isp;
-	struct cam_context *ctx = ctx_isp->base;
+	struct cam_ctx_request                  *req = NULL;
+	struct cam_isp_ctx_req                  *req_isp;
+	struct cam_context                      *ctx = ctx_isp->base;
+	struct cam_isp_hw_reg_update_event_data *rup_event_data =
+		(struct cam_isp_hw_reg_update_event_data *)evt_data;
+
+	if (!evt_data) {
+		CAM_ERR(CAM_ISP, "Invalid event data");
+		return -EINVAL;
+	}
 
 	if (ctx->state != CAM_CTX_ACTIVATED && ctx_isp->frame_id > 1) {
 		CAM_DBG(CAM_ISP, "invalid RUP");
 		goto end;
+	}
+
+	if (rup_event_data->camif_irq) {
+		if (rup_event_data->timestamp != ctx_isp->sof_timestamp_val)
+			__cam_isp_ctx_update_sof_ts(ctx_isp, rup_event_data->timestamp,
+				rup_event_data->boot_time);
+		else
+			CAM_DBG(CAM_ISP,
+				"SOF timestamp is updated at early time, qtimer: [%llu:%09llu], boot: [%llu:%09llu]",
+				ctx_isp->sof_timestamp_val/NSEC_PER_SEC,
+				ctx_isp->sof_timestamp_val%NSEC_PER_SEC,
+				ctx_isp->boot_timestamp/NSEC_PER_SEC,
+				ctx_isp->boot_timestamp%NSEC_PER_SEC);
 	}
 
 	/*
@@ -3805,9 +3954,15 @@ static int __cam_isp_ctx_reg_upd_in_sof(struct cam_isp_context *ctx_isp,
 				"receive rup in unexpected state, ctx_idx: %u, link: 0x%x",
 				ctx->ctx_id, ctx->link_hdl);
 	} else {
-		atomic_set(&ctx_isp->unserved_rup, 1);
-		CAM_WARN(CAM_ISP, "Received a unserved rup ctx:%u link: 0x%x",
-			ctx->ctx_id, ctx->link_hdl);
+		if (!atomic_read(&ctx_isp->last_applied_default))
+			atomic_set(&ctx_isp->unserved_rup, 1);
+		CAM_WARN(CAM_ISP,
+			"Received a unserved rup ctx:%u link: 0x%x, last_applied_default:%d, unserved_rup:%d",
+			ctx->ctx_id,
+			ctx->link_hdl,
+			atomic_read(&ctx_isp->last_applied_default),
+			atomic_read(&ctx_isp->unserved_rup));
+		atomic_set(&ctx_isp->last_applied_default, 0);
 	}
 
 	if (req != NULL) {
@@ -3816,7 +3971,7 @@ static int __cam_isp_ctx_reg_upd_in_sof(struct cam_isp_context *ctx_isp,
 			req->request_id);
 	}
 end:
-	return rc;
+	return 0;
 }
 
 static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
@@ -3835,6 +3990,19 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 	if (!evt_data) {
 		CAM_ERR(CAM_ISP, "invalid event data");
 		return -EINVAL;
+	}
+
+	if (epoch_done_event_data->camif_irq) {
+		if (epoch_done_event_data->timestamp != ctx_isp->sof_timestamp_val)
+			__cam_isp_ctx_update_sof_ts(ctx_isp, epoch_done_event_data->timestamp,
+				epoch_done_event_data->boot_time);
+		else
+			CAM_DBG(CAM_ISP,
+				"SOF timestamp is updated at early time, qtimer: [%llu:%09llu], boot: [%llu:%09llu]",
+				ctx_isp->sof_timestamp_val/NSEC_PER_SEC,
+				ctx_isp->sof_timestamp_val%NSEC_PER_SEC,
+				ctx_isp->boot_timestamp/NSEC_PER_SEC,
+				ctx_isp->boot_timestamp%NSEC_PER_SEC);
 	}
 
 	if (ctx_isp->bubble_recover_dis && !ctx_isp->sfe_en) {
@@ -3862,6 +4030,7 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 	}
 
 	ctx_isp->frame_id_meta = epoch_done_event_data->frame_id_meta;
+
 	if (list_empty(&ctx->wait_req_list)) {
 		/*
 		 * If no wait req in epoch, this is an error case.
@@ -4108,11 +4277,23 @@ static int __cam_isp_ctx_epoch_in_bubble_applied(
 
 	ctx_isp->frame_id_meta = epoch_done_event_data->frame_id_meta;
 
+	if (epoch_done_event_data->camif_irq) {
+		if (epoch_done_event_data->timestamp != ctx_isp->sof_timestamp_val)
+			__cam_isp_ctx_update_sof_ts(ctx_isp, epoch_done_event_data->timestamp,
+				epoch_done_event_data->boot_time);
+		else
+			CAM_DBG(CAM_ISP,
+				"SOF timestamp is updated at early time, qtimer: [%llu:%09llu], boot: [%llu:%09llu]",
+				ctx_isp->sof_timestamp_val/NSEC_PER_SEC,
+				ctx_isp->sof_timestamp_val%NSEC_PER_SEC,
+				ctx_isp->boot_timestamp/NSEC_PER_SEC,
+				ctx_isp->boot_timestamp%NSEC_PER_SEC);
+	}
+
 	/*
 	 * This means we missed the reg upd ack. So we need to
 	 * transition to BUBBLE state again.
 	 */
-
 	if (list_empty(&ctx->wait_req_list)) {
 		/*
 		 * If no pending req in epoch, this is an error case.
@@ -4943,6 +5124,21 @@ static int __cam_isp_ctx_fs2_reg_upd_in_sof(struct cam_isp_context *ctx_isp,
 	struct cam_ctx_request *req = NULL;
 	struct cam_isp_ctx_req *req_isp;
 	struct cam_context *ctx = ctx_isp->base;
+	struct cam_isp_hw_reg_update_event_data *rup_event_data =
+		(struct cam_isp_hw_reg_update_event_data *)evt_data;
+
+	if (rup_event_data->camif_irq) {
+		if (rup_event_data->timestamp != ctx_isp->sof_timestamp_val)
+			__cam_isp_ctx_update_sof_ts(ctx_isp, rup_event_data->timestamp,
+				rup_event_data->boot_time);
+		else
+			CAM_DBG(CAM_ISP,
+				"SOF timestamp is updated at early time, qtimer: [%llu:%09llu], boot: [%llu:%09llu]",
+				ctx_isp->sof_timestamp_val/NSEC_PER_SEC,
+				ctx_isp->sof_timestamp_val%NSEC_PER_SEC,
+				ctx_isp->boot_timestamp/NSEC_PER_SEC,
+				ctx_isp->boot_timestamp%NSEC_PER_SEC);
+	}
 
 	if (ctx->state != CAM_CTX_ACTIVATED && ctx_isp->frame_id > 1) {
 		CAM_DBG(CAM_ISP, "invalid RUP");
@@ -4983,6 +5179,21 @@ static int __cam_isp_ctx_fs2_reg_upd_in_applied_state(
 	struct cam_context      *ctx = ctx_isp->base;
 	struct cam_isp_ctx_req  *req_isp;
 	uint64_t  request_id  = 0;
+	struct cam_isp_hw_reg_update_event_data *rup_event_data =
+		(struct cam_isp_hw_reg_update_event_data *)evt_data;
+
+	if (rup_event_data->camif_irq) {
+		if (rup_event_data->timestamp != ctx_isp->sof_timestamp_val)
+			__cam_isp_ctx_update_sof_ts(ctx_isp, rup_event_data->timestamp,
+				rup_event_data->boot_time);
+		else
+			CAM_DBG(CAM_ISP,
+				"SOF timestamp is updated at early time, qtimer: [%llu:%09llu], boot: [%llu:%09llu]",
+				ctx_isp->sof_timestamp_val/NSEC_PER_SEC,
+				ctx_isp->sof_timestamp_val%NSEC_PER_SEC,
+				ctx_isp->boot_timestamp/NSEC_PER_SEC,
+				ctx_isp->boot_timestamp%NSEC_PER_SEC);
+	}
 
 	if (list_empty(&ctx->wait_req_list)) {
 		CAM_ERR(CAM_ISP, "Reg upd ack with no waiting request, ctx_idx: %u, link: 0x%x",
@@ -5727,6 +5938,7 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 	rc = ctx->hw_mgr_intf->hw_config(ctx->hw_mgr_intf->hw_mgr_priv, &cfg);
 	if (!rc) {
 		spin_lock_bh(&ctx->lock);
+		atomic_set(&ctx_isp->last_applied_default, 0);
 		ctx_isp->substate_activated = next_state;
 		ctx_isp->last_applied_req_id = apply->request_id;
 		ctx_isp->last_applied_jiffies = jiffies;
@@ -7623,6 +7835,7 @@ static int __cam_isp_ctx_config_dev_in_top_state(
 	struct cam_isp_hw_cmd_args       isp_hw_cmd_args;
 	uint32_t                         packet_opcode = 0;
 	struct cam_isp_ch_ctx_fcg_config_internal *sfe_ch_ctx_fcg, *ife_ch_ctx_fcg;
+	struct cam_kmd_buf_info *kmd_buff = NULL;
 
 	CAM_DBG(CAM_ISP, "get free request object......ctx_idx: %u, link: 0x%x",
 		ctx->ctx_id, ctx->link_hdl);
@@ -7875,6 +8088,8 @@ put_ref:
 	}
 free_req_and_buf_tracker_list:
 	cam_smmu_buffer_tracker_putref(&req->buf_tracker);
+	kmd_buff = &(req_isp->hw_update_data.kmd_cmd_buff_info);
+	cam_mem_put_kref(kmd_buff->handle);
 free_packet:
 	cam_common_mem_free(packet);
 free_req:
@@ -8042,8 +8257,9 @@ static int __cam_isp_ctx_allocate_mem_hw_entries(
 			goto end;
 		}
 
-		ctx_isp->req_isp[i].deferred_fence_map_index = kcalloc(param->total_ports_acq,
-			sizeof(uint32_t), GFP_KERNEL);
+		ctx_isp->req_isp[i].deferred_fence_map_index =
+			CAM_MEM_ZALLOC_ARRAY(param->total_ports_acq,
+				sizeof(uint32_t), GFP_KERNEL);
 		if (!ctx_isp->req_isp[i].deferred_fence_map_index) {
 			CAM_ERR(CAM_ISP, "%s[%d] no memory for defer fence map idx arr, ports:%u",
 				ctx->dev_name, ctx->ctx_id, param->total_ports_acq);
@@ -9151,6 +9367,18 @@ static int __cam_isp_ctx_start_dev_in_ready(struct cam_context *ctx,
 		start_isp.aup_write = true;
 	}
 
+	/*
+	 * During CSID start, if VFPS is enabled, dynamic EOF feature should be disabled to
+	 * avoid potential stability issue between continuous stream on and off
+	 */
+	if (!ctx_isp->vfps_aux_context) {
+		CAM_DBG(CAM_ISP,
+			"VFPS is not set, thus enabling dynamic EOF, ctx_idx: %u, link: 0x%x",
+			ctx->ctx_id, ctx->link_hdl);
+		start_isp.dyn_eof_enable = true;
+	}
+
+
 	ctx_isp->last_applied_req_id = req->request_id;
 
 	if (ctx->state == CAM_CTX_FLUSHED)
@@ -9793,6 +10021,21 @@ static int __cam_isp_ctx_process_evt(struct cam_context *ctx,
 				ctx->ctx_id, ctx->link_hdl, link_evt_data->req_id, rc);
 	}
 		break;
+	case CAM_REQ_MGR_LINK_EVT_REGISTER_EOF:
+		hw_cmd_args.ctxt_to_hw_map = ctx->ctxt_to_hw_map;
+		hw_cmd_args.cmd_type = CAM_HW_MGR_CMD_INTERNAL;
+		isp_hw_cmd_args.cmd_type = CAM_ISP_HW_MGR_REGISTER_EOF_IRQ;
+		isp_hw_cmd_args.u.eof_irq_enable = link_evt_data->u.enable_eof_irq;
+		hw_cmd_args.u.internal_args = (void *)&isp_hw_cmd_args;
+
+		rc = ctx->hw_mgr_intf->hw_cmd(ctx->hw_mgr_intf->hw_mgr_priv,
+			&hw_cmd_args);
+		if (rc)
+			CAM_ERR(CAM_ISP,
+				"Failed to process EOF register info on ctx: %u, link: 0x%x, req_id: %llu rc: %d",
+				ctx->ctx_id, ctx->link_hdl, link_evt_data->req_id, rc);
+
+		break;
 	default:
 		CAM_WARN(CAM_ISP,
 			"Unsupported event type: 0x%x on ctx: %u link: 0x%x",
@@ -9917,6 +10160,7 @@ static int __cam_isp_ctx_apply_default_settings(
 			CAM_WARN_RATE_LIMIT(CAM_ISP,
 				"Apply default failed in active substate %d rc %d ctx: %u link: 0x%x",
 				ctx_isp->substate_activated, rc, ctx->ctx_id, ctx->link_hdl);
+		atomic_set(&ctx_isp->last_applied_default, 1);
 	}
 
 	return rc;
