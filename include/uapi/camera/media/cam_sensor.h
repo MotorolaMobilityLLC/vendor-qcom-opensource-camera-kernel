@@ -166,6 +166,12 @@ struct cam_cmd_probe {
 	uint32_t    data_mask;
 	uint16_t    camera_id;
 	uint16_t    reserved;
+	uint8_t     probe_sub_device;
+	uint32_t    sub_device_addr;
+	uint8_t     sub_device_data_type;
+	uint8_t     sub_device_addr_type;
+	uint32_t    sub_device_id_addr;
+	uint32_t    expected_sub_device_id;
 } __attribute__((packed));
 
 /**
