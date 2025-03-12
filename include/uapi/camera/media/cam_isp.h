@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __UAPI_CAM_ISP_H__
@@ -144,6 +144,7 @@
 #define CAM_ISP_GENERIC_BLOB_TYPE_UBWC_CONFIG_V3            34
 #define CAM_ISP_GENERIC_BLOB_TYPE_EXP_ORDER_UPDATE          35
 #define CAM_ISP_GENERIC_BLOB_TYPE_FRAMEHEADER_CFG           36
+#define CAM_ISP_GENERIC_BLOB_TYPE_DYNAMIC_MODE_SWITCH_V2    37
 
 #define CAM_ISP_VC_DT_CFG                4
 #define CAM_ISP_INVALID_VC_VALUE         0xFFFF
@@ -1366,6 +1367,46 @@ struct cam_isp_mode_switch_info{
 	__u32                                num_expoures;
 	__u32                                reserved;
 } __attribute__((packed));
+
+/**
+ * struct cam_isp_mode_switch_dt_info  -  DT info on each switch
+ *
+ * @path_id                 : Source path ID (PXL, PXL1, RDI2, ...)
+ * @expected_dt             : Expected DT for the source path
+ * @num_valid_params        : Number of valid params
+ * @param_mask              : Mask to indicate fields in params
+ * @params                  : Additional Params
+ */
+struct cam_isp_mode_switch_dt_info {
+	__u32 path_id;
+	__u32 expected_dt;
+	__u32 num_valid_params;
+	__u32 valid_params_mask;
+	__u32 params[4];
+};
+
+/**
+ * struct cam_isp_mode_switch_info_v2  -  Dynamic mode switch info v2
+ *
+ * @version                 : Version info
+ * @mup                     : MUP for incoming VC of next frame
+ * @num_expoures            : Number of exposures
+ * @num_path_dt_info        : Number of DT path info's provided
+ * @num_valid_params        : Number of valid params
+ * @param_mask              : Mask to indicate fields in params
+ * @params                  : Additional Params
+ * @dt_info                 : Per path DT info
+ */
+struct cam_isp_mode_switch_info_v2 {
+	__u32                                version;
+	__u32                                mup;
+	__u32                                num_expoures;
+	__u32                                num_path_dt_info;
+	__u32                                num_valid_params;
+	__u32                                valid_params_mask;
+	__u32                                params[4];
+	struct cam_isp_mode_switch_dt_info   dt_info[];
+};
 
 /**
  * struct cam_isp_nfi_mode_switch_info - New Frame ID (NFI) Based Switching Scheme info
