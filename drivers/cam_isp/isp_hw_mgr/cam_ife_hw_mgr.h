@@ -441,6 +441,7 @@ struct cam_cmd_buf_desc_addr_len {
  * @pri_rdi_out_res:         Primary RDI res for RDI only cases
  * @drv_info:                Array to include the per request drv info
  * @is_init_drv_cfg_received: Indicate if init drv config has received
+ * @current_leading_dt:      Current leading dt for this ctx
  */
 struct cam_ife_hw_mgr_ctx {
 	struct list_head                           list;
@@ -513,6 +514,7 @@ struct cam_ife_hw_mgr_ctx {
 	struct cam_isp_hw_per_req_info             per_req_info[MAX_DRV_REQUEST_DEPTH];
 	uint8_t                                    wr_per_req_index;
 	bool                                       is_init_drv_cfg_received;
+	uint32_t                                   current_leading_dt;
 };
 
 /**

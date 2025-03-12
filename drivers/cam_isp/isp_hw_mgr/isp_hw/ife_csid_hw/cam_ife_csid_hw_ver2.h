@@ -137,7 +137,7 @@ struct cam_ife_csid_ver2_rx_cfg  {
 	uint32_t rx2_irq_handle;
 	uint32_t irq_handle[CAM_IFE_CSID_RX_IRQ_STATUS_REG_MAX];
 	uint32_t err_irq_handle[CAM_IFE_CSID_RX_IRQ_STATUS_REG_MAX];
-	bool     dynamic_sensor_switch_en;
+	bool dynamic_sensor_switch_en;
 };
 
 struct cam_ife_csid_ver2_csi2_rx_reg_info {
@@ -525,6 +525,7 @@ struct cam_ife_csid_ver2_path_reg_info {
 	uint32_t eof_irq_mask;
 	uint32_t epoch0_irq_mask;
 	uint32_t epoch1_irq_mask;
+	uint32_t illegal_dt_irq_mask;
 	uint32_t rup_aup_mask;
 	uint32_t rup_mask;
 	uint32_t aup_mask;
@@ -827,7 +828,9 @@ struct cam_ife_csid_ver2_reg_info {
  * @drv_init_done:            Indicates if drv init config is done
  * @is_drv_config_en:         If drv config is enabled
  * @standby_asserted:         Standby was asserted at stream off
+ * @pkt_capture_chk_en:       Pkt Capture check is enabled
  * @crc_error_threshold:      CRC error threshold to be treated as fatal error
+ * @expected_leading_dt:      Expected leading DT
  *
  */
 struct cam_ife_csid_ver2_hw {
@@ -880,7 +883,9 @@ struct cam_ife_csid_ver2_hw {
 	bool                                   drv_init_done;
 	bool                                   is_drv_config_en;
 	bool                                   standby_asserted;
+	bool                                   pkt_capture_chk_en;
 	uint32_t                               crc_error_threshold;
+	uint32_t                               expected_leading_dt;
 };
 
 /*

@@ -1330,6 +1330,10 @@ static int __cam_isp_ctx_enqueue_init_request(
 					req_isp_new->hw_update_data.mup_val;
 				req_isp_old->hw_update_data.num_exp =
 					req_isp_new->hw_update_data.num_exp;
+				req_isp_old->hw_update_data.pkt_capture_chk_en =
+					req_isp_new->hw_update_data.pkt_capture_chk_en;
+				req_isp_old->hw_update_data.expected_leading_dt =
+					req_isp_new->hw_update_data.expected_leading_dt;
 			}
 
 			/* Copy FCG HW update params */

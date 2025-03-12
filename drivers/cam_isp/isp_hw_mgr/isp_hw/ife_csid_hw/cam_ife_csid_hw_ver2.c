@@ -3210,6 +3210,80 @@ void cam_ife_csid_ver2_print_format_measure_info(
 
 }
 
+static void cam_ife_csid_ver2_notify_illegal_dt(
+	uint32_t bit_pos,
+	struct cam_ife_csid_ver2_path_data *path_data,
+	struct cam_isp_resource_node *res,
+	struct cam_ife_csid_ver2_hw *csid_hw)
+{
+	size_t len;
+	uint32_t index = path_data->path_cfg.irq_reg_idx, err_type = 0;
+	uint8_t *log_buf;
+	uint8_t **irq_reg_tag = cam_ife_csid_get_irq_reg_tag_ptr();
+	struct cam_ife_csid_ver2_reg_info *csid_reg = csid_hw->core_info->csid_reg;
+
+	log_buf = csid_hw->log_buf;
+	if (csid_reg->path_irq_desc[bit_pos].bitmask != 0) {
+		CAM_ERR_BUF(CAM_ISP, log_buf, CAM_IFE_CSID_LOG_BUF_LEN, &len,
+			"CSID[%u] %s detected at epoch", csid_hw->hw_intf->hw_idx,
+			csid_reg->path_irq_desc[bit_pos].irq_name);
+		if (csid_reg->path_irq_desc[bit_pos].desc)
+			CAM_ERR_BUF(CAM_ISP, log_buf, CAM_IFE_CSID_LOG_BUF_LEN, &len,
+				"%s", csid_reg->path_irq_desc[bit_pos].desc);
+		if (csid_reg->path_irq_desc[bit_pos].debug)
+			CAM_ERR_BUF(CAM_ISP, log_buf, CAM_IFE_CSID_LOG_BUF_LEN, &len,
+				"Debug: %s", csid_reg->path_irq_desc[bit_pos].debug);
+
+		if (csid_reg->path_irq_desc[bit_pos].err_handler)
+			csid_reg->path_irq_desc[bit_pos].err_handler(csid_hw, res);
+
+		if (len)
+			CAM_ERR(CAM_ISP, "CSID[%u] %s status: 0x%x Errors:%s",
+				csid_hw->hw_intf->hw_idx, irq_reg_tag[index],
+				bit_pos, log_buf);
+
+		err_type = csid_reg->path_irq_desc[bit_pos].err_type;
+		if (csid_reg->path_irq_desc[bit_pos].err_handler)
+			csid_reg->path_irq_desc[bit_pos].err_handler(csid_hw, res);
+
+		cam_ife_csid_ver2_handle_event_err(csid_hw,
+			bit_pos, err_type, false, res);
+	}
+}
+
+static int cam_ife_csid_hw_ver2_check_for_illegal_dt(
+	struct cam_ife_csid_ver2_path_data *path_data,
+	struct cam_isp_resource_node *res,
+	struct cam_ife_csid_ver2_hw *csid_hw)
+{
+	uint32_t val, dt, irq_mask;
+	struct cam_hw_soc_info *soc_info = &csid_hw->hw_info->soc_info;
+	struct cam_ife_csid_ver2_reg_info *csid_reg = csid_hw->core_info->csid_reg;
+
+	val = cam_io_r_mb(soc_info->reg_map[0].mem_base +
+		csid_reg->csi2_reg->captured_long_pkt_0_addr);
+	dt = (val & csid_reg->csi2_reg->dt_mask) >> csid_reg->csi2_reg->dt_shift;
+	if (csid_hw->expected_leading_dt != dt) {
+		CAM_ERR(CAM_ISP, "CSID[%u] %s expected_dt: %u actual_dt: %u capture_cfg: 0x%x",
+			csid_hw->hw_intf->hw_idx, res->res_name, csid_hw->expected_leading_dt, dt,
+			cam_io_r_mb(soc_info->reg_map[0].mem_base +
+				csid_reg->csi2_reg->capture_ctrl_addr));
+			cam_ife_csid_ver2_notify_illegal_dt(
+				path_data->reg_offsets->illegal_dt_irq_mask,
+				path_data, res, csid_hw);
+	} else {
+		irq_mask = path_data->reg_offsets->illegal_dt_irq_mask;
+		cam_irq_controller_update_irq(
+			csid_hw->path_irq_controller[res->res_id],
+			path_data->path_cfg.err_irq_handle, true, &irq_mask);
+		CAM_DBG(CAM_ISP, "CSID[%u] %s DT match has occurred, enabling illegal_dt_irq",
+			csid_hw->hw_intf->hw_idx, res->res_name);
+	}
+
+	csid_hw->pkt_capture_chk_en = false;
+	return 0;
+}
+
 static int cam_ife_csid_ver2_ipp_bottom_half(
 	void                                      *handler_priv,
 	void                                      *evt_payload_priv)
@@ -3322,6 +3396,15 @@ static int cam_ife_csid_ver2_ipp_bottom_half(
 	if (irq_status_ipp & epoch0_irq_mask) {
 		if ((!csid_hw->flags.last_exp_valid) ||
 			(csid_hw->flags.last_exp_valid && path_data->path_cfg.allow_epoch_eof_cb)) {
+			/*
+			 * Currently pkt capture is validated only at stream on/resume
+			 * Read long pkt captured at epoch, and match with expected DT
+			 * If the match is successful enable illegal_dt_irq for primary
+			 * path
+			 */
+			if (csid_hw->pkt_capture_chk_en)
+				cam_ife_csid_hw_ver2_check_for_illegal_dt(path_data, res, csid_hw);
+
 			cam_ife_csid_ver2_update_event_ts(&path_data->path_cfg.epoch_ts,
 				&payload->timestamp);
 			csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_EPOCH,
@@ -3605,7 +3688,16 @@ static int cam_ife_csid_ver2_rdi_bottom_half(
 
 		if ((!csid_hw->flags.last_exp_valid) ||
 			(csid_hw->flags.last_exp_valid &&
-				path_data->path_cfg.allow_epoch_eof_cb)) {
+			path_data->path_cfg.allow_epoch_eof_cb)) {
+			/*
+			 * Currently pkt capture is validated only at stream on/resume
+			 * Read long pkt captured at epoch, and match with expected DT
+			 * If the match is successful enable illegal_dt_irq for primary
+			 * path
+			 */
+			if (!evt_info.is_secondary_evt && csid_hw->pkt_capture_chk_en)
+				cam_ife_csid_hw_ver2_check_for_illegal_dt(path_data, res, csid_hw);
+
 			cam_ife_csid_ver2_update_event_ts(&path_data->path_cfg.epoch_ts,
 				&payload->timestamp);
 			csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_EPOCH,
@@ -5880,50 +5972,36 @@ static int cam_ife_csid_ver2_rx_capture_config(
 	struct cam_ife_csid_ver2_reg_info   *csid_reg;
 	struct cam_hw_soc_info              *soc_info;
 	struct cam_ife_csid_ver2_rx_cfg     *rx_cfg;
-	uint32_t vc, dt, i;
+	uint32_t vc, dt;
 	uint32_t val = 0;
 
-	for (i = 0; i < CAM_IFE_CSID_CID_MAX; i++)
-		if (csid_hw->cid_data[i].cid_cnt)
-			break;
-
-	if (i == CAM_IFE_CSID_CID_MAX) {
-		CAM_WARN(CAM_ISP, "CSID[%u] no valid cid",
-			csid_hw->hw_intf->hw_idx);
+	if (!csid_hw->debug_info.rx_capture_debug_set)
 		return 0;
-	}
 
 	rx_cfg = &csid_hw->rx_cfg;
-	if (csid_hw->debug_info.rx_capture_debug_set) {
-		vc = csid_hw->debug_info.rx_capture_vc;
-		dt = csid_hw->debug_info.rx_capture_dt;
-	} else {
-		vc  = csid_hw->cid_data[i].vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_0].vc;
-		dt  = csid_hw->cid_data[i].vc_dt[CAM_IFE_CSID_MULTI_VC_DT_GRP_0].dt;
-	}
-
 	csid_reg = (struct cam_ife_csid_ver2_reg_info *) csid_hw->core_info->csid_reg;
 	soc_info = &csid_hw->hw_info->soc_info;
+	vc = csid_hw->debug_info.rx_capture_vc;
+	dt = csid_hw->debug_info.rx_capture_dt;
 
 	if (csid_hw->debug_info.debug_val &
-			CAM_IFE_CSID_DEBUG_ENABLE_SHORT_PKT_CAPTURE)
+		CAM_IFE_CSID_DEBUG_ENABLE_SHORT_PKT_CAPTURE)
 		val = ((1 << csid_reg->csi2_reg->capture_short_pkt_en_shift) |
 			(vc << csid_reg->csi2_reg->capture_short_pkt_vc_shift));
 
 	/* CAM_IFE_CSID_DEBUG_ENABLE_LONG_PKT_CAPTURE */
 	val |= ((1 << csid_reg->csi2_reg->capture_long_pkt_en_shift) |
-		(dt << csid_reg->csi2_reg->capture_long_pkt_dt_shift) |
-		(vc << csid_reg->csi2_reg->capture_long_pkt_vc_shift));
+	(dt << csid_reg->csi2_reg->capture_long_pkt_dt_shift) |
+	(vc << csid_reg->csi2_reg->capture_long_pkt_vc_shift));
 
 	/* CAM_IFE_CSID_DEBUG_ENABLE_CPHY_PKT_CAPTURE */
 	if (rx_cfg->lane_type == CAM_ISP_LANE_TYPE_CPHY) {
 		val |= ((1 << csid_reg->csi2_reg->capture_cphy_pkt_en_shift) |
-			(dt << csid_reg->csi2_reg->capture_cphy_pkt_dt_shift) |
-			(vc << csid_reg->csi2_reg->capture_cphy_pkt_vc_shift));
+		(dt << csid_reg->csi2_reg->capture_cphy_pkt_dt_shift) |
+		(vc << csid_reg->csi2_reg->capture_cphy_pkt_vc_shift));
 	}
 
 	cam_io_w_mb(val, soc_info->reg_map[0].mem_base + csid_reg->csi2_reg->capture_ctrl_addr);
-
 	CAM_DBG(CAM_ISP, "CSID[%u] rx capture_ctrl: 0x%x", csid_hw->hw_intf->hw_idx, val);
 
 	return 0;
@@ -7061,6 +7139,7 @@ int cam_ife_csid_ver2_start(void *hw_priv, void *args,
 	mutex_lock(&csid_hw->hw_info->hw_mutex);
 	csid_hw->flags.sof_irq_triggered = false;
 	csid_hw->counters.irq_debug_cnt = 0;
+	csid_hw->pkt_capture_chk_en = false;
 	csid_hw->is_drv_config_en = start_args->is_drv_config_en;
 
 	/*
@@ -7244,6 +7323,11 @@ int cam_ife_csid_ver2_start(void *hw_priv, void *args,
 		 */
 		cam_subdev_notify_message(CAM_CSIPHY_DEVICE_TYPE,
 			CAM_SUBDEV_MESSAGE_DRV_INFO, (void *)&drv_info);
+	}
+
+	if (start_args->pkt_capture_chk_en) {
+		csid_hw->pkt_capture_chk_en = start_args->pkt_capture_chk_en;
+		csid_hw->expected_leading_dt = start_args->expected_leading_dt;
 	}
 
 	for (i = 0; i < start_args->num_res; i++) {
@@ -8061,13 +8145,17 @@ static int cam_ife_csid_ver2_set_dynamic_switch_config(
 	struct cam_ife_csid_ver2_hw *csid_hw,
 	void                        *cmd_args)
 {
+	int rc = 0;
 	struct cam_ife_csid_mode_switch_update_args *switch_update = NULL;
+	struct cam_ife_csid_ver2_reg_info *csid_reg;
 
 	if (!csid_hw)
 		return -EINVAL;
 
 	switch_update =
 		(struct cam_ife_csid_mode_switch_update_args *)cmd_args;
+	csid_reg = (struct cam_ife_csid_ver2_reg_info *)
+		csid_hw->core_info->csid_reg;
 
 	if (switch_update->mup_args.use_mup) {
 		csid_hw->rx_cfg.mup = switch_update->mup_args.mup_val;
@@ -8110,7 +8198,70 @@ static int cam_ife_csid_ver2_set_dynamic_switch_config(
 		}
 	}
 
-	return 0;
+	if ((csid_reg->cmn_reg->num_dt_supported > CAM_IFE_CSID_DEFAULT_NUM_DT) &&
+		!switch_update->mup_dt_info.skip_upd) {
+		int32_t vc = -1, i;
+		uint32_t reg_val_pair[4], size, num_pairs = 2;
+		struct cam_isp_resource_node *res;
+		struct cam_ife_csid_ver2_path_data *path_data;
+		struct cam_ife_csid_ver2_path_cfg *path_cfg;
+		struct cam_ife_csid_cid_data *cid_data;
+		struct cam_cdm_utils_ops *cdm_util_ops;
+
+		res = &csid_hw->path_res[switch_update->mup_dt_info.path_res_id];
+		if (res->res_state == CAM_ISP_RESOURCE_STATE_AVAILABLE)
+			return -EINVAL;
+
+		path_data = (struct cam_ife_csid_ver2_path_data *)res->res_priv;
+		path_cfg = &path_data->path_cfg;
+		cid_data = &csid_hw->cid_data[path_cfg->cid];
+
+		for (i = 0; i < CAM_IFE_CSID_MULTI_VC_DT_GRP_2; i++) {
+			if (!cid_data->vc_dt[i].valid)
+				continue;
+
+			if ((switch_update->mup_dt_info.mup_val) == (cid_data->vc_dt[i].vc & 0x1)) {
+				vc = cid_data->vc_dt[i].vc;
+				break;
+			}
+		}
+
+		/* VC for the given MUP not found */
+		if (vc < 0) {
+			CAM_ERR(CAM_ISP,
+				"CSID[%u] no vc found for the given mup: %u",
+				csid_hw->hw_intf->hw_idx, switch_update->mup_dt_info.mup_val);
+			return -EINVAL;
+		}
+
+		CAM_DBG(CAM_ISP,
+			"CSID[%u] Configuring vc: %u dt: %u for pkt capture",
+			csid_hw->hw_intf->hw_idx, vc, switch_update->mup_dt_info.expected_dt);
+
+		cdm_util_ops = (struct cam_cdm_utils_ops *)res->cdm_ops;
+		size = cdm_util_ops->cdm_required_size_reg_random(num_pairs);
+		if ((size * 4) > switch_update->mup_dt_info.cmd.size) {
+			CAM_ERR(CAM_ISP, "CSID[%u] buf size:%d is not sufficient, expected: %d",
+				csid_hw->hw_intf->hw_idx,
+				switch_update->mup_dt_info.cmd.size, (size * 4));
+			return -EINVAL;
+		}
+
+		/* Reset long pkt capture strobe */
+		reg_val_pair[0] = csid_reg->csi2_reg->rst_strobes_addr;
+		reg_val_pair[1] = 1;
+		/* Configure long pkt capture */
+		reg_val_pair[2] = csid_reg->csi2_reg->capture_ctrl_addr;
+		reg_val_pair[3] = ((1 << csid_reg->csi2_reg->capture_long_pkt_en_shift) |
+			(switch_update->mup_dt_info.expected_dt <<
+			csid_reg->csi2_reg->capture_long_pkt_dt_shift) |
+			(vc << csid_reg->csi2_reg->capture_long_pkt_vc_shift));
+		cdm_util_ops->cdm_write_regrandom(switch_update->mup_dt_info.cmd.cmd_buf_addr,
+			num_pairs, &reg_val_pair[0]);
+		switch_update->mup_dt_info.cmd.used_bytes = size * 4;
+	}
+
+	return rc;
 }
 
 static int cam_ife_csid_ver2_set_csid_clock(
