@@ -263,6 +263,7 @@ static int cam_actuator_i2c_component_bind(struct device *dev,
 	for (i = 0; i < MAX_PER_FRAME_ARRAY; i++)
 		INIT_LIST_HEAD(&(a_ctrl->i2c_data.per_frame[i].list_head));
 
+	mutex_init(&a_ctrl->actuator_park_mutex);
 	init_completion(&a_ctrl->park_lens_complete);
 
 	/* Create worker for actuator park with 1 task */
@@ -330,6 +331,7 @@ static void cam_actuator_i2c_component_unbind(struct device *dev,
 	mutex_unlock(&(a_ctrl->actuator_mutex));
 	cam_unregister_subdev(&(a_ctrl->v4l2_dev_str));
 	cam_req_mgr_workq_destroy(&(a_ctrl->workq));
+	mutex_destroy(&a_ctrl->actuator_park_mutex);
 	cam_sensor_util_release_resources(&(a_ctrl->io_master_info), &(a_ctrl->soc_info));
 
 	/*Free Allocated Mem */
@@ -468,6 +470,7 @@ static int cam_actuator_platform_component_bind(struct device *dev,
 	for (i = 0; i < MAX_PER_FRAME_ARRAY; i++)
 		INIT_LIST_HEAD(&(a_ctrl->i2c_data.per_frame[i].list_head));
 
+	mutex_init(&a_ctrl->actuator_park_mutex);
 	init_completion(&a_ctrl->park_lens_complete);
 
 	/* Create worker for actuator park with 1 task */
@@ -547,6 +550,7 @@ static void cam_actuator_platform_component_unbind(struct device *dev,
 	mutex_unlock(&(a_ctrl->actuator_mutex));
 	cam_unregister_subdev(&(a_ctrl->v4l2_dev_str));
 	cam_req_mgr_workq_destroy(&(a_ctrl->workq));
+	mutex_destroy(&a_ctrl->actuator_park_mutex);
 	cam_sensor_util_release_resources(&(a_ctrl->io_master_info), &(a_ctrl->soc_info));
 	CAM_MEM_FREE(a_ctrl->i2c_data.per_frame);
 	a_ctrl->i2c_data.per_frame = NULL;

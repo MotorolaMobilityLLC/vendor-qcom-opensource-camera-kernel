@@ -1048,6 +1048,7 @@ static int cam_ife_mgr_handle_reg_dump(struct cam_ife_hw_mgr_ctx *ctx,
 	struct cam_hw_soc_skip_dump_args skip_dump_args;
 	uintptr_t cpu_addr = 0;
 	size_t    buf_size = 0;
+	uint8_t total_ctx_acquired = 0;
 
 	CAM_DBG(CAM_ISP, "Reg dump req_type: %u ctx_idx: %u req:%llu",
 		meta_type, ctx->ctx_index, ctx->applied_req_id);
@@ -1082,8 +1083,13 @@ static int cam_ife_mgr_handle_reg_dump(struct cam_ife_hw_mgr_ctx *ctx,
 			"Reg dump values might be from more than one request, ctx_idx: %u",
 			ctx->ctx_index);
 
-	if ((meta_type != CAM_ISP_PACKET_META_REG_DUMP_ON_ERROR) &&
-			g_ife_hw_mgr.isp_caps.skip_regdump_data.skip_regdump) {
+	for (i = 0; i < CAM_ISP_MULTI_CTXT_MAX; i++) {
+		if (ctx->acq_hw_ctxt_src_dst_map[i])
+			total_ctx_acquired++;
+	}
+
+	if (g_ife_hw_mgr.isp_caps.skip_regdump_data.skip_regdump &&
+			(total_ctx_acquired != 1)) {
 		skip_dump_args.skip_regdump =
 			g_ife_hw_mgr.isp_caps.skip_regdump_data.skip_regdump;
 		skip_dump_args.start_offset =
@@ -1661,6 +1667,7 @@ err:
 
 static int cam_ife_mgr_csid_start_hw(
 	struct   cam_ife_hw_mgr_ctx *ctx,
+	struct cam_isp_prepare_hw_update_data *hw_update_data,
 	uint32_t primary_rdi_csid_res,
 	bool     is_internal_start,
 	bool     start_only,
@@ -1723,6 +1730,12 @@ static int cam_ife_mgr_csid_start_hw(
 					"CSID[%u], physical CDM hw_idx is invalid: %d on ctx: %u",
 					hw_intf->hw_idx, ctx->cdm_hw_idx, ctx->ctx_index);
 				return -EINVAL;
+			}
+
+			if (hw_update_data && hw_update_data->pkt_capture_chk_en) {
+				start_args.pkt_capture_chk_en = true;
+				start_args.expected_leading_dt =
+					hw_update_data->expected_leading_dt;
 			}
 
 			start_args.cdm_hw_idx = ctx->cdm_hw_idx;
@@ -8030,6 +8043,11 @@ skip_bw_clk_update:
 				continue;
 			}
 
+			if ((cmd->flags == CAM_ISP_SB_CFG_BL) && (!cfg->init_packet)) {
+				skip++;
+				continue;
+			}
+
 			if (cmd->flags == CAM_ISP_UNUSED_BL ||
 				cmd->flags >= CAM_ISP_BL_MAX)
 				CAM_ERR(CAM_ISP, "Unexpected BL type %d, ctx_idx=%u",
@@ -8184,7 +8202,10 @@ skip_bw_clk_update:
 				if (hw_update_data->mup_en) {
 					ctx->current_mup = hw_update_data->mup_val;
 					ctx->curr_num_exp = hw_update_data->num_exp;
+					ctx->current_leading_dt =
+						hw_update_data->expected_leading_dt;
 				}
+
 				hw_update_data->mup_en = false;
 
 				/* Try for INIT packet reg dump by default - no debugfs set */
@@ -8500,6 +8521,7 @@ static int cam_ife_mgr_stop_hw(void *hw_mgr_priv, void *stop_hw_args)
 	/* reset scratch buffer/mup expect INIT again for UMD triggered stop/flush */
 	if (!stop_isp->is_internal_stop) {
 		ctx->current_mup = 0;
+		ctx->current_leading_dt = 0;
 		if (ctx->scratch_buf_info.sfe_scratch_config)
 			memset(ctx->scratch_buf_info.sfe_scratch_config, 0,
 				sizeof(struct cam_sfe_scratch_buf_cfg));
@@ -8690,7 +8712,8 @@ static int cam_ife_mgr_restart_hw(void *start_hw_args)
 
 	CAM_DBG(CAM_ISP, "START CSID HW ... in ctx id:%u", ctx->ctx_index);
 	/* Start the IFE CSID HW devices */
-	rc = cam_ife_mgr_csid_start_hw(ctx, CAM_IFE_PIX_PATH_RES_MAX, false, false, false, false);
+	rc = cam_ife_mgr_csid_start_hw(ctx, NULL, CAM_IFE_PIX_PATH_RES_MAX, false,
+		false, false, false);
 	if (rc) {
 		CAM_ERR(CAM_ISP, "Error in starting CSID HW in ctx id:%u", ctx->ctx_index);
 		goto err;
@@ -8857,6 +8880,8 @@ static int cam_ife_mgr_start_hw(void *hw_mgr_priv, void *start_hw_args)
 	uint32_t                             primary_rdi_csid_res;
 	struct cam_ife_csid_top_config_args  csid_top_args = {0};
 	struct cam_hw_intf                  *hw_intf;
+	struct cam_hw_config_args            *cfg;
+	struct cam_isp_prepare_hw_update_data *hw_update_data;
 
 	primary_rdi_src_res = CAM_ISP_HW_VFE_IN_MAX;
 	primary_rdi_csid_res = CAM_IFE_PIX_PATH_RES_MAX;
@@ -9109,10 +9134,12 @@ start_only:
 		cam_ife_mgr_reset_streamon_scratch_cfg(ctx);
 	}
 
+	cfg = &start_isp->hw_config;
+	hw_update_data = (struct cam_isp_prepare_hw_update_data *)cfg->priv;
 	CAM_DBG(CAM_ISP, "START CSID HW ... in ctx id:%u",
 		ctx->ctx_index);
 	/* Start the IFE CSID HW devices */
-	rc = cam_ife_mgr_csid_start_hw(ctx, primary_rdi_csid_res,
+	rc = cam_ife_mgr_csid_start_hw(ctx, hw_update_data, primary_rdi_csid_res,
 		start_isp->is_internal_start, start_isp->start_only,
 		start_isp->aup_write, start_isp->dyn_eof_enable);
 	if (rc)
@@ -10624,6 +10651,37 @@ static int cam_isp_blob_csid_discard_init_frame_update(
 	return rc;
 }
 
+static int cam_isp_update_csid_mode_update_util(
+	struct cam_ife_hw_mgr_ctx *ctx,
+	struct cam_ife_csid_mode_switch_update_args *csid_mup_upd_args)
+{
+	struct cam_hw_intf *hw_intf;
+	struct cam_ife_hw_mgr *ife_hw_mgr = ctx->hw_mgr;
+	int i, rc;
+
+	for (i = 0; i < ctx->num_base; i++) {
+		if (ctx->base[i].hw_type != CAM_ISP_HW_TYPE_CSID)
+			continue;
+
+		if (ctx->base[i].split_id != CAM_ISP_HW_SPLIT_LEFT)
+			continue;
+
+		hw_intf = ife_hw_mgr->csid_devices[ctx->base[i].idx];
+		if (hw_intf && hw_intf->hw_ops.process_cmd) {
+			rc = hw_intf->hw_ops.process_cmd(
+				hw_intf->hw_priv,
+				CAM_ISP_HW_CMD_CSID_DYNAMIC_SWITCH_UPDATE,
+				csid_mup_upd_args,
+				sizeof(struct cam_ife_csid_mode_switch_update_args));
+			if (rc)
+				CAM_ERR(CAM_ISP,
+					"Dynamic switch update failed, ctx_idx: %u",
+					ctx->ctx_index);
+		}
+	}
+
+	return rc;
+}
 
 static int cam_isp_blob_csid_dynamic_switch_update(
 	uint32_t                               blob_type,
@@ -10632,23 +10690,28 @@ static int cam_isp_blob_csid_dynamic_switch_update(
 	struct cam_hw_prepare_update_args     *prepare)
 {
 	struct cam_ife_hw_mgr_ctx                  *ctx = NULL;
-	struct cam_hw_intf                         *hw_intf;
 	struct cam_ife_csid_mode_switch_update_args csid_mup_upd_args = {0};
 	struct cam_ife_hw_mgr                      *ife_hw_mgr;
 	struct cam_isp_prepare_hw_update_data      *prepare_hw_data;
-	int                                         i, rc = -EINVAL;
 
 	ctx = prepare->ctxt_to_hw_map;
 	ife_hw_mgr = ctx->hw_mgr;
+	prepare_hw_data = (struct cam_isp_prepare_hw_update_data  *)
+			prepare->priv;
+
+	if (prepare_hw_data->mup_en) {
+		CAM_ERR(CAM_ISP, "MUP is already updated for Req: %lld on ctx: %u",
+			prepare->packet->header.request_id, ctx->ctx_index);
+		return -EINVAL;
+	}
 
 	CAM_INFO(CAM_ISP,
 		"csid mup value=%u, ctx_idx: %u req id %lld", mup_config->mup,
 		ctx->ctx_index, prepare->packet->header.request_id);
 
-	prepare_hw_data = (struct cam_isp_prepare_hw_update_data  *)
-			prepare->priv;
 	prepare_hw_data->mup_en = true;
 	prepare_hw_data->mup_val = mup_config->mup;
+	csid_mup_upd_args.mup_dt_info.skip_upd = true;
 
 	/* Check for continuous out of sync */
 	if (ife_hw_mgr->debug_cfg.csid_out_of_sync_simul >> 1)
@@ -10661,34 +10724,153 @@ static int cam_isp_blob_csid_dynamic_switch_update(
 	if (prepare_hw_data->packet_opcode_type == CAM_ISP_PACKET_INIT_DEV) {
 		csid_mup_upd_args.mup_args.mup_val = mup_config->mup;
 		csid_mup_upd_args.mup_args.use_mup = true;
-	}
-
-	for (i = 0; i < ctx->num_base; i++) {
-		if (ctx->base[i].hw_type != CAM_ISP_HW_TYPE_CSID)
-			continue;
-
-		if (ctx->base[i].split_id != CAM_ISP_HW_SPLIT_LEFT)
-			continue;
 
 		/* For sHDR dynamic switch update num starting exposures to CSID for INIT */
-		if ((prepare_hw_data->packet_opcode_type == CAM_ISP_PACKET_INIT_DEV) &&
-			(ctx->flags.is_sfe_shdr)) {
+		if (ctx->flags.is_sfe_shdr) {
 			csid_mup_upd_args.exp_update_args.reset_discard_cfg = true;
 			csid_mup_upd_args.exp_update_args.num_exposures =
 				mup_config->num_expoures;
 		}
+	}
 
-		hw_intf = ife_hw_mgr->csid_devices[ctx->base[i].idx];
-		if (hw_intf && hw_intf->hw_ops.process_cmd) {
-			rc = hw_intf->hw_ops.process_cmd(
-				hw_intf->hw_priv,
-				CAM_ISP_HW_CMD_CSID_DYNAMIC_SWITCH_UPDATE,
-				&csid_mup_upd_args,
-				sizeof(struct cam_ife_csid_mode_switch_update_args));
-			if (rc)
-				CAM_ERR(CAM_ISP, "Dynamic switch update failed, ctx_idx: %u",
-					ctx->ctx_index);
+	return cam_isp_update_csid_mode_update_util(ctx, &csid_mup_upd_args);
+}
+
+static int cam_isp_blob_csid_dynamic_switch_process_dt_info(
+	struct cam_ife_hw_mgr_ctx *ctx,
+	struct cam_isp_mode_switch_info_v2 *mup_config_v2,
+	struct cam_kmd_buf_info *kmd_buf_info,
+	struct cam_ife_csid_mup_dt_updates *mup_dt_info)
+{
+	int i, rc = 0;
+	enum cam_ife_pix_path_res_id path_res_id;
+	uint32_t primary_path = CAM_ISP_PXL_PATH, expected_leading_dt = 0;
+
+	/* Override for RDI */
+	if (cam_isp_is_ctx_primary_rdi(ctx) &&
+		(ctx->pri_rdi_out_res < g_ife_hw_mgr.isp_caps.max_vfe_out_res_type)) {
+
+		switch (ctx->pri_rdi_out_res) {
+		case CAM_ISP_IFE_OUT_RES_RDI_0:
+			primary_path = CAM_ISP_RDI0_PATH;
+		break;
+		case CAM_ISP_IFE_OUT_RES_RDI_1:
+			primary_path = CAM_ISP_RDI1_PATH;
+		break;
+		case CAM_ISP_IFE_OUT_RES_RDI_2:
+			primary_path = CAM_ISP_RDI2_PATH;
+		break;
+		case CAM_ISP_IFE_OUT_RES_RDI_3:
+			primary_path = CAM_ISP_RDI3_PATH;
+		break;
+		case CAM_ISP_IFE_OUT_RES_RDI_4:
+			primary_path = CAM_ISP_RDI4_PATH;
+		break;
+		default:
+			return -EINVAL;
 		}
+	}
+
+	for (i = 0; i < mup_config_v2->num_path_dt_info; i++) {
+		if (mup_config_v2->dt_info[i].path_id != primary_path)
+			continue;
+
+		expected_leading_dt = mup_config_v2->dt_info[i].expected_dt;
+		break;
+	}
+
+	if (!expected_leading_dt) {
+		CAM_ERR(CAM_ISP, "No DT info provided for path: %u", primary_path);
+		return -EINVAL;
+	}
+
+	rc = cam_ife_mgr_util_process_csid_path_res(primary_path, &path_res_id);
+	if (unlikely(rc))
+		return -EINVAL;
+
+	/* No update required if there is no change */
+	if (ctx->current_leading_dt == expected_leading_dt) {
+		mup_dt_info->skip_upd = true;
+		return rc;
+	}
+
+	mup_dt_info->expected_dt = expected_leading_dt;
+	mup_dt_info->path_res_id = path_res_id;
+	mup_dt_info->skip_upd = false;
+	mup_dt_info->cmd.used_bytes = 0;
+	mup_dt_info->cmd.cmd_buf_addr = kmd_buf_info->cpu_addr +
+		kmd_buf_info->used_bytes / 4;
+	mup_dt_info->cmd.size = kmd_buf_info->size - kmd_buf_info->used_bytes;
+	return rc;
+}
+
+static int cam_isp_blob_csid_dynamic_switch_update_v2(
+	struct cam_isp_generic_blob_info *blob_info,
+	struct cam_isp_mode_switch_info_v2 *mup_config_v2,
+	struct cam_hw_prepare_update_args *prepare)
+{
+	struct cam_ife_hw_mgr_ctx                  *ctx = NULL;
+	struct cam_ife_hw_mgr                      *ife_hw_mgr;
+	struct cam_ife_csid_mode_switch_update_args csid_mup_upd_args = {0};
+	struct cam_isp_prepare_hw_update_data      *prepare_hw_data;
+	struct cam_kmd_buf_info                    *kmd_buf_info;
+	int                                         rc = -EINVAL;
+
+	ctx = prepare->ctxt_to_hw_map;
+	ife_hw_mgr = ctx->hw_mgr;
+	prepare_hw_data = (struct cam_isp_prepare_hw_update_data  *)prepare->priv;
+	kmd_buf_info = &prepare_hw_data->kmd_cmd_buff_info;
+
+	if (prepare_hw_data->mup_en) {
+		CAM_ERR(CAM_ISP, "MUP is already updated for Req: %lld on ctx: %u",
+			prepare->packet->header.request_id, ctx->ctx_index);
+		return -EINVAL;
+	}
+
+	CAM_INFO(CAM_ISP,
+		"csid mup value=%u, ctx_idx: %u req id %lld num_dt_path: %u",
+		mup_config_v2->mup, ctx->ctx_index, prepare->packet->header.request_id,
+		mup_config_v2->num_path_dt_info);
+
+	prepare_hw_data->mup_en = true;
+	prepare_hw_data->mup_val = mup_config_v2->mup;
+
+	/* Check for continuous out of sync */
+	if (ife_hw_mgr->debug_cfg.csid_out_of_sync_simul >> 1)
+		prepare_hw_data->mup_val = ~mup_config_v2->mup & 1;
+
+	/*
+	 * Send MUP to CSID for INIT packets only to be used at stream on and after.
+	 * For update packets with MUP, append the config to the cdm packet
+	 */
+	if (prepare_hw_data->packet_opcode_type == CAM_ISP_PACKET_INIT_DEV) {
+		csid_mup_upd_args.mup_args.mup_val = mup_config_v2->mup;
+		csid_mup_upd_args.mup_args.use_mup = true;
+	}
+
+	csid_mup_upd_args.mup_dt_info.mup_val = mup_config_v2->mup;
+	csid_mup_upd_args.mup_dt_info.skip_upd = true;
+	if (mup_config_v2->num_path_dt_info) {
+		rc = cam_isp_blob_csid_dynamic_switch_process_dt_info(ctx, mup_config_v2,
+			kmd_buf_info, &csid_mup_upd_args.mup_dt_info);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "Failed to process dt info for req: %lld ctx: %u",
+				prepare->packet->header.request_id, ctx->ctx_type);
+			return rc;
+		}
+	}
+
+	rc = cam_isp_update_csid_mode_update_util(ctx, &csid_mup_upd_args);
+	if (rc)
+		return rc;
+
+	if (csid_mup_upd_args.mup_dt_info.cmd.used_bytes) {
+		cam_ife_mgr_update_hw_entries_util(
+			CAM_ISP_SB_CFG_BL, csid_mup_upd_args.mup_dt_info.cmd.used_bytes,
+			kmd_buf_info, prepare, blob_info->entry_added);
+		blob_info->entry_added = true;
+		prepare_hw_data->pkt_capture_chk_en = true;
+		prepare_hw_data->expected_leading_dt = csid_mup_upd_args.mup_dt_info.expected_dt;
 	}
 
 	return rc;
@@ -13260,6 +13442,8 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 	case CAM_ISP_GENERIC_BLOB_TYPE_SFE_EXP_ORDER_CFG:
 	case CAM_ISP_GENERIC_BLOB_TYPE_SFE_FCG_CFG:
 	case CAM_ISP_GENERIC_BLOB_TYPE_FPS_CONFIG:
+	case CAM_ISP_GENERIC_BLOB_TYPE_DYNAMIC_MODE_SWITCH:
+	case CAM_ISP_GENERIC_BLOB_TYPE_DYNAMIC_MODE_SWITCH_V2:
 		break;
 	case CAM_ISP_GENERIC_BLOB_TYPE_IRQ_COMP_CFG:
 		{
@@ -13270,24 +13454,6 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 
 			prepare_hw_data->irq_comp_cfg_valid = true;
 		}
-		break;
-	case CAM_ISP_GENERIC_BLOB_TYPE_DYNAMIC_MODE_SWITCH: {
-		struct cam_isp_mode_switch_info    *mup_config;
-
-		if (blob_size < sizeof(struct cam_isp_mode_switch_info)) {
-			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu ctx_idx: %u",
-				blob_size,
-				sizeof(struct cam_isp_mode_switch_info), ife_mgr_ctx->ctx_index);
-			return -EINVAL;
-		}
-
-		mup_config = (struct cam_isp_mode_switch_info *)blob_data;
-
-		rc = cam_isp_blob_csid_dynamic_switch_update(
-			blob_type, blob_info, mup_config, prepare);
-		if (rc)
-			CAM_ERR(CAM_ISP, "MUP Update Failed, ctx_idx: %u", ife_mgr_ctx->ctx_index);
-	}
 		break;
 	case CAM_ISP_GENERIC_BLOB_TYPE_BW_LIMITER_CFG: {
 		struct cam_isp_out_rsrc_bw_limiter_config *bw_limit_config;
@@ -13695,7 +13861,6 @@ static int cam_csid_packet_generic_blob_handler(void *user_data,
 	case CAM_ISP_GENERIC_BLOB_TYPE_SFE_FE_CONFIG:
 	case CAM_ISP_GENERIC_BLOB_TYPE_SFE_EXP_ORDER_CFG:
 	case CAM_ISP_GENERIC_BLOB_TYPE_FPS_CONFIG:
-	case CAM_ISP_GENERIC_BLOB_TYPE_DYNAMIC_MODE_SWITCH:
 	case CAM_ISP_GENERIC_BLOB_TYPE_BW_LIMITER_CFG:
 	case CAM_ISP_GENERIC_BLOB_TYPE_INIT_CONFIG:
 	case CAM_ISP_GENERIC_BLOB_TYPE_RDI_LCR_CONFIG:
@@ -13724,6 +13889,60 @@ static int cam_csid_packet_generic_blob_handler(void *user_data,
 		CAM_DBG(CAM_ISP,
 			"IRQ comp cfg blob, ipp_src_ctxt_mask: 0x%x, ipp_dest_ctxt_mask: 0x%x",
 			irq_comp_cfg->ipp_src_ctxt_mask, irq_comp_cfg->ipp_dst_comp_mask);
+	}
+		break;
+	case CAM_ISP_GENERIC_BLOB_TYPE_DYNAMIC_MODE_SWITCH: {
+		struct cam_isp_mode_switch_info *mup_config;
+
+		if (blob_size < sizeof(struct cam_isp_mode_switch_info)) {
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu ctx_idx: %u",
+				blob_size,
+				sizeof(struct cam_isp_mode_switch_info), ife_mgr_ctx->ctx_index);
+			return -EINVAL;
+		}
+
+		mup_config = (struct cam_isp_mode_switch_info *)blob_data;
+		rc = cam_isp_blob_csid_dynamic_switch_update(
+			blob_type, blob_info, mup_config, prepare);
+		if (rc)
+			CAM_ERR(CAM_ISP, "MUP Update Failed, ctx_idx: %u", ife_mgr_ctx->ctx_index);
+	}
+		break;
+	case CAM_ISP_GENERIC_BLOB_TYPE_DYNAMIC_MODE_SWITCH_V2: {
+		struct cam_isp_mode_switch_info_v2 *mup_config_v2;
+
+		if (blob_size < sizeof(struct cam_isp_mode_switch_info_v2)) {
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu ctx_idx: %u",
+				blob_size,
+				sizeof(struct cam_isp_mode_switch_info_v2), ife_mgr_ctx->ctx_index);
+			return -EINVAL;
+		}
+
+		mup_config_v2 = (struct cam_isp_mode_switch_info_v2 *)blob_data;
+		if (unlikely(mup_config_v2->num_path_dt_info == 0xffffffff)) {
+			CAM_ERR(CAM_ISP,
+				"Invalid num_dt_info:%u ctx_idx: %u",
+				mup_config_v2->num_path_dt_info, ife_mgr_ctx->ctx_index);
+			return -EINVAL;
+		}
+
+		/* Validate size */
+		if (blob_size < (sizeof(struct cam_isp_mode_switch_info_v2) +
+			(mup_config_v2->num_path_dt_info *
+			sizeof(struct cam_isp_mode_switch_dt_info)))) {
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu ctx_idx: %u",
+				blob_size, sizeof(struct cam_isp_mode_switch_info_v2)
+				+ (mup_config_v2->num_path_dt_info *
+				sizeof(struct cam_isp_mode_switch_dt_info)),
+				ife_mgr_ctx->ctx_index);
+			return -EINVAL;
+		}
+
+		rc = cam_isp_blob_csid_dynamic_switch_update_v2(blob_info,
+			mup_config_v2, prepare);
+		if (rc)
+			CAM_ERR(CAM_ISP, "Dynamic switch blob update failed, ctx_idx: %u",
+				ife_mgr_ctx->ctx_index);
 	}
 		break;
 	default:
@@ -14162,6 +14381,7 @@ static int cam_sfe_packet_generic_blob_handler(void *user_data,
 	case CAM_ISP_GENERIC_BLOB_TYPE_UBWC_CONFIG_V3:
 	case CAM_ISP_GENERIC_BLOB_TYPE_VFE_OUT_CONFIG_V2:
 	case CAM_ISP_GENERIC_BLOB_TYPE_EXP_ORDER_UPDATE:
+	case CAM_ISP_GENERIC_BLOB_TYPE_DYNAMIC_MODE_SWITCH_V2:
 		break;
 	default:
 		CAM_WARN(CAM_ISP, "Invalid blob type: %u, ctx_idx: %u",

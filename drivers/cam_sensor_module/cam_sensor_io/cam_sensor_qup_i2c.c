@@ -370,7 +370,7 @@ static inline int32_t cam_qup_i2c_write_optimized(struct camera_io_master *clien
 			if (i < write_setting->size) {
 				reg_setting++;
 				isLookAhead =
-					((reg_setting_previous->reg_addr + 1) ==
+					((reg_setting_previous->reg_addr + data_type) ==
 					 reg_setting->reg_addr) ? true : false;
 			} else {
 				break;

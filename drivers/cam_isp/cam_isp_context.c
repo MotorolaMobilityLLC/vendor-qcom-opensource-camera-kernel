@@ -1330,6 +1330,10 @@ static int __cam_isp_ctx_enqueue_init_request(
 					req_isp_new->hw_update_data.mup_val;
 				req_isp_old->hw_update_data.num_exp =
 					req_isp_new->hw_update_data.num_exp;
+				req_isp_old->hw_update_data.pkt_capture_chk_en =
+					req_isp_new->hw_update_data.pkt_capture_chk_en;
+				req_isp_old->hw_update_data.expected_leading_dt =
+					req_isp_new->hw_update_data.expected_leading_dt;
 			}
 
 			/* Copy FCG HW update params */
@@ -3494,7 +3498,7 @@ static int __cam_isp_ctx_offline_epoch_in_activated_state(
 	struct cam_isp_hw_epoch_event_data *epoch_done_event_data =
 		(struct cam_isp_hw_epoch_event_data *)evt_data;
 
-	if (epoch_done_event_data->camif_irq) {
+	if (epoch_done_event_data && epoch_done_event_data->camif_irq) {
 		if (epoch_done_event_data->timestamp != ctx_isp->sof_timestamp_val)
 			__cam_isp_ctx_update_sof_ts(ctx_isp, epoch_done_event_data->timestamp,
 				epoch_done_event_data->boot_time);
@@ -3554,7 +3558,7 @@ static int __cam_isp_ctx_reg_upd_in_epoch_bubble_state(
 	struct cam_isp_hw_reg_update_event_data *rup_event_data =
 		(struct cam_isp_hw_reg_update_event_data *)evt_data;
 
-	if (rup_event_data->camif_irq) {
+	if (rup_event_data && rup_event_data->camif_irq) {
 		if (rup_event_data->timestamp != ctx_isp->sof_timestamp_val)
 			__cam_isp_ctx_update_sof_ts(ctx_isp, rup_event_data->timestamp,
 				rup_event_data->boot_time);
@@ -3641,7 +3645,7 @@ static int __cam_isp_ctx_reg_upd_in_applied_state(
 			req->request_id, ctx_isp->active_req_cnt, ctx->ctx_id, ctx->link_hdl);
 	}
 
-	if (rup_event_data->camif_irq) {
+	if (rup_event_data && rup_event_data->camif_irq) {
 		if (rup_event_data->timestamp != ctx_isp->sof_timestamp_val)
 			__cam_isp_ctx_update_sof_ts(ctx_isp, rup_event_data->timestamp,
 				rup_event_data->boot_time);
@@ -5127,7 +5131,7 @@ static int __cam_isp_ctx_fs2_reg_upd_in_sof(struct cam_isp_context *ctx_isp,
 	struct cam_isp_hw_reg_update_event_data *rup_event_data =
 		(struct cam_isp_hw_reg_update_event_data *)evt_data;
 
-	if (rup_event_data->camif_irq) {
+	if (rup_event_data && rup_event_data->camif_irq) {
 		if (rup_event_data->timestamp != ctx_isp->sof_timestamp_val)
 			__cam_isp_ctx_update_sof_ts(ctx_isp, rup_event_data->timestamp,
 				rup_event_data->boot_time);
@@ -5182,7 +5186,7 @@ static int __cam_isp_ctx_fs2_reg_upd_in_applied_state(
 	struct cam_isp_hw_reg_update_event_data *rup_event_data =
 		(struct cam_isp_hw_reg_update_event_data *)evt_data;
 
-	if (rup_event_data->camif_irq) {
+	if (rup_event_data && rup_event_data->camif_irq) {
 		if (rup_event_data->timestamp != ctx_isp->sof_timestamp_val)
 			__cam_isp_ctx_update_sof_ts(ctx_isp, rup_event_data->timestamp,
 				rup_event_data->boot_time);

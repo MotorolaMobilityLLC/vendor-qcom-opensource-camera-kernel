@@ -383,7 +383,9 @@ struct cam_isp_path_exp_order_update_internal {
  * @mup_val:                MUP value if configured
  * @num_exp:                Num of exposures
  * @mup_en:                 Flag if dynamic sensor switch is enabled
+ * @pkt_capture_chk_en:     Indicates if pkt capture is enabled for DT check
  * @force_disable_drv:      Force to disable drv
+ * @expected_leading_dt:    Expected leading DT
  * @fcg_info:               Track FCG config for further usage in config stage
  *
  */
@@ -408,7 +410,9 @@ struct cam_isp_prepare_hw_update_data {
 	uint32_t                                       mup_val;
 	uint32_t                                       num_exp;
 	bool                                           mup_en;
+	bool                                           pkt_capture_chk_en;
 	bool                                           force_disable_drv;
+	uint32_t                                       expected_leading_dt;
 	struct cam_isp_fcg_config_info                 fcg_info;
 };
 

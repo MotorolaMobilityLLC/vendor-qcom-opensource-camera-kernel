@@ -440,10 +440,17 @@ static int32_t cam_actuator_park_lens_cb(void *priv, void *data)
 {
 	int32_t rc = 0;
 	struct cam_actuator_ctrl_t *a_ctrl = priv;
-	struct cam_actuator_soc_private  *soc_private =
+	struct cam_actuator_soc_private *soc_private = NULL;
+	struct cam_sensor_power_ctrl_t  *power_info = NULL;
+
+	if (!a_ctrl) {
+		CAM_ERR(CAM_ACTUATOR, "Invalid Args");
+		return -EINVAL;
+	}
+
+	soc_private =
 		(struct cam_actuator_soc_private *)a_ctrl->soc_info.soc_private;
-	struct cam_sensor_power_ctrl_t *power_info =
-		&soc_private->power_info;
+	power_info = &soc_private->power_info;
 
 	mutex_lock(&(a_ctrl->actuator_park_mutex));
 	CAM_DBG(CAM_ACTUATOR, "Actuator park start in state: %d",

@@ -340,27 +340,31 @@ struct cam_csid_hw_stop_args {
  * struct cam_csid_hw_start_args - Relevant info to pass from ife_hw_mgr layer
  *                                 to start various resource nodes.
  *
- * @node_res:           Resource pointer array (cid or CSID)
- * @num_res:            Number of resources in node_res
- * @cdm_hw_idx:         Physical CDM in use together with these resources
- * @is_secure:          If these resources are run in secure session
- * @is_internal_start:  Start triggered internally for reset & recovery
- * @start_only:         start only, no init required
- * @is_drv_config_en:   If drv config is enabled
- * @aup_write:          Indicates if AUP needs to be programmed during starting CSID
- * @dyn_eof_enable:     Indicates if dynamic EOF feature is enabled
+ * @node_res:            Resource pointer array (cid or CSID)
+ * @num_res:             Number of resources in node_res
+ * @cdm_hw_idx:          Physical CDM in use together with these resources
+ * @expected_leading_dt: Expected leading DT being captured
+ * @is_secure:           If these resources are run in secure session
+ * @is_internal_start:   Start triggered internally for reset & recovery
+ * @start_only:          start only, no init required
+ * @is_drv_config_en:    If drv config is enabled
+ * @aup_write:           Indicates if AUP needs to be programmed during starting CSID
+ * @dyn_eof_enable:      Indicates if dynamic EOF feature is enabled
+ * @pkt_capture_chk_en:  Pkt capture check is enabled
  *
  */
 struct cam_csid_hw_start_args {
 	struct cam_isp_resource_node            **node_res;
 	uint32_t                                  num_res;
 	uint32_t                                  cdm_hw_idx;
+	uint32_t                                  expected_leading_dt;
 	bool                                      is_secure;
 	bool                                      is_internal_start;
 	bool                                      start_only;
 	bool                                      is_drv_config_en;
 	bool                                      aup_write;
 	bool                                      dyn_eof_enable;
+	bool                                      pkt_capture_chk_en;
 };
 
 
@@ -557,14 +561,34 @@ struct cam_ife_csid_mup_update_args {
 };
 
 /*
+ * struct cam_ife_csid_mup_dt_updates:
+ *
+ * @cmd:          cmd buf update args
+ * @expected_dt:  Expected DT
+ * @path_res_id:  Primary path to monitor
+ * @mup_val:      MUP to identify vc
+ * @configure_at_streamon: configure dt for pkt capture at stream on
+ */
+struct cam_ife_csid_mup_dt_updates {
+	struct cam_isp_hw_cmd_buf_update cmd;
+	uint32_t expected_dt;
+	enum cam_ife_pix_path_res_id path_res_id;
+	uint32_t mup_val;
+	bool skip_upd;
+};
+
+
+/*
  * struct cam_ife_csid_mode_switch_update_args:
  *
  * @mup_args:          MUP related arguments
  * @exp_update_args:   Exposure update arguments
+ * @mup_dt_info:       DT updates
  */
 struct cam_ife_csid_mode_switch_update_args {
 	struct cam_ife_csid_mup_update_args mup_args;
 	struct cam_ife_csid_discard_frame_cfg_update exp_update_args;
+	struct cam_ife_csid_mup_dt_updates mup_dt_info;
 };
 
 /*

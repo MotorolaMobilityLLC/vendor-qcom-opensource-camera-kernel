@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -497,13 +497,13 @@ static void cam_vfe_top_ver4_check_module_status(
 
 	for (i = 0; i < num_reg; i++) {
 		/* Check for ideal values */
-		if ((reg_val[i] == 0) || (reg_val[i] == 0x55555555))
+		if (reg_val[i] == 0x55555555)
 			continue;
 
 		for (j = 0; j < 8; j++) {
 			val = reg_val[i] >> (*status_list)[i][j].shift;
 			val &= 0xF;
-			if (val == 0 || val == 5)
+			if (val == 5)
 				continue;
 
 			cam_vfe_top_ver4_check_module_idle(&(*status_list)[i][j], top_priv,
