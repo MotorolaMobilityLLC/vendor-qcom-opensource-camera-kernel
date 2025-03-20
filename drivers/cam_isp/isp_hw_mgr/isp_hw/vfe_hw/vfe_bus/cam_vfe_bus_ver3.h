@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 
@@ -307,6 +307,7 @@ struct cam_vfe_bus_ver3_vfe_out_hw_info {
  * @client_base:                     Base address for clients
  * @client_reg_size:                 Reg size for clients
  * @ubwc_client_mask:                Mask for clients supporting UBWC.
+ * @bus_wr_base:                     Base address for Bus Wr.
  * @support_dyn_offset:              Flag for supporting dynamic offset
  */
 struct cam_vfe_bus_ver3_hw_info {
@@ -343,6 +344,7 @@ struct cam_vfe_bus_ver3_hw_info {
 	uint32_t client_base;
 	uint32_t client_reg_size;
 	uint64_t ubwc_clients_mask;
+	uint64_t bus_wr_base;
 	bool     support_dyn_offset;
 };
 

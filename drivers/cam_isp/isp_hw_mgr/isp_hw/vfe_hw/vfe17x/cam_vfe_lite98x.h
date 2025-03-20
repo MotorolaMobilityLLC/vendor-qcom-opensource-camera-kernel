@@ -237,11 +237,16 @@ static struct cam_vfe_top_ver4_hw_info vfe_lite98x_top_hw_info = {
 	.bus_wr_base                      = 0x1200,
 };
 
+/*
+ * Bus Wr registers, w.r.t bus_wr_base. If bus_wr_base is 0,
+ * make these offsets relative core start address.
+ * Offsets might not match due to csid secure regs at beginning of reg space.
+ */
 static struct cam_irq_register_set vfe_lite98x_bus_irq_reg[1] = {
 	{
-		.mask_reg_offset   = 0x00001218,
-		.clear_reg_offset  = 0x00001220,
-		.status_reg_offset = 0x00001228,
+		.mask_reg_offset   = 0x00000018,
+		.clear_reg_offset  = 0x00000020,
+		.status_reg_offset = 0x00000028,
 	},
 };
 
@@ -255,24 +260,29 @@ static uint32_t vfe_lite98x_out_port_mid[][4] = {
 };
 
 static struct cam_vfe_bus_ver3_hw_info vfe_lite98x_bus_hw_info = {
+	/*
+	 * Bus Wr registers, w.r.t bus_wr_base. If bus_wr_base is 0,
+	 * make these offsets relative core start address.
+	 * Offsets might not match due to csid secure regs at beginning of reg space.
+	 */
 	.common_reg = {
-		.hw_version                       = 0x00001200,
-		.cgc_ovd                          = 0x00001208,
+		.hw_version                       = 0x00000000,
+		.cgc_ovd                          = 0x00000008,
 		.if_frameheader_cfg               = {
-			0x00001234,
-			0x00001238,
-			0x0000123C,
-			0x00001240,
-			0x00001244,
+			0x00000034,
+			0x00000038,
+			0x0000003C,
+			0x00000040,
+			0x00000044,
 		},
-		.pwr_iso_cfg                      = 0x0000125C,
-		.overflow_status_clear            = 0x00001260,
-		.ccif_violation_status            = 0x00001264,
-		.overflow_status                  = 0x00001268,
-		.image_size_violation_status      = 0x00001270,
-		.debug_status_top_cfg             = 0x000012F0,
-		.debug_status_top                 = 0x000012F4,
-		.test_bus_ctrl                    = 0x00001328,
+		.pwr_iso_cfg                      = 0x0000005C,
+		.overflow_status_clear            = 0x00000060,
+		.ccif_violation_status            = 0x00000064,
+		.overflow_status                  = 0x00000068,
+		.image_size_violation_status      = 0x00000070,
+		.debug_status_top_cfg             = 0x000000F0,
+		.debug_status_top                 = 0x000000F4,
+		.test_bus_ctrl                    = 0x00000128,
 		.wm_mode_shift                    = 16,
 		.wm_mode_val                      = { 0x0, 0x1, 0x2 },
 		.wm_en_shift                      = 0,
@@ -281,12 +291,13 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite98x_bus_hw_info = {
 		.irq_reg_info = {
 			.num_registers            = 1,
 			.irq_reg_set              = vfe_lite98x_bus_irq_reg,
-			.global_irq_cmd_offset    = 0x00001230,
+			.global_irq_cmd_offset    = 0x00000030,
 			.global_clear_bitmask     = 0x00000001,
 		},
 	},
+	.bus_wr_base                              = 0x1200,
 	.support_dyn_offset                       = true,
-	.client_base                              = 0x1700,
+	.client_base                              = 0x500,
 	.client_reg_size                          = 0x100,
 	.num_client = 6,
 	.client_offsets = {

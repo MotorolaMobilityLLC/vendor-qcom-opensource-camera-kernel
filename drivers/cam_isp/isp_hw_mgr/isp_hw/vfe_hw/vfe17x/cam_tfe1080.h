@@ -1216,18 +1216,23 @@ static struct cam_vfe_top_ver4_hw_info tfe1080_top_hw_info = {
 	.bayer_hm_supported              = true,
 };
 
+/*
+ * if bus_wr_base is defined in cam_vfe_bus_ver3_hw_info, offsets are w.r.t
+ * bus start address, else these are defined w.r.t base of the core
+ *
+ */
 static struct cam_irq_register_set tfe1080_bus_irq_reg[2] = {
 	{
-		.mask_reg_offset   = 0x00001018,
-		.clear_reg_offset  = 0x00001020,
-		.status_reg_offset = 0x00001028,
-		.set_reg_offset    = 0x00001050,
+		.mask_reg_offset   = 0x00000018,
+		.clear_reg_offset  = 0x00000020,
+		.status_reg_offset = 0x00000028,
+		.set_reg_offset    = 0x00000050,
 	},
 	{
-		.mask_reg_offset   = 0x0000101C,
-		.clear_reg_offset  = 0x00001024,
-		.status_reg_offset = 0x0000102C,
-		.set_reg_offset    = 0x00001054,
+		.mask_reg_offset   = 0x0000001C,
+		.clear_reg_offset  = 0x00000024,
+		.status_reg_offset = 0x0000002C,
+		.set_reg_offset    = 0x00000054,
 	},
 };
 
@@ -1321,18 +1326,23 @@ static uint32_t tfe1080_num_bus_irq_err_desc[] = {
 
 static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 	.common_reg = {
-		.hw_version                       = 0x00001000,
-		.cgc_ovd                          = 0x00001008,
-		.ctxt_sel                         = 0x00001124,
-		.ubwc_static_ctrl                 = 0x00001058,
-		.pwr_iso_cfg                      = 0x0000105C,
-		.overflow_status_clear            = 0x00001060,
-		.ccif_violation_status            = 0x00001064,
-		.overflow_status                  = 0x00001068,
-		.image_size_violation_status      = 0x00001070,
-		.debug_status_top_cfg             = 0x000010F0,
-		.debug_status_top                 = 0x000010F4,
-		.test_bus_ctrl                    = 0x00001128,
+	    /*
+	     * if bus_wr_base is defined in cam_vfe_bus_ver3_hw_info, offsets are w.r.t
+	     * bus start address, else these are defined w.r.t base of the core
+	     *
+	     */
+		.hw_version                       = 0x00000000,
+		.cgc_ovd                          = 0x00000008,
+		.ctxt_sel                         = 0x00000124,
+		.ubwc_static_ctrl                 = 0x00000058,
+		.pwr_iso_cfg                      = 0x0000005C,
+		.overflow_status_clear            = 0x00000060,
+		.ccif_violation_status            = 0x00000064,
+		.overflow_status                  = 0x00000068,
+		.image_size_violation_status      = 0x00000070,
+		.debug_status_top_cfg             = 0x000000F0,
+		.debug_status_top                 = 0x000000F4,
+		.test_bus_ctrl                    = 0x00000128,
 		.mc_read_sel_shift                = 0x5,
 		.mc_write_sel_shift               = 0x0,
 		.mc_ctxt_mask                     = 0x7,
@@ -1344,49 +1354,53 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 		.irq_reg_info = {
 			.num_registers            = 2,
 			.irq_reg_set              = tfe1080_bus_irq_reg,
-			.global_irq_cmd_offset    = 0x00001030,
+			.global_irq_cmd_offset    = 0x00000030,
 			.global_clear_bitmask     = 0x00000001,
 		},
 		.num_perf_counters                = 8,
-		.perf_cnt_status                  = 0x000010B4,
+		.perf_cnt_status                  = 0x000000B4,
 		.perf_cnt_reg = {
 			{
-				.perf_cnt_cfg = 0x00001074,
-				.perf_cnt_val = 0x00001094,
+				.perf_cnt_cfg = 0x00000074,
+				.perf_cnt_val = 0x00000094,
 			},
 			{
-				.perf_cnt_cfg = 0x00001078,
-				.perf_cnt_val = 0x00001098,
+				.perf_cnt_cfg = 0x00000078,
+				.perf_cnt_val = 0x00000098,
 			},
 			{
-				.perf_cnt_cfg = 0x0000107C,
-				.perf_cnt_val = 0x0000109C,
+				.perf_cnt_cfg = 0x0000007C,
+				.perf_cnt_val = 0x0000009C,
 			},
 			{
-				.perf_cnt_cfg = 0x00001080,
-				.perf_cnt_val = 0x000010A0,
+				.perf_cnt_cfg = 0x00000080,
+				.perf_cnt_val = 0x000000A0,
 			},
 			{
-				.perf_cnt_cfg = 0x00001084,
-				.perf_cnt_val = 0x000010A4,
+				.perf_cnt_cfg = 0x00000084,
+				.perf_cnt_val = 0x000000A4,
 			},
 			{
-				.perf_cnt_cfg = 0x00001088,
-				.perf_cnt_val = 0x000010A8,
+				.perf_cnt_cfg = 0x00000088,
+				.perf_cnt_val = 0x000000A8,
 			},
 			{
-				.perf_cnt_cfg = 0x0000108C,
-				.perf_cnt_val = 0x000010AC,
+				.perf_cnt_cfg = 0x0000008C,
+				.perf_cnt_val = 0x000000AC,
 			},
 			{
-				.perf_cnt_cfg = 0x00001090,
-				.perf_cnt_val = 0x000010B0,
+				.perf_cnt_cfg = 0x00000090,
+				.perf_cnt_val = 0x000000B0,
 			},
 		},
 	},
-	.num_client = CAM_TFE_BUS_VER3_1080_MAX_CLIENTS,
+	.bus_wr_base                              = 0x1000,
 	.support_dyn_offset                       = true,
-	.client_base                              = 0x1500,
+	/*
+	 * client_base is w.r.t bus_wr_base. If bus_wr_base is 0,
+	 * make client_base relative core start address.
+	 */
+	.client_base                              = 0x500,
 	.client_reg_size                          = 0x100,
 	.ubwc_clients_mask                        = 0x10007F,
 	.client_offsets = {
