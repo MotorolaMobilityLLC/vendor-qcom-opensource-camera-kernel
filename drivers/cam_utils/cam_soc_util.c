@@ -3219,6 +3219,15 @@ inline int cam_soc_util_initialize_power_domain(struct cam_hw_soc_info *soc_info
 	 */
 	pm_runtime_enable(soc_info->dev);
 
+	/* This is a work around to turn off the GDSC after probe.
+	 * Should ideally be done by the kernel PM framework as these
+	 * (single) power domains are attached and turned on by them
+	 * before the probe, but is not happening and leaving them on
+	 * causes power leak.
+	 */
+	pm_runtime_get_sync(soc_info->dev);
+	pm_runtime_put_sync(soc_info->dev);
+
 	return 0;
 }
 
