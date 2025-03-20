@@ -377,6 +377,10 @@ static struct cam_vfe_top_ver4_pdaf_violation_desc tfe1080_haf_violation_desc[] 
 	},
 };
 
+/*
+ * Top HM registers, Offsets w.r.t top_hm_base. If top_hm_base is 0,
+ * make these offsets relative core start address.
+ */
 static struct cam_irq_register_set tfe1080_top_irq_reg_set = {
 	.mask_reg_offset   = 0x000001D4,
 	.clear_reg_offset  = 0x000001D8,
@@ -413,246 +417,6 @@ static uint32_t tfe1080_top_debug_reg[] = {
 	0x00000524,
 	0x00000528,
 	0x0000052C,
-};
-
-static uint32_t tfe1080_bayer_debug_reg[] = {
-	0x0000E4E8,
-	0x0000E4EC,
-	0x0000E4F0,
-	0x0000E4F4,
-	0x0000E4F8,
-	0x0000E4FC,
-	0x0000E500,
-	0x0000E504,
-	0x0000E508,
-	0x0000E50C,
-};
-
-static struct cam_vfe_top_ver4_reg_offset_common tfe1080_top_common_reg = {
-	.hw_version               = 0x00000000,
-	.core_cgc_ovd_0           = 0x00000100,
-	.ahb_cgc_ovd              = 0x00000108,
-	.core_mux_cfg             = 0x00000110,
-	.pdaf_input_cfg_0         = 0x00000114,
-	.pdaf_input_cfg_1         = 0x00000118,
-	.stats_throttle_cfg_0     = 0x00000150,
-	.stats_throttle_cfg_1     = 0x00000154,
-	.stats_throttle_cfg_2     = 0x00000158,
-	.core_cfg_4               = 0x0000015C,
-	.pdaf_parsed_throttle_cfg = 0x00000160,
-	.fd_y_throttle_cfg        = 0x00000168,
-	.fd_c_throttle_cfg        = 0x0000016C,
-	.ds16_g_throttle_cfg      = 0x00000170,
-	.ds16_br_throttle_cfg     = 0x00000174,
-	.ds4_g_throttle_cfg       = 0x00000178,
-	.ds4_br_throttle_cfg      = 0x0000017C,
-	.ds2_g_throttle_cfg       = 0x00000180,
-	.ds2_br_throttle_cfg      = 0x00000184,
-	.full_out_throttle_cfg    = 0x00000188,
-	.diag_config              = 0x0000039C,
-	.global_reset_cmd         = 0x000001D0,
-	.diag_sensor_status       = {0x000003A0, 0x000003A4, 0x000003A8, 0x000003AC},
-	.diag_frm_cnt_status      = {0x000003B0, 0x000003B4, 0x000003B8},
-	.ipp_violation_status     = 0x00000248,
-	.bayer_violation_status   = 0x0000E248,
-	.pdaf_violation_status    = 0x00009304,
-	.dsp_status               = 0x0,
-	.bus_violation_status     = 0x00001064,
-	.bus_overflow_status      = 0x00001068,
-	.num_perf_counters        = 8,
-	.perf_count_reg = {
-		{
-			.perf_count_cfg    = 0x000003DC,
-			.perf_count_cfg_mc = 0x000003E0,
-			.perf_pix_count    = 0x000003E4,
-			.perf_line_count   = 0x000003E8,
-			.perf_stall_count  = 0x000003EC,
-			.perf_always_count = 0x000003F0,
-			.perf_count_status = 0x000003F4,
-		},
-		{
-			.perf_count_cfg    = 0x000003F8,
-			.perf_count_cfg_mc = 0x000003FC,
-			.perf_pix_count    = 0x00000400,
-			.perf_line_count   = 0x00000404,
-			.perf_stall_count  = 0x00000408,
-			.perf_always_count = 0x0000040C,
-			.perf_count_status = 0x00000410,
-		},
-		{
-			.perf_count_cfg    = 0x00000414,
-			.perf_count_cfg_mc = 0x00000418,
-			.perf_pix_count    = 0x0000041C,
-			.perf_line_count   = 0x00000420,
-			.perf_stall_count  = 0x00000424,
-			.perf_always_count = 0x00000428,
-			.perf_count_status = 0x0000042C,
-		},
-		{
-			.perf_count_cfg    = 0x00000430,
-			.perf_count_cfg_mc = 0x00000434,
-			.perf_pix_count    = 0x00000438,
-			.perf_line_count   = 0x0000043C,
-			.perf_stall_count  = 0x00000440,
-			.perf_always_count = 0x00000444,
-			.perf_count_status = 0x00000448,
-		},
-		/*  Bayer perf count regs from here onwards */
-		{
-			.perf_count_cfg    = 0x0000E3DC,
-			.perf_count_cfg_mc = 0x0000E3E0,
-			.perf_pix_count    = 0x0000E3E4,
-			.perf_line_count   = 0x0000E3E8,
-			.perf_stall_count  = 0x0000E3EC,
-			.perf_always_count = 0x0000E3F0,
-			.perf_count_status = 0x0000E3F4,
-		},
-		{
-			.perf_count_cfg    = 0x0000E3F8,
-			.perf_count_cfg_mc = 0x0000E3FC,
-			.perf_pix_count    = 0x0000E400,
-			.perf_line_count   = 0x0000E404,
-			.perf_stall_count  = 0x0000E408,
-			.perf_always_count = 0x0000E40C,
-			.perf_count_status = 0x0000E410,
-		},
-		{
-			.perf_count_cfg    = 0x0000E414,
-			.perf_count_cfg_mc = 0x0000E418,
-			.perf_pix_count    = 0x0000E41C,
-			.perf_line_count   = 0x0000E420,
-			.perf_stall_count  = 0x0000E424,
-			.perf_always_count = 0x0000E428,
-			.perf_count_status = 0x0000E42C,
-		},
-		{
-			.perf_count_cfg    = 0x0000E430,
-			.perf_count_cfg_mc = 0x0000E434,
-			.perf_pix_count    = 0x0000E438,
-			.perf_line_count   = 0x0000E43C,
-			.perf_stall_count  = 0x0000E440,
-			.perf_always_count = 0x0000E444,
-			.perf_count_status = 0x0000E448,
-		},
-	},
-	.top_debug_err_vec_irq    = {0x000004E4, 0x000004E8},
-	.top_debug_err_vec_ts_lb  = 0x000004DC,
-	.top_debug_err_vec_ts_mb  = 0x000004E0,
-	.bayer_debug_err_vec_irq  = {0x0000E4E4, 0x0},
-	.bayer_debug_err_vec_ts_lb = 0x0000E4DC,
-	.bayer_debug_err_vec_ts_mb = 0x0000E4E0,
-	.top_debug_cfg            = 0x00000548,
-	.bayer_debug_cfg          = 0x0000E518,
-	.num_top_debug_reg        = CAM_TFE_1080_NUM_TOP_DBG_REG,
-	.top_debug = tfe1080_top_debug_reg,
-	.num_bayer_debug_reg = CAM_TFE_1080_NUM_BAYER_DBG_REG,
-	.bayer_debug = tfe1080_bayer_debug_reg,
-	.frame_timing_irq_reg_idx = CAM_IFE_IRQ_CAMIF_REG_STATUS0,
-	.capabilities = CAM_VFE_COMMON_CAP_SKIP_CORE_CFG |
-			CAM_VFE_COMMON_CAP_CORE_MUX_CFG |
-			CAM_VFE_COMMON_CAP_DEBUG_ERR_VEC,
-};
-
-static struct cam_vfe_ver4_path_reg_data tfe1080_ipp_common_reg_data = {
-	.sof_irq_mask                    = 0x150,
-	.eof_irq_mask                    = 0x2A0,
-	.error_irq_mask                  = 0xF000005,
-	.ipp_violation_mask              = 0x4000000,
-	.bayer_violation_mask            = 0x4,
-	.pdaf_violation_mask             = 0x2000000,
-	.diag_violation_mask             = 0x8000000,
-	.diag_sensor_sel_mask            = 0x6,
-	.diag_frm_count_mask_0           = 0xF000,
-	.enable_diagnostic_hw            = 0x1,
-	.top_debug_cfg_en                = 3,
-	.is_mc_path                      = true,
-	/* SOF and EOF mask combined for each context */
-	.frm_irq_hw_ctxt_mask = {
-		0x30,
-		0xC0,
-		0x300,
-	},
-};
-
-static struct cam_vfe_ver4_path_reg_data tfe1080_pdlib_reg_data = {
-	.sof_irq_mask                    = 0x400,
-	.eof_irq_mask                    = 0x800,
-	.diag_sensor_sel_mask            = 0x8,
-	.diag_frm_count_mask_0           = 0x40,
-	.enable_diagnostic_hw            = 0x1,
-	.top_debug_cfg_en                = 3,
-};
-
-static struct cam_vfe_ver4_path_reg_data tfe1080_vfe_full_rdi_reg_data[5] = {
-	{
-		.sof_irq_mask                    = 0x1000,
-		.eof_irq_mask                    = 0x2000,
-		.error_irq_mask                  = 0x0,
-		.diag_sensor_sel_mask            = 0xA,
-		.diag_frm_count_mask_0           = 0x80,
-		.enable_diagnostic_hw            = 0x1,
-		.top_debug_cfg_en                = 3,
-	},
-	{
-		.sof_irq_mask                    = 0x4000,
-		.eof_irq_mask                    = 0x8000,
-		.error_irq_mask                  = 0x0,
-		.diag_sensor_sel_mask            = 0xC,
-		.diag_frm_count_mask_0           = 0x100,
-		.enable_diagnostic_hw            = 0x1,
-		.top_debug_cfg_en                = 3,
-	},
-	{
-		.sof_irq_mask                    = 0x10000,
-		.eof_irq_mask                    = 0x20000,
-		.error_irq_mask                  = 0x0,
-		.enable_diagnostic_hw            = 0x1,
-		.diag_sensor_sel_mask            = 0xE,
-		.diag_frm_count_mask_0           = 0x200,
-		.top_debug_cfg_en                = 3,
-	},
-	{
-		.sof_irq_mask                    = 0x40000,
-		.eof_irq_mask                    = 0x80000,
-		.error_irq_mask                  = 0x0,
-		.diag_sensor_sel_mask            = 0x10,
-		.diag_frm_count_mask_0           = 0x400,
-		.enable_diagnostic_hw            = 0x1,
-		.top_debug_cfg_en                = 3,
-	},
-	{
-		.sof_irq_mask                    = 0x100000,
-		.eof_irq_mask                    = 0x200000,
-		.error_irq_mask                  = 0x0,
-		.diag_sensor_sel_mask            = 0x12,
-		.diag_frm_count_mask_0           = 0x800,
-		.enable_diagnostic_hw            = 0x1,
-		.top_debug_cfg_en                = 3,
-	},
-};
-
-struct cam_vfe_ver4_path_hw_info
-	tfe1080_rdi_hw_info_arr[] = {
-	{
-		.common_reg     = &tfe1080_top_common_reg,
-		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[0],
-	},
-	{
-		.common_reg     = &tfe1080_top_common_reg,
-		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[1],
-	},
-	{
-		.common_reg     = &tfe1080_top_common_reg,
-		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[2],
-	},
-	{
-		.common_reg     = &tfe1080_top_common_reg,
-		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[3],
-	},
-	{
-		.common_reg     = &tfe1080_top_common_reg,
-		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[4],
-	},
 };
 
 static struct cam_vfe_top_ver4_debug_reg_info tfe1080_top_dbg_reg_info[
@@ -893,6 +657,23 @@ static struct cam_vfe_top_ver4_debug_reg_info tfe1080_top_dbg_reg_info[
 	},
 };
 
+/*
+ * Bayer HM registers, Offsets w.r.t bayer_hm_base. If bayer_hm_base is 0,
+ * make these offsets relative core start address.
+ */
+static uint32_t tfe1080_bayer_debug_reg[] = {
+	0x000004E8,
+	0x000004EC,
+	0x000004F0,
+	0x000004F4,
+	0x000004F8,
+	0x000004FC,
+	0x00000500,
+	0x00000504,
+	0x00000508,
+	0x0000050C,
+};
+
 static struct cam_vfe_top_ver4_debug_reg_info tfe1080_bayer_dbg_reg_info[
 	CAM_TFE_1080_NUM_BAYER_DBG_REG][8] = {
 	VFE_DBG_INFO_ARRAY_4bit("test_bus_reserved",
@@ -906,31 +687,31 @@ static struct cam_vfe_top_ver4_debug_reg_info tfe1080_bayer_dbg_reg_info[
 	),
 	{
 		VFE_DBG_INFO_WITH_IDLE(0, "clc_demux_w0",
-			0x0000E510, (BIT(0) | BIT(1) | BIT(2))),
+			0x00000510, (BIT(0) | BIT(1) | BIT(2))),
 		VFE_DBG_INFO_WITH_IDLE(4, "clc_bpc_pdpc_gic_w0",
-			0x0000E510, (BIT(3) | BIT(4) | BIT(5))),
+			0x00000510, (BIT(3) | BIT(4) | BIT(5))),
 		VFE_DBG_INFO_WITH_IDLE(8, "clc_pdpc_bpc_1d_w0",
-			0x0000E510, (BIT(6) | BIT(7) | BIT(8))),
+			0x00000510, (BIT(6) | BIT(7) | BIT(8))),
 		VFE_DBG_INFO_WITH_IDLE(12, "clc_abf_binc_w0",
-			0x0000E510, (BIT(9) | BIT(10) | BIT(11))),
+			0x00000510, (BIT(9) | BIT(10) | BIT(11))),
 		VFE_DBG_INFO_WITH_IDLE(16, "clc_channel_gains_w0",
-			0x0000E510, (BIT(12) | BIT(13) | BIT(14))),
+			0x00000510, (BIT(12) | BIT(13) | BIT(14))),
 		VFE_DBG_INFO_WITH_IDLE(20, "clc_lsc_w3",
-			0x0000E510, (BIT(15) | BIT(16) | BIT(17))),
+			0x00000510, (BIT(15) | BIT(16) | BIT(17))),
 		VFE_DBG_INFO_WITH_IDLE(24, "clc_fcg_w2",
-			0x0000E510, (BIT(18) | BIT(19) | BIT(20))),
+			0x00000510, (BIT(18) | BIT(19) | BIT(20))),
 		VFE_DBG_INFO_WITH_IDLE(28, "clc_wb_gain_w6",
-			0x0000E510, (BIT(21) | BIT(22) | BIT(23))),
+			0x00000510, (BIT(21) | BIT(22) | BIT(23))),
 	},
 	{
 		VFE_DBG_INFO_WITH_IDLE(0, "clc_compdecomp_bayer_w0",
-			0x0000E510, (BIT(24) | BIT(25) | BIT(26))),
+			0x00000510, (BIT(24) | BIT(25) | BIT(26))),
 		VFE_DBG_INFO_WITH_IDLE(4, "reserved",
-			0x0000E510, BIT(27)),
+			0x00000510, BIT(27)),
 		VFE_DBG_INFO_WITH_IDLE(8, "clc_univ_channel_gains",
-			0x0000E510, BIT(28)),
+			0x00000510, BIT(28)),
 		VFE_DBG_INFO_WITH_IDLE(12, "clc_qpdr",
-			0x0000E510, BIT(29)),
+			0x00000510, BIT(29)),
 		VFE_DBG_INFO(16, "reserved"),
 		VFE_DBG_INFO(20, "reserved"),
 		VFE_DBG_INFO(24, "reserved"),
@@ -1011,6 +792,254 @@ static struct cam_vfe_top_ver4_debug_reg_info tfe1080_bayer_dbg_reg_info[
 		VFE_DBG_INFO(32, "non_ccif_3"),
 	},
 };
+
+static struct cam_vfe_top_ver4_reg_offset_common tfe1080_common_reg = {
+	/*
+	 * Top HM registers, Offsets w.r.t top_hm_base. If top_hm_base is 0,
+	 * make these offsets relative core start address.
+	 */
+	.hw_version               = 0x00000000,
+	.core_cgc_ovd_0           = 0x00000100,
+	.ahb_cgc_ovd              = 0x00000108,
+	.core_mux_cfg             = 0x00000110,
+	.pdaf_input_cfg_0         = 0x00000114,
+	.pdaf_input_cfg_1         = 0x00000118,
+	.stats_throttle_cfg_0     = 0x00000150,
+	.stats_throttle_cfg_1     = 0x00000154,
+	.stats_throttle_cfg_2     = 0x00000158,
+	.core_cfg_4               = 0x0000015C,
+	.pdaf_parsed_throttle_cfg = 0x00000160,
+	.fd_y_throttle_cfg        = 0x00000168,
+	.fd_c_throttle_cfg        = 0x0000016C,
+	.ds16_g_throttle_cfg      = 0x00000170,
+	.ds16_br_throttle_cfg     = 0x00000174,
+	.ds4_g_throttle_cfg       = 0x00000178,
+	.ds4_br_throttle_cfg      = 0x0000017C,
+	.ds2_g_throttle_cfg       = 0x00000180,
+	.ds2_br_throttle_cfg      = 0x00000184,
+	.full_out_throttle_cfg    = 0x00000188,
+	.diag_config              = 0x0000039C,
+	.global_reset_cmd         = 0x000001D0,
+	.diag_sensor_status       = {0x000003A0, 0x000003A4, 0x000003A8, 0x000003AC},
+	.diag_frm_cnt_status      = {0x000003B0, 0x000003B4, 0x000003B8},
+	.ipp_violation_status     = 0x00000248,
+	.dsp_status               = 0x0,
+	.num_perf_counters        = 4,
+	.perf_count_reg = {
+		{
+			.perf_count_cfg    = 0x000003DC,
+			.perf_count_cfg_mc = 0x000003E0,
+			.perf_pix_count    = 0x000003E4,
+			.perf_line_count   = 0x000003E8,
+			.perf_stall_count  = 0x000003EC,
+			.perf_always_count = 0x000003F0,
+			.perf_count_status = 0x000003F4,
+		},
+		{
+			.perf_count_cfg    = 0x000003F8,
+			.perf_count_cfg_mc = 0x000003FC,
+			.perf_pix_count    = 0x00000400,
+			.perf_line_count   = 0x00000404,
+			.perf_stall_count  = 0x00000408,
+			.perf_always_count = 0x0000040C,
+			.perf_count_status = 0x00000410,
+		},
+		{
+			.perf_count_cfg    = 0x00000414,
+			.perf_count_cfg_mc = 0x00000418,
+			.perf_pix_count    = 0x0000041C,
+			.perf_line_count   = 0x00000420,
+			.perf_stall_count  = 0x00000424,
+			.perf_always_count = 0x00000428,
+			.perf_count_status = 0x0000042C,
+		},
+		{
+			.perf_count_cfg    = 0x00000430,
+			.perf_count_cfg_mc = 0x00000434,
+			.perf_pix_count    = 0x00000438,
+			.perf_line_count   = 0x0000043C,
+			.perf_stall_count  = 0x00000440,
+			.perf_always_count = 0x00000444,
+			.perf_count_status = 0x00000448,
+		},
+	},
+	.top_debug_cfg            = 0x00000548,
+	.top_debug_err_vec_irq    = {0x000004E4, 0x000004E8},
+	.top_debug_err_vec_ts_lb  = 0x000004DC,
+	.top_debug_err_vec_ts_mb  = 0x000004E0,
+	.num_top_debug_reg        = CAM_TFE_1080_NUM_TOP_DBG_REG,
+	.top_debug = tfe1080_top_debug_reg,
+	/*
+	 * HAF CLC registers, Offsets w.r.t haf_clc_base. If haf_clc_base is 0,
+	 * make these offsets relative core start address.
+	 */
+	.pdaf_violation_status    = 0x00000004,
+	/*
+	 * Bus Wr registers, w.r.t bus_wr_base. If bus_wr_base is 0,
+	 * make these offsets relative core start address.
+	 */
+	.bus_violation_status     = 0x00000064,
+	.bus_overflow_status      = 0x00000068,
+	/*
+	 * Bayer HM registers, Offsets w.r.t bayer_hm_base. If bayer_hm_base is 0,
+	 *make these offsets relative core start address.
+	 */
+	.bayer_debug_cfg          = 0x00000518,
+	.bayer_violation_status   = 0x00000248,
+	.num_bayer_perf_counters  = 4,
+	.bayer_debug_cfg_en       = 0x3,
+	.bayer_perf_count_reg = {
+		/*  Bayer perf count regs from here onwards */
+		{
+			.perf_count_cfg    = 0x000003DC,
+			.perf_count_cfg_mc = 0x000003E0,
+			.perf_pix_count    = 0x000003E4,
+			.perf_line_count   = 0x000003E8,
+			.perf_stall_count  = 0x000003EC,
+			.perf_always_count = 0x000003F0,
+			.perf_count_status = 0x000003F4,
+		},
+		{
+			.perf_count_cfg    = 0x000003F8,
+			.perf_count_cfg_mc = 0x000003FC,
+			.perf_pix_count    = 0x00000400,
+			.perf_line_count   = 0x00000404,
+			.perf_stall_count  = 0x00000408,
+			.perf_always_count = 0x0000040C,
+			.perf_count_status = 0x00000410,
+		},
+		{
+			.perf_count_cfg    = 0x00000414,
+			.perf_count_cfg_mc = 0x00000418,
+			.perf_pix_count    = 0x0000041C,
+			.perf_line_count   = 0x00000420,
+			.perf_stall_count  = 0x00000424,
+			.perf_always_count = 0x00000428,
+			.perf_count_status = 0x0000042C,
+		},
+		{
+			.perf_count_cfg     = 0x00000430,
+			.perf_count_cfg_mc = 0x00000434,
+			.perf_pix_count    = 0x00000438,
+			.perf_line_count   = 0x0000043C,
+			.perf_stall_count  = 0x00000440,
+			.perf_always_count = 0x00000444,
+			.perf_count_status = 0x00000448,
+		},
+	},
+	.num_bayer_debug_reg = CAM_TFE_1080_NUM_BAYER_DBG_REG,
+	.bayer_debug = tfe1080_bayer_debug_reg,
+	.frame_timing_irq_reg_idx = CAM_IFE_IRQ_CAMIF_REG_STATUS0,
+	/* HW capabilities
+	 */
+	.capabilities = CAM_VFE_COMMON_CAP_SKIP_CORE_CFG |
+			CAM_VFE_COMMON_CAP_CORE_MUX_CFG |
+			CAM_VFE_COMMON_CAP_DEBUG_ERR_VEC,
+};
+
+static struct cam_vfe_ver4_path_reg_data tfe1080_ipp_common_reg_data = {
+	.sof_irq_mask                    = 0x150,
+	.eof_irq_mask                    = 0x2A0,
+	.error_irq_mask                  = 0xF000005,
+	.ipp_violation_mask              = 0x4000000,
+	.bayer_violation_mask            = 0x4,
+	.pdaf_violation_mask             = 0x2000000,
+	.diag_violation_mask             = 0x8000000,
+	.diag_sensor_sel_mask            = 0x6,
+	.diag_frm_count_mask_0           = 0xF000,
+	.enable_diagnostic_hw            = 0x1,
+	.top_debug_cfg_en                = 3,
+	.is_mc_path                      = true,
+	/* SOF and EOF mask combined for each context */
+	.frm_irq_hw_ctxt_mask = {
+		0x30,
+		0xC0,
+		0x300,
+	},
+};
+
+static struct cam_vfe_ver4_path_reg_data tfe1080_pdlib_reg_data = {
+	.sof_irq_mask                    = 0x400,
+	.eof_irq_mask                    = 0x800,
+	.diag_sensor_sel_mask            = 0x8,
+	.diag_frm_count_mask_0           = 0x40,
+	.enable_diagnostic_hw            = 0x1,
+	.top_debug_cfg_en                = 3,
+};
+
+static struct cam_vfe_ver4_path_reg_data tfe1080_vfe_full_rdi_reg_data[5] = {
+	{
+		.sof_irq_mask                    = 0x1000,
+		.eof_irq_mask                    = 0x2000,
+		.error_irq_mask                  = 0x0,
+		.diag_sensor_sel_mask            = 0xA,
+		.diag_frm_count_mask_0           = 0x80,
+		.enable_diagnostic_hw            = 0x1,
+		.top_debug_cfg_en                = 3,
+	},
+	{
+		.sof_irq_mask                    = 0x4000,
+		.eof_irq_mask                    = 0x8000,
+		.error_irq_mask                  = 0x0,
+		.diag_sensor_sel_mask            = 0xC,
+		.diag_frm_count_mask_0           = 0x100,
+		.enable_diagnostic_hw            = 0x1,
+		.top_debug_cfg_en                = 3,
+	},
+	{
+		.sof_irq_mask                    = 0x10000,
+		.eof_irq_mask                    = 0x20000,
+		.error_irq_mask                  = 0x0,
+		.enable_diagnostic_hw            = 0x1,
+		.diag_sensor_sel_mask            = 0xE,
+		.diag_frm_count_mask_0           = 0x200,
+		.top_debug_cfg_en                = 3,
+	},
+	{
+		.sof_irq_mask                    = 0x40000,
+		.eof_irq_mask                    = 0x80000,
+		.error_irq_mask                  = 0x0,
+		.diag_sensor_sel_mask            = 0x10,
+		.diag_frm_count_mask_0           = 0x400,
+		.enable_diagnostic_hw            = 0x1,
+		.top_debug_cfg_en                = 3,
+	},
+	{
+		.sof_irq_mask                    = 0x100000,
+		.eof_irq_mask                    = 0x200000,
+		.error_irq_mask                  = 0x0,
+		.diag_sensor_sel_mask            = 0x12,
+		.diag_frm_count_mask_0           = 0x800,
+		.enable_diagnostic_hw            = 0x1,
+		.top_debug_cfg_en                = 3,
+	},
+};
+
+struct cam_vfe_ver4_path_hw_info
+	tfe1080_rdi_hw_info_arr[] = {
+	{
+		.common_reg     = &tfe1080_common_reg,
+		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[0],
+	},
+	{
+		.common_reg     = &tfe1080_common_reg,
+		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[1],
+	},
+	{
+		.common_reg     = &tfe1080_common_reg,
+		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[2],
+	},
+	{
+		.common_reg     = &tfe1080_common_reg,
+		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[3],
+	},
+	{
+		.common_reg     = &tfe1080_common_reg,
+		.reg_data       = &tfe1080_vfe_full_rdi_reg_data[4],
+	},
+};
+
+
 
 static struct cam_vfe_top_ver4_diag_reg_info tfe1080_diag_reg_info[] = {
 	{
@@ -1121,27 +1150,31 @@ static struct cam_vfe_top_ver4_diag_reg_fields tfe1080_diag_frame_field[] = {
 	},
 };
 
+/*
+ * FCG CLC registers w.r.t fcg_clc_base. If the fcg_clc_base is 0,
+ * offsets are relative to core start address.
+ */
 static struct cam_vfe_ver4_fcg_module_info tfe1080_fcg_module_info = {
 	.max_fcg_ch_ctx                      = 3,
 	.max_fcg_predictions                 = 3,
 	.fcg_index_shift                     = 16,
 	.max_reg_val_pair_size               = 6,
 	.fcg_type_size                       = 2,
-	.fcg_phase_index_cfg_0               = 0x00010470,
-	.fcg_phase_index_cfg_1               = 0x00010474,
+	.fcg_phase_index_cfg_0               = 0x0000070,
+	.fcg_phase_index_cfg_1               = 0x0000074,
 	.fcg_reg_ctxt_shift                  = 0x0,
-	.fcg_reg_ctxt_sel                    = 0x000105F4,
+	.fcg_reg_ctxt_sel                    = 0x00001F4,
 	.fcg_reg_ctxt_mask                   = 0x7,
 };
 
 static struct cam_vfe_top_ver4_hw_info tfe1080_top_hw_info = {
-	.common_reg = &tfe1080_top_common_reg,
+	.common_reg = &tfe1080_common_reg,
 	.vfe_full_hw_info = {
-		.common_reg     = &tfe1080_top_common_reg,
+		.common_reg     = &tfe1080_common_reg,
 		.reg_data       = &tfe1080_ipp_common_reg_data,
 	},
 	.pdlib_hw_info = {
-		.common_reg     = &tfe1080_top_common_reg,
+		.common_reg     = &tfe1080_common_reg,
 		.reg_data       = &tfe1080_pdlib_reg_data,
 	},
 	.rdi_hw_info            = tfe1080_rdi_hw_info_arr,
@@ -1175,6 +1208,12 @@ static struct cam_vfe_top_ver4_hw_info tfe1080_top_hw_info = {
 	.fcg_mc_supported                = true,
 	.diag_sensor_info                = tfe1080_diag_sensor_field,
 	.diag_frame_info                 = tfe1080_diag_frame_field,
+	.top_hm_base                     = 0x0,
+	.bayer_hm_base                   = 0xE000,
+	.fcg_clc_base                    = 0x10400,
+	.haf_clc_base                    = 0xA300,
+	.bus_wr_base                     = 0x1000,
+	.bayer_hm_supported              = true,
 };
 
 static struct cam_irq_register_set tfe1080_bus_irq_reg[2] = {
