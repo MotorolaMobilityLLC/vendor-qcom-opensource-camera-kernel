@@ -48,6 +48,7 @@ struct cam_vfe_top_ver4_priv {
 	uint8_t                                      log_buf[CAM_VFE_LEN_LOG_BUF];
 	uint32_t                                     sof_cnt;
 	struct cam_vfe_top_ver4_perf_counter_cfg     perf_counters[CAM_VFE_PERF_CNT_MAX];
+	struct cam_vfe_top_ver4_perf_counter_cfg     bayer_perf_counters[CAM_VFE_PERF_CNT_MAX];
 	struct cam_vfe_top_ver4_prim_sof_ts_reg_addr sof_ts_reg_addr;
 	bool                                         enable_ife_frame_irqs;
 	uint64_t                                     diag_config_debug_val_0;
@@ -212,11 +213,12 @@ static int cam_vfe_top_ver4_pdaf_lcr_config(struct cam_vfe_top_ver4_priv *top_pr
 	}
 
 	if (cfg_args->is_init) {
-		reg_val_pair[reg_val_idx++] = hw_info->common_reg->pdaf_input_cfg_1;
+		reg_val_pair[reg_val_idx++] = hw_info->top_hm_base +
+			hw_info->common_reg->pdaf_input_cfg_1;
 		reg_val_pair[reg_val_idx++] = 0;
 	}
 
-	reg_val_pair[reg_val_idx++] = hw_info->common_reg->pdaf_input_cfg_0;
+	reg_val_pair[reg_val_idx++] = hw_info->top_hm_base + hw_info->common_reg->pdaf_input_cfg_0;
 	reg_val_pair[reg_val_idx] = hw_info->pdaf_lcr_res_mask[i].val;
 	cdm_util_ops->cdm_write_regrandom(cdm_args->cmd.cmd_buf_addr,
 		num_reg_vals, reg_val_pair);
@@ -371,6 +373,10 @@ static void cam_vfe_top_ver4_read_debug_err_vectors(
 	uint64_t                             timestamp;
 	size_t                               len = 0;
 	uint8_t                              log_buf[CAM_VFE_TOP_LOG_BUF_LEN];
+	uint32_t                             debug_cfg_offset = 0;
+
+	soc_info    =  top_priv->top_common.soc_info;
+	base        =  soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
 
 	switch (reg_type) {
 	case VFE_TOP_DEBUG_REG:
@@ -379,6 +385,8 @@ static void cam_vfe_top_ver4_read_debug_err_vectors(
 		debug_err_vec_ts_lb = common_data->common_reg->top_debug_err_vec_ts_lb;
 		debug_err_vec_ts_mb = common_data->common_reg->top_debug_err_vec_ts_mb;
 		debug_err_vec_irq = common_data->common_reg->top_debug_err_vec_irq;
+		debug_cfg_offset  = common_data->common_reg->top_debug_cfg;
+		base = base + common_data->hw_info->top_hm_base;
 		break;
 	case VFE_BAYER_DEBUG_REG:
 		module_desc = common_data->hw_info->bayer_module_desc;
@@ -386,19 +394,19 @@ static void cam_vfe_top_ver4_read_debug_err_vectors(
 		debug_err_vec_ts_lb = common_data->common_reg->bayer_debug_err_vec_ts_lb;
 		debug_err_vec_ts_mb = common_data->common_reg->bayer_debug_err_vec_ts_mb;
 		debug_err_vec_irq = common_data->common_reg->bayer_debug_err_vec_irq;
+		debug_cfg_offset  = common_data->common_reg->bayer_debug_cfg;
+		base = base + common_data->hw_info->bayer_hm_base;
 		break;
 	default:
 		return;
 	}
 
-	soc_info    =  top_priv->top_common.soc_info;
-	base        =  soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
 	/* Read existing debug cfg value so we don't overwite */
-	debug_cfg = cam_io_r_mb(base + common_data->common_reg->top_debug_cfg);
+	debug_cfg = cam_io_r_mb(base + debug_cfg_offset);
 
 	for (i = 0; i < CAM_VFE_TOP_DEBUG_VEC_FIFO_SIZE ; i++) {
 		cam_io_w_mb((debug_cfg | (i << CAM_VFE_TOP_DEBUG_TIMESTAMP_IRQ_SEL_SHIFT)),
-			base + common_data->common_reg->top_debug_cfg);
+			base + debug_cfg_offset);
 
 		timestamp = cam_vfe_top_ver4_get_time_stamp(base, debug_err_vec_ts_mb,
 			debug_err_vec_ts_lb);
@@ -433,7 +441,7 @@ static void cam_vfe_top_ver4_read_debug_err_vectors(
 	}
 
 	cam_io_w_mb((debug_cfg | (0x1 << CAM_VFE_TOP_DEBUG_TIMESTAMP_IRQ_CLEAR_SHIFT)),
-		base + common_data->common_reg->top_debug_cfg);
+		base + debug_cfg_offset);
 }
 
 static void cam_vfe_top_ver4_print_error_irq_timestamps(
@@ -454,7 +462,8 @@ static void cam_vfe_top_ver4_print_error_irq_timestamps(
 static void cam_vfe_top_ver4_check_module_idle(
 	struct cam_vfe_top_ver4_debug_reg_info *debug_reg,
 	struct cam_vfe_top_ver4_priv *top_priv,
-	uint32_t *idle_status, bool *is_mc)
+	uint32_t *idle_status, bool *is_mc,
+	enum cam_vfe_top_ver4_debug_reg_type reg_type)
 {
 	struct cam_vfe_top_ver4_reg_offset_common *common_reg;
 	struct cam_hw_soc_info                    *soc_info;
@@ -471,6 +480,18 @@ static void cam_vfe_top_ver4_check_module_idle(
 	common_reg = top_priv->common_data.common_reg;
 	base = soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
 
+	switch (reg_type) {
+	case VFE_TOP_DEBUG_REG:
+		base = base + top_priv->common_data.hw_info->top_hm_base;
+		break;
+	case VFE_BAYER_DEBUG_REG:
+		base = base + top_priv->common_data.hw_info->bayer_hm_base;
+		break;
+	default:
+		CAM_ERR(CAM_ISP, "VFE[%u], Invalid reg type %d", soc_info->index, reg_type);
+		return;
+	}
+
 	val = cam_io_r_mb(base + debug_reg->debug_idle_reg_addr);
 
 	shift = ffs(debug_reg->debug_idle_bitmask) - 1;
@@ -484,7 +505,8 @@ static void cam_vfe_top_ver4_check_module_idle(
 static void cam_vfe_top_ver4_check_module_status(
 	uint32_t num_reg, uint64_t *reg_val,
 	struct cam_vfe_top_ver4_priv *top_priv,
-	struct cam_vfe_top_ver4_debug_reg_info (*status_list)[][8])
+	struct cam_vfe_top_ver4_debug_reg_info (*status_list)[][8],
+	enum cam_vfe_top_ver4_debug_reg_type reg_type)
 {
 	bool found = false, is_mc;
 	uint32_t i, j, idle_status;
@@ -507,7 +529,7 @@ static void cam_vfe_top_ver4_check_module_status(
 				continue;
 
 			cam_vfe_top_ver4_check_module_idle(&(*status_list)[i][j], top_priv,
-				&idle_status, &is_mc);
+				&idle_status, &is_mc, reg_type);
 
 			snprintf(line_buf, CAM_VFE_LEN_LOG_BUF,
 				"\n\t%s [I:%llu V:%llu R:%llu] idle: 0x%x, is_mc: %s",
@@ -537,7 +559,8 @@ static void cam_vfe_top_dump_perf_counters(
 
 	soc_info = top_priv->top_common.soc_info;
 	common_reg = top_priv->common_data.common_reg;
-	mem_base = soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
+	mem_base = soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
+		top_priv->common_data.hw_info->top_hm_base;
 
 	for (i = 0; i < top_priv->common_data.common_reg->num_perf_counters; i++) {
 		if (top_priv->perf_counters[i].dump_counter) {
@@ -554,6 +577,27 @@ static void cam_vfe_top_dump_perf_counters(
 					common_reg->perf_count_reg[i].perf_always_count),
 				cam_io_r_mb(mem_base +
 					common_reg->perf_count_reg[i].perf_count_status));
+		}
+	}
+
+	mem_base = soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
+		top_priv->common_data.hw_info->bayer_hm_base;
+
+	for (i = 0; i < top_priv->common_data.common_reg->num_bayer_perf_counters; i++) {
+		if (top_priv->bayer_perf_counters[i].dump_counter) {
+			CAM_INFO(CAM_ISP,
+				"VFE [%u] Bayer on %s %s counter: %d pixel_cnt: %d line_cnt: %d stall_cnt: %d always_cnt: %d status: 0x%x",
+				top_priv->common_data.hw_intf->hw_idx, res_name, event, (i + 1),
+				cam_io_r_mb(mem_base +
+					common_reg->bayer_perf_count_reg[i].perf_pix_count),
+				cam_io_r_mb(mem_base +
+					common_reg->bayer_perf_count_reg[i].perf_line_count),
+				cam_io_r_mb(mem_base +
+					common_reg->bayer_perf_count_reg[i].perf_stall_count),
+				cam_io_r_mb(mem_base +
+					common_reg->bayer_perf_count_reg[i].perf_always_count),
+				cam_io_r_mb(mem_base +
+					common_reg->bayer_perf_count_reg[i].perf_count_status));
 		}
 	}
 }
@@ -585,6 +629,7 @@ static void cam_vfe_top_ver4_print_debug_reg_status(
 		debug_reg = common_reg->top_debug;
 		debug_reg_info = top_priv->common_data.hw_info->top_debug_reg_info;
 		num_reg = common_reg->num_top_debug_reg;
+		base = base + top_priv->common_data.hw_info->top_hm_base;
 		reg_name = "TOP";
 		break;
 	case VFE_BAYER_DEBUG_REG:
@@ -592,6 +637,7 @@ static void cam_vfe_top_ver4_print_debug_reg_status(
 		debug_reg_info = top_priv->common_data.hw_info->bayer_debug_reg_info;
 		num_reg = common_reg->num_bayer_debug_reg;
 		reg_name = "BAYER";
+		base = base + top_priv->common_data.hw_info->bayer_hm_base;
 		break;
 	default:
 		return;
@@ -613,7 +659,7 @@ static void cam_vfe_top_ver4_print_debug_reg_status(
 	}
 
 	cam_vfe_top_ver4_check_module_status(num_reg, reg_val,
-		top_priv, debug_reg_info);
+		top_priv, debug_reg_info, reg_type);
 
 }
 
@@ -643,8 +689,8 @@ static void cam_vfe_top_ver4_print_pdaf_violation_info(
 	common_data = &top_priv->common_data;
 	soc_info    =  top_priv->top_common.soc_info;
 	base        =  soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
-	val         =  cam_io_r(base +
-			    common_data->common_reg->pdaf_violation_status),
+	val         =  cam_io_r(base +  common_data->hw_info->haf_clc_base +
+			    common_data->common_reg->pdaf_violation_status);
 
 	CAM_DBG(CAM_ISP, "VFE[%u] PDAF HW Violation status 0x%x", soc_info->index, val);
 
@@ -674,7 +720,7 @@ static void cam_vfe_top_ver4_print_ipp_violation_info(
 	common_data = &top_priv->common_data;
 	soc_info    =  top_priv->top_common.soc_info;
 	base        =  soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
-	val         =  cam_io_r(base +
+	val         =  cam_io_r(base + top_priv->common_data.hw_info->top_hm_base +
 			    common_data->common_reg->ipp_violation_status);
 
 	CAM_ERR(CAM_ISP, "VFE[%u] %s occurred at [%llu: %09llu]",
@@ -704,7 +750,7 @@ static void cam_vfe_top_ver4_print_bayer_violation_info(
 	common_data = &top_priv->common_data;
 	soc_info    =  top_priv->top_common.soc_info;
 	base        =  soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
-	val         =  cam_io_r(base +
+	val         =  cam_io_r(base + top_priv->common_data.hw_info->bayer_hm_base +
 			    common_data->common_reg->bayer_violation_status);
 
 	CAM_ERR(CAM_ISP, "VFE[%u] %s occurred at [%llu: %09llu]",
@@ -751,7 +797,8 @@ static void cam_vfe_top_ver4_print_diag_sensor_frame_count_info(
 	top_priv    =  vfe_priv->top_priv;
 	common_data = &top_priv->common_data;
 	soc_info    =  top_priv->top_common.soc_info;
-	base        =  soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
+	base        =  soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
+			    top_priv->common_data.hw_info->top_hm_base;
 
 	if (is_error) {
 		CAM_ERR(CAM_ISP, "VFE[%u] %s occurred at [%llu: %09llu]",
@@ -950,9 +997,9 @@ static int cam_vfe_top_ver4_print_overflow_debug_info(
 	soc_private = soc_info->soc_private;
 
 	bus_overflow_status = cam_io_r(soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
-		common_data->common_reg->bus_overflow_status);
+		common_data->hw_info->bus_wr_base + common_data->common_reg->bus_overflow_status);
 	violation_status = cam_io_r(soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
-		common_data->common_reg->bus_violation_status);
+		common_data->hw_info->bus_wr_base + common_data->common_reg->bus_violation_status);
 
 	if (soc_private->is_ife_lite)
 		CAM_ERR(CAM_ISP,
@@ -1330,11 +1377,12 @@ int cam_vfe_top_ver4_release(void *device_priv,
 int cam_vfe_top_ver4_start(void *device_priv,
 	void *start_args, uint32_t arg_size)
 {
-	struct cam_vfe_top_ver4_priv     *top_priv;
-	struct cam_isp_resource_node     *mux_res;
-	struct cam_hw_info               *hw_info = NULL;
-	struct cam_hw_soc_info           *soc_info = NULL;
-	struct cam_vfe_soc_private       *soc_private = NULL;
+	struct cam_vfe_top_ver4_priv         *top_priv;
+	struct cam_isp_resource_node         *mux_res;
+	struct cam_hw_info                   *hw_info = NULL;
+	struct cam_hw_soc_info               *soc_info = NULL;
+	struct cam_vfe_soc_private           *soc_private = NULL;
+	struct cam_vfe_top_ver4_common_data  *common_data;
 	int rc = 0, i;
 
 	if (!device_priv || !start_args) {
@@ -1353,6 +1401,7 @@ int cam_vfe_top_ver4_start(void *device_priv,
 
 	mux_res = (struct cam_isp_resource_node *)start_args;
 	hw_info = (struct cam_hw_info *)mux_res->hw_intf->hw_priv;
+	common_data = &top_priv->common_data;
 
 	if (hw_info->hw_state == CAM_HW_STATE_POWER_UP) {
 		rc = cam_vfe_top_apply_clock_start_stop(&top_priv->top_common);
@@ -1388,10 +1437,25 @@ int cam_vfe_top_ver4_start(void *device_priv,
 			top_priv->perf_counters[i].dump_counter = true;
 			cam_io_w_mb(top_priv->perf_counters[i].perf_counter_val,
 				soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
-				top_priv->common_data.common_reg->perf_count_reg[i].perf_count_cfg);
+				common_data->hw_info->top_hm_base +
+				common_data->common_reg->perf_count_reg[i].perf_count_cfg);
 			CAM_DBG(CAM_ISP, "VFE [%u] perf_count_%d: 0x%x",
 				hw_info->soc_info.index, (i + 1),
 				top_priv->perf_counters[i].perf_counter_val);
+		}
+
+		for (i = 0; i < top_priv->common_data.common_reg->num_bayer_perf_counters; i++) {
+			if (!top_priv->bayer_perf_counters[i].perf_counter_val)
+				continue;
+
+			top_priv->bayer_perf_counters[i].dump_counter = true;
+			cam_io_w_mb(top_priv->bayer_perf_counters[i].perf_counter_val,
+				soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
+				common_data->hw_info->bayer_hm_base +
+				common_data->common_reg->bayer_perf_count_reg[i].perf_count_cfg);
+			CAM_DBG(CAM_ISP, "VFE [%u] bayer_perf_count_%d: 0x%x",
+				hw_info->soc_info.index, i,
+				top_priv->bayer_perf_counters[i].perf_counter_val);
 		}
 
 		if (top_priv->diag_config_debug_val_0 & CAMIF_DEBUG_ENABLE_SENSOR_DIAG_STATUS) {
@@ -1400,12 +1464,14 @@ int cam_vfe_top_ver4_start(void *device_priv,
 
 			cam_io_w_mb((uint32_t)top_priv->diag_config_debug_val_0, soc_info->reg_map[
 				VFE_CORE_BASE_IDX].mem_base +
+				top_priv->common_data.hw_info->top_hm_base +
 				top_priv->common_data.common_reg->diag_config);
 
 			if (top_priv->common_data.common_reg->diag_config_1 &&
 				(top_priv->diag_config_debug_val_0 >> 32))
 				cam_io_w_mb((uint32_t)(top_priv->diag_config_debug_val_0 >> 32),
 					soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
+					top_priv->common_data.hw_info->top_hm_base +
 					top_priv->common_data.common_reg->diag_config_1);
 		}
 	} else {
@@ -1420,11 +1486,12 @@ int cam_vfe_top_ver4_start(void *device_priv,
 int cam_vfe_top_ver4_stop(void *device_priv,
 	void *stop_args, uint32_t arg_size)
 {
-	struct cam_vfe_top_ver4_priv            *top_priv;
-	struct cam_isp_resource_node            *mux_res;
-	struct cam_hw_soc_info                  *soc_info = NULL;
-	void __iomem                            *base;
+	struct cam_vfe_top_ver4_priv               *top_priv;
+	struct cam_isp_resource_node               *mux_res;
+	struct cam_hw_soc_info                     *soc_info = NULL;
+	void __iomem                               *base;
 	int i, rc = 0;
+	struct cam_vfe_top_ver4_common_data        *common_data;
 
 	if (!device_priv || !stop_args) {
 		CAM_ERR(CAM_ISP, "Error, Invalid input arguments");
@@ -1435,6 +1502,7 @@ int cam_vfe_top_ver4_stop(void *device_priv,
 	soc_info = top_priv->top_common.soc_info;
 	mux_res = (struct cam_isp_resource_node *)stop_args;
 	base    =  soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
+	common_data = &top_priv->common_data;
 
 	if (mux_res->res_id < CAM_ISP_HW_VFE_IN_MAX) {
 		rc = mux_res->stop(mux_res);
@@ -1462,16 +1530,23 @@ int cam_vfe_top_ver4_stop(void *device_priv,
 	/* Reset perf counters at stream off */
 	for (i = 0; i < top_priv->common_data.common_reg->num_perf_counters; i++) {
 		if (top_priv->perf_counters[i].dump_counter)
-			cam_io_w_mb(0x0,
-				base +
-				top_priv->common_data.common_reg->perf_count_reg[i].perf_count_cfg);
+			cam_io_w_mb(0x0, base + common_data->hw_info->top_hm_base +
+				common_data->common_reg->perf_count_reg[i].perf_count_cfg);
 		top_priv->perf_counters[i].dump_counter = false;
+	}
+
+	for (i = 0; i < top_priv->common_data.common_reg->num_bayer_perf_counters; i++) {
+		if (top_priv->bayer_perf_counters[i].dump_counter)
+			cam_io_w_mb(0x0, base + common_data->hw_info->bayer_hm_base +
+				common_data->common_reg->bayer_perf_count_reg[i].perf_count_cfg);
+		top_priv->bayer_perf_counters[i].dump_counter = false;
 	}
 
 	top_priv->diag_config_debug_val_0 = 0;
 
 	if (top_priv->common_data.hw_info->num_pdaf_lcr_res)
 		cam_io_w(1, soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
+			top_priv->common_data.hw_info->top_hm_base +
 			top_priv->common_data.common_reg->pdaf_input_cfg_1);
 
 	atomic_set(&top_priv->overflow_pending, 0);
@@ -1565,6 +1640,7 @@ static int cam_vfe_top_apply_fcg_update(
 				if (hw_info->fcg_mc_supported) {
 					CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair,
 						fcg_module_info->max_reg_val_pair_size, j,
+						hw_info->fcg_clc_base +
 						fcg_module_info->fcg_reg_ctxt_sel,
 						(fcg_module_info->fcg_reg_ctxt_mask &
 						(fcg_ch_ctx->fcg_ch_ctx_id <<
@@ -1578,11 +1654,13 @@ static int cam_vfe_top_apply_fcg_update(
 				}
 				CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair,
 					fcg_module_info->max_reg_val_pair_size, j,
+					hw_info->fcg_clc_base +
 					fcg_module_info->fcg_phase_index_cfg_0,
 					fcg_pr->phase_index_r |
 					(fcg_pr->phase_index_g << fcg_index_shift));
 				CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair,
 					fcg_module_info->max_reg_val_pair_size, j,
+					hw_info->fcg_clc_base +
 					fcg_module_info->fcg_phase_index_cfg_1,
 					fcg_pr->phase_index_b);
 				CAM_DBG(CAM_ISP,
@@ -1604,6 +1682,7 @@ static int cam_vfe_top_apply_fcg_update(
 
 				CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair,
 					fcg_module_info->max_reg_val_pair_size, j,
+					hw_info->fcg_clc_base +
 					fcg_module_info->fcg_reg_ctxt_sel,
 					(fcg_module_info->fcg_reg_ctxt_mask &
 					(fcg_ch_ctx->fcg_ch_ctx_id <<
@@ -1617,11 +1696,13 @@ static int cam_vfe_top_apply_fcg_update(
 
 				CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair,
 					fcg_module_info->max_reg_val_pair_size, j,
+					hw_info->fcg_clc_base +
 					fcg_module_info->fcg_phase_index_cfg_0,
 					fcg_pr->phase_index_r |
 					(fcg_pr->phase_index_g << fcg_index_shift));
 				CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair,
 					fcg_module_info->max_reg_val_pair_size, j,
+					hw_info->fcg_clc_base +
 					fcg_module_info->fcg_phase_index_cfg_1,
 					fcg_pr->phase_index_b);
 				CAM_DBG(CAM_ISP,
@@ -1877,7 +1958,8 @@ int cam_vfe_top_ver4_process_cmd(void *device_priv, uint32_t cmd_type,
 
 		ife_cap = (struct cam_isp_hw_cap *) cmd_args;
 		ife_cap->num_perf_counters =
-			top_priv->common_data.common_reg->num_perf_counters;
+			top_priv->common_data.common_reg->num_perf_counters +
+			top_priv->common_data.common_reg->num_bayer_perf_counters;
 		if (top_priv->common_data.hw_info->fcg_supported ||
 			top_priv->common_data.hw_info->fcg_mc_supported) {
 			ife_cap->fcg_supported = true;
@@ -1890,14 +1972,24 @@ int cam_vfe_top_ver4_process_cmd(void *device_priv, uint32_t cmd_type,
 		break;
 	case CAM_ISP_HW_CMD_IFE_DEBUG_CFG: {
 		int i;
-		uint32_t max_counters = top_priv->common_data.common_reg->num_perf_counters;
+		int j;
 		struct cam_vfe_generic_debug_config *debug_cfg;
+		uint32_t perf_counters = 0;
 
 		debug_cfg = (struct cam_vfe_generic_debug_config *)cmd_args;
-		if (debug_cfg->num_counters <= max_counters)
-			for (i = 0; i < max_counters; i++)
-				top_priv->perf_counters[i].perf_counter_val =
-					debug_cfg->vfe_perf_counter_val[i];
+
+		perf_counters =
+			top_priv->common_data.common_reg->num_perf_counters;
+
+		for (i = 0; i < perf_counters; i++)
+			top_priv->perf_counters[i].perf_counter_val =
+				debug_cfg->vfe_perf_counter_val[i];
+
+		perf_counters +=  top_priv->common_data.common_reg->num_bayer_perf_counters;
+
+		for (j = 0; i < perf_counters; i++, j++)
+			top_priv->bayer_perf_counters[j].perf_counter_val =
+				debug_cfg->vfe_perf_counter_val[i];
 
 		top_priv->enable_ife_frame_irqs = debug_cfg->enable_ife_frame_irqs;
 		top_priv->diag_config_debug_val_0 = debug_cfg->diag_config;
@@ -2431,7 +2523,13 @@ static int cam_vfe_resource_start(
 
 	/* config debug status registers */
 	cam_io_w_mb(rsrc_data->reg_data->top_debug_cfg_en, rsrc_data->mem_base +
+		rsrc_data->top_priv->common_data.hw_info->top_hm_base +
 		rsrc_data->common_reg->top_debug_cfg);
+
+	if (rsrc_data->top_priv->common_data.hw_info->bayer_hm_supported)
+		cam_io_w_mb(rsrc_data->common_reg->bayer_debug_cfg_en, rsrc_data->mem_base +
+			rsrc_data->top_priv->common_data.hw_info->bayer_hm_base +
+			rsrc_data->common_reg->bayer_debug_cfg);
 
 	if (rsrc_data->is_lite || !rsrc_data->is_pixel_path ||
 		(rsrc_data->common_reg->capabilities & CAM_VFE_COMMON_CAP_SKIP_CORE_CFG))
@@ -2441,8 +2539,10 @@ static int cam_vfe_resource_start(
 	CAM_DBG(CAM_ISP, "VFE:%u TOP core_cfg0: 0x%x core_cfg1: 0x%x",
 		vfe_res->hw_intf->hw_idx,
 		cam_io_r_mb(rsrc_data->mem_base +
+			rsrc_data->top_priv->common_data.hw_info->top_hm_base +
 			rsrc_data->common_reg->core_cfg_0),
 		cam_io_r_mb(rsrc_data->mem_base +
+			rsrc_data->top_priv->common_data.hw_info->top_hm_base +
 			rsrc_data->common_reg->core_cfg_1));
 
 	/* % epoch factor from userland */
@@ -2460,7 +2560,8 @@ static int cam_vfe_resource_start(
 		val >>= 1;
 
 	cam_io_w_mb(val, rsrc_data->mem_base +
-				rsrc_data->common_reg->epoch_height_cfg);
+		rsrc_data->top_priv->common_data.hw_info->top_hm_base +
+		rsrc_data->common_reg->epoch_height_cfg);
 	CAM_DBG(CAM_ISP,
 		"VFE:%u height [0x%x : 0x%x] vbi_val: 0x%x epoch_factor: %u%% epoch_line_cfg: 0x%x",
 		vfe_res->hw_intf->hw_idx, rsrc_data->first_line, rsrc_data->last_line,
@@ -2471,7 +2572,9 @@ skip_core_cfg:
 	if (rsrc_data->common_reg->capabilities & CAM_VFE_COMMON_CAP_CORE_MUX_CFG)
 		CAM_DBG(CAM_ISP, "VFE:%u TOP core_mux_cfg: 0x%x",
 			vfe_res->hw_intf->hw_idx,
-			cam_io_r_mb(rsrc_data->mem_base + rsrc_data->common_reg->core_mux_cfg));
+			cam_io_r_mb(rsrc_data->mem_base +
+				rsrc_data->top_priv->common_data.hw_info->top_hm_base +
+				rsrc_data->common_reg->core_mux_cfg));
 
 	vfe_res->res_state = CAM_ISP_RESOURCE_STATE_STREAMING;
 
@@ -2600,10 +2703,10 @@ static int cam_vfe_resource_stop(
 
 	if ((vfe_priv->dsp_mode >= CAM_ISP_DSP_MODE_ONE_WAY) &&
 		(vfe_priv->dsp_mode <= CAM_ISP_DSP_MODE_ROUND)) {
-		val = cam_io_r_mb(vfe_priv->mem_base +
+		val = cam_io_r_mb(vfe_priv->mem_base + top_priv->common_data.hw_info->top_hm_base +
 			vfe_priv->common_reg->core_cfg_0);
 		val &= (~(1 << CAM_SHIFT_TOP_CORE_VER_4_CFG_DSP_EN));
-		cam_io_w_mb(val, vfe_priv->mem_base +
+		cam_io_w_mb(val, vfe_priv->mem_base + top_priv->common_data.hw_info->top_hm_base +
 			vfe_priv->common_reg->core_cfg_0);
 	}
 

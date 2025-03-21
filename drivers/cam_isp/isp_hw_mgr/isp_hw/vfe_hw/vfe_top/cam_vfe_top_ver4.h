@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_VFE_TOP_VER4_H_
@@ -89,6 +89,9 @@ struct cam_vfe_top_ver4_reg_offset_common {
 	uint32_t num_perf_counters;
 	struct cam_vfe_top_ver4_perf_count_reg_offset
 		perf_count_reg[CAM_VFE_PERF_CNT_MAX];
+	uint32_t num_bayer_perf_counters;
+	struct cam_vfe_top_ver4_perf_count_reg_offset
+		bayer_perf_count_reg[CAM_VFE_PERF_CNT_MAX];
 	uint32_t top_debug_cfg;
 	uint32_t bayer_debug_cfg;
 	uint32_t top_debug_err_vec_irq[CAM_VFE_TOP_DEBUG_VEC_ERR_REGS];
@@ -105,6 +108,7 @@ struct cam_vfe_top_ver4_reg_offset_common {
 	uint32_t *bayer_debug;
 	uint32_t frame_timing_irq_reg_idx;
 	uint32_t capabilities;
+	uint32_t bayer_debug_cfg_en;
 };
 
 struct cam_vfe_top_common_cfg {
@@ -212,8 +216,14 @@ struct cam_vfe_top_ver4_hw_info {
 	struct cam_vfe_ver4_fcg_module_info             *fcg_module_info;
 	struct cam_vfe_top_ver4_diag_reg_fields         *diag_sensor_info;
 	struct cam_vfe_top_ver4_diag_reg_fields         *diag_frame_info;
+	uint64_t                                         top_hm_base;
+	uint64_t                                         bayer_hm_base;
+	uint64_t                                         fcg_clc_base;
+	uint64_t                                         haf_clc_base;
+	uint64_t                                         bus_wr_base;
 	bool                                             fcg_supported;
 	bool                                             fcg_mc_supported;
+	bool                                             bayer_hm_supported;
 };
 
 struct cam_vfe_ver4_path_reg_data {

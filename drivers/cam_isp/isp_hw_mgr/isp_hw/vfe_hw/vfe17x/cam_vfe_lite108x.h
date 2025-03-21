@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 
@@ -56,57 +56,67 @@ static struct cam_vfe_top_ver4_wr_client_desc vfe_lite108x_wr_client_desc[] = {
 	},
 };
 
-/* All the Offsets are relative to ifelite start address */
-
+/*
+ * Top HM registers, Offsets w.r.t top_hm_base. If top_hm_base is 0,
+ * make these offsets relative core start address.
+ */
 static struct cam_irq_register_set vfe_lite108x_top_irq_reg_set[2] = {
 	{
-		.mask_reg_offset   = 0x00009164,
-		.clear_reg_offset  = 0x00009174,
-		.status_reg_offset = 0x00009154,
-		.set_reg_offset    = 0x00009184,
+		.mask_reg_offset   = 0x00000164,
+		.clear_reg_offset  = 0x00000174,
+		.status_reg_offset = 0x00000154,
+		.set_reg_offset    = 0x00000184,
 		.test_set_val      = BIT(0),
 		.test_sub_val      = BIT(0),
 	},
 	{
-		.mask_reg_offset   = 0x00009168,
-		.clear_reg_offset  = 0x00009178,
-		.status_reg_offset = 0x00009158,
+		.mask_reg_offset   = 0x00000168,
+		.clear_reg_offset  = 0x00000178,
+		.status_reg_offset = 0x00000158,
 	},
 };
 
 static struct cam_irq_controller_reg_info vfe_lite108x_top_irq_reg_info = {
 	.num_registers = 2,
 	.irq_reg_set = vfe_lite108x_top_irq_reg_set,
-	.global_irq_cmd_offset = 0x00009188,
+	.global_irq_cmd_offset = 0x00000188,
 	.global_clear_bitmask  = 0x00000001,
 	.global_set_bitmask    = 0x00000010,
 	.clear_all_bitmask     = 0xFFFFFFFF,
 };
 
 static uint32_t vfe_lite108x_top_debug_reg[] = {
-	0x0000938C,
-	0x00009390,
-	0x00009394,
-	0x00009398,
-	0x0000939C,
+	0x0000038C,
+	0x00000390,
+	0x00000394,
+	0x00000398,
+	0x0000039C,
 };
 
-static struct cam_vfe_top_ver4_reg_offset_common vfe_lite108x_top_common_reg = {
-	.hw_version               = 0x00009000,
+static struct cam_vfe_top_ver4_reg_offset_common vfe_lite108x_common_reg = {
+	/*
+	 * Top HM registers, Offsets w.r.t top_hm_base. If top_hm_base is 0,
+	 * make these offsets relative core start address.
+	 */
+	.hw_version               = 0x00000000,
 	.hw_capability            = 0x0,
-	.core_cgc_ovd_0           = 0x00009104,
-	.ahb_cgc_ovd              = 0x00009108,
-	.core_cfg_0               = 0x00009114,
-	.diag_config              = 0x00009254,
-	.diag_config_1            = 0x00009258,
-	.diag_sensor_status       = {0x0000925C, 0x00009260},
-	.diag_frm_cnt_status      = {0x00009264, 0x00009268},
-	.ipp_violation_status     = 0x000092A4,
-	.bus_violation_status     = 0x00009864,
-	.bus_overflow_status      = 0x00009868,
-	.top_debug_cfg            = 0x000093DC,
+	.core_cgc_ovd_0           = 0x00000104,
+	.ahb_cgc_ovd              = 0x00000108,
+	.core_cfg_0               = 0x00000114,
+	.diag_config              = 0x00000254,
+	.diag_config_1            = 0x00000258,
+	.diag_sensor_status       = {0x0000925C, 0x00000260},
+	.diag_frm_cnt_status      = {0x00009264, 0x00000268},
+	.ipp_violation_status     = 0x000002A4,
+	.top_debug_cfg            = 0x000003DC,
 	.num_top_debug_reg        = CAM_VFE_108X_NUM_DBG_REG,
 	.top_debug                = vfe_lite108x_top_debug_reg,
+	/*
+	 * Bus Wr registers, w.r.t bus_wr_base. If bus_wr_base is 0,
+	 * make these offsets relative core start address.
+	 */
+	.bus_violation_status     = 0x00000064,
+	.bus_overflow_status      = 0x00000068,
 };
 
 static struct cam_vfe_ver4_path_reg_data vfe_lite108x_ipp_reg_data = {
@@ -164,19 +174,19 @@ static struct cam_vfe_ver4_path_reg_data vfe_lite108x_rdi_reg_data[4] = {
 static struct cam_vfe_ver4_path_hw_info
 	vfe_lite108x_rdi_hw_info[] = {
 	{
-		.common_reg     = &vfe_lite108x_top_common_reg,
+		.common_reg     = &vfe_lite108x_common_reg,
 		.reg_data       = &vfe_lite108x_rdi_reg_data[0],
 	},
 	{
-		.common_reg     = &vfe_lite108x_top_common_reg,
+		.common_reg     = &vfe_lite108x_common_reg,
 		.reg_data       = &vfe_lite108x_rdi_reg_data[1],
 	},
 	{
-		.common_reg     = &vfe_lite108x_top_common_reg,
+		.common_reg     = &vfe_lite108x_common_reg,
 		.reg_data       = &vfe_lite108x_rdi_reg_data[2],
 	},
 	{
-		.common_reg     = &vfe_lite108x_top_common_reg,
+		.common_reg     = &vfe_lite108x_common_reg,
 		.reg_data       = &vfe_lite108x_rdi_reg_data[3],
 	},
 };
@@ -296,10 +306,10 @@ static struct cam_vfe_top_ver4_diag_reg_fields vfe_lite108x_diag_frame_field[] =
 };
 
 static struct cam_vfe_top_ver4_hw_info vfe_lite108x_top_hw_info = {
-	.common_reg = &vfe_lite108x_top_common_reg,
+	.common_reg = &vfe_lite108x_common_reg,
 	.rdi_hw_info = vfe_lite108x_rdi_hw_info,
 	.vfe_full_hw_info = {
-		.common_reg     = &vfe_lite108x_top_common_reg,
+		.common_reg     = &vfe_lite108x_common_reg,
 		.reg_data       = &vfe_lite108x_ipp_reg_data,
 	},
 	.ipp_module_desc        = vfe_lite108x_ipp_mod_desc,
@@ -316,13 +326,20 @@ static struct cam_vfe_top_ver4_hw_info vfe_lite108x_top_hw_info = {
 	.num_rdi        = ARRAY_SIZE(vfe_lite108x_rdi_hw_info),
 	.diag_sensor_info = vfe_lite108x_diag_sensor_field,
 	.diag_frame_info  = vfe_lite108x_diag_frame_field,
+	.top_hm_base                      = 0x9000,
+	.bus_wr_base                      = 0x9800,
+
 };
 
+/*
+ * Bus Wr registers, w.r.t bus_wr_base. If bus_wr_base is 0,
+ * make these offsets relative core start address.
+ */
 static struct cam_irq_register_set vfe_lite108x_bus_irq_reg[1] = {
 	{
-		.mask_reg_offset   = 0x00009818,
-		.clear_reg_offset  = 0x00009820,
-		.status_reg_offset = 0x00009828,
+		.mask_reg_offset   = 0x00000018,
+		.clear_reg_offset  = 0x00000020,
+		.status_reg_offset = 0x00000028,
 	},
 };
 
@@ -337,16 +354,20 @@ static uint32_t vfe_lite108x_out_port_mid[][4] = {
 
 static struct cam_vfe_bus_ver3_hw_info vfe_lite108x_bus_hw_info = {
 	.common_reg = {
-		.hw_version                       = 0x00009800,
-		.cgc_ovd                          = 0x00009808,
-		.pwr_iso_cfg                      = 0x0000985C,
-		.overflow_status_clear            = 0x00009860,
-		.ccif_violation_status            = 0x00009864,
-		.overflow_status                  = 0x00009868,
-		.image_size_violation_status      = 0x00009870,
-		.debug_status_top_cfg             = 0x000098F0,
-		.debug_status_top                 = 0x000098F4,
-		.test_bus_ctrl                    = 0x00009928,
+		/*
+		 * Bus Wr registers, w.r.t bus_wr_base. If bus_wr_base is 0,
+		 * make these offsets relative core start address.
+		 */
+		.hw_version                       = 0x00000000,
+		.cgc_ovd                          = 0x00000008,
+		.pwr_iso_cfg                      = 0x0000005C,
+		.overflow_status_clear            = 0x00000060,
+		.ccif_violation_status            = 0x00000064,
+		.overflow_status                  = 0x00000068,
+		.image_size_violation_status      = 0x00000070,
+		.debug_status_top_cfg             = 0x000000F0,
+		.debug_status_top                 = 0x000000F4,
+		.test_bus_ctrl                    = 0x00000128,
 		.wm_mode_shift                    = 16,
 		.wm_mode_val                      = { 0x0, 0x1, 0x2 },
 		.wm_en_shift                      = 0,
@@ -355,13 +376,18 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite108x_bus_hw_info = {
 		.irq_reg_info = {
 			.num_registers            = 1,
 			.irq_reg_set              = vfe_lite108x_bus_irq_reg,
-			.global_irq_cmd_offset    = 0x00009830,
+			.global_irq_cmd_offset    = 0x00000030,
 			.global_clear_bitmask     = 0x00000001,
 		},
 	},
+	.bus_wr_base                              = 0x9800,
 	.num_client = 6,
 	.support_dyn_offset                       = true,
-	.client_base                              = 0x9D00,
+	/*
+	 * client_base is w.r.t bus_wr_base. If bus_wr_base is 0,
+	 * make client_base relative core start address.
+	 */
+	.client_base                              = 0x500,
 	.client_reg_size                          = 0x100,
 	.client_offsets = {
 			.cfg                      = 0x00000000,
