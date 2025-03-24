@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_COMMON_UTIL_H_
@@ -468,4 +468,25 @@ int cam_common_mem_kdup(void **dst, void *src, size_t size);
  * @memory:                Address of memory
  */
 void cam_common_mem_free(void *memory);
+
+/**
+ * cam_common_inc_idx()
+ *
+ * @brief    : Increment val passed by step size and rollover after max_val
+ * @val      : value to be incremented
+ * @step     : amount/step by which val is incremented
+ * @max_val  : max val after which idx will roll over
+ */
+void inline cam_common_inc_idx(int32_t *val, int32_t step, int32_t max_val);
+
+/**
+ * cam_common_dec_idx()
+ *
+ * @brief    : Decrement val passed by step size and rollover after max_val
+ * @val      : value to be decremented
+ * @step     : amount/step by which val is decremented
+ * @max_val  : after zero value will roll over to max val
+ */
+void inline cam_common_dec_idx(int32_t *val, int32_t step, int32_t max_val);
+
 #endif /* _CAM_COMMON_UTIL_H_ */

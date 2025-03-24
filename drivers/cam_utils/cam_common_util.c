@@ -909,3 +909,15 @@ void cam_common_mem_free(void *memory)
 	kvfree(memory);
 }
 EXPORT_SYMBOL(cam_common_mem_free);
+
+void inline cam_common_inc_idx(int32_t *val, int32_t step, int32_t max_val)
+{
+	*val = (*val + step) % max_val;
+}
+
+void inline cam_common_dec_idx(int32_t *val, int32_t step, int32_t max_val)
+{
+	*val = *val - step;
+	if (*val < 0)
+		*val = max_val + (*val);
+}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -338,6 +338,21 @@ static int32_t cam_sensor_generic_blob_handler(void *user_data,
 	return rc;
 }
 
+static int32_t cam_sensor_find_table_idx(struct cam_sensor_ctrl_t *s_ctrl,
+	uint64_t req_id)
+{
+	int32_t idx = -1, i, tmp_idx;
+
+	for (i = 0; i < MAX_PER_FRAME_ARRAY; i++) {
+		tmp_idx = s_ctrl->req_table_wr_idx;
+		cam_common_dec_idx(&tmp_idx, i, MAX_PER_FRAME_ARRAY);
+		if (s_ctrl->req_table[tmp_idx] == req_id)
+			idx = tmp_idx;
+	}
+
+	return idx;
+}
+
 static int32_t cam_sensor_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 	void *arg)
 {
@@ -487,6 +502,9 @@ static int32_t cam_sensor_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 			goto end;
 		}
 
+		s_ctrl->req_table[s_ctrl->req_table_wr_idx] = csl_packet->header.request_id;
+		cam_common_inc_idx(&s_ctrl->req_table_wr_idx, 1, MAX_PER_FRAME_ARRAY);
+
 		i2c_reg_settings =
 			&i2c_data->per_frame[csl_packet->header.request_id %
 				MAX_PER_FRAME_ARRAY];
@@ -557,6 +575,9 @@ static int32_t cam_sensor_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 				s_ctrl->sensor_state);
 			goto end;
 		}
+
+		s_ctrl->req_table[s_ctrl->req_table_wr_idx] = csl_packet->header.request_id;
+		cam_common_inc_idx(&s_ctrl->req_table_wr_idx, 1, MAX_PER_FRAME_ARRAY);
 
 		i2c_reg_settings =
 			&i2c_data->per_frame[csl_packet->header.request_id %
@@ -1511,7 +1532,9 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 		s_ctrl->last_applied_done_timestamp = 0;
 		s_ctrl->stream_off_on_flush = false;
 		s_ctrl->is_stream_off_pkt_updated = false;
+		s_ctrl->req_table_wr_idx = 0;
 		memset(s_ctrl->sensor_res, 0, sizeof(s_ctrl->sensor_res));
+		memset(s_ctrl->req_table, 0, sizeof(s_ctrl->req_table));
 		CAM_INFO(CAM_SENSOR,
 			"CAM_ACQUIRE_DEV Success for %s sensor_id:0x%x,sensor_slave_addr:0x%x",
 			s_ctrl->sensor_name,
@@ -2210,9 +2233,48 @@ int cam_sensor_apply_settings(struct cam_sensor_ctrl_t *s_ctrl,
 	return rc;
 }
 
+int cam_sensor_apply_deferred_meta(struct cam_sensor_ctrl_t *s_ctrl,
+	struct cam_req_mgr_apply_request *apply)
+{
+	int rc = 0, idx, tbl_idx;
+	uint64_t prev_req_id;
+
+	if (apply->request_id > 1) {
+		tbl_idx = cam_sensor_find_table_idx(s_ctrl, apply->request_id);
+		if (tbl_idx < 0) {
+			CAM_DBG(CAM_SENSOR, "Sensor[%d] can't find req:%llu in req table",
+				s_ctrl->soc_info.index, apply->request_id);
+			return rc;
+		}
+
+		cam_common_dec_idx(&tbl_idx, 1, MAX_PER_FRAME_ARRAY);
+		prev_req_id = s_ctrl->req_table[tbl_idx];
+		if (prev_req_id == 0) {
+			CAM_DBG(CAM_SENSOR, "Sensor[%d] req:%llu doesn't have a previous valid req",
+				s_ctrl->soc_info.index, apply->request_id);
+			return rc;
+		}
+
+		idx = prev_req_id % MAX_PER_FRAME_ARRAY;
+
+		if (s_ctrl->sensor_res[idx].feature_mask &
+			CAM_SENSOR_FEATURE_ALWAYS_APPLY_DEFERRED_META) {
+			mutex_lock(&(s_ctrl->cam_sensor_mutex));
+			rc = cam_sensor_apply_settings(s_ctrl, prev_req_id,
+				CAM_SENSOR_PACKET_OPCODE_SENSOR_DEFERRED_META);
+			mutex_unlock(&(s_ctrl->cam_sensor_mutex));
+			CAM_DBG(CAM_SENSOR,
+				"Sensor[%d] applying deferred settings from req id: %lld",
+				s_ctrl->soc_info.index, prev_req_id);
+		}
+	}
+
+	return rc;
+}
+
 int32_t cam_sensor_apply_request(struct cam_req_mgr_apply_request *apply)
 {
-	int32_t idx, rc = 0;
+	int32_t rc = 0;
 	struct cam_sensor_ctrl_t *s_ctrl = NULL;
 	int32_t curr_idx, last_applied_idx;
 	enum cam_sensor_packet_opcodes opcode =
@@ -2228,17 +2290,12 @@ int32_t cam_sensor_apply_request(struct cam_req_mgr_apply_request *apply)
 		return -EINVAL;
 	}
 
-	if (apply->request_id > 1) {
-		idx = (apply->request_id - 1) % MAX_PER_FRAME_ARRAY;
-
-		if (s_ctrl->sensor_res[idx].feature_mask &
-			CAM_SENSOR_FEATURE_ALWAYS_APPLY_DEFERRED_META) {
-			cam_sensor_apply_settings(s_ctrl, apply->request_id - 1,
-				CAM_SENSOR_PACKET_OPCODE_SENSOR_DEFERRED_META);
-			CAM_DBG(CAM_SENSOR,
-				"Sensor[%d] applying deferred settings from req id: %lld",
-				s_ctrl->soc_info.index, apply->request_id);
-		}
+	rc = cam_sensor_apply_deferred_meta(s_ctrl, apply);
+	if (rc) {
+		CAM_ERR(CAM_SENSOR, "Sensor[%d] failed to apply deferred meta for req:%lld",
+			s_ctrl->soc_info.index,
+			apply->request_id);
+		return rc;
 	}
 
 	if ((apply->recovery) && (apply->request_id > 0)) {
