@@ -2409,7 +2409,7 @@ static int cam_hw_cdm_component_bind(struct device *dev,
 		INIT_LIST_HEAD(&cdm_core->bl_fifo[i].bl_request_list);
 		mutex_init(&cdm_core->bl_fifo[i].fifo_lock);
 		init_completion(&cdm_core->bl_fifo[i].bl_complete);
-		spin_lock_init(&cdm_core->bl_fifo->fast_complete_lock);
+		spin_lock_init(&cdm_core->bl_fifo[i].fast_complete_lock);
 
 		for (j = 0; j < CAM_CDM_BL_FIFO_LENGTH_MAX_DEFAULT; j++)
 			cdm_core->bl_fifo[i].fast_complete[j] = NULL;
