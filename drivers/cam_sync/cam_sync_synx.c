@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "cam_sync_synx.h"
@@ -733,6 +733,9 @@ int cam_synx_core_recovery(
 	switch (cam_core_id) {
 	case CAM_ICP_0_SYNX_CORE:
 		client_id = SYNX_CLIENT_ICP_CTX0;
+		break;
+	case CAM_ICP_1_SYNX_CORE:
+		client_id = SYNX_CLIENT_ICP1_CTX0;
 		break;
 	default:
 		rc = -EINVAL;
