@@ -2342,6 +2342,8 @@ static int cam_icp_hw_mgr_create_debugfs_entry(struct cam_icp_hw_mgr *hw_mgr)
 	debugfs_create_bool("enable_kernel_panic", 0644,
 		hw_mgr->dentry, &hw_mgr->enable_panic);
 end:
+	/* Set default hang dump lvl */
+	hw_mgr->icp_fw_dump_lvl = HFI_FW_DUMP_ON_FAILURE;
 
 	/* By default, FW ramdump is disabled on both ICPs to avoid potential perf issue */
 	hw_mgr->icp_fw_ramdump_lvl = HFI_FW_RAMDUMP_DISABLED;
