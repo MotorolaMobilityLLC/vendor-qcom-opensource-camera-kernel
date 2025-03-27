@@ -115,7 +115,7 @@ static int cam_lrme_hw_dump(
 		return 0;
 	}
 
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	diff = ktime_us_delta(req->submit_timestamp, cur_time);
 	cur_ts = ktime_to_timespec64(cur_time);
 	req_ts = ktime_to_timespec64(req->submit_timestamp);
@@ -1129,7 +1129,7 @@ int cam_lrme_hw_submit_req(void *hw_priv, void *hw_submit_args,
 		goto error;
 	}
 
-	frame_req->submit_timestamp = ktime_get();
+	frame_req->submit_timestamp = ktime_get_boottime();
 
 	switch (lrme_core->state) {
 	case CAM_LRME_CORE_STATE_PROCESSING:

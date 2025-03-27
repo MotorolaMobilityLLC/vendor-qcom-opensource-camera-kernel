@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -1052,7 +1052,7 @@ static irqreturn_t cam_cpastop_handle_irq(int irq_num, void *data)
 	payload->hw = cpas_hw;
 	INIT_WORK((struct work_struct *)&payload->work, cam_cpastop_work);
 
-	payload->workq_scheduled_ts = ktime_get();
+	payload->workq_scheduled_ts = ktime_get_boottime();
 	queue_work(cpas_core->work_queue, &payload->work);
 
 done:

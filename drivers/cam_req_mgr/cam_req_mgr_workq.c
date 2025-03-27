@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "cam_req_mgr_workq.h"
@@ -126,7 +126,7 @@ void cam_req_mgr_process_workq(struct work_struct *w)
 				workq->workq_name, "schedule", cb,
 				task->task_scheduled_ts,
 				CAM_WORKQ_SCHEDULE_TIME_THRESHOLD);
-			sched_start_time = ktime_get();
+			sched_start_time = ktime_get_boottime();
 			atomic_sub(1, &workq->task.pending_cnt);
 			list_del_init(&task->entry);
 			WORKQ_RELEASE_LOCK(workq, flags);
@@ -170,7 +170,7 @@ int cam_req_mgr_workq_enqueue_task(struct crm_workq_task *task,
 	task->priority =
 		(prio < CRM_TASK_PRIORITY_MAX && prio >= CRM_TASK_PRIORITY_0)
 		? prio : CRM_TASK_PRIORITY_0;
-	task->task_scheduled_ts = ktime_get();
+	task->task_scheduled_ts = ktime_get_boottime();
 
 	WORKQ_ACQUIRE_LOCK(workq, flags);
 	if (!workq->job) {

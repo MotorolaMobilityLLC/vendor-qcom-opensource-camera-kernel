@@ -869,7 +869,7 @@ static int cam_jpeg_mgr_process_hw_update_entries(void *priv, void *data)
 		goto end_callcb;
 	}
 
-	p_cfg_req->submit_timestamp = ktime_get();
+	p_cfg_req->submit_timestamp = ktime_get_boottime();
 
 	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	return rc;
@@ -1884,7 +1884,7 @@ static int cam_jpeg_mgr_hw_dump(void *hw_mgr_priv, void *dump_hw_args)
 	return 0;
 
 hw_dump:
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	diff = ktime_us_delta(p_cfg_req->submit_timestamp, cur_time);
 	cur_ts = ktime_to_timespec64(cur_time);
 	req_ts = ktime_to_timespec64(p_cfg_req->submit_timestamp);

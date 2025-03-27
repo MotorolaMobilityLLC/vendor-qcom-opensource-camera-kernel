@@ -1661,11 +1661,10 @@ irqreturn_t cam_hw_cdm_irq(int irq_num, void *data)
 		payload[i]->irq_status = irq_status[i];
 		payload[i]->hw = cdm_hw;
 		payload[i]->irq_data = inline_irq_data;
+		payload[i]->workq_scheduled_ts = ktime_get_boottime();
 
 		INIT_WORK((struct work_struct *)&payload[i]->work,
 			cam_hw_cdm_work);
-
-		payload[i]->workq_scheduled_ts = ktime_get();
 
 		work_status = queue_work(
 			cdm_core->bl_fifo[i].work_queue,

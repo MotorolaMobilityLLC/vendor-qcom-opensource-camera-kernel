@@ -2168,7 +2168,7 @@ int cam_sensor_apply_settings(struct cam_sensor_ctrl_t *s_ctrl,
 		}
 
 		/* Record the sensor setting applied done timestamp */
-		current_time = ktime_get();
+		current_time = ktime_get_boottime();
 		current_ts = ktime_to_timespec64(current_time);
 		s_ctrl->last_applied_done_timestamp = current_ts.tv_sec * NSEC_PER_SEC +
 			current_ts.tv_nsec;

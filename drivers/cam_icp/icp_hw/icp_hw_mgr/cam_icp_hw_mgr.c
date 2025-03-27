@@ -2589,7 +2589,7 @@ static void cam_icp_mgr_compute_fw_avg_response_time(struct cam_icp_hw_ctx_data 
 	struct cam_icp_ctx_perf_stats *perf_stats;
 	uint64_t delta;
 
-	delta = ktime_ms_delta(ktime_get(),
+	delta = ktime_ms_delta(ktime_get_boottime(),
 		ctx_data->hfi_frame_process.submit_timestamp[request_idx]);
 
 	perf_stats = &ctx_data->perf_stats;
@@ -6182,7 +6182,7 @@ static int cam_icp_mgr_config_hw(void *hw_mgr_priv, void *config_hw_args)
 
 	cam_icp_mgr_dev_clk_update(hw_mgr, ctx_data, idx);
 	ctx_data->hfi_frame_process.fw_process_flag[idx] = true;
-	ctx_data->hfi_frame_process.submit_timestamp[idx] = ktime_get();
+	ctx_data->hfi_frame_process.submit_timestamp[idx] = ktime_get_boottime();
 
 	CAM_DBG(CAM_ICP, "%s: req_id %llu, io config %llu",
 		ctx_data->ctx_id_string, req_id, frame_info->io_config);
@@ -7682,7 +7682,7 @@ static int cam_icp_mgr_hw_dump(void *hw_priv, void *hw_dump_args)
 		}
 	}
 
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	cur_ts = ktime_to_timespec64(cur_time);
 	if (frm_idx >= 0) {
 		req_ts = ktime_to_timespec64(frm_process->submit_timestamp[frm_idx]);

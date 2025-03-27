@@ -91,10 +91,10 @@
 ({                                                                                           \
 	struct timespec64 start_time, end_time;                                              \
 	unsigned long rem_jiffies;                                                           \
-	start_time = ktime_to_timespec64(ktime_get());                                       \
+	start_time = ktime_to_timespec64(ktime_get_boottime());                              \
 	rem_jiffies = cam_common_wait_for_completion_timeout((complete), (timeout_jiffies)); \
 	if (!rem_jiffies) {                                                                  \
-		end_time = ktime_to_timespec64(ktime_get());                                 \
+		end_time = ktime_to_timespec64(ktime_get_boottime());                        \
 		CAM_ERR(module_id,                                                           \
 		fmt " (timeout: %ums start: timestamp:[%lld:%06lld] end: timestamp:[%lld:%06lld])",\
 		##args, jiffies_to_msecs(timeout_jiffies),                                   \

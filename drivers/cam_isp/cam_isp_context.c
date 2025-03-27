@@ -117,7 +117,7 @@ static void __cam_isp_ctx_update_event_record(
 
 	INC_HEAD(&ctx_isp->dbg_monitors.event_record_head[event],
 		CAM_ISP_CTX_EVENT_RECORD_MAX_ENTRIES, &iterator);
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	if (req) {
 		req_isp = (struct cam_isp_ctx_req *) req->req_priv;
 		ctx_isp->dbg_monitors.event_record[event][iterator].req_id =
@@ -6334,7 +6334,7 @@ static void *cam_isp_ctx_user_dump_timer(
 
 	req = (struct cam_ctx_request *)dump_struct;
 	req_isp = (struct cam_isp_ctx_req *)req->req_priv;
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 
 	addr = (uint64_t *)addr_ptr;
 
@@ -6455,7 +6455,7 @@ hw_dump:
 
 	ctx_isp = (struct cam_isp_context *) ctx->ctx_priv;
 	req_isp = (struct cam_isp_ctx_req *) req->req_priv;
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	diff = ktime_us_delta(
 		req_isp->event_timestamp[CAM_ISP_CTX_EVENT_APPLY],
 		cur_time);

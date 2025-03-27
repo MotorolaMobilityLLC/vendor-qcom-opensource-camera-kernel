@@ -196,7 +196,7 @@ int cam_sync_register_callback(sync_callback cb_func,
 			CAM_DBG(CAM_SYNC, "Enqueue callback for sync object:%s[%d]",
 				row->name,
 				sync_cb->sync_obj);
-			sync_cb->workq_scheduled_ts = ktime_get();
+			sync_cb->workq_scheduled_ts = ktime_get_boottime();
 			queue_work(sync_dev->work_queue,
 				&sync_cb->cb_dispatch_work);
 			spin_unlock_bh(&sync_dev->row_spinlocks[sync_obj]);

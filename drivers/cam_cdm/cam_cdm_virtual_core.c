@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -197,7 +197,7 @@ int cam_virtual_cdm_submit_bl(struct cam_hw_info *cdm_hw,
 						&payload->work,
 						cam_virtual_cdm_work);
 					payload->workq_scheduled_ts =
-						ktime_get();
+						ktime_get_boottime();
 					queue_work(core->work_queue,
 						&payload->work);
 				}

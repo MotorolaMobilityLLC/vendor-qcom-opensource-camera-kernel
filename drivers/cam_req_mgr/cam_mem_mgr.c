@@ -300,7 +300,7 @@ void *cam_mem_trace_alloc(size_t size, gfp_t gfp_flags,
 	trace_header->size = size;
 	trace_header->flags = gfp_flags;
 	trace_header->vaddr_ptr = mem_kva;
-	trace_header->timestamp = ktime_get();
+	trace_header->timestamp = ktime_get_boottime();
 	if (owner)
 		snprintf(trace_header->mem_owner, MEM_OWNER_DESC_SIZE,
 			"%s[%d]", owner, line);
@@ -381,7 +381,7 @@ void cam_mem_trace_record_mass_mem(
 	char line_buf[256];
 	char kept_time_str[8];
 
-	now = ktime_get();
+	now = ktime_get_boottime();
 	kept_time_ms = (now - trace_header->timestamp) / 1000000;
 
 	if (kept_time_ms >= 1000)
@@ -526,7 +526,7 @@ static void cam_mem_trace_query(uint64_t threshold)
 	char line_buf[256];
 	char log_buf[512] = {'\0'};
 
-	now = ktime_get();
+	now = ktime_get_boottime();
 
 	spin_lock_irqsave(&g_trace.lock, flags);
 	if (list_empty(&g_trace.trace_list)) {
@@ -579,7 +579,7 @@ static void cam_mem_trace_query_mass_mem(void)
 	struct cam_mem_trace_record_page *page_header;
 	char *buf, *buf_ptr;
 
-	now = ktime_get();
+	now = ktime_get_boottime();
 	buf = vzalloc(RECORD_PAGE_SIZE);
 
 	spin_lock_irqsave(&g_trace.lock, flags);

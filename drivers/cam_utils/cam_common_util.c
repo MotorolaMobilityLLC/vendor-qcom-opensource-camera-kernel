@@ -151,7 +151,7 @@ void cam_common_util_thread_switch_delay_detect(char *wq_name, const char *state
 	struct timespec64                cur_ts;
 	struct timespec64                scheduled_ts;
 
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	diff = ktime_ms_delta(cur_time, scheduled_time);
 
 	if (diff > threshold) {
