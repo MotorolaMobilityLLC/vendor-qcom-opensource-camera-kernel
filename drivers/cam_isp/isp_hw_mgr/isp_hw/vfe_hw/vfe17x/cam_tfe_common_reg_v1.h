@@ -1213,6 +1213,13 @@ struct cam_vfe_top_ver4_query_dmi_reg_info tfe_common_reg_v1_top_query_reg = {
 		.clc_id_fcg                  = 11,
 };
 
+struct cam_vfe_bus_ver3_query_dmi_reg_info tfe_common_reg_v1_bus_query_reg = {
+	    .dmi_cfg                     = 0x14,
+	    .dmi_lut_cfg                 = 0x18,
+	    .dmi_data                    = 0x1C,
+	    .query_sel_val               = 1,
+};
+
 static struct cam_vfe_top_ver4_hw_info tfe_common_reg_v1_top_hw_info = {
 	.common_reg = &tfe_common_reg_v1_common_reg,
 	.vfe_full_hw_info = {
@@ -1994,6 +2001,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 			.error_description = "Meta Stride unalign",
 		},
 	},
+	.query_reg             = &tfe_common_reg_v1_bus_query_reg,
 	.num_bus_errors        = 1,
 	.bus_err_desc          = &tfe_common_reg_v1_bus_irq_err_desc,
 	.num_comp_grp          = 10,

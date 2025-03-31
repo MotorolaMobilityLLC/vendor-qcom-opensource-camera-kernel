@@ -10,6 +10,31 @@
 #include "cam_vfe_bus_rd_ver1.h"
 #include "cam_vfe_bus_ver3.h"
 #include "cam_debug_util.h"
+#include "cam_vfe_core.h"
+
+int cam_vfe_bus_read_hw_query(struct cam_hw_soc_info *soc_info,
+	 void *vfe_hw_info)
+{
+	int rc = 0;
+	struct cam_vfe_hw_info *hw_info = (struct cam_vfe_hw_info *)vfe_hw_info;
+
+	if (!hw_info) {
+
+		CAM_ERR(CAM_ISP, "Invalid params");
+		return -EINVAL;
+	}
+
+	/*Update the params in hw info from HW Query*/
+	if (hw_info->bus_version == CAM_VFE_BUS_VER_3_0) {
+		rc = cam_vfe_bus_ver3_read_hw_query(soc_info, hw_info->bus_hw_info);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "Update bus query failed rc %d", rc);
+			return rc;
+		}
+	}
+
+	return 0;
+}
 
 int cam_vfe_bus_init(uint32_t          bus_version,
 	int                            bus_type,
