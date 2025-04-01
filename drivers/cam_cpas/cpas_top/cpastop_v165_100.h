@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023,2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
  #ifndef _CPASTOP_V165_100_H_
@@ -299,6 +299,13 @@ static struct cam_camnoc_specific
 			.offset = 0x3620, /* IFE01234_RDI_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x3628, /* IFE01234_RDI_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 		.qosgen_mainctl = {
 			.enable = true,
 			.access_type = CAM_REG_TYPE_READ_WRITE,
@@ -382,6 +389,13 @@ static struct cam_camnoc_specific
 			.offset = 0x3A20, /* IFE01_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x3A28, /* IFE01_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 		.qosgen_mainctl = {
 			.enable = true,
 			.access_type = CAM_REG_TYPE_READ_WRITE,
@@ -464,6 +478,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x5420, /* IFE2_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x5428, /* IFE2_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 		.qosgen_mainctl = {
 			.enable = true,
@@ -605,6 +626,13 @@ static struct cam_camnoc_specific
 			.offset = 0x2A20, /* IBL_WR_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2A28, /* IBL_WR_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_JPEG,
@@ -656,6 +684,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x2620, /* JPEG_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2628, /* JPEG_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{

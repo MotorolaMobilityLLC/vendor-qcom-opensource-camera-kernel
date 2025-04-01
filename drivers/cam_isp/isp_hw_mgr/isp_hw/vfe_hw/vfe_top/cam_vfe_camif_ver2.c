@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -556,7 +556,7 @@ static int cam_vfe_camif_reg_dump(
 	}
 
 	soc_private = camif_priv->soc_info->soc_private;
-	cam_cpas_dump_camnoc_buff_fill_info(soc_private->cpas_handle);
+	cam_cpas_dump_camnoc_buff_fill_info();
 
 	return 0;
 }

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CPASTOP_V570_100_H_
@@ -337,6 +337,13 @@ static struct cam_camnoc_specific
 			.offset = 0x6420, /* IFE_NIU_1_NIU_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x6428, /* IFE_NIU_1_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_IFE_RDI_RD,
@@ -478,6 +485,13 @@ static struct cam_camnoc_specific
 			.offset = 0x6820, /* IFE_NIU_3_NIU_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x6828, /* IFE_NIU_3_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_IFE_UBWC_STATS,
@@ -558,6 +572,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x6220, /* IFE_NIU_0_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x6228, /* IFE_NIU_0_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
@@ -786,6 +807,13 @@ static struct cam_camnoc_specific
 			.offset = 0x6C20, /* NRT_NIU_1_NIU_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x6C28, /* NRT_NIU_1_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_JPEG,
@@ -856,6 +884,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x7020, /* NRT_NIU_3_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x7028, /* NRT_NIU_3_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{

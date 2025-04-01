@@ -506,7 +506,8 @@ static void cam_vfe_top_ver4_check_module_status(
 	uint32_t num_reg, uint64_t *reg_val,
 	struct cam_vfe_top_ver4_priv *top_priv,
 	struct cam_vfe_top_ver4_debug_reg_info (*status_list)[][8],
-	enum cam_vfe_top_ver4_debug_reg_type reg_type)
+	enum cam_vfe_top_ver4_debug_reg_type reg_type,
+	bool *possible_bus_overflow)
 {
 	bool found = false, is_mc;
 	uint32_t i, j, idle_status;
@@ -528,6 +529,10 @@ static void cam_vfe_top_ver4_check_module_status(
 			if (val == 5)
 				continue;
 
+			/* Certain module status Ready bit low might point to bus Overflow */
+			if ((*status_list)[i][j].use_bus_overflow_check && ((val & 1) == 0))
+				*possible_bus_overflow = true;
+
 			cam_vfe_top_ver4_check_module_idle(&(*status_list)[i][j], top_priv,
 				&idle_status, &is_mc, reg_type);
 
@@ -539,8 +544,10 @@ static void cam_vfe_top_ver4_check_module_status(
 			strlcat(log_buf, line_buf, 1024);
 			found = true;
 		}
+
 		if (found)
 			CAM_INFO_RATE_LIMIT(CAM_ISP, "Check config for Debug%u - %s", i, log_buf);
+
 		len = 0;
 		found = false;
 		memset(log_buf, 0, sizeof(uint8_t)*1024);
@@ -610,7 +617,7 @@ static void cam_vfe_top_ver4_print_debug_reg_status(
 	struct cam_vfe_top_ver4_debug_reg_info     (*debug_reg_info)[][8];
 	uint32_t                                    val = 0;
 	uint32_t                                    num_reg =  0;
-	uint32_t                                    i = 0, j;
+	uint32_t                                    i = 0;
 	uint32_t                                   *debug_reg;
 	size_t                                      len = 0;
 	uint8_t                                    *log_buf;
@@ -618,6 +625,7 @@ static void cam_vfe_top_ver4_print_debug_reg_status(
 	struct cam_hw_soc_info                     *soc_info;
 	void __iomem                               *base;
 	char                                       *reg_name;
+	bool                                        possible_bus_overflow = false;
 
 	soc_info   =  top_priv->top_common.soc_info;
 	common_reg =  top_priv->common_data.common_reg;
@@ -647,19 +655,21 @@ static void cam_vfe_top_ver4_print_debug_reg_status(
 		return;
 
 	while (i < num_reg) {
-		for (j = 0; j < 4 && i < num_reg; j++, i++) {
-			val = cam_io_r(base + debug_reg[i]);
-			reg_val[i] = (uint64_t)val;
-			CAM_INFO_BUF(CAM_ISP, log_buf, CAM_VFE_LEN_LOG_BUF, &len,
-				"VFE[%u] status %2d : 0x%08x", soc_info->index, i, val);
-		}
-		CAM_INFO(CAM_ISP, "VFE[%u]: %s Debug Status: %s",
-			soc_info->index, reg_name, log_buf);
-		len = 0;
+		val = cam_io_r(base + debug_reg[i]);
+		reg_val[i] = (uint64_t)val;
+		CAM_INFO_BUF(CAM_ISP, log_buf, CAM_VFE_LEN_LOG_BUF, &len,
+			"VFE[%u] status %2d : 0x%08x", soc_info->index, i, val);
+		i++;
 	}
 
-	cam_vfe_top_ver4_check_module_status(num_reg, reg_val,
-		top_priv, debug_reg_info, reg_type);
+	CAM_INFO(CAM_ISP, "VFE[%u]: %s Debug Status: %s", soc_info->index, reg_name, log_buf);
+
+	cam_vfe_top_ver4_check_module_status(num_reg, reg_val, top_priv, debug_reg_info, reg_type,
+		&possible_bus_overflow);
+
+	if (possible_bus_overflow)
+		CAM_WARN(CAM_ISP, "VFE[%u] Module status points to possible Bus Overflow",
+			soc_info->index);
 
 }
 
@@ -1034,9 +1044,8 @@ static int cam_vfe_top_ver4_print_overflow_debug_info(
 	}
 
 	cam_vfe_top_ver4_dump_timestamps(top_priv, res_id);
-	cam_cpas_dump_camnoc_buff_fill_info(soc_private->cpas_handle);
-	if (bus_overflow_status)
-		cam_cpas_log_votes(false);
+	cam_cpas_dump_camnoc_buff_fill_info();
+	cam_cpas_log_votes(false);
 
 	if (violation_status)
 		CAM_INFO(CAM_ISP, "VFE[%u] Bus violation status: 0x%x",

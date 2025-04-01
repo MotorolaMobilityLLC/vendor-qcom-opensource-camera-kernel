@@ -164,6 +164,7 @@ struct cam_vfe_top_ver4_debug_reg_info {
 	char     *clc_name;
 	uint32_t debug_idle_reg_addr;
 	uint32_t debug_idle_bitmask;
+	bool     use_bus_overflow_check;
 };
 
 struct cam_vfe_top_ver4_diag_reg_info {
@@ -275,6 +276,13 @@ int cam_vfe_top_ver4_deinit(struct cam_vfe_top      **vfe_top);
 		.clc_name = name,                                               \
 		.debug_idle_reg_addr = idle_addr,                               \
 		.debug_idle_bitmask = idle_bitmask                              \
+	}
+
+#define VFE_DBG_INFO_CHECK_OVERFLOW(shift_val, name)\
+	{                                                                   \
+		.shift = shift_val,                                             \
+		.clc_name = name,                                               \
+		.use_bus_overflow_check = true                                  \
 	}
 
 #endif /* _CAM_VFE_TOP_VER4_H_ */

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CPASTOP_V975_100_H_
@@ -393,6 +393,13 @@ static struct cam_camnoc_specific
 			.offset = 0x4620, /* NOC_RT_0_NIU_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x4628, /* NOC_RT_0_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_name = "RT1-TFE0,1,2_PDAF_FD_IFE_LITE_0,1_RDI_GAMMA_STATS",
@@ -475,6 +482,13 @@ static struct cam_camnoc_specific
 			.offset = 0x4820, /* NOC_RT_1_NIU_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x4828, /* NOC_RT_1_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_name = "RT2-TFE0,1,2_STATS",
@@ -556,6 +570,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x4A20, /* NOC_RT_2_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x4A28, /* NOC_RT_2_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
@@ -692,6 +713,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x5220, /* NOC_RT_4_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x5228, /* NOC_RT_4_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 };
@@ -845,6 +873,13 @@ static struct cam_camnoc_specific
 			.offset = 0x5820, /* IPE_WR_0 : NOC_NRT_1_NIU_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x5828, /* IPE_WR_0 : NOC_NRT_1_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_name = "NRT2-OFE_WR_1-CRE_WR",
@@ -921,6 +956,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x6020, /* OFE_WR_1-CRE_WR : NOC_NRT_2_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x6028, /* OFE_WR_1-CRE_WR : NOC_NRT_2_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
@@ -1226,6 +1268,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x6820, /* JPEG_RD_WR : NOC_NRT_6_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x6828, /* JPEG_RD_WR : NOC_NRT_6_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 		.maxrd_low = {
 			.enable = false,

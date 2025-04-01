@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -488,7 +488,7 @@ static int cam_vfe_camif_lite_handle_irq_bottom_half(
 		err_evt_info.err_type = CAM_VFE_IRQ_STATUS_OVERFLOW;
 		evt_info.event_data = (void *)&err_evt_info;
 
-		cam_cpas_dump_camnoc_buff_fill_info(soc_private->cpas_handle);
+		cam_cpas_dump_camnoc_buff_fill_info();
 
 		ktime_get_boottime_ts64(&ts);
 		CAM_INFO(CAM_ISP,

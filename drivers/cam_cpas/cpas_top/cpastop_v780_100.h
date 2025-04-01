@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CPASTOP_V780_100_H_
@@ -373,6 +373,13 @@ static struct cam_camnoc_specific
 			.offset = 0x7620, /* IFE_UBWC_LINEAR : NOC_RT_1_NIU_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x7628, /* IFE_UBWC_LINEAR : NOC_RT_1_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_name = "RT2-IFE_STATS",
@@ -454,6 +461,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x7820, /* IFE_STATS : NOC_RT_2_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x7828, /* IFE_STATS : NOC_RT_2_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
@@ -537,6 +551,13 @@ static struct cam_camnoc_specific
 			.offset = 0x7A20, /* IFE_PDAF_IFELITE : NOC_RT_3_NIU_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x7A28, /* IFE_PDAF_IFELITE : NOC_RT_3_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_name = "RT4-IFE_RDI_SFE",
@@ -618,6 +639,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x7C20, /* IFE_RDI_SFE : NOC_RT_4_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x7C28, /* IFE_RDI_SFE : NOC_RT_4_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	/* NRT ports */
@@ -767,6 +795,13 @@ static struct cam_camnoc_specific
 			.offset = 0x6820, /* JPEG : NOC_NRT_1_NIU_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x6828, /* JPEG : NOC_NRT_1_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_name = "NRT2-BPS_CRE_WR",
@@ -843,6 +878,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x6A20, /* BPS_CRE_WR : NOC_NRT_2_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x6A28, /* BPS_CRE_WR : NOC_NRT_2_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
@@ -1134,6 +1176,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x7220, /* IPE_WR : NOC_NRT_6_NIU_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x7228, /* IPE_WR : NOC_NRT_6_NIU_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{

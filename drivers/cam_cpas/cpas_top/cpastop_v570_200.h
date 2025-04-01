@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CPASTOP_V570_200_H_
@@ -332,6 +332,13 @@ static struct cam_camnoc_specific
 			.offset = 0xA20, /* IFE_LINEAR_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0xA28, /* IFE_LINEAR_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_IFE_RDI_RD,
@@ -473,6 +480,13 @@ static struct cam_camnoc_specific
 			.offset = 0x1420, /* IFE_RDI_WR_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x1428, /* IFE_RDI_WR_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_IFE_UBWC_STATS,
@@ -553,6 +567,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x1A20, /* IFE_UBWC_STATS_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x1A28, /* IFE_UBWC_STATS_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
@@ -781,6 +802,13 @@ static struct cam_camnoc_specific
 			.offset = 0x2820, /* IFE_IPE_BPS_WR_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2828, /* IFE_IPE_BPS_WR_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_JPEG,
@@ -851,6 +879,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x2E20, /* IFE_JPEG_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2E28, /* IFE_JPEG_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
