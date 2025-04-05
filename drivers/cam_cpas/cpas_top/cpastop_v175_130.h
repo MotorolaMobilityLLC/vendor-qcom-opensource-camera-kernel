@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CPASTOP_V175_130_H_
@@ -306,6 +306,13 @@ static struct cam_camnoc_specific
 			.offset = 0x3620, /* IFE0123_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x3628, /* IFE0123_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_IFE0_NRDI_WRITE,
@@ -366,6 +373,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x3A20, /* IFE0_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x3A28, /* IFE0_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
@@ -479,6 +493,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x5420, /* IFE1_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x5428, /* IFE1_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
@@ -599,6 +620,13 @@ static struct cam_camnoc_specific
 			.offset = 0x2A20, /* IBL_WR_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2A28, /* IBL_WR_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_IPE_VID_DISP_WRITE,
@@ -667,6 +695,13 @@ static struct cam_camnoc_specific
 			.offset = 0x5E20, /* IPE_VID_DISP_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x5E28, /* IPE_VID_DISP_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 
 	{
@@ -718,6 +753,13 @@ static struct cam_camnoc_specific
 			.offset = 0x2620, /* JPEG_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2628, /* JPEG_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_FD,
@@ -767,6 +809,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x3E20, /* FD_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x3E28, /* FD_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{

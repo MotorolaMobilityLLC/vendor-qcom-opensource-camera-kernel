@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -222,7 +222,7 @@ void cam_tasklet_enqueue_cmd(
 		tasklet_cmd->bottom_half_handler = bottom_half_handler;
 		tasklet_cmd->payload = evt_payload_priv;
 		tasklet_cmd->handler_priv = handler_priv;
-		tasklet_cmd->tasklet_enqueue_ts = ktime_get();
+		tasklet_cmd->tasklet_enqueue_ts = ktime_get_boottime();
 		spin_lock_irqsave(&tasklet->tasklet_lock, flags);
 		list_add_tail(&tasklet_cmd->list,
 			&tasklet->used_cmd_list);
@@ -351,7 +351,7 @@ static void cam_tasklet_action(unsigned long data)
 			"ISP Tasklet", "schedule", cb,
 			tasklet_cmd->tasklet_enqueue_ts,
 			CAM_TASKLET_SCHED_TIME_THRESHOLD);
-		tasklet_exec_start_time = ktime_get();
+		tasklet_exec_start_time = ktime_get_boottime();
 
 		tasklet_cmd->bottom_half_handler(tasklet_cmd->handler_priv,
 			tasklet_cmd->payload);

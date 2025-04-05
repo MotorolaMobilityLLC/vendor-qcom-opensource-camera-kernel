@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/mutex.h>
@@ -2392,7 +2392,7 @@ static int cam_cre_mgr_config_hw(void *hw_priv, void *hw_config_args)
 	cre_req = config_args->priv;
 
 	cam_cre_mgr_cre_clk_update(hw_mgr, ctx_data, cre_req->req_idx);
-	ctx_data->req_list[cre_req->req_idx]->submit_timestamp = ktime_get();
+	ctx_data->req_list[cre_req->req_idx]->submit_timestamp = ktime_get_boottime();
 
 	if (cre_req->request_id <= ctx_data->last_flush_req)
 		CAM_WARN(CAM_CRE,
@@ -2562,7 +2562,7 @@ static int cam_cre_mgr_hw_dump(void *hw_priv, void *hw_dump_args)
 		return 0;
 	}
 
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	diff = ktime_us_delta(cur_time,
 			ctx_data->req_list[idx]->submit_timestamp);
 	cur_ts = ktime_to_timespec64(cur_time);

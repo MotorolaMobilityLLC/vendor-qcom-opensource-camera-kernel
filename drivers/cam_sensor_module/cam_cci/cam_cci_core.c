@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -2176,7 +2176,7 @@ static int32_t cam_cci_i2c_write_async(struct v4l2_subdev *sd,
 	cci_i2c_write_cfg_w->size = cci_i2c_write_cfg->size;
 	cci_i2c_write_cfg_w->delay = cci_i2c_write_cfg->delay;
 
-	write_async->workq_scheduled_ts = ktime_get();
+	write_async->workq_scheduled_ts = ktime_get_boottime();
 	queue_work(cci_dev->write_wq[write_async->queue], &write_async->work);
 
 	return rc;

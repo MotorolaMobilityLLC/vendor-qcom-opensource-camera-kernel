@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -812,41 +812,38 @@ static int cam_cpas_hw_reg_read(struct cam_hw_info *cpas_hw,
 }
 
 static int cam_cpas_hw_dump_camnoc_buff_fill_info(
-	struct cam_hw_info *cpas_hw,
-	uint32_t client_handle)
+	struct cam_hw_info *cpas_hw)
 {
 	int rc = 0, i, camnoc_idx;
-	uint32_t val = 0, client_idx = CAM_CPAS_GET_CLIENT_IDX(client_handle);
+	uint32_t val = 0;
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	struct cam_camnoc_info *camnoc_info;
 	char log_buf[CAM_CPAS_LOG_BUF_LEN];
 	size_t len;
-
-	if (!CAM_CPAS_CLIENT_VALID(client_idx)) {
-		CAM_ERR(CAM_CPAS, "Invalid client idx: %u", client_idx);
-		return -EPERM;
-	}
 
 	/* log buffer fill level of both RT/NRT NIU */
 	for (camnoc_idx = 0; camnoc_idx < cpas_core->num_valid_camnoc; camnoc_idx++) {
 		log_buf[0] = '\0';
 		len = 0;
 		camnoc_info = cpas_core->camnoc_info[camnoc_idx];
+		int reg_base_index = cpas_core->regbase_index[camnoc_info->reg_base];
 
 		for (i = 0; i < camnoc_info->specific_size; i++) {
 			if ((!camnoc_info->specific[i].enable) ||
 				(!camnoc_info->specific[i].maxwr_low.enable))
 				continue;
 
-			rc = cam_cpas_hw_reg_read(cpas_hw, client_handle,
-				camnoc_info->reg_base,
-				camnoc_info->specific[i].maxwr_low.offset, true, &val);
-			if (rc)
-				break;
+			val = cam_io_r_mb(cpas_hw->soc_info.reg_map[reg_base_index].mem_base +
+				camnoc_info->specific[i].maxwr_low.offset);
 
 			len += scnprintf((log_buf + len), (CAM_CPAS_LOG_BUF_LEN - len),
 				" %s:[%d %d]", camnoc_info->specific[i].port_name,
 				(val & 0x7FF), (val & 0x7F0000) >> 16);
+
+			/* Clear the camnoc fill levels post read */
+			cam_io_w_mb(camnoc_info->specific[i].maxwrclr_low.value,
+				(cpas_hw->soc_info.reg_map[reg_base_index].mem_base +
+				camnoc_info->specific[i].maxwrclr_low.offset));
 		}
 
 		CAM_INFO(CAM_CPAS, "%s Fill level [Queued Pending] %s",
@@ -4942,17 +4939,13 @@ static int cam_cpas_hw_process_cmd(void *hw_priv,
 	}
 		break;
 	case CAM_CPAS_HW_CMD_DUMP_BUFF_FILL_INFO: {
-		uint32_t *client_handle;
-
 		if (sizeof(uint32_t) != arg_size) {
 			CAM_ERR(CAM_CPAS, "cmd_type %d, size mismatch %d",
 				cmd_type, arg_size);
 			break;
 		}
 
-		client_handle = (uint32_t *)cmd_args;
-		rc = cam_cpas_hw_dump_camnoc_buff_fill_info(hw_priv,
-			*client_handle);
+		rc = cam_cpas_hw_dump_camnoc_buff_fill_info(hw_priv);
 		break;
 	}
 	case CAM_CPAS_HW_CMD_CSID_INPUT_CORE_INFO_UPDATE: {

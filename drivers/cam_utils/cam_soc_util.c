@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of.h>
@@ -3528,6 +3528,15 @@ int cam_soc_util_regulator_disable(struct regulator *rgltr,
 	if (!rgltr) {
 		CAM_ERR(CAM_UTIL, "Invalid NULL parameter");
 		return -EINVAL;
+	}
+
+	rc = cam_wrapper_regulator_is_enabled(rgltr, rgltr_name);
+	if (rc < 0) {
+		CAM_ERR(CAM_UTIL, "%s regulator_is_enabled failed", rgltr_name);
+		return rc;
+	} else if (rc == 0) {
+		CAM_DBG(CAM_UTIL, "%s regulator already disabled", rgltr_name);
+		return rc;
 	}
 
 	rc = cam_wrapper_regulator_disable(rgltr, rgltr_name);

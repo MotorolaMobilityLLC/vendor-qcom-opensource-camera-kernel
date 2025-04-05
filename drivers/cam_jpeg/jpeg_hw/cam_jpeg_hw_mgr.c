@@ -510,8 +510,13 @@ static int cam_jpeg_mgr_bottom_half_irq(void *priv, void *data)
 				if (!list_empty(&cam_ctx->active_req_list)) {
 					req = list_first_entry(&cam_ctx->active_req_list,
 						struct cam_ctx_request, list);
+					cam_smmu_buffer_tracker_putref(&req->buf_tracker);
 					list_del_init(&req->list);
 					list_add_tail(&req->list, &cam_ctx->free_req_list);
+					if (req->packet) {
+						cam_common_mem_free(req->packet);
+						req->packet = NULL;
+					}
 				}
 				spin_unlock(&cam_ctx->lock);
 
@@ -864,7 +869,7 @@ static int cam_jpeg_mgr_process_hw_update_entries(void *priv, void *data)
 		goto end_callcb;
 	}
 
-	p_cfg_req->submit_timestamp = ktime_get();
+	p_cfg_req->submit_timestamp = ktime_get_boottime();
 
 	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	return rc;
@@ -1879,7 +1884,7 @@ static int cam_jpeg_mgr_hw_dump(void *hw_mgr_priv, void *dump_hw_args)
 	return 0;
 
 hw_dump:
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	diff = ktime_us_delta(p_cfg_req->submit_timestamp, cur_time);
 	cur_ts = ktime_to_timespec64(cur_time);
 	req_ts = ktime_to_timespec64(p_cfg_req->submit_timestamp);

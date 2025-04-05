@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of.h>
@@ -318,9 +318,10 @@ int cam_cpas_csid_input_core_info_update(int csid_idx, int sfe_idx, bool set_por
 }
 EXPORT_SYMBOL(cam_cpas_csid_input_core_info_update);
 
-int cam_cpas_dump_camnoc_buff_fill_info(uint32_t client_handle)
+int cam_cpas_dump_camnoc_buff_fill_info(void)
 {
 	int rc;
+	uint32_t dummy_arg;
 
 	if (!CAM_CPAS_INTF_INITIALIZED()) {
 		CAM_ERR(CAM_CPAS, "cpas intf not initialized");
@@ -330,7 +331,7 @@ int cam_cpas_dump_camnoc_buff_fill_info(uint32_t client_handle)
 	if (g_cpas_intf->hw_intf->hw_ops.process_cmd) {
 		rc = g_cpas_intf->hw_intf->hw_ops.process_cmd(
 			g_cpas_intf->hw_intf->hw_priv,
-			CAM_CPAS_HW_CMD_DUMP_BUFF_FILL_INFO, &client_handle,
+			CAM_CPAS_HW_CMD_DUMP_BUFF_FILL_INFO, &dummy_arg,
 			sizeof(uint32_t));
 		if (rc)
 			CAM_ERR(CAM_CPAS, "Failed in process_cmd, rc=%d", rc);

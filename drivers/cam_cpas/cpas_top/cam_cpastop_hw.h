@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_CPASTOP_HW_H_
@@ -247,6 +247,7 @@ enum cam_camnoc_port_type {
  * @qosgen_shaping_low: qosgen shaping low configuration for this connection
  * @qosgen_shaping_high: qosgen shaping high configuration for this connection
  * @maxwr_low: maxwr low configuration for this connection
+ * @maxwrclr_low: maxwrclr low configuration for this connection, clears the maxwr low
  * @maxrd_low: maxrd low configuration for this connection
  * @dynattr_mainctl: Dynamic attribute main control register for this connection
  *
@@ -266,6 +267,7 @@ struct cam_camnoc_specific {
 	struct cam_cpas_reg qosgen_shaping_low;
 	struct cam_cpas_reg qosgen_shaping_high;
 	struct cam_cpas_reg maxwr_low;
+	struct cam_cpas_reg maxwrclr_low;
 	struct cam_cpas_reg maxrd_low;
 	struct cam_cpas_reg dynattr_mainctl;
 };

@@ -1209,10 +1209,10 @@ static int cam_ife_csid_ver2_discard_sof_pix_bottom_half(
 		if (path_data->path_cfg.sync_mode == CAM_ISP_HW_SYNC_MASTER ||
 			path_data->path_cfg.sync_mode == CAM_ISP_HW_SYNC_NONE) {
 			val = cam_io_r_mb(path_reg_base + reg_offsets->ctrl_addr);
-			val |= path_reg->resume_frame_boundary;
+			val |= reg_offsets->resume_frame_boundary;
 			cam_io_w_mb(val, path_reg_base + reg_offsets->ctrl_addr);
 			CAM_DBG(CAM_ISP,
-				"CSID[%u] start cmd programmed for %s sof_cnt %u",
+				"CSID[%u] start cmd programmed for %s sof_cnt %u value:0x%x",
 				csid_hw->hw_intf->hw_idx,
 				res->res_name,
 				path_data->path_cfg.sof_cnt);
@@ -1236,6 +1236,7 @@ static int cam_ife_csid_ver2_discard_sof_rdi_bottom_half(
 	struct cam_ife_csid_ver2_path_data            *path_data;
 	struct cam_hw_soc_info                       *soc_info;
 	void    __iomem                              *base;
+	void    __iomem                              *path_reg_base;
 	uint32_t                                      val;
 	struct cam_ife_csid_ver2_path_reg_info       *reg_offsets;
 
@@ -1254,6 +1255,7 @@ static int cam_ife_csid_ver2_discard_sof_rdi_bottom_half(
 	base  = soc_info->reg_map[CAM_IFE_CSID_CLC_MEM_BASE_ID].mem_base;
 	path_reg = csid_reg->path_reg[res->res_id];
 	reg_offsets = path_data->reg_offsets;
+	path_reg_base = base + path_reg->base;
 
 	/* Count SOFs */
 	path_data->path_cfg.sof_cnt++;
@@ -1269,13 +1271,13 @@ static int cam_ife_csid_ver2_discard_sof_rdi_bottom_half(
 
 	/* Check with requested number of frames to be dropped */
 	if (path_data->path_cfg.sof_cnt == path_data->path_cfg.num_frames_discard) {
-		val = cam_io_r_mb(base + path_reg->base + reg_offsets->ctrl_addr);
-		val |= path_reg->resume_frame_boundary;
-		cam_io_w_mb(val, base + path_reg->ctrl_addr);
+		val = cam_io_r_mb(path_reg_base + reg_offsets->ctrl_addr);
+		val |= reg_offsets->resume_frame_boundary;
+		cam_io_w_mb(val, path_reg_base + reg_offsets->ctrl_addr);
 		CAM_DBG(CAM_ISP,
-			"CSID[%u] start cmd programmed for %s sof_cnt %u",
+			"CSID[%u] start cmd programmed for %s sof_cnt %u val:0x%x",
 			csid_hw->hw_intf->hw_idx,
-			res->res_name, path_data->path_cfg.sof_cnt);
+			res->res_name, path_data->path_cfg.sof_cnt, val);
 
 		cam_ife_csid_ver2_reset_discard_frame_cfg(res, csid_hw, path_data);
 	}

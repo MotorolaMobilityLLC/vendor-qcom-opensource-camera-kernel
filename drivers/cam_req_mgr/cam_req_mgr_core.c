@@ -171,36 +171,6 @@ static struct cam_req_mgr_req_tbl *__cam_req_mgr_find_pd_tbl(
 }
 
 /**
- * __cam_req_mgr_inc_idx()
- *
- * @brief    : Increment val passed by step size and rollover after max_val
- * @val      : value to be incremented
- * @step     : amount/step by which val is incremented
- * @max_val  : max val after which idx will roll over
- *
- */
-static void __cam_req_mgr_inc_idx(int32_t *val, int32_t step, int32_t max_val)
-{
-	*val = (*val + step) % max_val;
-}
-
-/**
- * __cam_req_mgr_dec_idx()
- *
- * @brief    : Decrement val passed by step size and rollover after max_val
- * @val      : value to be decremented
- * @step     : amount/step by which val is decremented
- * @max_val  : after zero value will roll over to max val
- *
- */
-static void __cam_req_mgr_dec_idx(int32_t *val, int32_t step, int32_t max_val)
-{
-	*val = *val - step;
-	if (*val < 0)
-		*val = max_val + (*val);
-}
-
-/**
  * __cam_req_mgr_inject_delay()
  *
  * @brief         : Check if any pd device is injecting delay
@@ -234,7 +204,7 @@ static int __cam_req_mgr_inject_delay(
 				tbl->pd, slot->inject_delay_at_eof);
 			rc = -EAGAIN;
 		}
-		__cam_req_mgr_dec_idx(&curr_idx, tbl->pd_delta,
+		cam_common_dec_idx(&curr_idx, tbl->pd_delta,
 			tbl->num_slots);
 		tbl = tbl->next;
 	}
@@ -378,7 +348,7 @@ static void __cam_req_mgr_update_state_monitor_array(
 	scnprintf(state_monitor->name, sizeof(state_monitor->name), "%s", dev_name);
 	ktime_get_clocktai_ts64(&state_monitor->time_stamp);
 
-	__cam_req_mgr_inc_idx(&link->req.next_state_idx, 1, MAX_REQ_STATE_MONITOR_NUM);
+	cam_common_inc_idx(&link->req.next_state_idx, 1, MAX_REQ_STATE_MONITOR_NUM);
 
 	spin_unlock_bh(&link->req.monitor_slock);
 }
@@ -428,7 +398,7 @@ static void __cam_req_mgr_dump_state_monitor_array(
 				link->req.state_monitor[idx].time_stamp.tv_nsec / 1000000);
 		}
 
-		__cam_req_mgr_inc_idx(&idx, 1, MAX_REQ_STATE_MONITOR_NUM);
+		cam_common_inc_idx(&idx, 1, MAX_REQ_STATE_MONITOR_NUM);
 	}
 	spin_unlock_bh(&link->req.monitor_slock);
 }
@@ -720,7 +690,7 @@ static int __cam_req_mgr_traverse(struct cam_req_mgr_traverse *traverse_data)
 		traverse_data->in_q->slot[curr_idx].skip_idx == 1 ||
 		tbl->skip_traverse > 0) {
 		if (tbl->next) {
-			__cam_req_mgr_dec_idx(&next_idx, tbl->pd_delta,
+			cam_common_dec_idx(&next_idx, tbl->pd_delta,
 				tbl->num_slots);
 			traverse_data->idx = next_idx;
 			traverse_data->tbl = tbl->next;
@@ -860,7 +830,7 @@ static int32_t __cam_req_mgr_find_slot_for_req(
 				req_id, idx, slot->status, slot->sync_mode);
 			break;
 		}
-		__cam_req_mgr_dec_idx(&idx, 1, in_q->num_slots);
+		cam_common_dec_idx(&idx, 1, in_q->num_slots);
 	}
 	if (i >= in_q->num_slots)
 		idx = -1;
@@ -1068,7 +1038,7 @@ static void __cam_req_mgr_validate_crm_wd_timer(
 	}
 
 	idx = in_q->rd_idx;
-	__cam_req_mgr_dec_idx(
+	cam_common_dec_idx(
 		&idx, (link->max_delay - 1),
 		in_q->num_slots);
 	next_frame_timeout = in_q->slot[idx].additional_timeout;
@@ -1078,7 +1048,7 @@ static void __cam_req_mgr_validate_crm_wd_timer(
 		in_q->rd_idx, idx, next_req_id, next_frame_timeout);
 
 	idx = in_q->rd_idx;
-	__cam_req_mgr_dec_idx(
+	cam_common_dec_idx(
 		&idx, link->max_delay,
 		in_q->num_slots);
 	current_frame_timeout = in_q->slot[idx].additional_timeout;
@@ -1192,7 +1162,7 @@ static int __cam_req_mgr_move_to_next_req_slot(
 	int32_t idx = in_q->rd_idx;
 	struct cam_req_mgr_slot *slot;
 
-	__cam_req_mgr_inc_idx(&idx, 1, in_q->num_slots);
+	cam_common_inc_idx(&idx, 1, in_q->num_slots);
 	slot = &in_q->slot[idx];
 
 	CAM_DBG(CAM_CRM, "idx: %d: slot->status %d", idx, slot->status);
@@ -1236,11 +1206,11 @@ static int __cam_req_mgr_move_to_next_req_slot(
 			CAM_WARN(CAM_CRM,
 				"CHECK here wr %d, rd %d", in_q->wr_idx, idx);
 		else
-			__cam_req_mgr_inc_idx(&in_q->wr_idx, 1, in_q->num_slots);
+			cam_common_inc_idx(&in_q->wr_idx, 1, in_q->num_slots);
 	} else
 		link->cont_empty_slots = 0;
 
-	__cam_req_mgr_inc_idx(&in_q->rd_idx, 1, in_q->num_slots);
+	cam_common_inc_idx(&in_q->rd_idx, 1, in_q->num_slots);
 
 	return rc;
 }
@@ -1778,7 +1748,7 @@ static int __cam_req_mgr_check_sync_for_mslave(
 		}
 
 		prev_idx = slot->idx;
-		__cam_req_mgr_dec_idx(&prev_idx,
+		cam_common_dec_idx(&prev_idx,
 			(link->max_delay - sync_link->max_delay),
 			link->req.in_q->num_slots);
 
@@ -1836,7 +1806,7 @@ static int __cam_req_mgr_check_sync_for_mslave(
 
 		next_idx = link->req.in_q->rd_idx;
 		rd_idx = sync_link->req.in_q->rd_idx;
-		__cam_req_mgr_inc_idx(&next_idx,
+		cam_common_inc_idx(&next_idx,
 			(sync_link->max_delay - link->max_delay),
 			link->req.in_q->num_slots);
 
@@ -2556,7 +2526,7 @@ static int __cam_req_mgr_process_req(struct cam_req_mgr_core_link *link,
 
 			in_q->last_applied_idx = idx;
 
-			__cam_req_mgr_dec_idx(
+			cam_common_dec_idx(
 				&idx, reset_step + 1,
 				in_q->num_slots);
 			__cam_req_mgr_reset_req_slot(link, idx);
@@ -3348,7 +3318,7 @@ int cam_req_mgr_process_sched_req(void *priv, void *data)
 	link->open_req_cnt++;
 	CAM_DBG(CAM_REQ|CAM_CRM, "Open_req_cnt:%u after scheduling req:%d mismatched_frame_mode:%d",
 		link->open_req_cnt, sched_req->req_id, slot->mismatched_frame_mode);
-	__cam_req_mgr_inc_idx(&in_q->wr_idx, 1, in_q->num_slots);
+	cam_common_inc_idx(&in_q->wr_idx, 1, in_q->num_slots);
 
 	if (slot->sync_mode == CAM_REQ_MGR_SYNC_MODE_SYNC) {
 		if (link->initial_sync_req == -1)
@@ -3841,7 +3811,7 @@ int cam_req_mgr_process_error(void *priv, void *data)
 
 			if (link->sync_link[0]) {
 				in_q->slot[idx].sync_mode = 0;
-				__cam_req_mgr_inc_idx(&idx, 1,
+				cam_common_inc_idx(&idx, 1,
 					link->req.l_tbl->num_slots);
 				in_q->slot[idx].sync_mode = 0;
 			}
@@ -3893,7 +3863,7 @@ int cam_req_mgr_process_error(void *priv, void *data)
 			}
 
 			for (i = 0; i < slot_diff; i++) {
-				__cam_req_mgr_inc_idx(&idx, 1,
+				cam_common_inc_idx(&idx, 1,
 					link->req.l_tbl->num_slots);
 
 				CAM_DBG(CAM_CRM,
@@ -4013,7 +3983,7 @@ static int cam_req_mgr_process_trigger(void *priv, void *data)
 			if (idx == in_q->last_applied_idx)
 				in_q->last_applied_idx = -1;
 			if (idx == in_q->rd_idx)
-				__cam_req_mgr_dec_idx(&idx, 1, in_q->num_slots);
+				cam_common_dec_idx(&idx, 1, in_q->num_slots);
 
 			reset_step = link->max_delay;
 			for (i = 0; i < link->num_sync_links; i++) {
@@ -4026,7 +3996,7 @@ static int cam_req_mgr_process_trigger(void *priv, void *data)
 				}
 			}
 
-			__cam_req_mgr_dec_idx(
+			cam_common_dec_idx(
 				&idx, reset_step + 1,
 				in_q->num_slots);
 
@@ -6072,7 +6042,7 @@ static int cam_req_mgr_dump_state_monitor_info(
 				return rc;
 			}
 		}
-		__cam_req_mgr_inc_idx(&idx, 1, MAX_REQ_STATE_MONITOR_NUM);
+		cam_common_inc_idx(&idx, 1, MAX_REQ_STATE_MONITOR_NUM);
 	}
 
 	dump_info->offset = dump_args.offset;

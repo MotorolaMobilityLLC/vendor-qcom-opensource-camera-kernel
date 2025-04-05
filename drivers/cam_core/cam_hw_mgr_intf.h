@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_HW_MGR_INTF_H_
@@ -285,6 +285,7 @@ struct cam_hw_mgr_pf_request_info {
  * @priv:                  Private pointer of hw update
  * @buf_tracker:           Ptr to list of buffers we want to keep ref counts on
  * @pf_data:               Debug data for page fault
+ * @init_pending_req_cnt:  Count of the init pending reqs received before stream on
  *
  */
 struct cam_hw_prepare_update_args {
@@ -306,6 +307,7 @@ struct cam_hw_prepare_update_args {
 	void                           *priv;
 	struct list_head                   *buf_tracker;
 	struct cam_hw_mgr_pf_request_info  *pf_data;
+	uint32_t                            init_pending_req_cnt;
 };
 
 /**

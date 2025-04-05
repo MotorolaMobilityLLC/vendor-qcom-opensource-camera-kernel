@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2019, 2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_SENSOR_DEV_H_
@@ -159,6 +159,8 @@ struct cam_sensor_ctrl_t {
 	bool                           is_res_info_updated;
 	uint64_t                       last_applied_done_timestamp;
 	bool                           hw_no_ops;
+	int32_t                        req_table_wr_idx;
+	uint64_t                       req_table[MAX_PER_FRAME_ARRAY];
 };
 
 /**

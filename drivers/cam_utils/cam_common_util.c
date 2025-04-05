@@ -151,7 +151,7 @@ void cam_common_util_thread_switch_delay_detect(char *wq_name, const char *state
 	struct timespec64                cur_ts;
 	struct timespec64                scheduled_ts;
 
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	diff = ktime_ms_delta(cur_time, scheduled_time);
 
 	if (diff > threshold) {
@@ -909,3 +909,15 @@ void cam_common_mem_free(void *memory)
 	kvfree(memory);
 }
 EXPORT_SYMBOL(cam_common_mem_free);
+
+void inline cam_common_inc_idx(int32_t *val, int32_t step, int32_t max_val)
+{
+	*val = (*val + step) % max_val;
+}
+
+void inline cam_common_dec_idx(int32_t *val, int32_t step, int32_t max_val)
+{
+	*val = *val - step;
+	if (*val < 0)
+		*val = max_val + (*val);
+}

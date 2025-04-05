@@ -10,8 +10,6 @@
 #include "cam_vfe_bus_ver3.h"
 #include "cam_irq_controller.h"
 
-#define CAM_TFE_1080_NUM_TOP_DBG_REG          17
-#define CAM_TFE_1080_NUM_BAYER_DBG_REG        11
 #define CAM_TFE_BUS_VER3_1080_MAX_CLIENTS     28
 
 static struct cam_vfe_top_ver4_module_desc tfe1080_ipp_mod_desc[] = {
@@ -419,6 +417,8 @@ static uint32_t tfe1080_top_debug_reg[] = {
 	0x0000052C,
 };
 
+#define CAM_TFE_1080_NUM_TOP_DBG_REG ((sizeof(tfe1080_top_debug_reg))/(sizeof(uint32_t)))
+
 static struct cam_vfe_top_ver4_debug_reg_info tfe1080_top_dbg_reg_info[
 	CAM_TFE_1080_NUM_TOP_DBG_REG][8] = {
 	VFE_DBG_INFO_ARRAY_4bit("test_bus_reserved",
@@ -560,23 +560,23 @@ static struct cam_vfe_top_ver4_debug_reg_info tfe1080_top_dbg_reg_info[
 		VFE_DBG_INFO_WITH_IDLE(0, "haf_pre_processed",
 			0x00000540, BIT(10)),
 		VFE_DBG_INFO(4, "full_out"),
-		VFE_DBG_INFO(8, "ubwc_stats"),
+		VFE_DBG_INFO_CHECK_OVERFLOW(8, "full_ubwc_stats"),
 		VFE_DBG_INFO(12, "ds4_out_y"),
 		VFE_DBG_INFO(16, "ds4_out_c"),
 		VFE_DBG_INFO(20, "ds16_out_y"),
 		VFE_DBG_INFO(24, "ds16_out_c"),
 		VFE_DBG_INFO(28, "ds2_out_y"),
 	},
-	VFE_DBG_INFO_ARRAY_4bit(
-		"ubwc_stats",
-		"ds2_out_c",
-		"fd_out_y",
-		"fd_out_c",
-		"raw_out",
-		"stats_awb_bg_ae",
-		"stats_ae_bhist",
-		"stats_awb_bg_tintless"
-	),
+	{
+		VFE_DBG_INFO_CHECK_OVERFLOW(0, "ds2_ubwc_stats"),
+		VFE_DBG_INFO(4, "ds2_out_c"),
+		VFE_DBG_INFO(8, "fd_out_y"),
+		VFE_DBG_INFO(12, "fd_out_c"),
+		VFE_DBG_INFO(16, "raw_out"),
+		VFE_DBG_INFO(20, "stats_awb_bg_ae"),
+		VFE_DBG_INFO(24, "stats_ae_bhist"),
+		VFE_DBG_INFO(28, "stats_awb_bg_tintless"),
+	},
 	{
 		VFE_DBG_INFO_WITH_IDLE(0, "stats_awb_bg_alsc",
 			0x00000540, (BIT(20) | BIT(21) | BIT(22))),
@@ -673,6 +673,8 @@ static uint32_t tfe1080_bayer_debug_reg[] = {
 	0x00000508,
 	0x0000050C,
 };
+
+#define CAM_TFE_1080_NUM_BAYER_DBG_REG ((sizeof(tfe1080_bayer_debug_reg))/(sizeof(uint32_t)))
 
 static struct cam_vfe_top_ver4_debug_reg_info tfe1080_bayer_dbg_reg_info[
 	CAM_TFE_1080_NUM_BAYER_DBG_REG][8] = {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -353,7 +353,7 @@ static void cam_tfe_log_error_irq_status(
 		CAM_INFO(CAM_ISP, "Top debug [%d]:0x%x", i, val_0);
 	}
 
-	cam_cpas_dump_camnoc_buff_fill_info(soc_private->cpas_handle);
+	cam_cpas_dump_camnoc_buff_fill_info();
 
 	for (i = 0; i < top_priv->common_data.common_reg->num_perf_cfg; i++) {
 		val_0 = cam_io_r(mem_base  +
@@ -1559,7 +1559,7 @@ static int cam_tfe_top_get_reg_dump(
 		wm_offset += reg_dump_data->bus_client_offset;
 	}
 
-	cam_cpas_dump_camnoc_buff_fill_info(soc_private->cpas_handle);
+	cam_cpas_dump_camnoc_buff_fill_info();
 
 	/* dump the clock votings */
 	CAM_INFO(CAM_ISP, "TFE:%d clk=%ld",

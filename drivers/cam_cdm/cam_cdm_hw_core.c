@@ -1661,11 +1661,10 @@ irqreturn_t cam_hw_cdm_irq(int irq_num, void *data)
 		payload[i]->irq_status = irq_status[i];
 		payload[i]->hw = cdm_hw;
 		payload[i]->irq_data = inline_irq_data;
+		payload[i]->workq_scheduled_ts = ktime_get_boottime();
 
 		INIT_WORK((struct work_struct *)&payload[i]->work,
 			cam_hw_cdm_work);
-
-		payload[i]->workq_scheduled_ts = ktime_get();
 
 		work_status = queue_work(
 			cdm_core->bl_fifo[i].work_queue,
@@ -2409,7 +2408,7 @@ static int cam_hw_cdm_component_bind(struct device *dev,
 		INIT_LIST_HEAD(&cdm_core->bl_fifo[i].bl_request_list);
 		mutex_init(&cdm_core->bl_fifo[i].fifo_lock);
 		init_completion(&cdm_core->bl_fifo[i].bl_complete);
-		spin_lock_init(&cdm_core->bl_fifo->fast_complete_lock);
+		spin_lock_init(&cdm_core->bl_fifo[i].fast_complete_lock);
 
 		for (j = 0; j < CAM_CDM_BL_FIFO_LENGTH_MAX_DEFAULT; j++)
 			cdm_core->bl_fifo[i].fast_complete[j] = NULL;

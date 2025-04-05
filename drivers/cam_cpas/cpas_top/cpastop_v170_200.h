@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CPASTOP_V170_200_H_
@@ -302,6 +302,13 @@ static struct cam_camnoc_specific
 			.offset = 0x2420, /* IFE02_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2428, /* IFE02_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_IFE13,
@@ -357,6 +364,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x2620, /* IFE13_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = true,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2628, /* IFE13_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{
@@ -467,6 +481,13 @@ static struct cam_camnoc_specific
 			.offset = 0x2A20, /* IPE_BPS_LRME_MAXWR_LOW */
 			.value = 0x0,
 		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2A28, /* IPE_BPS_LRME_MAXWRCLR_LOW */
+			.value = 0x1,
+		},
 	},
 	{
 		.port_type = CAM_CAMNOC_JPEG,
@@ -516,6 +537,13 @@ static struct cam_camnoc_specific
 			.masked_value = 0,
 			.offset = 0x2C20, /* IPE_BPS_LRME_MAXWR_LOW */
 			.value = 0x0,
+		},
+		.maxwrclr_low = {
+			.enable = false,
+			.access_type = CAM_REG_TYPE_WRITE,
+			.masked_value = 0,
+			.offset = 0x2C28, /* IPE_BPS_LRME_MAXWRCLR_LOW */
+			.value = 0x1,
 		},
 	},
 	{

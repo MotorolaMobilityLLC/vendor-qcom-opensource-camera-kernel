@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_CPAS_API_H_
@@ -1071,12 +1071,10 @@ int cam_cpas_notif_increment_staling_counter(
  *
  * @brief: API to dump camnoc buffer fill level info
  *
- * @client_handle : Client cpas handle
- *
  * @return 0 on success
  *
  */
-int cam_cpas_dump_camnoc_buff_fill_info(uint32_t client_handle);
+int cam_cpas_dump_camnoc_buff_fill_info(void);
 
 /**
  * cam_cpas_csid_input_core_info_update()

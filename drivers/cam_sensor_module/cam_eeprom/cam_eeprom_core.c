@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -425,7 +425,7 @@ static int32_t cam_eeprom_parse_memory_map(
 	int32_t                            rc = 0;
 	int32_t                            cnt = 0;
 	int32_t                            processed_size = 0;
-	int32_t                            payload_count;
+	uint32_t                           payload_count;
 	uint8_t                            generic_op_code;
 	struct cam_eeprom_memory_map_t    *map = data->map;
 	struct common_header              *cmm_hdr =

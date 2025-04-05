@@ -3579,7 +3579,7 @@ static int cam_ope_mgr_config_hw(void *hw_priv, void *hw_config_args)
 	cdm_cmd->cookie = ope_req->req_idx;
 
 	cam_ope_mgr_ope_clk_update(hw_mgr, ctx_data, ope_req->req_idx);
-	ctx_data->req_list[ope_req->req_idx]->submit_timestamp = ktime_get();
+	ctx_data->req_list[ope_req->req_idx]->submit_timestamp = ktime_get_boottime();
 
 	if (ope_req->request_id <= ctx_data->last_flush_req)
 		CAM_WARN(CAM_OPE,
@@ -3782,7 +3782,7 @@ static int cam_ope_mgr_hw_dump(void *hw_priv, void *hw_dump_args)
 		return 0;
 	}
 
-	cur_time = ktime_get();
+	cur_time = ktime_get_boottime();
 	diff = ktime_us_delta(cur_time,
 			ctx_data->req_list[idx]->submit_timestamp);
 	cur_ts = ktime_to_timespec64(cur_time);
