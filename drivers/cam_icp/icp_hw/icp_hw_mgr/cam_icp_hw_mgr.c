@@ -984,22 +984,23 @@ static int cam_icp_ctx_timer_start(struct cam_icp_hw_ctx_data *ctx_data)
 	return rc;
 }
 
-static int cam_icp_device_timer_start(struct cam_icp_hw_mgr *hw_mgr)
+static inline int cam_icp_device_timer_start(struct cam_icp_hw_mgr *hw_mgr)
 {
-	int rc = 0, i;
-	struct cam_icp_clk_info *clk_info = NULL;
+	int                      rc = 0, i;
+	struct cam_icp_clk_info *clk_info;
 
 	for (i = 0; i < hw_mgr->num_dev_info; i++) {
 		clk_info = &hw_mgr->dev_info[i].clk_info;
-		if (!clk_info->watch_dog) {
+		if ((hw_mgr->dev_info[i].dev_ctx_info.dev_ctxt_cnt == 1) &&
+			!clk_info->watch_dog) {
 			clk_info->timeout_cb_data = hw_mgr;
-			rc = crm_timer_init(&clk_info->watch_dog,
-				ICP_DEVICE_IDLE_TIMEOUT, &hw_mgr->dev_info[i],
-					&cam_icp_device_timer_cb);
+			rc = crm_timer_init(&clk_info->watch_dog, ICP_DEVICE_IDLE_TIMEOUT,
+				&hw_mgr->dev_info[i], &cam_icp_device_timer_cb);
 			if (rc)
 				CAM_ERR(CAM_ICP, "[%s] Failed to start %s timer",
 					hw_mgr->hw_mgr_name, hw_mgr->dev_info[i].dev_name);
 			clk_info->watch_dog_reset_counter = 0;
+			break;
 		}
 	}
 
@@ -3617,39 +3618,12 @@ static void cam_icp_free_fw_mem(struct cam_icp_hw_mgr *hw_mgr)
 	cam_smmu_dealloc_firmware(hw_mgr->iommu_hdl);
 }
 
-static void cam_icp_free_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
+static inline void cam_icp_free_device_mem(struct cam_icp_hw_mgr *hw_mgr)
 {
-	int rc;
-
-	cam_icp_free_fw_mem(hw_mgr);
-
-	if (hw_mgr->hfi_mem.fw_uncached_region) {
-		rc = cam_mem_mgr_free_memory_region(
-			&hw_mgr->hfi_mem.fw_uncached_generic);
-		if (rc)
-			CAM_ERR(CAM_ICP,
-				"[%s] failed to unreserve fwuncached region", hw_mgr->hw_mgr_name);
-			hw_mgr->hfi_mem.fw_uncached_region = false;
-	} else {
-		rc = cam_mem_mgr_free_memory_region(
-			&hw_mgr->hfi_mem.sec_heap);
-		if (rc)
-			CAM_ERR(CAM_ICP, "[%s] failed to unreserve sec heap", hw_mgr->hw_mgr_name);
-
-		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.qtbl);
-		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.cmd_q);
-		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.msg_q);
-		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.dbg_q);
-		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.sfr_buf);
-	}
-
-	cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_QDSS, 0);
-
 	if (hw_mgr->fw_based_sys_caching)
 		cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_DEVICE,
 			CAM_SMMU_SUBREGION_LLCC_REGISTER);
 
-	/* Skip freeing if not mapped */
 	if (hw_mgr->synx_signaling_en) {
 		cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_FWUNCACHED,
 			CAM_SMMU_SUBREGION_GLOBAL_SYNC_MEM);
@@ -3661,6 +3635,26 @@ static void cam_icp_free_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
 
 	cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_DEVICE,
 		CAM_SMMU_SUBREGION_GLOBAL_CNTR);
+}
+
+static void cam_icp_free_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
+{
+	cam_icp_free_device_mem(hw_mgr);
+
+	if (hw_mgr->hfi_mem.fw_uncached_region) {
+		cam_mem_mgr_free_memory_region(&hw_mgr->hfi_mem.fw_uncached_generic);
+		hw_mgr->hfi_mem.fw_uncached_region = false;
+	} else {
+		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.qtbl);
+		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.cmd_q);
+		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.msg_q);
+		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.dbg_q);
+		cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.sfr_buf);
+		cam_mem_mgr_free_memory_region(&hw_mgr->hfi_mem.sec_heap);
+	}
+
+	cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_QDSS, 0);
+	cam_icp_free_fw_mem(hw_mgr);
 }
 
 static int cam_icp_alloc_secheap_mem(struct cam_icp_hw_mgr *hw_mgr,
@@ -3725,7 +3719,7 @@ static int cam_icp_alloc_shared_mem(
 	return rc;
 }
 
-static int cam_icp_allocate_fw_mem(struct cam_icp_hw_mgr *hw_mgr)
+static inline int cam_icp_allocate_fw_mem(struct cam_icp_hw_mgr *hw_mgr)
 {
 	int rc;
 	uintptr_t kvaddr;
@@ -3965,39 +3959,17 @@ static int cam_icp_get_io_mem_info(struct cam_icp_hw_mgr *hw_mgr)
 	return rc;
 }
 
-static int cam_icp_allocate_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
+static inline int cam_icp_allocate_shared_mem(struct cam_icp_hw_mgr *hw_mgr)
 {
-	int rc;
-	struct cam_smmu_region_info fwuncached_region_info = {0};
-	bool fwuncached_region_exists = false;
+	int    rc;
 	size_t qtbl_size, cmdq_size, msgq_size, dbgq_size, sfr_size, sec_heap_size;
+	struct cam_smmu_region_info fwuncached_region_info = {0};
+	bool   fwuncached_region_exists;
 
-	rc = cam_smmu_get_region_info(hw_mgr->iommu_hdl,
-		CAM_SMMU_REGION_SHARED, &hw_mgr->hfi_mem.shmem);
-	if (rc) {
-		CAM_ERR(CAM_ICP, "[%s] Unable to get shared memory info rc %d",
-			hw_mgr->hw_mgr_name, rc);
-		return rc;
-	}
+	fwuncached_region_exists = !(bool)cam_smmu_get_region_info(hw_mgr->iommu_hdl,
+		CAM_SMMU_REGION_FWUNCACHED, &fwuncached_region_info);
 
-	rc = cam_icp_allocate_fw_mem(hw_mgr);
-	if (rc) {
-		CAM_ERR(CAM_ICP, "[%s] Unable to allocate FW memory rc %d",
-			hw_mgr->hw_mgr_name, rc);
-		return rc;
-	}
-
-	rc = cam_icp_allocate_qdss_mem(hw_mgr);
-	if (rc) {
-		CAM_ERR(CAM_ICP, "[%s] Unable to allocate qdss memory rc %d",
-			hw_mgr->hw_mgr_name, rc);
-		goto fw_alloc_failed;
-	}
-
-	/*
-	 * Compute sizes aligned to page size, and add a padding
-	 * of a page between regions
-	 */
+	/* Compute sizes aligned to page size, and add a padding of a page between regions */
 	qtbl_size = ALIGN(ICP_QTBL_SIZE_IN_BYTES, PAGE_SIZE) + PAGE_SIZE;
 	cmdq_size = ALIGN(ICP_CMD_Q_SIZE_IN_BYTES, PAGE_SIZE) + PAGE_SIZE;
 	msgq_size = ALIGN(ICP_MSG_Q_SIZE_IN_BYTES, PAGE_SIZE) + PAGE_SIZE;
@@ -4005,31 +3977,22 @@ static int cam_icp_allocate_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
 	sfr_size = ALIGN(ICP_MSG_SFR_SIZE_IN_BYTES, PAGE_SIZE) + PAGE_SIZE;
 	sec_heap_size = ALIGN(ICP_SEC_HEAP_SIZE_IN_BYTES, PAGE_SIZE) + PAGE_SIZE;
 
-	rc = cam_smmu_get_region_info(hw_mgr->iommu_hdl,
-		CAM_SMMU_REGION_FWUNCACHED, &fwuncached_region_info);
-	if (!rc)
-		fwuncached_region_exists = true;
-
 	if (fwuncached_region_exists) {
 		struct cam_mem_mgr_request_desc alloc;
 		struct cam_mem_mgr_memory_desc out;
-		uint32_t offset;
+		uint32_t offset = 0;
 
-		/*
-		 * FW uncached consists of the qtbl, HFI queues, SFR buffer
-		 * and secondary heap
-		 */
+		/* FW uncached consists of the qtbl, HFI queues, SFR buffer and secondary heap */
 		alloc.size = qtbl_size + cmdq_size + msgq_size + dbgq_size +
 			sfr_size + sec_heap_size;
 		alloc.align = 0;
 		alloc.flags = CAM_MEM_FLAG_KMD_ACCESS;
 		alloc.smmu_hdl = hw_mgr->iommu_hdl;
-		rc = cam_mem_mgr_reserve_memory_region(&alloc,
-			CAM_SMMU_REGION_FWUNCACHED, &out);
+		rc = cam_mem_mgr_reserve_memory_region(&alloc, CAM_SMMU_REGION_FWUNCACHED, &out);
 		if (rc) {
 			CAM_ERR(CAM_ICP, "[%s] Unable to reserve fw uncached memory rc %d",
 				hw_mgr->hw_mgr_name, rc);
-			goto qtbl_alloc_failed;
+			return rc;
 		}
 
 		hw_mgr->hfi_mem.fw_uncached_region = true;
@@ -4038,12 +4001,9 @@ static int cam_icp_allocate_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
 		 * send the whole region to FW, resulting in one ICP MMU entry.
 		 * If reserving for FW uncached the SMMU will map the FW uncached
 		 * generic, and return the appropriate va
-		 *
 		 */
 		hw_mgr->hfi_mem.fw_uncached = fwuncached_region_info;
 		hw_mgr->hfi_mem.fw_uncached_generic = out;
-
-		offset = 0;
 
 		hw_mgr->hfi_mem.sec_heap.iova       = out.iova + offset;
 		hw_mgr->hfi_mem.sec_heap.kva        = out.kva + offset;
@@ -4098,14 +4058,14 @@ static int cam_icp_allocate_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
 				"[%s] FW uncached region size %lld not enough, required %lld",
 				hw_mgr->hw_mgr_name, offset, out.len);
 			cam_mem_mgr_free_memory_region(&hw_mgr->hfi_mem.fw_uncached_generic);
-			goto qtbl_alloc_failed;
+			return rc;
 		}
 	} else {
 		rc = cam_icp_alloc_shared_mem(hw_mgr, qtbl_size, &hw_mgr->hfi_mem.qtbl);
 		if (rc) {
 			CAM_ERR(CAM_ICP, "[%s] Unable to allocate qtbl memory, rc %d",
 				hw_mgr->hw_mgr_name, rc);
-			goto qtbl_alloc_failed;
+			return rc;
 		}
 
 		rc = cam_icp_alloc_shared_mem(hw_mgr, cmdq_size, &hw_mgr->hfi_mem.cmd_q);
@@ -4144,136 +4104,8 @@ static int cam_icp_allocate_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
 		}
 	}
 
-	CAM_DBG(CAM_ICP, "[%s] Shared Region [0x%x %lld] FW Uncached nested Region [0x%x %lld]",
-		hw_mgr->hw_mgr_name,
-		hw_mgr->hfi_mem.shmem.iova_start,
-		hw_mgr->hfi_mem.shmem.iova_len,
-		fwuncached_region_info.iova_start,
-		fwuncached_region_info.iova_len);
-
-	CAM_DBG(CAM_ICP,
-		"[%s] FwUncached[0x%x %lld] FwUncached_Generic[0x%x %p %lld] QTbl[0x%x %p %lld] CmdQ[0x%x %p %lld] MsgQ[0x%x %p %lld]",
-		hw_mgr->hw_mgr_name,
-		hw_mgr->hfi_mem.fw_uncached.iova_start,
-		hw_mgr->hfi_mem.fw_uncached.iova_len,
-		hw_mgr->hfi_mem.fw_uncached_generic.iova,
-		hw_mgr->hfi_mem.fw_uncached_generic.kva,
-		hw_mgr->hfi_mem.fw_uncached_generic.len,
-		hw_mgr->hfi_mem.qtbl.iova,
-		hw_mgr->hfi_mem.qtbl.kva,
-		hw_mgr->hfi_mem.qtbl.len,
-		hw_mgr->hfi_mem.cmd_q.iova,
-		hw_mgr->hfi_mem.cmd_q.kva,
-		hw_mgr->hfi_mem.cmd_q.len,
-		hw_mgr->hfi_mem.msg_q.iova,
-		hw_mgr->hfi_mem.msg_q.kva,
-		hw_mgr->hfi_mem.msg_q.len);
-
-	CAM_DBG(CAM_ICP,
-		"[%s] DbgQ[0x%x %p %lld] SFR[0x%x %p %lld] SecHeap[0x%x %p %lld]",
-		hw_mgr->hw_mgr_name,
-		hw_mgr->hfi_mem.dbg_q.iova,
-		hw_mgr->hfi_mem.dbg_q.kva,
-		hw_mgr->hfi_mem.dbg_q.len,
-		hw_mgr->hfi_mem.sfr_buf.iova,
-		hw_mgr->hfi_mem.sfr_buf.kva,
-		hw_mgr->hfi_mem.sfr_buf.len,
-		hw_mgr->hfi_mem.sec_heap.iova,
-		hw_mgr->hfi_mem.sec_heap.kva,
-		hw_mgr->hfi_mem.sec_heap.len);
-
-	rc = cam_icp_get_io_mem_info(hw_mgr);
-	if (rc) {
-		CAM_ERR(CAM_ICP, "[%s] Unable to get I/O region info rc %d",
-			hw_mgr->hw_mgr_name, rc);
-		if (fwuncached_region_exists) {
-			cam_mem_mgr_free_memory_region(
-				&hw_mgr->hfi_mem.fw_uncached_generic);
-			goto qtbl_alloc_failed;
-		} else {
-			goto get_io_mem_failed;
-		}
-	}
-
-	rc = cam_smmu_get_region_info(hw_mgr->iommu_hdl,
-		CAM_SMMU_REGION_DEVICE, &hw_mgr->hfi_mem.device);
-	if (!rc) {
-		if (hw_mgr->fw_based_sys_caching) {
-			rc = cam_icp_allocate_llcc_register_mem(hw_mgr);
-			if (rc) {
-				CAM_ERR(CAM_ICP, "[%s] Unable to allocate llcc memory rc %d",
-					hw_mgr->hw_mgr_name, rc);
-				if (fwuncached_region_exists) {
-					cam_mem_mgr_free_memory_region(
-						&hw_mgr->hfi_mem.fw_uncached_generic);
-					goto qtbl_alloc_failed;
-				} else {
-					goto get_io_mem_failed;
-				}
-			}
-		}
-
-		/* Allocate sync global mem & hwmutex for IPC */
-		if (hw_mgr->synx_signaling_en) {
-			rc = cam_icp_allocate_mem_for_fence_signaling(hw_mgr);
-			if (rc) {
-				if (hw_mgr->fw_based_sys_caching) {
-					cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
-						CAM_SMMU_REGION_DEVICE,
-						CAM_SMMU_SUBREGION_LLCC_REGISTER);
-				}
-				if (fwuncached_region_exists) {
-					cam_mem_mgr_free_memory_region(
-						&hw_mgr->hfi_mem.fw_uncached_generic);
-					goto qtbl_alloc_failed;
-				} else {
-					goto get_io_mem_failed;
-				}
-			}
-		}
-
-		/* Allocate global cntr mem */
-		rc = cam_icp_allocate_device_global_cnt_mem(hw_mgr);
-		if (rc) {
-			if (hw_mgr->fw_based_sys_caching) {
-				cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
-					CAM_SMMU_REGION_DEVICE,
-					CAM_SMMU_SUBREGION_LLCC_REGISTER);
-			}
-			if (hw_mgr->synx_signaling_en) {
-				cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
-					CAM_SMMU_REGION_DEVICE,
-					CAM_SMMU_SUBREGION_IPC_HWMUTEX);
-				cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
-					CAM_SMMU_REGION_DEVICE,
-					CAM_SMMU_SUBREGION_SYNX_HWMUTEX);
-				cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl,
-					CAM_SMMU_REGION_DEVICE,
-					CAM_SMMU_SUBREGION_GLOBAL_SYNC_MEM);
-			}
-			if (fwuncached_region_exists) {
-				cam_mem_mgr_free_memory_region(
-					&hw_mgr->hfi_mem.fw_uncached_generic);
-				goto qtbl_alloc_failed;
-			} else {
-				goto get_io_mem_failed;
-			}
-		}
-	} else {
-		CAM_ERR(CAM_ICP, "[%s] Unable to get device memory info rc %d",
-			hw_mgr->hw_mgr_name, rc);
-		if (fwuncached_region_exists) {
-			cam_mem_mgr_free_memory_region(&hw_mgr->hfi_mem.fw_uncached_generic);
-			goto qtbl_alloc_failed;
-		} else {
-			goto get_io_mem_failed;
-		}
-	}
-
 	return rc;
 
-get_io_mem_failed:
-	cam_mem_mgr_free_memory_region(&hw_mgr->hfi_mem.sec_heap);
 sec_heap_alloc_failed:
 	cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.sfr_buf);
 sfr_buf_alloc_failed:
@@ -4284,9 +4116,145 @@ msg_q_alloc_failed:
 	cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.cmd_q);
 cmd_q_alloc_failed:
 	cam_mem_mgr_release_mem(&hw_mgr->hfi_mem.qtbl);
-qtbl_alloc_failed:
+	return rc;
+}
+
+static inline int cam_icp_allocate_device_mem(struct cam_icp_hw_mgr *hw_mgr)
+{
+	int rc;
+
+	rc = cam_smmu_get_region_info(hw_mgr->iommu_hdl,
+		CAM_SMMU_REGION_DEVICE, &hw_mgr->hfi_mem.device);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "[%s] Unable to get device memory info, rc: %d",
+			hw_mgr->hw_mgr_name, rc);
+		return rc;
+	}
+
+	/* Allocate sys caching if supported by CPAS in DTSI */
+	if (hw_mgr->fw_based_sys_caching) {
+		rc = cam_icp_allocate_llcc_register_mem(hw_mgr);
+		if (rc) {
+			CAM_ERR(CAM_ICP, "[%s] Unable to allocate llcc memory, rc: %d",
+				hw_mgr->hw_mgr_name, rc);
+			goto end;
+		}
+	}
+
+	/* Allocate sync global mem & hwmutex for IPC */
+	if (hw_mgr->synx_signaling_en) {
+		rc = cam_icp_allocate_mem_for_fence_signaling(hw_mgr);
+		if (rc) {
+			CAM_ERR(CAM_ICP, "[%s] Unable to allocate IPC memory, rc: %d",
+				hw_mgr->hw_mgr_name, rc);
+			goto alloc_ipc_failed;
+		}
+	}
+
+	/* Allocate global cntr mem */
+	rc = cam_icp_allocate_device_global_cnt_mem(hw_mgr);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "[%s] Unable to allocate global cnt memory, rc: %d",
+			hw_mgr->hw_mgr_name, rc);
+		goto alloc_global_cnt_failed;
+	}
+
+	return rc;
+
+alloc_global_cnt_failed:
+	if (hw_mgr->synx_signaling_en) {
+		cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_DEVICE,
+			CAM_SMMU_SUBREGION_IPC_HWMUTEX);
+		cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_DEVICE,
+			CAM_SMMU_SUBREGION_SYNX_HWMUTEX);
+		cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_DEVICE,
+			CAM_SMMU_SUBREGION_GLOBAL_SYNC_MEM);
+	}
+alloc_ipc_failed:
+	if (hw_mgr->fw_based_sys_caching)
+		cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_DEVICE,
+			CAM_SMMU_SUBREGION_LLCC_REGISTER);
+end:
+	return rc;
+}
+
+static int cam_icp_allocate_hfi_mem(struct cam_icp_hw_mgr *hw_mgr)
+{
+	int                      rc;
+	struct icp_hfi_mem_info *hfi_mem = &hw_mgr->hfi_mem;
+
+	rc = cam_smmu_get_region_info(hw_mgr->iommu_hdl,
+		CAM_SMMU_REGION_SHARED, &hfi_mem->shmem);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "[%s] Unable to get shared memory info, rc: %d",
+			hw_mgr->hw_mgr_name, rc);
+		return rc;
+	}
+
+	rc = cam_icp_get_io_mem_info(hw_mgr);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "[%s] Unable to get I/O region info, rc: %d",
+			hw_mgr->hw_mgr_name, rc);
+		return rc;
+	}
+
+	rc = cam_icp_allocate_fw_mem(hw_mgr);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "[%s] Unable to allocate FW memory, rc: %d",
+			hw_mgr->hw_mgr_name, rc);
+		return rc;
+	}
+
+	rc = cam_icp_allocate_qdss_mem(hw_mgr);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "[%s] Unable to allocate qdss memory, rc: %d",
+			hw_mgr->hw_mgr_name, rc);
+		goto alloc_qdss_failed;
+	}
+
+	rc = cam_icp_allocate_device_mem(hw_mgr);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "[%s] Unable to allocate device memory, rc: %d",
+			hw_mgr->hw_mgr_name, rc);
+		goto alloc_device_failed;
+	}
+
+	rc = cam_icp_allocate_shared_mem(hw_mgr);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "[%s] Unable to allocate shared/fwuncached memory, rc: %d",
+			hw_mgr->hw_mgr_name, rc);
+		goto alloc_shared_failed;
+	}
+
+	CAM_DBG(CAM_ICP, "[%s] Shared Region [0x%x %lld] FW Uncached nested Region [0x%x %lld]",
+		hw_mgr->hw_mgr_name,
+		hfi_mem->fw_uncached.iova_start, hfi_mem->fw_uncached.iova_len);
+
+	CAM_DBG(CAM_ICP,
+		"[%s] Shared Region [0x%x %lld] FwUncached[0x%x %lld] FwUncached_Generic[0x%x %p %lld] ",
+		hw_mgr->hw_mgr_name,
+		hfi_mem->shmem.iova_start, hfi_mem->shmem.iova_len,
+		hfi_mem->fw_uncached.iova_start, hfi_mem->fw_uncached.iova_len,
+		hfi_mem->fw_uncached_generic.iova, hfi_mem->fw_uncached_generic.kva,
+		hfi_mem->fw_uncached_generic.len);
+
+	CAM_DBG(CAM_ICP,
+		"[%s] QTbl[0x%x %p %lld] CmdQ[0x%x %p %lld] MsgQ[0x%x %p %lld] DbgQ[0x%x %p %lld] SFR[0x%x %p %lld] SecHeap[0x%x %p %lld]",
+		hw_mgr->hw_mgr_name,
+		hfi_mem->qtbl.iova, hfi_mem->qtbl.kva, hfi_mem->qtbl.len,
+		hfi_mem->cmd_q.iova, hfi_mem->cmd_q.kva, hfi_mem->cmd_q.len,
+		hfi_mem->msg_q.iova, hfi_mem->msg_q.kva, hfi_mem->msg_q.len,
+		hfi_mem->dbg_q.iova, hfi_mem->dbg_q.kva, hfi_mem->dbg_q.len,
+		hfi_mem->sfr_buf.iova, hfi_mem->sfr_buf.kva, hfi_mem->sfr_buf.len,
+		hfi_mem->sec_heap.iova, hfi_mem->sec_heap.kva, hfi_mem->sec_heap.len);
+
+	return rc;
+
+alloc_shared_failed:
+	cam_icp_free_device_mem(hw_mgr);
+alloc_device_failed:
 	cam_smmu_unmap_phy_mem_region(hw_mgr->iommu_hdl, CAM_SMMU_REGION_QDSS, 0);
-fw_alloc_failed:
+alloc_qdss_failed:
 	cam_icp_free_fw_mem(hw_mgr);
 	return rc;
 }
@@ -6529,7 +6497,7 @@ static int cam_icp_process_stream_settings(
 	struct cam_cmd_mem_regions *cmd_mem_regions,
 	bool map_unmap)
 {
-	int rc = 0, i = 0;
+	int rc, i;
 	size_t packet_size, map_cmd_size, len;
 	dma_addr_t iova;
 	unsigned long rem_jiffies;
@@ -6544,8 +6512,7 @@ static int cam_icp_process_stream_settings(
 		return 0;
 	}
 
-	map_cmd_size =
-		sizeof(struct hfi_cmd_ipe_bps_map) +
+	map_cmd_size = sizeof(struct hfi_cmd_ipe_bps_map) +
 		((cmd_mem_regions->num_regions - 1) *
 		sizeof(struct mem_map_region_data));
 
@@ -6554,8 +6521,7 @@ static int cam_icp_process_stream_settings(
 		return -ENOMEM;
 
 	for (i = 0; i < cmd_mem_regions->num_regions; i++) {
-		rc = cam_mem_get_io_buf(
-			cmd_mem_regions->map_info_array_flex[i].mem_handle,
+		rc = cam_mem_get_io_buf(cmd_mem_regions->map_info_array_flex[i].mem_handle,
 			hw_mgr->iommu_hdl, &iova, &len, NULL, NULL);
 		if (rc) {
 			CAM_ERR(CAM_ICP,
@@ -6580,11 +6546,9 @@ static int cam_icp_process_stream_settings(
 	map_cmd->mem_map_request_num = cmd_mem_regions->num_regions;
 	map_cmd->user_data = 0;
 
-	packet_size =
-		sizeof(struct hfi_cmd_dev_async) +
+	packet_size = sizeof(struct hfi_cmd_dev_async) +
 		(sizeof(struct hfi_cmd_ipe_bps_map) +
-		((cmd_mem_regions->num_regions - 1) *
-		sizeof(struct mem_map_region_data))) -
+		((cmd_mem_regions->num_regions - 1) * sizeof(struct mem_map_region_data))) -
 		sizeof(((struct hfi_cmd_dev_async *)0)->payload.direct);
 
 	async_direct = CAM_MEM_ZALLOC(packet_size, GFP_KERNEL);
@@ -6595,16 +6559,13 @@ static int cam_icp_process_stream_settings(
 
 	async_direct->size = packet_size;
 	async_direct->pkt_type = HFI_CMD_IPEBPS_ASYNC_COMMAND_DIRECT;
-	if (map_unmap)
-		async_direct->opcode = HFI_IPEBPS_CMD_OPCODE_MEM_MAP;
-	else
-		async_direct->opcode = HFI_IPEBPS_CMD_OPCODE_MEM_UNMAP;
+	async_direct->opcode = (map_unmap) ? HFI_IPEBPS_CMD_OPCODE_MEM_MAP :
+		HFI_IPEBPS_CMD_OPCODE_MEM_UNMAP;
 	async_direct->num_fw_handles = 1;
 	async_direct->fw_handles_flex[0] = ctx_data->fw_handle;
 	async_direct->user_data1 = (uint64_t)ctx_data;
 	async_direct->user_data2 = (uint64_t)0x0;
-	memcpy(async_direct->payload.direct_flex, map_cmd,
-		map_cmd_size);
+	memcpy(async_direct->payload.direct_flex, map_cmd, map_cmd_size);
 
 	reinit_completion(&ctx_data->wait_complete);
 	rc = hfi_write_cmd(hw_mgr->hfi_handle, async_direct);
@@ -6618,10 +6579,10 @@ static int cam_icp_process_stream_settings(
 		map_unmap ? "Map" : "Unmap");
 
 	rem_jiffies = CAM_COMMON_WAIT_FOR_COMPLETION_TIMEOUT_ERRMSG(
-			&ctx_data->wait_complete,
-			msecs_to_jiffies(timeout), CAM_ICP,
-			"%s: FW response timeout for process stream setting handle command",
-			ctx_data->ctx_id_string);
+		&ctx_data->wait_complete,
+		msecs_to_jiffies(timeout), CAM_ICP,
+		"%s: FW response timeout for process stream setting handle command",
+		ctx_data->ctx_id_string);
 	if (!rem_jiffies) {
 		rc = -ETIMEDOUT;
 		cam_icp_dump_debug_info(ctx_data->hw_mgr_priv, false);
@@ -6770,16 +6731,153 @@ static int cam_icp_llcc_sys_cache_config_util(
 
 end:
 	return rc;
+}
 
+static inline int cam_icp_process_generic_blob_clk(uint32_t blob_size, void *blob_data,
+	struct cam_icp_hw_ctx_data *ctx_data, int32_t index)
+{
+	struct cam_icp_clk_bw_request *clk_info;
+	struct cam_icp_clk_bw_request *soc_req;
+
+	if (index < 0) {
+		CAM_ERR(CAM_ICP, "Invalid index %d", index);
+		return -EINVAL;
+	}
+
+	CAM_WARN_RATE_LIMIT_CUSTOM(CAM_PERF, 300, 1,
+		"Using deprecated blob type GENERIC_BLOB_CLK");
+	if (blob_size != sizeof(struct cam_icp_clk_bw_request)) {
+		CAM_ERR(CAM_ICP, "%s: Mismatch blob size %d expected %lu",
+			ctx_data->ctx_id_string, blob_size,
+			sizeof(struct cam_icp_clk_bw_request));
+		return -EINVAL;
+	}
+
+	if (ctx_data->bw_config_version == CAM_ICP_BW_CONFIG_UNKNOWN) {
+		ctx_data->bw_config_version = CAM_ICP_BW_CONFIG_V1;
+	} else if (ctx_data->bw_config_version != CAM_ICP_BW_CONFIG_V1) {
+		CAM_ERR(CAM_ICP,
+			"%s: Mismatch blob versions %d expected v1 %d",
+			ctx_data->ctx_id_string, ctx_data->bw_config_version,
+			CAM_ICP_BW_CONFIG_V1);
+		return -EINVAL;
+	}
+
+	clk_info = &ctx_data->hfi_frame_process.clk_info[index];
+	soc_req = (struct cam_icp_clk_bw_request *)blob_data;
+	*clk_info = *soc_req;
+	CAM_DBG(CAM_PERF|CAM_ICP, "%s: budget:%llu fc: %u %d BW %lld %lld",
+		ctx_data->ctx_id_string, clk_info->budget_ns, clk_info->frame_cycles,
+		clk_info->rt_flag, clk_info->uncompressed_bw,
+		clk_info->compressed_bw);
+
+	return 0;
+}
+
+static inline int cam_icp_process_generic_blob_clk_v2(uint32_t blob_size, void *blob_data,
+	struct cam_icp_hw_ctx_data *ctx_data, int32_t index)
+{
+	struct cam_icp_clk_bw_request         *clk_info;
+	struct cam_icp_clk_bw_req_internal_v2 *clk_info_v2;
+	struct cam_icp_clk_bw_request_v2      *soc_req_v2;
+	size_t                                 clk_update_size;
+	int                                    i;
+
+	if (index < 0) {
+		CAM_ERR(CAM_ICP, "Invalid index %d", index);
+		return -EINVAL;
+	}
+
+	if (blob_size < sizeof(struct cam_icp_clk_bw_request_v2)) {
+		CAM_ERR(CAM_ICP, "%s: Mismatch blob size %d expected %lu",
+			ctx_data->ctx_id_string, blob_size,
+			sizeof(struct cam_icp_clk_bw_request_v2));
+		return -EINVAL;
+	}
+
+	if (ctx_data->bw_config_version == CAM_ICP_BW_CONFIG_UNKNOWN) {
+		ctx_data->bw_config_version = CAM_ICP_BW_CONFIG_V2;
+	} else if (ctx_data->bw_config_version != CAM_ICP_BW_CONFIG_V2) {
+		CAM_ERR(CAM_ICP,
+			"%s: Mismatch blob versions %d expected v2 %d",
+			ctx_data->ctx_id_string, ctx_data->bw_config_version,
+			CAM_ICP_BW_CONFIG_V2);
+		return -EINVAL;
+	}
+
+	soc_req_v2 = (struct cam_icp_clk_bw_request_v2 *)blob_data;
+	if (soc_req_v2->num_paths > CAM_ICP_MAX_PER_PATH_VOTES) {
+		CAM_ERR(CAM_PERF, "%s: Invalid num paths: %d",
+			ctx_data->ctx_id_string, soc_req_v2->num_paths);
+		return -EINVAL;
+	}
+
+	/* Check for integer overflow */
+	if (soc_req_v2->num_paths != 1) {
+		if (sizeof(struct cam_axi_per_path_bw_vote) >
+			((UINT_MAX - sizeof(struct cam_icp_clk_bw_request_v2)) /
+			(soc_req_v2->num_paths - 1))) {
+			CAM_ERR(CAM_ICP,
+				"%s: Size exceeds limit paths:%u size per path:%lu",
+				ctx_data->ctx_id_string, soc_req_v2->num_paths - 1,
+				sizeof(struct cam_axi_per_path_bw_vote));
+			return -EINVAL;
+		}
+	}
+
+	clk_update_size = sizeof(struct cam_icp_clk_bw_request_v2) +
+		((soc_req_v2->num_paths - 1) * sizeof(struct cam_axi_per_path_bw_vote));
+	if (blob_size < clk_update_size) {
+		CAM_ERR(CAM_ICP, "%s: Invalid blob size: %u",
+			ctx_data->ctx_id_string, blob_size);
+		return -EINVAL;
+	}
+
+	clk_info = &ctx_data->hfi_frame_process.clk_info[index];
+	clk_info_v2 = &ctx_data->hfi_frame_process.clk_info_v2[index];
+	clk_info_v2->budget_ns = soc_req_v2->budget_ns;
+	clk_info_v2->frame_cycles = soc_req_v2->frame_cycles;
+	clk_info_v2->rt_flag = soc_req_v2->rt_flag;
+	clk_info_v2->num_paths = soc_req_v2->num_paths;
+
+	for (i = 0; i < soc_req_v2->num_paths; i++) {
+		clk_info_v2->axi_path[i].usage_data = soc_req_v2->axi_path_flex[i].usage_data;
+		clk_info_v2->axi_path[i].transac_type = soc_req_v2->axi_path_flex[i].transac_type;
+		clk_info_v2->axi_path[i].path_data_type =
+			soc_req_v2->axi_path_flex[i].path_data_type;
+		clk_info_v2->axi_path[i].vote_level = 0;
+		clk_info_v2->axi_path[i].camnoc_bw = soc_req_v2->axi_path_flex[i].camnoc_bw;
+		clk_info_v2->axi_path[i].mnoc_ab_bw = soc_req_v2->axi_path_flex[i].mnoc_ab_bw;
+		clk_info_v2->axi_path[i].mnoc_ib_bw = soc_req_v2->axi_path_flex[i].mnoc_ib_bw;
+	}
+
+	/* Use v1 structure for clk fields */
+	clk_info->budget_ns = clk_info_v2->budget_ns;
+	clk_info->frame_cycles = clk_info_v2->frame_cycles;
+	clk_info->rt_flag = clk_info_v2->rt_flag;
+
+	CAM_DBG(CAM_PERF|CAM_ICP,
+		"%s: budget=%llu, frame_cycle=%u, rt_flag=%d, num_paths=%d, index=%d, ctx_data=%pK",
+		ctx_data->ctx_id_string, clk_info_v2->budget_ns,
+		clk_info_v2->frame_cycles, clk_info_v2->rt_flag, clk_info_v2->num_paths,
+		index, ctx_data);
+
+	for (i = 0; i < clk_info_v2->num_paths; i++)
+		CAM_DBG(CAM_PERF|CAM_ICP,
+			"%s: [%d] : path_type=%d, trans_type=%d, camnoc=%lld, mnoc_ab=%lld, mnoc_ib=%lld",
+			ctx_data->ctx_id_string, i,
+			clk_info_v2->axi_path[i].path_data_type,
+			clk_info_v2->axi_path[i].transac_type,
+			clk_info_v2->axi_path[i].camnoc_bw,
+			clk_info_v2->axi_path[i].mnoc_ab_bw,
+			clk_info_v2->axi_path[i].mnoc_ib_bw);
+
+	return 0;
 }
 
 static int cam_icp_packet_generic_blob_handler(void *user_data,
 	uint32_t blob_type, uint32_t blob_size, uint8_t *blob_data)
 {
-	struct cam_icp_clk_bw_request *soc_req;
-	struct cam_icp_clk_bw_request *clk_info;
-	struct cam_icp_clk_bw_request_v2 *soc_req_v2;
-	struct cam_icp_clk_bw_req_internal_v2 *clk_info_v2;
 	struct cam_cmd_mem_regions *cmd_mem_regions;
 	struct icp_cmd_generic_blob *blob;
 	struct cam_icp_hw_ctx_data *ctx_data;
@@ -6788,12 +6886,10 @@ static int cam_icp_packet_generic_blob_handler(void *user_data,
 	struct cam_sys_cache_config_request *sys_cache_blob_info;
 	struct cam_icp_sys_cache_cfg *sys_cache_cfg;
 	uint32_t index;
-	size_t io_buf_size, clk_update_size;
-	int rc = 0;
+	size_t io_buf_size, scid_blob_size;
+	int rc = 0, i, j;
 	uintptr_t pResource;
-	uint32_t i = 0, j;
 	bool scid_match;
-	size_t scid_blob_size;
 
 	if (!blob_data || (blob_size == 0)) {
 		CAM_ERR(CAM_ICP, "Invalid blob info %pK %d", blob_data,
@@ -6808,140 +6904,15 @@ static int cam_icp_packet_generic_blob_handler(void *user_data,
 
 	switch (blob_type) {
 	case CAM_ICP_CMD_GENERIC_BLOB_CLK:
-		if (index < 0) {
-			CAM_ERR(CAM_ICP, "Invalid index %d", index);
-			return -EINVAL;
-		}
-
-		CAM_WARN_RATE_LIMIT_CUSTOM(CAM_PERF, 300, 1,
-			"Using deprecated blob type GENERIC_BLOB_CLK");
-		if (blob_size != sizeof(struct cam_icp_clk_bw_request)) {
-			CAM_ERR(CAM_ICP, "%s: Mismatch blob size %d expected %lu",
-				ctx_data->ctx_id_string, blob_size,
-				sizeof(struct cam_icp_clk_bw_request));
-			return -EINVAL;
-		}
-
-		if (ctx_data->bw_config_version == CAM_ICP_BW_CONFIG_UNKNOWN) {
-			ctx_data->bw_config_version = CAM_ICP_BW_CONFIG_V1;
-		} else if (ctx_data->bw_config_version !=
-			CAM_ICP_BW_CONFIG_V1) {
-			CAM_ERR(CAM_ICP,
-				"%s: Mismatch blob versions %d expected v1 %d, blob_type=%d",
-				ctx_data->ctx_id_string, ctx_data->bw_config_version,
-				CAM_ICP_BW_CONFIG_V1, blob_type);
-			return -EINVAL;
-		}
-
-		clk_info = &ctx_data->hfi_frame_process.clk_info[index];
-
-		soc_req = (struct cam_icp_clk_bw_request *)blob_data;
-		*clk_info = *soc_req;
-		CAM_DBG(CAM_PERF|CAM_ICP, "%s: budget:%llu fc: %u %d BW %lld %lld",
-			ctx_data->ctx_id_string, clk_info->budget_ns, clk_info->frame_cycles,
-			clk_info->rt_flag, clk_info->uncompressed_bw,
-			clk_info->compressed_bw);
+		rc = cam_icp_process_generic_blob_clk(blob_size, blob_data, ctx_data, index);
+		if (rc)
+			CAM_ERR(CAM_ICP, "Failed at processing generic blob clk, rc: %d", rc);
 		break;
 
 	case CAM_ICP_CMD_GENERIC_BLOB_CLK_V2:
-		if (index < 0) {
-			CAM_ERR(CAM_ICP, "Invalid index %d", index);
-			return -EINVAL;
-		}
-
-		if (blob_size < sizeof(struct cam_icp_clk_bw_request_v2)) {
-			CAM_ERR(CAM_ICP, "%s: Mismatch blob size %d expected %lu",
-				ctx_data->ctx_id_string,
-				blob_size,
-				sizeof(struct cam_icp_clk_bw_request_v2));
-			return -EINVAL;
-		}
-
-		if (ctx_data->bw_config_version == CAM_ICP_BW_CONFIG_UNKNOWN) {
-			ctx_data->bw_config_version = CAM_ICP_BW_CONFIG_V2;
-		} else if (ctx_data->bw_config_version !=
-			CAM_ICP_BW_CONFIG_V2) {
-			CAM_ERR(CAM_ICP,
-				"%s: Mismatch blob versions %d expected v2 %d, blob_type=%d",
-				ctx_data->ctx_id_string, ctx_data->bw_config_version,
-				CAM_ICP_BW_CONFIG_V2, blob_type);
-			return -EINVAL;
-		}
-
-		soc_req_v2 = (struct cam_icp_clk_bw_request_v2 *)blob_data;
-		if (soc_req_v2->num_paths > CAM_ICP_MAX_PER_PATH_VOTES) {
-			CAM_ERR(CAM_PERF, "%s: Invalid num paths: %d",
-				ctx_data->ctx_id_string, soc_req_v2->num_paths);
-			return -EINVAL;
-		}
-
-		/* Check for integer overflow */
-		if (soc_req_v2->num_paths != 1) {
-			if (sizeof(struct cam_axi_per_path_bw_vote) >
-				((UINT_MAX -
-				sizeof(struct cam_icp_clk_bw_request_v2)) /
-				(soc_req_v2->num_paths - 1))) {
-				CAM_ERR(CAM_ICP,
-					"%s: Size exceeds limit paths:%u size per path:%lu",
-					ctx_data->ctx_id_string, soc_req_v2->num_paths - 1,
-					sizeof(struct cam_axi_per_path_bw_vote));
-				return -EINVAL;
-			}
-		}
-
-		clk_update_size = sizeof(struct cam_icp_clk_bw_request_v2) +
-			((soc_req_v2->num_paths - 1) * sizeof(struct cam_axi_per_path_bw_vote));
-		if (blob_size < clk_update_size) {
-			CAM_ERR(CAM_ICP, "%s: Invalid blob size: %u",
-				ctx_data->ctx_id_string, blob_size);
-			return -EINVAL;
-		}
-
-		clk_info = &ctx_data->hfi_frame_process.clk_info[index];
-		clk_info_v2 = &ctx_data->hfi_frame_process.clk_info_v2[index];
-		clk_info_v2->budget_ns = soc_req_v2->budget_ns;
-		clk_info_v2->frame_cycles = soc_req_v2->frame_cycles;
-		clk_info_v2->rt_flag = soc_req_v2->rt_flag;
-		clk_info_v2->num_paths = soc_req_v2->num_paths;
-
-		for (i = 0; i < soc_req_v2->num_paths; i++) {
-			clk_info_v2->axi_path[i].usage_data =
-				soc_req_v2->axi_path_flex[i].usage_data;
-			clk_info_v2->axi_path[i].transac_type =
-				soc_req_v2->axi_path_flex[i].transac_type;
-			clk_info_v2->axi_path[i].path_data_type =
-				soc_req_v2->axi_path_flex[i].path_data_type;
-			clk_info_v2->axi_path[i].vote_level = 0;
-			clk_info_v2->axi_path[i].camnoc_bw = soc_req_v2->axi_path_flex[i].camnoc_bw;
-			clk_info_v2->axi_path[i].mnoc_ab_bw =
-				soc_req_v2->axi_path_flex[i].mnoc_ab_bw;
-			clk_info_v2->axi_path[i].mnoc_ib_bw =
-				soc_req_v2->axi_path_flex[i].mnoc_ib_bw;
-		}
-
-		/* Use v1 structure for clk fields */
-		clk_info->budget_ns = clk_info_v2->budget_ns;
-		clk_info->frame_cycles = clk_info_v2->frame_cycles;
-		clk_info->rt_flag = clk_info_v2->rt_flag;
-
-		CAM_DBG(CAM_PERF|CAM_ICP,
-			"%s: budget=%llu, frame_cycle=%u, rt_flag=%d, num_paths=%d, index=%d, ctx_data=%pK",
-			ctx_data->ctx_id_string, clk_info_v2->budget_ns,
-			clk_info_v2->frame_cycles, clk_info_v2->rt_flag, clk_info_v2->num_paths,
-			index, ctx_data);
-
-		for (i = 0; i < clk_info_v2->num_paths; i++) {
-			CAM_DBG(CAM_PERF|CAM_ICP,
-				"%s: [%d] : path_type=%d, trans_type=%d, camnoc=%lld, mnoc_ab=%lld, mnoc_ib=%lld",
-				ctx_data->ctx_id_string,
-				i,
-				clk_info_v2->axi_path[i].path_data_type,
-				clk_info_v2->axi_path[i].transac_type,
-				clk_info_v2->axi_path[i].camnoc_bw,
-				clk_info_v2->axi_path[i].mnoc_ab_bw,
-				clk_info_v2->axi_path[i].mnoc_ib_bw);
-		}
-
+		rc = cam_icp_process_generic_blob_clk_v2(blob_size, blob_data, ctx_data, index);
+		if (rc)
+			CAM_ERR(CAM_ICP, "Failed at processing generic blob clk v2, rc: %d", rc);
 		break;
 
 	case CAM_ICP_CMD_GENERIC_BLOB_CFG_IO:
@@ -6953,6 +6924,7 @@ static int cam_icp_packet_generic_blob_handler(void *user_data,
 			CAM_ERR(CAM_ICP, "%s: Failed in copy from user", ctx_data->ctx_id_string);
 			return -EFAULT;
 		}
+
 		CAM_DBG(CAM_ICP, "%s: buf handle %d", ctx_data->ctx_id_string,
 			dev_io_info.io_config_cmd_handle);
 		rc = cam_mem_get_io_buf(dev_io_info.io_config_cmd_handle, hw_mgr->iommu_hdl,
@@ -6965,8 +6937,7 @@ static int cam_icp_packet_generic_blob_handler(void *user_data,
 		break;
 
 	case CAM_ICP_CMD_GENERIC_BLOB_FW_MEM_MAP:
-		cmd_mem_regions =
-			(struct cam_cmd_mem_regions *)blob_data;
+		cmd_mem_regions = (struct cam_cmd_mem_regions *)blob_data;
 		if (cmd_mem_regions->num_regions <= 0) {
 			rc = -EINVAL;
 			CAM_ERR(CAM_ICP,
@@ -6982,8 +6953,7 @@ static int cam_icp_packet_generic_blob_handler(void *user_data,
 		break;
 
 	case CAM_ICP_CMD_GENERIC_BLOB_FW_MEM_UNMAP:
-		cmd_mem_regions =
-			(struct cam_cmd_mem_regions *)blob_data;
+		cmd_mem_regions = (struct cam_cmd_mem_regions *)blob_data;
 		if (cmd_mem_regions->num_regions <= 0) {
 			rc = -EINVAL;
 			CAM_ERR(CAM_ICP,
@@ -8226,8 +8196,7 @@ static int cam_icp_mgr_send_ping(struct cam_icp_hw_mgr *hw_mgr,
 	task_data->type = ICP_WORKQ_TASK_CMD_TYPE;
 	task->process_cb = cam_icp_mgr_process_cmd;
 
-	rc = cam_req_mgr_workq_enqueue_task(task, hw_mgr,
-		CRM_TASK_PRIORITY_0);
+	rc = cam_req_mgr_workq_enqueue_task(task, hw_mgr, CRM_TASK_PRIORITY_0);
 	if (rc) {
 		CAM_ERR(CAM_ICP, "Failed at enqueuing task to workq, ctx_id: %d", ctx_info->ctx_id);
 		CAM_MEM_FREE(ctx_info);
@@ -8235,10 +8204,10 @@ static int cam_icp_mgr_send_ping(struct cam_icp_hw_mgr *hw_mgr,
 	}
 
 	rem_jiffies = CAM_COMMON_WAIT_FOR_COMPLETION_TIMEOUT_ERRMSG(
-			&ctx_data->wait_complete,
-			msecs_to_jiffies(timeout), CAM_ICP,
-			"%s: FW response timeout for Ping handle command",
-			ctx_data->ctx_id_string);
+		&ctx_data->wait_complete,
+		msecs_to_jiffies(timeout), CAM_ICP,
+		"%s: FW response timeout for Ping handle command",
+		ctx_data->ctx_id_string);
 	if (!rem_jiffies) {
 		rc = -ETIMEDOUT;
 		cam_icp_dump_debug_info(hw_mgr, false);
@@ -8632,16 +8601,141 @@ static int cam_icp_validate_secure_port_config(struct cam_icp_hw_mgr *hw_mgr,
 	return 0;
 }
 
+static inline int cam_icp_mgr_send_init_config_io(struct cam_icp_hw_mgr *hw_mgr,
+	struct cam_icp_hw_ctx_data *ctx_data,
+	struct cam_icp_acquire_dev_info_unified *icp_dev_acquire_info)
+{
+	int                        rc;
+	dma_addr_t                 io_buf_addr;
+	size_t                     io_buf_size;
+	struct cam_cmd_mem_regions cmd_mem_region;
+
+	/* FW/CDM buffers are expected to be mapped in 32-bit address range */
+	rc = cam_mem_get_io_buf(icp_dev_acquire_info->io_config_cmd_handle, hw_mgr->iommu_hdl,
+		&io_buf_addr, &io_buf_size, NULL, NULL);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "%s: unable to get src buf info from io desc",
+			ctx_data->ctx_id_string);
+		return rc;
+	}
+
+	CAM_DBG(CAM_ICP, "%s: hdl: %d, addr: %pK, size: %zu",
+		ctx_data->ctx_id_string, icp_dev_acquire_info->io_config_cmd_handle,
+		(void *)io_buf_addr, io_buf_size);
+
+	cmd_mem_region.num_regions = 1;
+	cmd_mem_region.map_info_array_flex[0].mem_handle =
+		icp_dev_acquire_info->io_config_cmd_handle;
+	cmd_mem_region.map_info_array_flex[0].offset = 0;
+	cmd_mem_region.map_info_array_flex[0].size = icp_dev_acquire_info->io_config_cmd_size;
+	cmd_mem_region.map_info_array_flex[0].flags = 0;
+
+	rc = cam_icp_process_stream_settings(ctx_data, &cmd_mem_region, true);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "%s: sending config io mapping failed rc %d",
+			ctx_data->ctx_id_string, rc);
+		return rc;
+	}
+
+	if (cam_presil_mode_enabled()) {
+		CAM_INFO(CAM_PRESIL, "%s: Sending IO Config buffers to presil: FD %d",
+			ctx_data->ctx_id_string,
+			(icp_dev_acquire_info->io_config_cmd_handle >> 16));
+		cam_mem_mgr_send_buffer_to_presil(hw_mgr->iommu_hdl,
+			icp_dev_acquire_info->io_config_cmd_handle);
+	}
+
+	rc = cam_icp_mgr_send_config_io(ctx_data, io_buf_addr);
+	if (rc) {
+		CAM_ERR_RATE_LIMIT(CAM_ICP,
+			"%s: IO Config command failed %d size:%d",
+			ctx_data->ctx_id_string, rc, icp_dev_acquire_info->io_config_cmd_size);
+		cam_icp_dump_io_cfg(ctx_data, icp_dev_acquire_info->io_config_cmd_handle,
+			icp_dev_acquire_info->io_config_cmd_size);
+		cam_icp_process_stream_settings(ctx_data, &cmd_mem_region, false);
+		return rc;
+	}
+
+	rc = cam_icp_process_stream_settings(ctx_data, &cmd_mem_region, false);
+	if (rc) {
+		CAM_ERR(CAM_ICP, "%s: sending config io unmapping failed %d",
+			ctx_data->ctx_id_string, rc);
+		return rc;
+	}
+
+	return 0;
+}
+
+static inline int cam_icp_mgr_handle_acquire_info(struct cam_icp_hw_mgr *hw_mgr,
+	struct cam_hw_acquire_args *args, struct cam_icp_hw_ctx_data *ctx_data,
+	bool get_acquire_info)
+{
+	int rc;
+
+	if (get_acquire_info) {
+		/* Get acquire info */
+		if (args->api_version == CAM_ACQUIRE_DEV_STRUCT_VERSION_1)
+			rc = cam_icp_get_acquire_info_v1(hw_mgr, args, ctx_data);
+		else
+			rc = cam_icp_get_acquire_info_v2(hw_mgr, args, ctx_data);
+		if (rc) {
+			CAM_ERR_RATE_LIMIT(CAM_ICP, "%s: copy from user failed, api version: %u",
+				ctx_data->ctx_id_string, args->api_version);
+			return rc;
+		}
+	} else {
+		/* Put acquire info */
+		if (args->api_version == CAM_ACQUIRE_DEV_STRUCT_VERSION_1)
+			rc = cam_icp_put_acquire_info_v1(args->acquire_info,
+				ctx_data->icp_dev_acquire_info);
+		else
+			rc = cam_icp_put_acquire_info_v2(args->acquire_info,
+				ctx_data->icp_dev_acquire_info);
+		if (rc) {
+			CAM_ERR_RATE_LIMIT(CAM_ICP, "%s: copy to user failed, api version: %u",
+				ctx_data->ctx_id_string, args->api_version);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
+static inline int cam_icp_mgr_try_icp_resume(struct cam_icp_hw_mgr *hw_mgr,
+	struct cam_icp_mgr_hw_args *hw_args)
+{
+	int rc;
+
+	/* Only act once on the first context */
+	if (hw_mgr->ctxt_cnt)
+		return 0;
+
+	rc = cam_icp_clk_info_init(hw_mgr);
+	if (rc)
+		return rc;
+
+	rc = cam_icp_mgr_icp_resume(hw_mgr, hw_args);
+	if (rc)
+		return rc;
+
+	if (hw_mgr->icp_debug_type)
+		hfi_set_debug_level(hw_mgr->hfi_handle, hw_mgr->icp_debug_type,
+			hw_mgr->icp_dbg_lvl);
+
+	hfi_set_fw_dump_levels(hw_mgr->hfi_handle, hw_mgr->icp_fw_dump_lvl,
+		hw_mgr->icp_fw_ramdump_lvl);
+
+	rc = cam_icp_send_ubwc_cfg(hw_mgr);
+	return rc;
+}
+
 static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 {
 	struct cam_hw_acquire_args *args = acquire_hw_args;
 	struct cam_icp_hw_mgr *hw_mgr = hw_mgr_priv;
-	int rc = 0, bitmap_size = 0, i, ctx_id;
-	dma_addr_t io_buf_addr;
-	size_t io_buf_size;
+	int rc = 0, bitmap_size, ctx_id;
 	struct cam_icp_hw_ctx_data *ctx_data;
 	struct cam_icp_acquire_dev_info_unified *icp_dev_acquire_info;
-	struct cam_cmd_mem_regions cmd_mem_region;
 	enum cam_icp_hw_type hw_dev_type;
 	struct cam_icp_res_info_unified *icp_ref_res_info;
 	struct cam_icp_mgr_hw_args hw_args = {0};
@@ -8673,15 +8767,9 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	ctx_data->hw_mgr_priv = hw_mgr_priv;
 	ctx_data->acquire_dev_api_version = args->api_version;
 
-	if (args->api_version == CAM_ACQUIRE_DEV_STRUCT_VERSION_1) {
-		rc = cam_icp_get_acquire_info_v1(hw_mgr, args, ctx_data);
-		if (rc)
-			goto acquire_info_failed;
-	} else {
-		rc = cam_icp_get_acquire_info_v2(hw_mgr, args, ctx_data);
-		if (rc)
-			goto acquire_info_failed;
-	}
+	rc = cam_icp_mgr_handle_acquire_info(hw_mgr, args, ctx_data, true);
+	if (rc)
+		goto copy_from_user_failed;
 
 	icp_dev_acquire_info = ctx_data->icp_dev_acquire_info;
 	hw_dev_type = cam_icp_get_hw_dev_type(icp_dev_acquire_info->dev_type);
@@ -8689,67 +8777,34 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 		CAM_ERR(CAM_ICP, "[%s] Wrong hw device type in acquire: %u",
 			hw_mgr->hw_mgr_name, icp_dev_acquire_info->dev_type);
 		rc = -EINVAL;
-		goto get_io_buf_failed;
+		goto get_dev_failed;
 	}
 
 	if (!CAM_ICP_IS_DEV_HW_EXIST(hw_mgr->hw_cap_mask, hw_dev_type)) {
-		CAM_ERR(CAM_ICP,
-			"Attempt to acquire device %s not supported by [%s]",
+		CAM_ERR(CAM_ICP, "Attempt to acquire device %s not supported by [%s]",
 			cam_icp_dev_type_to_name(icp_dev_acquire_info->dev_type),
 			hw_mgr->hw_mgr_name);
 		rc = -EINVAL;
-		goto get_io_buf_failed;
+		goto get_dev_failed;
 	}
 
 	ctx_data->device_info = &hw_mgr->dev_info[hw_mgr->dev_info_idx[hw_dev_type]];
-
 	scnprintf(ctx_data->ctx_id_string, sizeof(ctx_data->ctx_id_string),
 		"[%s]_%s_ctx[%d]_hwmgr_ctx[%d]",
 		hw_mgr->hw_mgr_name,
-		cam_icp_dev_type_to_name(
-		ctx_data->icp_dev_acquire_info->dev_type),
+		cam_icp_dev_type_to_name(ctx_data->icp_dev_acquire_info->dev_type),
 		args->ctx_id, ctx_data->ctx_id);
 
-	CAM_DBG(CAM_ICP, "%s: acquire io buf handle %d",
-		ctx_data->ctx_id_string, icp_dev_acquire_info->io_config_cmd_handle);
-	/* FW/CDM buffers are expected to be mapped in 32-bit address range */
-	rc = cam_mem_get_io_buf(
-		icp_dev_acquire_info->io_config_cmd_handle,
-		hw_mgr->iommu_hdl,
-		&io_buf_addr, &io_buf_size, NULL, NULL);
+	/* Set clk info and resume ICP on first available context */
+	rc = cam_icp_mgr_try_icp_resume(hw_mgr, &hw_args);
 	if (rc) {
-		CAM_ERR(CAM_ICP, "%s: unable to get src buf info from io desc",
-			ctx_data->ctx_id_string);
-		goto get_io_buf_failed;
-	}
-
-	CAM_DBG(CAM_ICP, "%s: hdl: %d, addr: %pK, size: %zu",
-		ctx_data->ctx_id_string, icp_dev_acquire_info->io_config_cmd_handle,
-		(void *)io_buf_addr, io_buf_size);
-
-	if (!hw_mgr->ctxt_cnt) {
-		rc = cam_icp_clk_info_init(hw_mgr);
-		if (rc)
-			goto get_io_buf_failed;
-
-		rc = cam_icp_mgr_icp_resume(hw_mgr, &hw_args);
-		if (rc)
-			goto get_io_buf_failed;
-
-		if (hw_mgr->icp_debug_type)
-			hfi_set_debug_level(hw_mgr->hfi_handle, hw_mgr->icp_debug_type,
-				hw_mgr->icp_dbg_lvl);
-
-		hfi_set_fw_dump_levels(hw_mgr->hfi_handle, hw_mgr->icp_fw_dump_lvl,
-			hw_mgr->icp_fw_ramdump_lvl);
-
-		rc = cam_icp_send_ubwc_cfg(hw_mgr);
-		if (rc)
-			goto ubwc_cfg_failed;
+		CAM_ERR(CAM_ICP, "Trigger resume failed, rc: %d", rc);
+		goto icp_resume_failed;
 	}
 
 	if (icp_dev_acquire_info->secure_mode == CAM_SECURE_MODE_SECURE) {
-		/* If the device is being acquired in the secure mode, make sure that
+		/*
+		 * If the device is being acquired in the secure mode, make sure that
 		 * this doesn't conflict with previous secure sessions if any, both
 		 * in terms of acquire API version and the port security configuration.
 		 */
@@ -8760,11 +8815,12 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 			if (rc)
 				goto secure_check_failed;
 		} else {
-			/* Based on the port level security configuration call into TZ
-			* using the CPAS API to configure some ports to non secure, if
-			* required. By default all pixel ports are secure. Need not repeat
-			* this if the previous secure session, if any, already did this.
-			*/
+			/*
+			 * Based on the port level security configuration call into TZ
+			 * using the CPAS API to configure some ports to non secure, if
+			 * required. By default all pixel ports are secure. Need not repeat
+			 * this if the previous secure session, if any, already did this.
+			 */
 			rc = cam_icp_handle_secure_port_config(ctx_data, false);
 			if (rc)
 				goto secure_check_failed;
@@ -8781,100 +8837,40 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 		CAM_ERR(CAM_ICP, "%s: ping ack not received", ctx_data->ctx_id_string);
 		goto send_ping_failed;
 	}
-	CAM_DBG(CAM_ICP, "%s: ping ack received", ctx_data->ctx_id_string);
 
-	rc = cam_icp_mgr_create_handle(hw_mgr, icp_dev_acquire_info->dev_type,
-		ctx_data);
+	rc = cam_icp_mgr_create_handle(hw_mgr, icp_dev_acquire_info->dev_type, ctx_data);
 	if (rc) {
 		CAM_ERR(CAM_ICP, "%s: create handle failed", ctx_data->ctx_id_string);
 		goto create_handle_failed;
 	}
 
-	CAM_DBG(CAM_ICP,
-		"%s: created stream handle",
-		ctx_data->ctx_id_string);
-
-	cmd_mem_region.num_regions = 1;
-	cmd_mem_region.map_info_array_flex[0].mem_handle =
-		icp_dev_acquire_info->io_config_cmd_handle;
-	cmd_mem_region.map_info_array_flex[0].offset = 0;
-	cmd_mem_region.map_info_array_flex[0].size =
-		icp_dev_acquire_info->io_config_cmd_size;
-	cmd_mem_region.map_info_array_flex[0].flags = 0;
-
-	rc = cam_icp_process_stream_settings(ctx_data,
-		&cmd_mem_region, true);
+	rc = cam_icp_mgr_send_init_config_io(hw_mgr, ctx_data, icp_dev_acquire_info);
 	if (rc) {
-		CAM_ERR(CAM_ICP,
-			"%s: sending config io mapping failed rc %d",
-				ctx_data->ctx_id_string, rc);
-		goto send_map_info_failed;
-	}
-
-	if (cam_presil_mode_enabled()) {
-		CAM_INFO(CAM_PRESIL, "%s: Sending IO Config buffers to presil: FD %d ",
-			ctx_data->ctx_id_string,
-			(icp_dev_acquire_info->io_config_cmd_handle >> 16));
-		cam_mem_mgr_send_buffer_to_presil(hw_mgr->iommu_hdl,
-			icp_dev_acquire_info->io_config_cmd_handle);
-	}
-
-	rc = cam_icp_mgr_send_config_io(ctx_data, io_buf_addr);
-	if (rc) {
-		CAM_ERR_RATE_LIMIT(CAM_ICP,
-			"%s: IO Config command failed %d size:%d",
-			ctx_data->ctx_id_string, rc, icp_dev_acquire_info->io_config_cmd_size);
-		cam_icp_dump_io_cfg(ctx_data,
-			icp_dev_acquire_info->io_config_cmd_handle,
-			icp_dev_acquire_info->io_config_cmd_size);
+		CAM_ERR(CAM_ICP, "%s: Init config io failed", ctx_data->ctx_id_string);
 		goto ioconfig_failed;
-	}
-
-	rc = cam_icp_process_stream_settings(ctx_data,
-		&cmd_mem_region, false);
-	if (rc) {
-		CAM_ERR(CAM_ICP,
-			"%s: sending config io unmapping failed %d",
-			ctx_data->ctx_id_string, rc);
-		goto send_map_info_failed;
 	}
 
 	ctx_data->context_priv = args->context_data;
 	args->ctxt_to_hw_map = ctx_data;
 	args->hw_mgr_ctx_id = ctx_data->ctx_id;
-
 	bitmap_size = BITS_TO_LONGS(CAM_FRAME_CMD_MAX) * sizeof(long);
-	ctx_data->hfi_frame_process.bitmap =
-			CAM_MEM_ZALLOC(bitmap_size, GFP_KERNEL);
+	ctx_data->hfi_frame_process.bitmap = CAM_MEM_ZALLOC(bitmap_size, GFP_KERNEL);
 	if (!ctx_data->hfi_frame_process.bitmap) {
 		CAM_ERR_RATE_LIMIT(CAM_ICP,
 			"%s: failed to allocate hfi frame bitmap", ctx_data->ctx_id_string);
-			rc = -ENOMEM;
+		rc = -ENOMEM;
 		goto ioconfig_failed;
 	}
 
 	ctx_data->perf_stats.total_resp_time = 0;
 	ctx_data->perf_stats.total_requests = 0;
-
 	ctx_data->hfi_frame_process.bits = bitmap_size * BITS_PER_BYTE;
 	ctx_data->ctxt_event_cb = args->event_cb;
 	icp_dev_acquire_info->scratch_mem_size = ctx_data->scratch_mem_size;
 
-	if (args->api_version == CAM_ACQUIRE_DEV_STRUCT_VERSION_1) {
-		rc = cam_icp_put_acquire_info_v1(args->acquire_info, icp_dev_acquire_info);
-		if (rc) {
-			CAM_ERR_RATE_LIMIT(CAM_ICP,
-				"%s: copy to user failed", ctx_data->ctx_id_string);
-			goto copy_to_user_failed;
-		}
-	} else {
-		rc = cam_icp_put_acquire_info_v2(args->acquire_info, icp_dev_acquire_info);
-		if (rc) {
-			CAM_ERR_RATE_LIMIT(CAM_ICP,
-				"%s: copy to user failed", ctx_data->ctx_id_string);
-			goto copy_to_user_failed;
-		}
-	}
+	rc = cam_icp_mgr_handle_acquire_info(hw_mgr, args, ctx_data, false);
+	if (rc)
+		goto copy_to_user_failed;
 
 	cam_icp_ctx_clk_info_init(ctx_data);
 	ctx_data->state = CAM_ICP_CTX_STATE_ACQUIRED;
@@ -8884,23 +8880,14 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 		(unsigned int)icp_dev_acquire_info->scratch_mem_size,
 		(unsigned int)ctx_data->fw_handle);
 
-	/* Start device timer*/
-	for (i = 0; i < hw_mgr->num_dev_info; i++) {
-		if (hw_mgr->dev_info[i].dev_ctx_info.dev_ctxt_cnt == 1)
-			break;
-	}
-
-	if (i != hw_mgr->num_dev_info)
-		cam_icp_device_timer_start(hw_mgr);
+	/* Try to start device timer (Only act on first available device context) */
+	cam_icp_device_timer_start(hw_mgr);
 
 	/* Start context timer */
 	cam_icp_ctx_timer_start(ctx_data);
 	hw_mgr->ctxt_cnt++;
-	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 
-	CAM_DBG(CAM_ICP, "%s: Acquire Done",
-		ctx_data->ctx_id_string);
-
+	CAM_DBG(CAM_ICP, "%s: Acquire Done", ctx_data->ctx_id_string);
 	CAM_TRACE(CAM_ICP,
 		"%s: Acquired, in_res : format=%d, widht=%d, height=%d, fps=%d",
 		ctx_data->ctx_id_string,
@@ -8910,31 +8897,28 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 		ctx_data->icp_dev_acquire_info->in_res.fps);
 
 	icp_ref_res_info = ctx_data->icp_dev_acquire_info->out_res_flex;
-	if (ctx_data->icp_dev_acquire_info->num_out_res > 0) {
+	if (ctx_data->icp_dev_acquire_info->num_out_res > 0)
 		CAM_TRACE(CAM_ICP,
 			"%s: Acquired, out_res[0] : format=%d, widht=%d, height=%d, fps=%d",
 			ctx_data->ctx_id_string,
 			icp_ref_res_info[0].format, icp_ref_res_info[0].width,
 			icp_ref_res_info[0].height, icp_ref_res_info[0].fps);
-	}
 
-	if (ctx_data->icp_dev_acquire_info->num_out_res > 1) {
+	if (ctx_data->icp_dev_acquire_info->num_out_res > 1)
 		CAM_TRACE(CAM_ICP,
 			"%s: Acquired, out_res[1] : format=%d, widht=%d, height=%d, fps=%d",
 			ctx_data->ctx_id_string,
 			icp_ref_res_info[1].format, icp_ref_res_info[1].width,
 			icp_ref_res_info[1].height, icp_ref_res_info[1].fps);
-	}
 
+	mutex_unlock(&hw_mgr->ctx_mutex[ctx_id]);
+	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	return 0;
 
 copy_to_user_failed:
 	CAM_MEM_FREE(ctx_data->hfi_frame_process.bitmap);
 	ctx_data->hfi_frame_process.bitmap = NULL;
 ioconfig_failed:
-	cam_icp_process_stream_settings(ctx_data,
-		&cmd_mem_region, false);
-send_map_info_failed:
 	cam_icp_mgr_destroy_handle(ctx_data);
 create_handle_failed:
 send_ping_failed:
@@ -8945,14 +8929,14 @@ icp_dev_resume_failed:
 			cam_icp_handle_secure_port_config(ctx_data, true);
 	}
 secure_check_failed:
-ubwc_cfg_failed:
-	if (!hw_mgr->ctxt_cnt)
+icp_resume_failed:
+	if (!hw_mgr->ctxt_cnt && hw_mgr->icp_resumed)
 		cam_icp_mgr_icp_power_collapse(hw_mgr, &hw_args);
-get_io_buf_failed:
+get_dev_failed:
 	CAM_MEM_FREE(ctx_data->icp_dev_acquire_info);
 	ctx_data->icp_dev_acquire_info = NULL;
 	ctx_data->device_info = NULL;
-acquire_info_failed:
+copy_from_user_failed:
 	cam_icp_mgr_process_dbg_buf(hw_mgr);
 	cam_icp_mgr_put_ctx(hw_mgr, ctx_id);
 	mutex_unlock(&hw_mgr->ctx_mutex[ctx_id]);

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef CAM_ICP_HW_MGR_H
@@ -336,7 +336,7 @@ struct cam_ctx_clk_info {
  */
 struct icp_cmd_generic_blob {
 	struct cam_icp_hw_ctx_data *ctx;
-	uint32_t frame_info_idx;
+	int32_t frame_info_idx;
 	dma_addr_t *io_buf_addr;
 };
 
