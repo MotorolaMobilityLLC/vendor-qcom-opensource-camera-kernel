@@ -17201,6 +17201,7 @@ static int cam_ife_hw_mgr_handle_csid_error(
 		error_event_data.error_type = CAM_ISP_HW_ERROR_CSID_RUP_MISS;
 		error_event_data.try_internal_recovery = true;
 		rc = cam_ife_hw_mgr_handle_rup_miss_evt(ctx, event_info, &error_event_data);
+		err_evt_info->print_hw_info = error_event_data.print_hw_info;
 		goto end;
 	}
 

@@ -205,7 +205,7 @@ static int __cam_isp_ctx_print_event_record(struct cam_isp_context *ctx_isp)
 		state_head = atomic64_read(&ctx_isp->dbg_monitors.event_record_head[i]);
 
 		if (state_head == -1) {
-			return 0;
+			continue;
 		} else if (state_head < CAM_ISP_CTX_EVENT_RECORD_MAX_ENTRIES) {
 			num_entries = state_head + 1;
 			oldest_entry = 0;
@@ -4732,6 +4732,7 @@ static int cam_isp_ctx_rup_miss_handler(struct cam_context *ctx,
 	struct cam_isp_hw_error_event_data  *error_event_data)
 {
 	struct cam_ctx_request *pending_req = NULL, *wait_req = NULL, *active_req = NULL;
+	struct cam_isp_context *ctx_isp = (struct cam_isp_context *)ctx->ctx_priv;
 
 	if (!list_empty(&ctx->pending_req_list))
 		pending_req = list_first_entry(&ctx->pending_req_list, struct cam_ctx_request,
@@ -4743,10 +4744,19 @@ static int cam_isp_ctx_rup_miss_handler(struct cam_context *ctx,
 	if (!list_empty(&ctx->active_req_list))
 		active_req = list_first_entry(&ctx->active_req_list, struct cam_ctx_request, list);
 
-	CAM_WARN(CAM_ISP, "RUP miss recived for ctx:%u, link:0x%x, pending_req:%llu wait_req:%llu active_req:%llu",
-		ctx->ctx_id, ctx->link_hdl, (pending_req) ? pending_req->request_id : -1,
-		(wait_req) ? wait_req->request_id : -1,
-		(active_req) ? active_req->request_id : -1);
+	if (wait_req || active_req) {
+		CAM_WARN(CAM_ISP, "RUP miss recived for ctx:%u, link:0x%x, wait_req:%llu active_req:%llu substate:%u frame_id:%u",
+			ctx->ctx_id, ctx->link_hdl, (wait_req) ? wait_req->request_id : -1,
+			(active_req) ? active_req->request_id : -1,
+			ctx_isp->substate_activated, ctx_isp->frame_id);
+		error_event_data->print_hw_info = true;
+	} else {
+		CAM_WARN_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 1,
+			"RUP miss recived for ctx:%u, link:0x%x, wait_req:%llu active_req:%llu substate:%u frame_id:%u",
+			ctx->ctx_id, ctx->link_hdl, (wait_req) ? wait_req->request_id : -1,
+			(active_req) ? active_req->request_id : -1,
+			ctx_isp->substate_activated, ctx_isp->frame_id);
+	}
 
 	return 0;
 }

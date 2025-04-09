@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_ISP_HW_H_
@@ -368,11 +368,13 @@ struct cam_isp_blanking_config {
  *
  * @err_type:           Type of error being reported
  * @err_mask:           Exact error of the err_type
+ * @need_drv_debug:     Indicate if drvier needs debug
  *
  */
 struct cam_isp_hw_error_event_info {
 	uint32_t    err_type;
 	uint32_t    err_mask;
+	bool        print_hw_info;
 };
 
 /**
