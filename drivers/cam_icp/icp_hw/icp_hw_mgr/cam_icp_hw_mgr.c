@@ -3073,13 +3073,36 @@ static int cam_icp_mgr_process_ofe_direct_ack_msg(
 	struct cam_icp_hw_mgr *hw_mgr,
 	uint32_t *msg_ptr)
 {
+	struct hfi_msg_dev_async_ack *ioconfig_ack;
+	struct cam_icp_hw_ctx_info *ctx_info;
+	struct cam_icp_hw_ctx_data *ctx_data;
+	int rc = 0;
+	uint32_t ctx_id;
+
+	if (!msg_ptr)
+		return -EINVAL;
+
+	ioconfig_ack = (struct hfi_msg_dev_async_ack *)msg_ptr;
+
+	ctx_info = (struct cam_icp_hw_ctx_info *)
+			U64_TO_PTR(ioconfig_ack->user_data1);
+	if (!ctx_info) {
+		CAM_ERR(CAM_ICP, "Invalid ctx_info, opcode: %d",
+			msg_ptr[ICP_PACKET_OPCODE]);
+		return -EINVAL;
+	}
+
+	ctx_data = ctx_info->ctx_data;
+	ctx_id = ctx_info->ctx_id;
+
+	if (ctx_data != hw_mgr->ctx_data[ctx_id]) {
+		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u opcode: %d",
+			ctx_id, msg_ptr[ICP_PACKET_OPCODE]);
+		goto end;
+	}
+
 	switch (msg_ptr[ICP_PACKET_OPCODE]) {
 	case HFI_OFE_CMD_OPCODE_ABORT: {
-		struct hfi_msg_dev_async_ack *ioconfig_ack = NULL;
-		struct cam_icp_hw_ctx_data *ctx_data = NULL;
-
-		ioconfig_ack = (struct hfi_msg_dev_async_ack *)msg_ptr;
-		ctx_data = U64_TO_PTR(ioconfig_ack->user_data1);
 		if (cam_presil_mode_enabled()) {
 			if (atomic_read(&hw_mgr->frame_in_process)) {
 				if (hw_mgr->frame_in_process_ctx_id == ctx_data->ctx_id) {
@@ -3102,11 +3125,6 @@ static int cam_icp_mgr_process_ofe_direct_ack_msg(
 		break;
 	}
 	case HFI_OFE_CMD_OPCODE_DESTROY: {
-		struct hfi_msg_dev_async_ack *ioconfig_ack = NULL;
-		struct cam_icp_hw_ctx_data *ctx_data = NULL;
-
-		ioconfig_ack = (struct hfi_msg_dev_async_ack *)msg_ptr;
-		ctx_data = U64_TO_PTR(ioconfig_ack->user_data1);
 		CAM_DBG(CAM_ICP, "received OFE destroy done msg: %u", ctx_data->state);
 		if ((ctx_data->state == CAM_ICP_CTX_STATE_RELEASE) ||
 			(ctx_data->state == CAM_ICP_CTX_STATE_IN_USE))
@@ -3116,10 +3134,12 @@ static int cam_icp_mgr_process_ofe_direct_ack_msg(
 	default:
 		CAM_ERR(CAM_ICP, "Invalid opcode : %u",
 			msg_ptr[ICP_PACKET_OPCODE]);
-		return -EINVAL;
+		rc = -EINVAL;
 	}
 
-	return 0;
+end:
+	CAM_MEM_FREE(ctx_info);
+	return rc;
 }
 
 static int cam_icp_mgr_process_ofe_indirect_ack_msg(
@@ -3150,18 +3170,37 @@ static int cam_icp_mgr_process_direct_ack_msg(
 	struct cam_icp_hw_mgr *hw_mgr,
 	uint32_t *msg_ptr)
 {
+	struct cam_icp_hw_ctx_info *ctx_info;
 	struct cam_icp_hw_ctx_data *ctx_data = NULL;
 	struct hfi_msg_dev_async_ack *ioconfig_ack = NULL;
+	int rc = 0;
+	uint32_t ctx_id;
 
 	if (!msg_ptr)
 		return -EINVAL;
 
+	ioconfig_ack = (struct hfi_msg_dev_async_ack *)msg_ptr;
+	ctx_info = (struct cam_icp_hw_ctx_info *)
+			U64_TO_PTR(ioconfig_ack->user_data1);
+	if (!ctx_info) {
+		CAM_ERR(CAM_ICP, "Invalid ctx_info, opcode: %d",
+			msg_ptr[ICP_PACKET_OPCODE]);
+		return -EINVAL;
+	}
+
+	ctx_data = ctx_info->ctx_data;
+	ctx_id = ctx_info->ctx_id;
+
+	if (ctx_data != hw_mgr->ctx_data[ctx_id]) {
+		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u"
+				"opcode: %d",
+			ctx_id, msg_ptr[ICP_PACKET_OPCODE]);
+		goto end;
+	}
+
 	switch (msg_ptr[ICP_PACKET_OPCODE]) {
 	case HFI_IPEBPS_CMD_OPCODE_IPE_ABORT:
 	case HFI_IPEBPS_CMD_OPCODE_BPS_ABORT:
-		ioconfig_ack = (struct hfi_msg_dev_async_ack *)msg_ptr;
-		ctx_data = (struct cam_icp_hw_ctx_data *)
-			U64_TO_PTR(ioconfig_ack->user_data1);
 		if (cam_presil_mode_enabled()) {
 			if (atomic_read(&hw_mgr->frame_in_process)) {
 				if (hw_mgr->frame_in_process_ctx_id == ctx_data->ctx_id) {
@@ -3185,9 +3224,6 @@ static int cam_icp_mgr_process_direct_ack_msg(
 		break;
 	case HFI_IPEBPS_CMD_OPCODE_IPE_DESTROY:
 	case HFI_IPEBPS_CMD_OPCODE_BPS_DESTROY:
-		ioconfig_ack = (struct hfi_msg_dev_async_ack *)msg_ptr;
-		ctx_data = (struct cam_icp_hw_ctx_data *)
-			U64_TO_PTR(ioconfig_ack->user_data1);
 		CAM_DBG(CAM_ICP, "%s: received DESTROY: ctx_state =%d",
 			ctx_data->ctx_id_string, ctx_data->state);
 		if ((ctx_data->state == CAM_ICP_CTX_STATE_RELEASE) ||
@@ -3196,10 +3232,6 @@ static int cam_icp_mgr_process_direct_ack_msg(
 		}
 		break;
 	case HFI_IPEBPS_CMD_OPCODE_MEM_MAP:
-		ioconfig_ack = (struct hfi_msg_dev_async_ack *)msg_ptr;
-		ctx_data =
-			(struct cam_icp_hw_ctx_data *)ioconfig_ack->user_data1;
-
 		CAM_DBG(CAM_ICP, "%s: received\n"
 			"MAP ACK:ctx_state =%d\n"
 			"failed with err_no = [%u] err_type = [%s]",
@@ -3208,10 +3240,6 @@ static int cam_icp_mgr_process_direct_ack_msg(
 		complete(&ctx_data->wait_complete);
 		break;
 	case HFI_IPEBPS_CMD_OPCODE_MEM_UNMAP:
-		ioconfig_ack = (struct hfi_msg_dev_async_ack *)msg_ptr;
-		ctx_data =
-			(struct cam_icp_hw_ctx_data *)ioconfig_ack->user_data1;
-
 		CAM_DBG(CAM_ICP,
 			"%s: received UNMAP ACK:ctx_state =%d\n"
 			"failed with err_no = [%u] err_type = [%s]",
@@ -3222,10 +3250,12 @@ static int cam_icp_mgr_process_direct_ack_msg(
 	default:
 		CAM_ERR(CAM_ICP, "Invalid opcode : %u",
 			msg_ptr[ICP_PACKET_OPCODE]);
-		return -EINVAL;
+		rc = -EINVAL;
 	}
 
-	return 0;
+end:
+	CAM_MEM_FREE(ctx_info);
+	return rc;
 }
 
 static int cam_icp_mgr_trigger_recovery(struct cam_icp_hw_mgr *hw_mgr)
@@ -4733,10 +4763,11 @@ static int cam_icp_mgr_hfi_resume(struct cam_icp_hw_mgr *hw_mgr)
 	return cam_hfi_resume(hw_mgr->hfi_handle);
 }
 
-static int cam_icp_mgr_populate_abort_cmd(struct cam_icp_hw_ctx_data *ctx_data,
+static int cam_icp_mgr_populate_abort_cmd(struct cam_icp_hw_ctx_info *ctx_info,
 	struct hfi_cmd_dev_async **abort_cmd_ptr)
 {
 	struct hfi_cmd_dev_async *abort_cmd = NULL;
+	struct cam_icp_hw_ctx_data *ctx_data = ctx_info->ctx_data;
 	uint32_t opcode, pkt_type;
 	size_t packet_size;
 
@@ -4780,7 +4811,7 @@ static int cam_icp_mgr_populate_abort_cmd(struct cam_icp_hw_ctx_data *ctx_data,
 	abort_cmd->opcode = opcode;
 	abort_cmd->num_fw_handles = 1;
 	abort_cmd->fw_handles_flex[0] = ctx_data->fw_handle;
-	abort_cmd->user_data1 = PTR_TO_U64(ctx_data);
+	abort_cmd->user_data1 = PTR_TO_U64(ctx_info);
 	abort_cmd->user_data2 = (uint64_t)0x0;
 
 	*abort_cmd_ptr = abort_cmd;
@@ -4815,31 +4846,36 @@ static int cam_icp_mgr_abort_handle_wq(
 	if (ctx_info->ctx_data != hw_mgr->ctx_data[ctx_info->ctx_id]) {
 		CAM_WARN(CAM_ICP, "ctx data is released before accessing it, ctx_id: %u",
 			ctx_info->ctx_id);
-		goto free_ctx_info;
+		CAM_MEM_FREE(ctx_info);
+		goto end;
 	}
 
 	ctx_data = ctx_info->ctx_data;
 	if (!ctx_data) {
 		CAM_ERR(CAM_ICP, "Invalid ctx_data, ctx_id: %d", ctx_info->ctx_id);
+		CAM_MEM_FREE(ctx_info);
 		rc = -EINVAL;
-		goto free_ctx_info;
+		goto end;
 	}
 
-	rc = cam_icp_mgr_populate_abort_cmd(ctx_data, &abort_cmd);
-	if (rc)
-		goto free_ctx_info;
+	rc = cam_icp_mgr_populate_abort_cmd(ctx_info, &abort_cmd);
+	if (rc) {
+		CAM_MEM_FREE(ctx_info);
+		goto end;
+	}
 
 	rc = hfi_write_cmd(hw_mgr->hfi_handle, abort_cmd);
-	if (rc)
+	if (rc) {
+		CAM_MEM_FREE(ctx_info);
 		goto free_abort_cmd;
+	}
 
 	CAM_DBG(CAM_ICP, "%s: fw_handle = 0x%x ctx_data = %pK",
 		ctx_data->ctx_id_string, ctx_data->fw_handle, ctx_data);
 
 free_abort_cmd:
 	CAM_MEM_FREE(abort_cmd);
-free_ctx_info:
-	CAM_MEM_FREE(ctx_info);
+end:
 	return rc;
 }
 
@@ -4849,19 +4885,32 @@ static int cam_icp_mgr_abort_handle(struct cam_icp_hw_ctx_data *ctx_data)
 	unsigned long rem_jiffies = 0;
 	int timeout = 2000;
 	struct hfi_cmd_dev_async *abort_cmd;
+	struct cam_icp_hw_ctx_info *ctx_info;
 	struct cam_icp_hw_mgr *hw_mgr = ctx_data->hw_mgr_priv;
 
 	if (atomic_read(&hw_mgr->recovery))
 		return 0;
 
-	rc = cam_icp_mgr_populate_abort_cmd(ctx_data, &abort_cmd);
-	if (rc)
+	ctx_info = CAM_MEM_ZALLOC(sizeof(struct cam_icp_hw_ctx_info), GFP_KERNEL);
+	if (!ctx_info) {
+		CAM_ERR(CAM_ICP, "Failed in allocating memory for ICP ctx info");
+		return -ENOMEM;
+	}
+
+	ctx_info->ctx_id = ctx_data->ctx_id;
+	ctx_info->ctx_data = ctx_data;
+
+	rc = cam_icp_mgr_populate_abort_cmd(ctx_info, &abort_cmd);
+	if (rc) {
+		CAM_MEM_FREE(ctx_info);
 		return rc;
+	}
 
 	reinit_completion(&ctx_data->wait_complete);
 
 	rc = hfi_write_cmd(hw_mgr->hfi_handle, abort_cmd);
 	if (rc) {
+		CAM_MEM_FREE(ctx_info);;
 		CAM_MEM_FREE(abort_cmd);
 		return rc;
 	}
@@ -4893,6 +4942,7 @@ static int cam_icp_mgr_destroy_handle(
 	size_t packet_size;
 	struct hfi_cmd_dev_async *destroy_cmd;
 	struct cam_icp_hw_mgr *hw_mgr = ctx_data->hw_mgr_priv;
+	struct cam_icp_hw_ctx_info *ctx_info;
 
 	if (atomic_read(&hw_mgr->recovery))
 		return 0;
@@ -4930,18 +4980,29 @@ static int cam_icp_mgr_destroy_handle(
 		return rc;
 	}
 
+	ctx_info = CAM_MEM_ZALLOC(sizeof(struct cam_icp_hw_ctx_info), GFP_KERNEL);
+	if (!ctx_info) {
+		CAM_ERR(CAM_ICP, "Failed in allocating memory for ICP ctx info");
+		CAM_MEM_FREE(destroy_cmd);
+		return -ENOMEM;
+	}
+
+	ctx_info->ctx_id = ctx_data->ctx_id;
+	ctx_info->ctx_data = ctx_data;
+
 	destroy_cmd->size = packet_size;
 	destroy_cmd->pkt_type = pkt_type;
 	destroy_cmd->opcode = opcode;
 	destroy_cmd->num_fw_handles = 1;
 	destroy_cmd->fw_handles_flex[0] = ctx_data->fw_handle;
-	destroy_cmd->user_data1 = PTR_TO_U64(ctx_data);
+	destroy_cmd->user_data1 = PTR_TO_U64(ctx_info);
 	destroy_cmd->user_data2 = (uint64_t)0x0;
 
 	reinit_completion(&ctx_data->wait_complete);
 
 	rc = hfi_write_cmd(hw_mgr->hfi_handle, destroy_cmd);
 	if (rc) {
+		CAM_MEM_FREE(ctx_info);
 		CAM_MEM_FREE(destroy_cmd);
 		return rc;
 	}
@@ -6505,6 +6566,7 @@ static int cam_icp_process_stream_settings(
 	struct hfi_cmd_ipe_bps_map  *map_cmd;
 	struct hfi_cmd_dev_async *async_direct;
 	struct cam_icp_hw_mgr *hw_mgr = ctx_data->hw_mgr_priv;
+	struct cam_icp_hw_ctx_info *ctx_info;
 
 	if (ctx_data->device_info->hw_dev_type == CAM_ICP_DEV_OFE) {
 		CAM_DBG(CAM_ICP, "%s OFE FW does not support map/unmap operations",
@@ -6557,13 +6619,24 @@ static int cam_icp_process_stream_settings(
 		return -ENOMEM;
 	}
 
+	ctx_info = CAM_MEM_ZALLOC(sizeof(struct cam_icp_hw_ctx_info), GFP_KERNEL);
+	if (!ctx_info) {
+		CAM_ERR(CAM_ICP, "Failed in allocating memory for ICP ctx info");
+		CAM_MEM_FREE(map_cmd);
+		CAM_MEM_FREE(async_direct);
+		return -ENOMEM;
+	}
+
+	ctx_info->ctx_id = ctx_data->ctx_id;
+	ctx_info->ctx_data = ctx_data;
+
 	async_direct->size = packet_size;
 	async_direct->pkt_type = HFI_CMD_IPEBPS_ASYNC_COMMAND_DIRECT;
 	async_direct->opcode = (map_unmap) ? HFI_IPEBPS_CMD_OPCODE_MEM_MAP :
 		HFI_IPEBPS_CMD_OPCODE_MEM_UNMAP;
 	async_direct->num_fw_handles = 1;
 	async_direct->fw_handles_flex[0] = ctx_data->fw_handle;
-	async_direct->user_data1 = (uint64_t)ctx_data;
+	async_direct->user_data1 = PTR_TO_U64(ctx_info);
 	async_direct->user_data2 = (uint64_t)0x0;
 	memcpy(async_direct->payload.direct_flex, map_cmd, map_cmd_size);
 
