@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -606,14 +606,82 @@ static int cam_icp_v1_pc_prep(struct cam_icp_v1_device_core_info *core_info)
 	return 0;
 }
 
+static inline int cam_icp_v1_clk_update(struct cam_hw_soc_info *soc_info,
+	struct cam_icp_v1_device_core_info *core_info,
+	void *cmd_args, uint32_t arg_size)
+{
+	int32_t             clk_level = 0;
+	struct cam_ahb_vote ahb_vote;
+	int                 rc;
+
+	if (!cmd_args || !core_info) {
+		CAM_ERR(CAM_ICP, "Invalid args: core info is %s cmd args is %s",
+			CAM_IS_NULL_TO_STR(core_info), CAM_IS_NULL_TO_STR(cmd_args));
+		return -EINVAL;
+	}
+
+	if (arg_size != sizeof(int32_t)) {
+		CAM_ERR(CAM_ICP, "Invalid icp clock update command");
+		return -EINVAL;
+	}
+
+	clk_level = *((int32_t *)cmd_args);
+	CAM_DBG(CAM_ICP, "Update ICP clock to level [%d]", clk_level);
+	rc = cam_icp_soc_update_clk_rate(soc_info, clk_level, core_info->hfi_handle);
+	if (rc)
+		CAM_ERR(CAM_ICP, "Failed to update clk to level: %d rc: %d", clk_level, rc);
+
+	ahb_vote.type = CAM_VOTE_ABSOLUTE;
+	ahb_vote.vote.level = clk_level;
+	cam_cpas_update_ahb_vote(core_info->cpas_handle, &ahb_vote);
+	return rc;
+}
+
+static inline int cam_icp_v1_ubwc_config(struct cam_hw_soc_info *soc_info,
+	struct cam_icp_v1_device_core_info *core_info,
+	void *cmd_args, uint32_t arg_size)
+{
+	struct cam_icp_ubwc_cfg_cmd     *ubwc_cmd = cmd_args;
+	struct cam_icp_proc_ubwc_cfg_cmd ubwc_proc_cmd;
+	struct cam_icp_soc_info         *icp_soc_info;
+	int                              rc = 0;
+
+	icp_soc_info = soc_info->soc_private;
+	if (!icp_soc_info) {
+		CAM_ERR(CAM_ICP, "ICP private soc info is NULL");
+		return -EINVAL;
+	}
+
+	if (!cmd_args) {
+		CAM_ERR(CAM_ICP, "Invalid ubwc cmd args is NULL");
+		return -EINVAL;
+	}
+
+	if (arg_size != sizeof(struct cam_icp_ubwc_cfg_cmd)) {
+		CAM_ERR(CAM_ICP, "Invalid ubwc cmd size:%u", arg_size);
+		return -EINVAL;
+	}
+
+	if (icp_soc_info->is_ubwc_cfg)
+		rc = hfi_cmd_ubwc_config(core_info->hfi_handle,
+			icp_soc_info->uconfig.ubwc_cfg);
+	else {
+		ubwc_proc_cmd.ubwc_cfg = &icp_soc_info->uconfig.ubwc_cfg_ext;
+		rc = cam_icp_proc_ubwc_configure(&ubwc_proc_cmd,
+			ubwc_cmd->disable_ubwc_comp, core_info->hfi_handle);
+	}
+
+	return rc;
+}
+
 int cam_icp_v1_process_cmd(void *device_priv, uint32_t cmd_type,
 	void *cmd_args, uint32_t arg_size)
 {
-	struct cam_hw_info *icp_v1_dev = device_priv;
-	struct cam_hw_soc_info *soc_info = NULL;
-	struct cam_icp_v1_device_core_info *core_info = NULL;
-	struct cam_icp_soc_info *icp_soc_info = NULL;
-	int rc = 0;
+	struct cam_hw_info                 *icp_v1_dev = device_priv;
+	struct cam_hw_soc_info             *soc_info;
+	struct cam_icp_v1_device_core_info *core_info;
+	struct cam_icp_cpas_vote           *cpas_vote = cmd_args;
+	int                                 rc = 0;
 
 	if (!device_priv) {
 		CAM_ERR(CAM_ICP, "Invalid arguments");
@@ -647,19 +715,15 @@ int cam_icp_v1_process_cmd(void *device_priv, uint32_t cmd_type,
 	case CAM_ICP_CMD_PC_PREP:
 		rc = cam_icp_v1_pc_prep(core_info);
 		break;
-	case CAM_ICP_CMD_VOTE_CPAS: {
-		struct cam_icp_cpas_vote *cpas_vote = cmd_args;
-
-		if (!cmd_args) {
+	case CAM_ICP_CMD_VOTE_CPAS:
+		if (!cpas_vote) {
 			CAM_ERR(CAM_ICP, "cmd args NULL");
 			return -EINVAL;
 		}
 
 		cam_icp_v1_cpas_vote(core_info, cpas_vote);
 		break;
-	}
-
-	case CAM_ICP_CMD_SET_HFI_HANDLE: {
+	case CAM_ICP_CMD_SET_HFI_HANDLE:
 		if (!core_info || !cmd_args) {
 			CAM_ERR(CAM_ICP, "Core info is %s and args is %s",
 				CAM_IS_NULL_TO_STR(core_info), CAM_IS_NULL_TO_STR(cmd_args));
@@ -674,12 +738,8 @@ int cam_icp_v1_process_cmd(void *device_priv, uint32_t cmd_type,
 
 		core_info->hfi_handle = *((int *)cmd_args);
 		break;
-	}
-
-	case CAM_ICP_CMD_CPAS_START: {
-		struct cam_icp_cpas_vote *cpas_vote = cmd_args;
-
-		if (!cmd_args) {
+	case CAM_ICP_CMD_CPAS_START:
+		if (!cpas_vote) {
 			CAM_ERR(CAM_ICP, "cmd args NULL");
 			return -EINVAL;
 		}
@@ -691,91 +751,25 @@ int cam_icp_v1_process_cmd(void *device_priv, uint32_t cmd_type,
 			core_info->cpas_start = true;
 		}
 		break;
-	}
-
 	case CAM_ICP_CMD_CPAS_STOP:
 		if (core_info->cpas_start) {
 			cam_cpas_stop(core_info->cpas_handle);
 			core_info->cpas_start = false;
 		}
 		break;
-	case CAM_ICP_CMD_UBWC_CFG: {
-		struct cam_icp_ubwc_cfg_cmd *ubwc_cmd = cmd_args;
-		struct cam_icp_proc_ubwc_cfg_cmd ubwc_proc_cmd;
-
-		icp_soc_info = soc_info->soc_private;
-		if (!icp_soc_info) {
-			CAM_ERR(CAM_ICP, "ICP private soc info is NULL");
-			return -EINVAL;
-		}
-
-		if (!cmd_args) {
-			CAM_ERR(CAM_ICP, "Invalid ubwc cmd args is NULL");
-			return -EINVAL;
-		}
-
-		if (arg_size != sizeof(struct cam_icp_ubwc_cfg_cmd)) {
-			CAM_ERR(CAM_ICP, "Invalid ubwc cmd size:%u", arg_size);
-			return -EINVAL;
-		}
-
-		if (icp_soc_info->is_ubwc_cfg)
-			rc = hfi_cmd_ubwc_config(core_info->hfi_handle,
-				icp_soc_info->uconfig.ubwc_cfg);
-		else {
-			ubwc_proc_cmd.ubwc_cfg = &icp_soc_info->uconfig.ubwc_cfg_ext;
-			rc = cam_icp_proc_ubwc_configure(&ubwc_proc_cmd,
-				ubwc_cmd->disable_ubwc_comp, core_info->hfi_handle);
-		}
+	case CAM_ICP_CMD_UBWC_CFG:
+		rc = cam_icp_v1_ubwc_config(soc_info, core_info, cmd_args, arg_size);
 		break;
-	}
-	case CAM_ICP_CMD_CLK_UPDATE: {
-		int32_t clk_level = 0;
-		struct cam_ahb_vote ahb_vote;
-
-		if (!cmd_args || !core_info) {
-			CAM_ERR(CAM_ICP, "Invalid args: core info is %s cmd args is %s",
-				CAM_IS_NULL_TO_STR(core_info), CAM_IS_NULL_TO_STR(cmd_args));
-			return -EINVAL;
-		}
-
-		if (arg_size != sizeof(int32_t)) {
-			CAM_ERR(CAM_ICP, "Invalid icp clock update command");
-			return -EINVAL;
-		}
-
-		clk_level = *((int32_t *)cmd_args);
-		CAM_DBG(CAM_ICP,
-			"Update ICP clock to level [%d]", clk_level);
-		rc = cam_icp_soc_update_clk_rate(soc_info, clk_level, core_info->hfi_handle);
-		if (rc)
-			CAM_ERR(CAM_ICP,
-				"Failed to update clk to level: %d rc: %d",
-				clk_level, rc);
-
-		ahb_vote.type = CAM_VOTE_ABSOLUTE;
-		ahb_vote.vote.level = clk_level;
-		cam_cpas_update_ahb_vote(
-			core_info->cpas_handle, &ahb_vote);
+	case CAM_ICP_CMD_CLK_UPDATE:
+		rc = cam_icp_v1_clk_update(soc_info, core_info, cmd_args, arg_size);
 		break;
-	}
-	case CAM_ICP_CMD_HW_DUMP: {
-		struct cam_icp_hw_dump_args *dump_args = cmd_args;
-
-		rc = cam_icp_v1_fw_dump(dump_args, core_info);
+	case CAM_ICP_CMD_HW_DUMP:
+		rc = cam_icp_v1_fw_dump(cmd_args, core_info);
 		break;
-	}
-
-	case CAM_ICP_CMD_HW_MINI_DUMP: {
-		struct cam_icp_hw_dump_args *dump_args = cmd_args;
-
-		rc = cam_icp_v1_fw_mini_dump(dump_args, core_info);
+	case CAM_ICP_CMD_HW_MINI_DUMP:
+		rc = cam_icp_v1_fw_mini_dump(cmd_args, core_info);
 		break;
-	}
-	case CAM_ICP_CMD_HW_REG_DUMP: {
-		/* reg dump not supported */
-		break;
-	}
+	case CAM_ICP_CMD_HW_REG_DUMP:
 	default:
 		break;
 	}
