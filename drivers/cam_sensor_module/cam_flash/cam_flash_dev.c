@@ -40,6 +40,8 @@ static void cam_flash_populate_query_current(struct cam_flash_ctrl *fctrl,
 	for (i = 0; i < fctrl->torch_num_sources; i++)
 		flash_cap->max_current_torch[i] =
 			soc_private->torch_max_current[i];
+#else
+	}
 #endif
 }
 
