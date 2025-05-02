@@ -4060,6 +4060,14 @@ static int cam_vfe_bus_ver3_update_wm(void *priv, void *cmd_args, uint32_t arg_s
 			bus_priv->common_data.core_index, wm_data->index, reg_val_pair[j-1],
 			CAM_BOOL_TO_YESNO(cam_smmu_is_expanded_memory));
 
+		if (wm_data->out_rsrc_data->cntxt_cfg_except) {
+			CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair, MAX_REG_VAL_PAIR_SIZE, j,
+				wm_data->client_base + wm_data->hw_regs->ctxt_cfg, io_cfg->flag);
+			CAM_DBG(CAM_ISP, "VFE:%u WM:%d %s ctxt cfg 0x%X",
+				bus_priv->common_data.core_index, wm_data->index,
+				vfe_out_data->wm_res[i].res_name, reg_val_pair[j-1]);
+		}
+
 		/* enable the WM */
 		CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair, MAX_REG_VAL_PAIR_SIZE, j,
 			wm_data->client_base + wm_data->hw_regs->cfg, cfg->en_cfg);
