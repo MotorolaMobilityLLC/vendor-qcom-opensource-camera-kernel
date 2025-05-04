@@ -1045,7 +1045,7 @@ static int cam_ife_mgr_handle_reg_dump(struct cam_ife_hw_mgr_ctx *ctx,
 	bool user_triggered_dump)
 {
 	int rc = 0, i;
-	struct cam_hw_soc_skip_dump_args skip_dump_args = {0};
+	struct cam_hw_soc_skip_dump_args skip_dump_args;
 	uintptr_t cpu_addr = 0;
 	size_t    buf_size = 0;
 	uint8_t total_ctx_acquired = 0;
@@ -1078,16 +1078,6 @@ static int cam_ife_mgr_handle_reg_dump(struct cam_ife_hw_mgr_ctx *ctx,
 		return rc;
 	}
 
-	if ((meta_type == CAM_ISP_PACKET_META_REG_DUMP_ON_ERROR) ||
-		(meta_type == CAM_ISP_PACKET_META_REG_DUMP_ON_FLUSH)) {
-		rc = cam_cdm_pause_hw(ctx->cdm_handle);
-		if (rc) {
-			CAM_WARN(CAM_ISP, "CDM: %u pause failed rc: %d in ctx: %u",
-				ctx->cdm_id, rc, ctx->ctx_index);
-			rc = 0;
-		}
-	}
-
 	if (!atomic_read(&ctx->cdm_done))
 		CAM_WARN_RATE_LIMIT(CAM_ISP,
 			"Reg dump values might be from more than one request, ctx_idx: %u",
@@ -1099,8 +1089,6 @@ static int cam_ife_mgr_handle_reg_dump(struct cam_ife_hw_mgr_ctx *ctx,
 	}
 
 	if (g_ife_hw_mgr.isp_caps.skip_regdump_data.skip_regdump &&
-            (meta_type == CAM_ISP_PACKET_META_REG_DUMP_PER_REQUEST) &&
-		(!ctx->hw_mgr->debug_cfg.ignore_skip_reg_dump) &&
 			(total_ctx_acquired != 1)) {
 		skip_dump_args.skip_regdump =
 			g_ife_hw_mgr.isp_caps.skip_regdump_data.skip_regdump;
@@ -19650,9 +19638,6 @@ static int cam_ife_hw_mgr_debug_register(void)
 	debugfs_create_bool("use_last_consumed_addr", 0644,
 		g_ife_hw_mgr.debug_cfg.dentry,
 		&g_ife_hw_mgr.debug_cfg.use_last_consumed_addr);
-	debugfs_create_bool("ignore_skip_reg_dump", 0644,
-		g_ife_hw_mgr.debug_cfg.dentry,
-		&g_ife_hw_mgr.debug_cfg.ignore_skip_reg_dump);
 
 end:
 	g_ife_hw_mgr.debug_cfg.enable_csid_recovery = 1;
