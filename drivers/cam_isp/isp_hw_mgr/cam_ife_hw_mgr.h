@@ -134,7 +134,6 @@ struct cam_isp_reg_read_evt_param {
  *                               of CSIPHY CDR tuning
  * @is_csid_perf_cnt_enabled:    Flag to indicate if csid perf counter debug is enabled
  * @use_last_consumed_addr:      Use last consumed addr scheme to verify buf dones
- * @ignore_skip_reg_dump:        Flag to ignore skip regdump data
  */
 struct cam_ife_hw_mgr_debug {
 	struct dentry  *dentry;
@@ -172,7 +171,6 @@ struct cam_ife_hw_mgr_debug {
 	bool           enable_sfe_wr_perf_cntr;
 	bool           is_csid_perf_cnt_enabled;
 	bool           use_last_consumed_addr;
-	bool           ignore_skip_reg_dump;
 };
 
 /**
