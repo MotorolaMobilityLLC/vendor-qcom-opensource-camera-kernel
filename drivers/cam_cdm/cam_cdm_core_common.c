@@ -809,6 +809,7 @@ int cam_cdm_process_cmd(void *hw_priv,
 				cmd, arg_size, *handle);
 				return -EINVAL;
 		}
+
 		idx = CAM_CDM_GET_CLIENT_IDX(*handle);
 		mutex_lock(&cdm_hw->hw_mutex);
 		client = core->clients[idx];
@@ -827,16 +828,57 @@ int cam_cdm_process_cmd(void *hw_priv,
 			mutex_unlock(&cdm_hw->hw_mutex);
 			break;
 		}
+
 		rc = cam_hw_cdm_reset_hw(cdm_hw, *handle);
 		if (rc) {
-			CAM_ERR(CAM_CDM,
-				"CDM HW reset failed for handle 0x%x rc = %d",
+			CAM_ERR(CAM_CDM, "CDM HW reset failed for handle 0x%x rc = %d",
 				*handle, rc);
 		} else {
-			CAM_INFO_RATE_LIMIT(CAM_CDM,
-				"CDM HW reset done for handle 0x%x",
-				*handle);
+			CAM_INFO_RATE_LIMIT(CAM_CDM, "CDM HW reset done for handle 0x%x", *handle);
 		}
+
+		mutex_unlock(&cdm_hw->hw_mutex);
+		break;
+	}
+	case CAM_CDM_HW_INTF_CMD_PAUSE_HW: {
+		uint32_t *handle = cmd_args;
+		int idx;
+		struct cam_cdm_client *client;
+
+		if (sizeof(uint32_t) != arg_size) {
+			CAM_ERR(CAM_CDM,
+				"Invalid CDM cmd %d size=%x for handle=%x",
+				cmd, arg_size, *handle);
+				return -EINVAL;
+		}
+
+		idx = CAM_CDM_GET_CLIENT_IDX(*handle);
+		mutex_lock(&cdm_hw->hw_mutex);
+		client = core->clients[idx];
+		if (!client) {
+			CAM_ERR(CAM_CDM,
+				"Client not present for handle %d",
+				*handle);
+			mutex_unlock(&cdm_hw->hw_mutex);
+			break;
+		}
+
+		if (*handle != client->handle) {
+			CAM_ERR(CAM_CDM,
+				"handle mismatch, client handle %d index %d received handle %d",
+				client->handle, idx, *handle);
+			mutex_unlock(&cdm_hw->hw_mutex);
+			break;
+		}
+
+		rc = cam_hw_cdm_pause_core(cdm_hw, true);
+		if (rc) {
+			CAM_ERR(CAM_CDM, "CDM HW pause core failed for handle 0x%x rc = %d",
+				*handle, rc);
+		} else {
+			CAM_DBG(CAM_CDM, "CDM HW pause core done for handle 0x%x", *handle);
+		}
+
 		mutex_unlock(&cdm_hw->hw_mutex);
 		break;
 	}
