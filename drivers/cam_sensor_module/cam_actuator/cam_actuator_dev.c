@@ -364,6 +364,9 @@ static int cam_actuator_driver_i2c_probe(struct i2c_client *client)
 	}
 
 	CAM_DBG(CAM_ACTUATOR, "Adding sensor actuator component");
+
+	cam_soc_util_initialize_power_domain(&client->dev);
+
 	rc = component_add(&client->dev, &cam_actuator_i2c_component_ops);
 	if (rc)
 		CAM_ERR(CAM_ACTUATOR, "failed to add component rc: %d", rc);
@@ -389,6 +392,9 @@ static int32_t cam_actuator_driver_i2c_probe(struct i2c_client *client,
 	}
 
 	CAM_DBG(CAM_ACTUATOR, "Adding sensor actuator component");
+
+	cam_soc_util_initialize_power_domain(&client->dev);
+
 	rc = component_add(&client->dev, &cam_actuator_i2c_component_ops);
 	if (rc)
 		CAM_ERR(CAM_ACTUATOR, "failed to add component rc: %d", rc);
@@ -397,20 +403,22 @@ static int32_t cam_actuator_driver_i2c_probe(struct i2c_client *client,
 }
 #endif
 
-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
-void cam_actuator_driver_i2c_remove(
-	struct i2c_client *client)
-{
-	component_del(&client->dev, &cam_actuator_i2c_component_ops);
-}
-#else
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int32_t cam_actuator_driver_i2c_remove(
 	struct i2c_client *client)
+#else
+void cam_actuator_driver_i2c_remove(
+	struct i2c_client *client)
+#endif
 {
 	component_del(&client->dev, &cam_actuator_i2c_component_ops);
+
+	cam_soc_util_uninitialize_power_domain(&client->dev);
+
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
-}
 #endif
+}
 
 static int cam_actuator_platform_component_bind(struct device *dev,
 	struct device *master_dev, void *data)
@@ -574,6 +582,9 @@ static void cam_actuator_platform_remove(
 #endif
 {
 	component_del(&pdev->dev, &cam_actuator_platform_component_ops);
+
+	cam_soc_util_uninitialize_power_domain(&pdev->dev);
+
 #if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
 #endif
@@ -590,6 +601,9 @@ static int32_t cam_actuator_driver_platform_probe(
 	int rc = 0;
 
 	CAM_DBG(CAM_ACTUATOR, "Adding sensor actuator component");
+
+	cam_soc_util_initialize_power_domain(&pdev->dev);
+
 	rc = component_add(&pdev->dev, &cam_actuator_platform_component_ops);
 	if (rc)
 		CAM_ERR(CAM_ACTUATOR, "failed to add component rc: %d", rc);

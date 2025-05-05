@@ -300,11 +300,29 @@ int cam_ope_probe(struct platform_device *pdev)
 	int rc = 0;
 
 	CAM_DBG(CAM_OPE, "Adding OPE component");
+
+	cam_soc_util_initialize_power_domain(&pdev->dev);
+
 	rc = component_add(&pdev->dev, &cam_ope_component_ops);
 	if (rc)
 		CAM_ERR(CAM_OPE, "failed to add component rc: %d", rc);
 
 	return rc;
+}
+
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
+static int cam_ope_remove(struct platform_device *pdev)
+#else
+static void cam_ope_remove(struct platform_device *pdev)
+#endif
+{
+	component_del(&pdev->dev, &cam_ope_component_ops);
+
+	cam_soc_util_uninitialize_power_domain(&pdev->dev);
+
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
+	return 0;
+#endif
 }
 
 static const struct of_device_id cam_ope_dt_match[] = {
@@ -318,6 +336,7 @@ MODULE_DEVICE_TABLE(of, cam_ope_dt_match);
 
 struct platform_driver cam_ope_driver = {
 	.probe = cam_ope_probe,
+	.remove = cam_ope_remove,
 	.driver = {
 		.name = "ope",
 		.of_match_table = cam_ope_dt_match,

@@ -242,6 +242,8 @@ int cam_sfe_probe(struct platform_device *pdev)
 	CAM_DBG(CAM_SFE, "Adding SFE component");
 	g_num_sfe_hws++;
 
+	cam_soc_util_initialize_power_domain(&pdev->dev);
+
 	rc = component_add(&pdev->dev, &cam_sfe_component_ops);
 	if (rc)
 		CAM_ERR(CAM_SFE, "failed to add component rc: %d", rc);
@@ -256,6 +258,9 @@ void cam_sfe_remove(struct platform_device *pdev)
 #endif
 {
 	component_del(&pdev->dev, &cam_sfe_component_ops);
+
+	cam_soc_util_uninitialize_power_domain(&pdev->dev);
+
 #if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
 #endif

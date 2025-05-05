@@ -2771,15 +2771,6 @@ int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_mast
 		return rc;
 	}
 
-	if (soc_info->is_a_genpd_device) {
-		rc = cam_soc_util_initialize_power_domain(soc_info);
-		if (rc) {
-			CAM_ERR(CAM_EEPROM, "Failed to initialize the GDSC for dev: %s",
-				soc_info->dev_name);
-			return rc;
-		}
-	}
-
 	strscpy(io_master_info->sensor_name, soc_info->dev_name,
 		CAM_SENSOR_NAME_MAX_SIZE);
 
@@ -2799,8 +2790,7 @@ int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_mast
 
 		if (rc < 0 || (*cci_i2c_master >= MASTER_MAX)) {
 			CAM_ERR(CAM_SENSOR_UTIL, "failed rc %d", rc);
-			rc = -EFAULT;
-			goto release_resources;
+			return -EFAULT;
 		}
 		CAM_DBG(CAM_SENSOR_UTIL, "cci-master is %d for %s", *cci_i2c_master,
 			io_master_info->sensor_name);
@@ -2822,7 +2812,7 @@ int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_mast
 			rc = rc ? rc : -EINVAL;
 			CAM_ERR(CAM_SENSOR_UTIL, "get failed for %s",
 				soc_info->clk_name[i]);
-			goto release_resources;
+			return rc;
 		}
 		CAM_DBG(CAM_SENSOR_UTIL, "get for clk %s",
 			soc_info->clk_name[i]);
@@ -2833,7 +2823,7 @@ int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_mast
 		if (rc) {
 			CAM_ERR(CAM_UTIL, "Failed in registering with OPP: %s, rc: %d",
 				soc_info->dev_name, rc);
-			goto release_resources;
+			return rc;
 		}
 	}
 
@@ -2846,7 +2836,7 @@ int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_mast
 			rc = rc ? rc : -EINVAL;
 			CAM_ERR(CAM_SENSOR_UTIL, "get failed for regulator %s",
 				 soc_info->rgltr_name[i]);
-			goto release_resources;
+			return rc;
 		}
 		CAM_DBG(CAM_SENSOR_UTIL, "get for regulator %s",
 			soc_info->rgltr_name[i]);
@@ -2855,19 +2845,11 @@ int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_mast
 	cam_sensor_utils_parse_pm_ctrl_flag(of_node, io_master_info);
 
 	return 0;
-
-release_resources:
-	if (soc_info->is_a_genpd_device)
-		cam_soc_util_uninitialize_power_domain(soc_info);
-	return rc;
 }
 
 void cam_sensor_util_release_resources(struct camera_io_master *io_master_info,
 	struct cam_hw_soc_info *soc_info)
 {
-	if (soc_info->is_a_genpd_device)
-		cam_soc_util_uninitialize_power_domain(soc_info);
-
 	if (soc_info->soc_private != NULL) {
 		CAM_MEM_FREE(soc_info->soc_private);
 		soc_info->soc_private = NULL;
