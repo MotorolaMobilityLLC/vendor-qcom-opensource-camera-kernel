@@ -142,6 +142,10 @@ int cam_smmu_fetch_csf_version(struct cam_csf_version *csf_version)
 	csf_version->max_ver = 0;
 	csf_version->min_ver = 0;
 #endif
+	CAM_INFO(CAM_CPAS, "CSF version in use %d.%d.%d",
+		csf_version->arch_ver,
+		csf_version->max_ver,
+		csf_version->min_ver);
 	return 0;
 }
 
@@ -405,12 +409,13 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 		rc = get_client_env_object(&client_env);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Failed getting mink env object, rc: %d", rc);
-			return rc;
+			return -EINVAL;
 		}
 
 		rc = IClientEnv_open(client_env, CTrustedCameraDriver_UID, &sc_object);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Failed getting mink sc_object, rc: %d", rc);
+			rc = -EINVAL;
 			goto client_release;
 		}
 
@@ -425,19 +430,21 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 		rc = ITrustedCameraDriver_dynamicProtectSensor(sc_object, &params);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Mink secure call failed, rc: %d", rc);
+			rc = -EINVAL;
 			goto obj_release;
 		}
 
 		rc = Object_release(sc_object);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Failed releasing secure camera object, rc: %d", rc);
+			rc = -EINVAL;
 			goto client_release;
 		}
 
 		rc = Object_release(client_env);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Failed releasing mink env object, rc: %d", rc);
-			return rc;
+			return -EINVAL;
 		}
 #if !IS_ENABLED(CONFIG_QCOM_SI_CORE) && defined(CONFIG_SPECTRA_SECURE_SCM_API)
 	} else {
@@ -448,7 +455,7 @@ int cam_csiphy_notify_secure_mode(struct csiphy_device *csiphy_dev,
 		rc = qcom_scm_camera_protect_phy_lanes(protect, 0);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "SCM call to hypervisor failed");
-			return rc;
+			return -EINVAL;
 		}
 	}
 #endif

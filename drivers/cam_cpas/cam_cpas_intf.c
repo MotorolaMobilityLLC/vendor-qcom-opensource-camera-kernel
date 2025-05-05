@@ -1323,12 +1323,14 @@ static int cam_cpas_handle_fd_port_config(uint32_t is_secure)
 	rc = get_client_env_object(&client_env);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed getting mink env object, rc: %d", rc);
+		rc = -EINVAL;
 		goto disable_resources;
 	}
 
 	rc = IClientEnv_open(client_env, CTrustedCameraDriver_UID, &sc_object);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed getting mink sc_object, rc: %d", rc);
+		rc = -EINVAL;
 		goto client_release;
 	}
 
@@ -1347,12 +1349,14 @@ static int cam_cpas_handle_fd_port_config(uint32_t is_secure)
 	rc = Object_release(sc_object);
 	if (rc) {
 		CAM_ERR(CAM_CSIPHY, "Failed releasing secure camera object, rc: %d", rc);
+		rc = -EINVAL;
 		goto client_release;
 	}
 
 	rc = Object_release(client_env);
 	if (rc) {
 		CAM_ERR(CAM_CSIPHY, "Failed releasing mink env object, rc: %d", rc);
+		rc = -EINVAL;
 		goto disable_resources;
 	}
 
@@ -1437,7 +1441,7 @@ static int cam_cpas_get_scm_device_type(enum cam_device_type device_type,
 		*scm_dev_type = ITRUSTEDCAMERADRIVER_IPE;
 		break;
 	default:
-		CAM_ERR(CAM_CPAS, "unsupported dev type for SCM call",
+		CAM_ERR(CAM_CPAS, "unsupported dev type %d for DCP SCM call",
 			device_type);
 		rc = -EINVAL;
 	}
@@ -1459,15 +1463,16 @@ static int cam_cpas_get_scm_port_info(struct cam_cpas_cp_mapping_config_info *co
 				port_info->port_id[port_info->num_ports++] = IPE_DISP_C;
 				port_info->port_id[port_info->num_ports++] = IPE_DISP_Y;
 			} else {
-				CAM_ERR(CAM_CPAS, "unsupported port for DCP call",
-					config->port_ids[i]);
+				CAM_ERR(CAM_CPAS,
+					"unsupported port %d for DCP SCM call on device %d",
+					config->port_ids[i], config->device_type);
 				rc = -EINVAL;
 				break;
 			}
 		}
 		break;
 	default:
-		CAM_ERR(CAM_CPAS, "unsupported dev type for SCM call",
+		CAM_ERR(CAM_CPAS, "unsupported dev type %d for DCP SCM call",
 			config->device_type);
 		rc = -EINVAL;
 	}
@@ -1523,12 +1528,14 @@ int cam_cpas_config_cp_mapping_ctrl(
 	rc = get_client_env_object(&client_env);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed getting mink env object, rc: %d", rc);
+		rc = -EINVAL;
 		goto disable_resources;
 	}
 
 	rc = IClientEnv_open(client_env, CTrustedCameraDriver_UID, &sc_object);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed getting mink sc_object, rc: %d", rc);
+		rc = -EINVAL;
 		goto client_release;
 	}
 
@@ -1567,12 +1574,14 @@ int cam_cpas_config_cp_mapping_ctrl(
 	rc = Object_release(sc_object);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed releasing secure camera object, rc: %d", rc);
+		rc = -EINVAL;
 		goto client_release;
 	}
 
 	rc = Object_release(client_env);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed releasing mink env object, rc: %d", rc);
+		rc = -EINVAL;
 		goto disable_resources;
 	}
 

@@ -185,8 +185,8 @@ static inline int cam_get_cpas_out_port_id(enum cam_icp_hw_type hw_dev_type,
 			rc = -EINVAL;
 		}
 	} else {
-		CAM_ERR(CAM_ICP, "Dynamic port config is not supported on this device %d"
-			, hw_dev_type);
+		CAM_ERR(CAM_ICP, "Dynamic port config is not supported on this device %d",
+			hw_dev_type);
 		rc = -EINVAL;
 	}
 
