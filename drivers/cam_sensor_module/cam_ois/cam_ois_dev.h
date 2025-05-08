@@ -133,10 +133,10 @@ struct cam_ois_ctrl_t {
 	struct i2c_settings_array i2c_init_data;
 	struct i2c_settings_array i2c_calib_data;
 	struct i2c_settings_array i2c_mode_data;
-#ifdef CONFIG_MOT_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 	struct i2c_settings_array i2c_af_drift_data;
 #endif
-#ifdef CONFIG_MOT_OIS_AFTER_SALES_SERVICE
+#ifdef CONFIG_MOT_DRV_OIS_AFTER_SALES_SERVICE
 	struct i2c_settings_array i2c_gyro_data;
 #endif
 	struct i2c_settings_array i2c_time_data;
@@ -145,10 +145,10 @@ struct cam_ois_ctrl_t {
 	uint8_t ois_fw_flag;
 	uint8_t is_ois_calib;
 	struct cam_ois_opcode opcode;
-#ifdef CONFIG_MOT_OIS_EARLY_UPGRADE_FW
+#ifdef CONFIG_MOT_DRV_OIS_EARLY_UPGRADE_FW
 	struct mutex ois_early_fw_mutex;
 #endif
-#ifdef CONFIG_MOT_OIS_AF_USE_SAME_IC
+#ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
 	bool af_ois_use_same_ic;
 #endif
 	struct cam_ois_fw_info fw_info;
@@ -158,8 +158,8 @@ struct cam_ois_ctrl_t {
 	struct list_head read_buf_list;
 	struct mutex read_buf_lock;
 
-#ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
-        bool af_drift_supported;
+#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+	bool af_drift_supported;
 #endif
 };
 

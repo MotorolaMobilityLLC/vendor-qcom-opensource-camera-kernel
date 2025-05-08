@@ -47,6 +47,24 @@ int cam_ois_driver_soc_init(struct cam_ois_ctrl_t *o_ctrl)
 		return rc;
 	}
 
+#ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
+        if (!of_property_read_bool(of_node, "af-ois-use-same-ic")) {
+                o_ctrl->af_ois_use_same_ic = false;
+        } else {
+                o_ctrl->af_ois_use_same_ic = true;
+        }
+        CAM_INFO(CAM_OIS, "af_ois_use_same_ic %d", o_ctrl->af_ois_use_same_ic);
+#endif
+
+#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+        if (!of_property_read_bool(of_node, "af-drift-support")) {
+                o_ctrl->af_drift_supported = false;
+        } else {
+                o_ctrl->af_drift_supported = true;
+        }
+        CAM_WARN(CAM_OIS, "af-drift-support %d", o_ctrl->af_drift_supported);
+#endif
+
 	if (!soc_info->gpio_data) {
 		CAM_INFO(CAM_OIS, "No GPIO found");
 		goto end;

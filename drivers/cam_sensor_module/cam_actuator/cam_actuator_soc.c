@@ -43,8 +43,8 @@ int32_t cam_actuator_parse_dt(struct cam_actuator_ctrl_t *a_ctrl,
 	CAM_DBG(CAM_ACTUATOR, "multi-user-support %d", a_ctrl->is_multi_user_supported);
 #endif
 
-#ifdef CONFIG_MOT_OIS_AF_USE_SAME_IC
-	if (!of_property_read_bool(of_node, "af-ois-use-same-ic")) {
+#ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
+	if (!of_property_read_bool(soc_info->dev->of_node, "af-ois-use-same-ic")) {
 		a_ctrl->af_ois_use_same_ic = false;
 	} else {
 		a_ctrl->af_ois_use_same_ic = true;
@@ -52,8 +52,8 @@ int32_t cam_actuator_parse_dt(struct cam_actuator_ctrl_t *a_ctrl,
 	CAM_INFO(CAM_ACTUATOR, "af_ois_use_same_ic %d", a_ctrl->af_ois_use_same_ic);
 #endif
 
-#ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
-	if (!of_property_read_bool(of_node, "af-drift-support")) {
+#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+	if (!of_property_read_bool(soc_info->dev->of_node, "af-drift-support")) {
 		a_ctrl->af_drift_supported = false;
 	} else {
 		a_ctrl->af_drift_supported = true;

@@ -18,16 +18,16 @@
 
 #define CAM_OIS_FW_VERSION_CHECK_MASK 0x1
 
-#ifdef CONFIG_MOT_OIS_EARLY_UPGRADE_FW
+#ifdef CONFIG_MOT_DRV_OIS_EARLY_UPGRADE_FW
 extern int32_t sem1217s_fw_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware *fw);
 extern int32_t dw9784_fw_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware *fw);
 #endif
 
-#ifdef CONFIG_MOT_OIS_AF_USE_SAME_IC
+#ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
 atomic_t g_ois_init_finished = ATOMIC_INIT(0);
 #endif
 
-#ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
 atomic_t m_ois_init = ATOMIC_INIT(0);
 #endif
 
@@ -199,7 +199,7 @@ static int cam_ois_power_up(struct cam_ois_ctrl_t *o_ctrl)
 		return rc;
 	}
 
-#ifdef CONFIG_MOT_OIS_DRIVER
+#ifdef CONFIG_MOT_DRV_OIS_DRIVER
 	CAM_INFO(CAM_OIS, "OIS Power up successfully");
 #endif
 
@@ -252,20 +252,20 @@ static int cam_ois_power_down(struct cam_ois_ctrl_t *o_ctrl)
 		return rc;
 	}
 
-#ifdef CONFIG_MOT_OIS_AF_USE_SAME_IC
+#ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
 	if (o_ctrl->af_ois_use_same_ic == true) {
 		atomic_set(&g_ois_init_finished, 0);
 	}
 #endif
 
-#ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
 	// TODO: deal with one of dual OIS  need apply af drift
 	if (o_ctrl->af_drift_supported == true) {
 		atomic_set(&m_ois_init, 0);
 	}
 #endif
 
-#ifdef CONFIG_MOT_OIS_DRIVER
+#ifdef CONFIG_MOT_DRV_OIS_DRIVER
 	CAM_INFO(CAM_OIS, "OIS power down successed");
 #endif
 
@@ -1307,7 +1307,7 @@ release_firmware:
 	return rc;
 }
 
-#ifdef CONFIG_MOT_OIS_EARLY_UPGRADE_FW
+#ifdef CONFIG_MOT_DRV_OIS_EARLY_UPGRADE_FW
 static int mot_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 {
 	int32_t                            rc = 0;
@@ -1616,7 +1616,8 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		}
 
 		CAM_DBG(CAM_OIS, "ois_fw_flag: %d", o_ctrl->ois_fw_flag);
-#ifdef CONFIG_MOT_OIS_EARLY_UPGRADE_FW
+
+#ifdef CONFIG_MOT_DRV_OIS_EARLY_UPGRADE_FW
 		if (o_ctrl->ois_fw_flag == QCOM_OIS_FW_DL_FLAG) {
 #else
 		if (o_ctrl->ois_fw_flag) {
@@ -1660,7 +1661,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		}
 		if (o_ctrl->i2c_init_data.is_settings_valid == 1)
 		{
-#ifdef CONFIG_MOT_OIS_EARLY_UPGRADE_FW
+#ifdef CONFIG_MOT_DRV_OIS_EARLY_UPGRADE_FW
 			if (o_ctrl->ois_fw_flag == MOT_OIS_FW_DL_FLAG) {
 				CAM_INFO(CAM_OIS, "OIS fw update enabled");
 				rc = mot_ois_fw_prog_download(o_ctrl);
@@ -1687,13 +1688,13 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			}
 		}
 
-#ifdef CONFIG_MOT_OIS_AF_USE_SAME_IC
+#ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
 		if (o_ctrl->af_ois_use_same_ic == true) {
 			atomic_set(&g_ois_init_finished, 1);
 		}
 #endif
 
-#ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
 		if (o_ctrl->af_drift_supported == true) {
 			atomic_set(&m_ois_init, 1);
 		}
@@ -1766,7 +1767,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			rc = 0;
 		}
 		break;
-#ifdef CONFIG_MOT_OIS_EARLY_UPGRADE_FW
+#ifdef CONFIG_MOT_DRV_OIS_EARLY_UPGRADE_FW
 	case MOT_CAM_OIS_PACKET_OPCODE_OIS_FW_UPGRADE:
 	{
 		CAM_INFO(CAM_OIS, "MOT_CAM_OIS_PACKET_OPCODE_OIS_FW_UPGRADE");
@@ -1850,6 +1851,81 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		}
 	}
 	break;
+#endif
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
+        /* This is only for bu63169 OIS AF drift */
+	case MOT_CAM_OIS_PACKET_OPCODE_AF_DRIFT:
+		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
+			rc = -EINVAL;
+			CAM_WARN(CAM_OIS,
+				"Not in right state to control OIS: %d",
+				o_ctrl->cam_ois_state);
+			return rc;
+		}
+		offset = (uint32_t *)&csl_packet->payload;
+		offset += (csl_packet->cmd_buf_offset / sizeof(uint32_t));
+		cmd_desc = (struct cam_cmd_buf_desc *)(offset);
+		i2c_reg_settings = &(o_ctrl->i2c_af_drift_data);
+		i2c_reg_settings->is_settings_valid = 1;
+		i2c_reg_settings->request_id = 0;
+		rc = cam_sensor_i2c_command_parser(&o_ctrl->io_master_info,
+			i2c_reg_settings,
+			cmd_desc, 1, NULL);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "OIS pkt parsing failed: %d", rc);
+			return rc;
+		}
+
+		rc = cam_ois_apply_settings(o_ctrl, i2c_reg_settings);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "Cannot apply mode settings");
+			return rc;
+		}
+
+		rc = delete_request(i2c_reg_settings);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS,
+				"Fail deleting Mode data: rc: %d", rc);
+			return rc;
+		}
+		break;
+#endif
+#ifdef CONFIG_MOT_DRV_OIS_AFTER_SALES_SERVICE
+	case MOT_CAM_OIS_PACKET_OPCODE_OIS_GYRO_OFFSET:
+		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
+			rc = -EINVAL;
+			CAM_WARN(CAM_OIS,
+				"Not in right state to control OIS: %d",
+				o_ctrl->cam_ois_state);
+			return rc;
+		}
+		offset = (uint32_t *)&csl_packet->payload;
+		offset += (csl_packet->cmd_buf_offset / sizeof(uint32_t));
+		cmd_desc = (struct cam_cmd_buf_desc *)(offset);
+		i2c_reg_settings = &(o_ctrl->i2c_gyro_data);
+		i2c_reg_settings->is_settings_valid = 1;
+		i2c_reg_settings->request_id = 0;
+		rc = cam_sensor_i2c_command_parser(&o_ctrl->io_master_info,
+			i2c_reg_settings,
+			cmd_desc, 1, NULL);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "OIS pkt parsing failed: %d", rc);
+			return rc;
+		}
+
+		rc = cam_ois_apply_settings(o_ctrl, i2c_reg_settings);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "Cannot apply gyro offset settings");
+			return rc;
+		}
+
+		rc = delete_request(i2c_reg_settings);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS,
+				"Fail deleting gyro offset data: rc: %d", rc);
+			return rc;
+		}
+		break;
 #endif
 	case CAM_OIS_PACKET_OPCODE_OIS_CONTROL:
 		CAM_DBG(CAM_OIS, "CAM_OIS_PACKET_OPCODE_OIS_CONTROL");
@@ -2123,7 +2199,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		goto end;
 
 pwr_dwn:
-#ifndef CONFIG_MOT_OIS_DRIVER
+#ifndef CONFIG_MOT_DRV_OIS_DRIVER
 	cam_ois_power_down(o_ctrl);
 #endif
 end:
@@ -2188,12 +2264,12 @@ void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 	if (o_ctrl->i2c_mode_data.is_settings_valid == 1)
 		delete_request(&o_ctrl->i2c_mode_data);
 
-#ifdef CONFIG_MOT_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 	if (o_ctrl->i2c_af_drift_data.is_settings_valid == 1)
 		delete_request(&o_ctrl->i2c_af_drift_data);
 #endif
 
-#ifdef CONFIG_MOT_OIS_AFTER_SALES_SERVICE
+#ifdef CONFIG_MOT_DRV_OIS_AFTER_SALES_SERVICE
 	if (o_ctrl->i2c_gyro_data.is_settings_valid == 1)
 		delete_request(&o_ctrl->i2c_gyro_data);
 #endif
@@ -2337,12 +2413,12 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		if (o_ctrl->i2c_mode_data.is_settings_valid == 1)
 			delete_request(&o_ctrl->i2c_mode_data);
 
-#ifdef CONFIG_MOT_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 		if (o_ctrl->i2c_af_drift_data.is_settings_valid == 1)
 			delete_request(&o_ctrl->i2c_af_drift_data);
 #endif
 
-#ifdef CONFIG_MOT_OIS_AFTER_SALES_SERVICE
+#ifdef CONFIG_MOT_DRV_OIS_AFTER_SALES_SERVICE
 		if (o_ctrl->i2c_gyro_data.is_settings_valid == 1)
 			delete_request(&o_ctrl->i2c_gyro_data);
 #endif

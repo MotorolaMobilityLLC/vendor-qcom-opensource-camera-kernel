@@ -17,11 +17,11 @@
 #include "mot_actuator.h"
 #endif
 
-#ifdef CONFIG_MOT_OIS_AF_USE_SAME_IC
+#ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
 extern atomic_t g_ois_init_finished;
 #endif
 
-#ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
 extern atomic_t m_ois_init;
 extern int cam_ois_write_af_drift(uint32_t dac);
 #endif
@@ -267,12 +267,12 @@ int32_t cam_actuator_apply_settings(struct cam_actuator_ctrl_t *a_ctrl,
 	struct i2c_settings_list *i2c_list;
 	int32_t rc = 0;
 
-#ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
 	struct cam_sensor_i2c_reg_setting * i2c_reg = NULL;
 	uint32_t dac = 0;
 #endif
 
-#ifdef CONFIG_MOT_OIS_AF_USE_SAME_IC
+#ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
 	if ((a_ctrl->af_ois_use_same_ic == true) &&
 		(atomic_read(&g_ois_init_finished) == 0)) {
 			CAM_INFO(CAM_ACTUATOR, "OIS does't finish to init, skip writed AF setting to avoid break AF function");
@@ -311,7 +311,7 @@ int32_t cam_actuator_apply_settings(struct cam_actuator_ctrl_t *a_ctrl,
 				"Success:request ID: %d",
 				i2c_set->request_id);
 
-#ifdef CONFIG_MOT_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
 			if (a_ctrl->af_drift_supported == true &&
 				(atomic_read(&m_ois_init) == 1) &&
 				i2c_list != NULL) {
