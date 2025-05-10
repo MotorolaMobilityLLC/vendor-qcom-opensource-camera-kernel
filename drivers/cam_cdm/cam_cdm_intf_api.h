@@ -273,16 +273,6 @@ int cam_cdm_stream_off(uint32_t handle);
 int cam_cdm_reset_hw(uint32_t handle);
 
 /**
- * @brief : API to pause previously acquired CDM,
- *          this should be only performed only if the CDM is private.
- *
- * @handle : Input handle of the CDM to pause
- *
- * @return 0 on success
- */
-int cam_cdm_pause_hw(uint32_t handle);
-
-/**
  * @brief : API to publish CDM ops to HW blocks like IFE
  *
  * @return : CDM operations
