@@ -2342,6 +2342,9 @@ static int cam_icp_hw_mgr_create_debugfs_entry(struct cam_icp_hw_mgr *hw_mgr)
 
 	debugfs_create_bool("enable_kernel_panic", 0644,
 		hw_mgr->dentry, &hw_mgr->enable_panic);
+
+	debugfs_create_bool("print_llcc_state", 0644,
+		hw_mgr->dentry, &hw_mgr->debug_llcc);
 end:
 	/* Set default hang dump lvl */
 	hw_mgr->icp_fw_dump_lvl = HFI_FW_DUMP_ON_FAILURE;
@@ -2604,6 +2607,39 @@ static void cam_icp_mgr_compute_fw_avg_response_time(struct cam_icp_hw_ctx_data 
 		(perf_stats->total_resp_time / perf_stats->total_requests));
 }
 
+static int cam_icp_llcc_print_scid_state(
+	struct cam_icp_hw_mgr *hw_mgr,
+	struct cam_icp_hw_ctx_data *ctx_data)
+{
+	uint32_t llcc_scid;
+	uint32_t internal_scid;
+	uint32_t cfg1_register_value = 0;
+	uint32_t status_register_value = 0;
+	int rc = 0;
+
+	if (hw_mgr->fw_based_sys_caching &&
+		ctx_data->sys_cache_cfg.num > 0) {
+		for (int i = 0; i < ctx_data->sys_cache_cfg.num; i++) {
+			internal_scid =
+				ctx_data->sys_cache_cfg.scid_cfg[i].scid_id;
+			llcc_scid = cam_cpas_get_scid(internal_scid);
+			rc = cam_cpas_read_llcc_status(llcc_scid,
+				&cfg1_register_value, &status_register_value);
+			if (rc) {
+				CAM_ERR(CAM_ICP, "llcc register read is failed = %d llcc_scid =  %u",
+					rc, llcc_scid);
+				return rc;
+			}
+
+			CAM_DBG(CAM_ICP,
+				"llcc cfg value = 0x%x status value = 0x%x llcc_scid = %u internal_scid = %u",
+				cfg1_register_value, status_register_value,
+				llcc_scid, internal_scid);
+		}
+	}
+	return rc;
+}
+
 static int cam_icp_mgr_handle_frame_process(
 	struct cam_icp_hw_mgr *hw_mgr,
 	uint32_t *msg_ptr, int flag)
@@ -2638,6 +2674,13 @@ static int cam_icp_mgr_handle_frame_process(
 			ctx_id);
 		mutex_unlock(&hw_mgr->ctx_mutex[ctx_id]);
 		goto end;
+	}
+
+	if (hw_mgr->debug_llcc) {
+		CAM_DBG(CAM_ICP,
+			"starting debugging llcc register ctx_id: %u request_id: %llu",
+			ctx_id, request_id);
+		cam_icp_llcc_print_scid_state(hw_mgr, ctx_data);
 	}
 
 	cam_icp_ctx_timer_reset(ctx_data);

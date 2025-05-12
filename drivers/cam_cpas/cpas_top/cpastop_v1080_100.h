@@ -1580,6 +1580,12 @@ static struct cam_cpas_vcd_info cam_v1080_100_vcd_info[] = {
 	},
 };
 
+static struct cam_cpas_llcc_reg_info cam_v1080_100_llcc_reg_info = {
+	.base_offset = 0x1000,
+	.config_offset = 0x10,
+	.status_offset = 0x4,
+};
+
 static struct cam_cpas_cesta_info cam_v1080_cesta_info = {
 	 .vcd_info = &cam_v1080_100_vcd_info[0],
 	 .num_vcds = ARRAY_SIZE(cam_v1080_100_vcd_info),

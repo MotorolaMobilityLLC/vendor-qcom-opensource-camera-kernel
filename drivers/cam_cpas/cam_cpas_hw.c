@@ -811,6 +811,44 @@ static int cam_cpas_hw_reg_read(struct cam_hw_info *cpas_hw,
 	return rc;
 }
 
+int cam_cpas_read_llcc_reg(void *hw_priv,
+	uint32_t scid, uint32_t *llcc_config,
+	uint32_t *llcc_status)
+{
+	struct cam_hw_info *cpas_hw = (struct cam_hw_info *)hw_priv;
+	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
+	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
+	struct cam_cpas_llcc_reg_info *llcc_reg_info =
+		(struct cam_cpas_llcc_reg_info *)cpas_core->llcc_reg_info;
+	uint32_t reg_base = CAM_CPAS_REGBASE_LLCC;
+	int reg_base_index =
+		cpas_core->regbase_index[reg_base];
+	uint32_t base_offset;
+	void __iomem *scid_base;
+
+	if (reg_base_index < 0 || reg_base_index >= soc_info->num_reg_map) {
+		CAM_WARN(CAM_CPAS,
+			"Invalid/LLCC regbase not present reg_base=%d, reg_base_index=%d, num_map=%d",
+			reg_base, reg_base_index, soc_info->num_reg_map);
+		return -EINVAL;
+	}
+
+	base_offset = llcc_reg_info->base_offset;
+	scid_base = soc_info->reg_map[reg_base_index].mem_base +
+				(base_offset * scid);
+
+	*llcc_config = cam_io_r_mb(scid_base + llcc_reg_info->config_offset);
+	*llcc_status = cam_io_r_mb(scid_base + llcc_reg_info->status_offset);
+
+	CAM_DBG(CAM_CPAS,
+		"scid: %u scid_base: 0x%x config offset: 0x%x status offset: 0x%x llcc_config: 0x%x llcc_status: 0x%x",
+		scid, scid_base, llcc_reg_info->config_offset,
+		llcc_reg_info->status_offset, *llcc_config,
+		*llcc_status);
+
+	return 0;
+}
+
 static int cam_cpas_hw_dump_camnoc_buff_fill_info(
 	struct cam_hw_info *cpas_hw)
 {

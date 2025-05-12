@@ -523,6 +523,8 @@ static inline enum cam_cpas_reg_base __cam_cpas_get_internal_reg_base(
 	switch (reg_base) {
 	case CAM_CPAS_REGBASE_CPASTOP:
 		return CAM_CPAS_REG_CPASTOP;
+	case CAM_CPAS_REGBASE_LLCC:
+		return CAM_CPAS_REG_CAMNOC_LLCC;
 	default:
 		return CAM_CPAS_REG_MAX;
 	}
@@ -656,6 +658,36 @@ int cam_cpas_reg_read(uint32_t client_handle, enum cam_cpas_regbase_types reg_ba
 	return rc;
 }
 EXPORT_SYMBOL(cam_cpas_reg_read);
+
+int cam_cpas_read_llcc_status(
+	uint32_t scid, uint32_t *llcc_config,
+	uint32_t *llcc_status)
+{
+	int rc;
+
+	if (!CAM_CPAS_INTF_INITIALIZED()) {
+		CAM_ERR(CAM_CPAS, "cpas intf not initialized");
+		return -ENODEV;
+	}
+
+	if (!llcc_config || !llcc_status) {
+		CAM_ERR(CAM_CPAS, "Invalid arg value llcc_config:0x%x llcc_status:0x%x",
+			llcc_config, llcc_status);
+		return -EINVAL;
+	}
+
+	rc = cam_cpas_read_llcc_reg(g_cpas_intf->hw_intf->hw_priv,
+			scid, llcc_config, llcc_status);
+
+	if (rc) {
+		CAM_ERR(CAM_CPAS, "Failed in read llcc registers, rc = %d scid = %u",
+			rc, scid);
+		return rc;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(cam_cpas_read_llcc_status);
 
 int cam_cpas_update_axi_floor_lvl(uint32_t client_handle,
 	int32_t axi_floor_lvl)

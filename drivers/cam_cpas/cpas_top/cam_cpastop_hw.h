@@ -613,4 +613,19 @@ struct cam_cpas_top_regs {
 	bool     tpg_mux_sel_enabled;
 };
 
+/**
+ * struct cam_cpas_llcc_reg_info
+ *
+ * @base_offset: llcc base offset
+ * @config: llcc scid config reg offset
+ * @stauts: llcc scid status information
+ *
+ */
+struct cam_cpas_llcc_reg_info {
+	uint32_t base_offset;
+	uint32_t config_offset;
+	uint32_t status_offset;
+};
+
+
 #endif /* _CAM_CPASTOP_HW_H_ */

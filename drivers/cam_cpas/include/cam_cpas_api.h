@@ -55,6 +55,7 @@ enum secure_camera_qos_update_type {
  */
 enum cam_cpas_regbase_types {
 	CAM_CPAS_REGBASE_CPASTOP,
+	CAM_CPAS_REGBASE_LLCC,
 	CAM_CPAS_REGBASE_MAX
 };
 
@@ -1167,5 +1168,25 @@ bool cam_cpas_is_fw_based_sys_caching_supported(void);
  */
 int cam_cpas_config_cp_mapping_ctrl(
 	struct cam_cpas_cp_mapping_config_info *config);
+
+/**
+ * cam_cpas_read_llcc_status()
+ *
+ * @brief: API to read LLCC state
+ *
+ * @reg_base      : Register base identifier
+ * @scid          : LLCC scid
+ * @llcc_config   : llcc configuration
+ * @llcc_status   : llcc satuts
+ * @mb            : memory barrier
+ *
+ * @return 0 on success.
+ *
+ */
+int cam_cpas_read_llcc_status(
+	uint32_t scid,
+	uint32_t *llcc_config,
+	uint32_t *llcc_status);
+
 
 #endif /* _CAM_CPAS_API_H_ */
