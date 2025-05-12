@@ -1361,6 +1361,7 @@ static struct cam_ife_csid_ver2_common_reg_info
 	.debug_violation_addr                    = 0x7E0,
 	.debug_cfg_addr                          = 0x7E4,
 	.ctxt_sel                                = 0x7F4,
+	.split_rd_ctxt_sel                       = 0x7C0,
 	.debug_err_vec_irq                       = {0x2D4, 0x2D8, 0x2DC},
 	.debug_err_vec_cfg                       = 0x2D0,
 	.debug_err_vec_ts_mb                     = 0x2E0,

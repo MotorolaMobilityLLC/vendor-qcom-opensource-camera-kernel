@@ -581,6 +581,7 @@ struct cam_ife_csid_ver2_common_reg_info {
 	uint32_t debug_err_vec_ts_mb;
 	uint32_t rx_mode_id_cfg1_addr;
 	uint32_t ctxt_sel;
+	uint32_t split_rd_ctxt_sel;
 	struct cam_ife_csid_ver2_perf_cnt_hw_info perf_cnt_reg[CAM_CSID_PERF_CNT_MAX];
 
 	/*Shift Bit Configurations*/
