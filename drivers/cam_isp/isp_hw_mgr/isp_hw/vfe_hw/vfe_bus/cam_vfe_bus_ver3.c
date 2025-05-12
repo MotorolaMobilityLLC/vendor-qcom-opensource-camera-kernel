@@ -183,6 +183,7 @@ struct cam_vfe_bus_ver3_comp_grp_data {
 };
 
 struct cam_vfe_bus_ver3_vfe_out_data {
+	uint64_t                              pid_mask;
 	uint32_t                              out_type;
 	uint32_t                              source_group;
 	struct cam_vfe_bus_ver3_common_data  *common_data;
@@ -207,12 +208,12 @@ struct cam_vfe_bus_ver3_vfe_out_data {
 	uint32_t                        *mid;
 	uint32_t                         num_mid;
 	uint32_t                         early_done_mask;
-	bool                             limiter_enabled;
-	bool                             mc_based;
-	bool                             cntxt_cfg_except;
 	uint32_t                         dst_hw_ctxt_id_mask;
 	int                              mc_comp_irq_handle;
 	int                              early_done_irq_handle;
+	bool                             limiter_enabled;
+	bool                             mc_based;
+	bool                             cntxt_cfg_except;
 };
 
 struct cam_vfe_bus_ver3_priv {
@@ -2817,6 +2818,7 @@ static int cam_vfe_bus_ver3_init_vfe_out_resource(uint32_t  index,
 	rsrc_data->mc_based = ver3_hw_info->vfe_out_hw_info[index].mc_based;
 	rsrc_data->early_done_mask = ver3_hw_info->vfe_out_hw_info[index].early_done_mask;
 	rsrc_data->cntxt_cfg_except = ver3_hw_info->vfe_out_hw_info[index].cntxt_cfg_except;
+	rsrc_data->pid_mask = ver3_hw_info->vfe_out_hw_info[index].pid_mask;
 
 	rsrc_data->wm_res = CAM_MEM_ZALLOC((sizeof(struct cam_isp_resource_node) *
 		rsrc_data->num_wm), GFP_KERNEL);
@@ -5088,6 +5090,9 @@ static int cam_vfe_bus_get_res_for_mid(
 		if (!out_data)
 			continue;
 
+		if (out_data->pid_mask && (!(out_data->pid_mask & BIT_ULL(get_res->pid))))
+			continue;
+
 		for (j = 0; j < out_data->num_mid; j++) {
 			if (out_data->mid[j] == get_res->mid)
 				goto end;
@@ -5103,8 +5108,9 @@ static int cam_vfe_bus_get_res_for_mid(
 	}
 
 end:
-	CAM_INFO(CAM_ISP, "VFE:%u match mid :%d  out resource:0x%x found",
-		bus_priv->common_data.core_index, get_res->mid, bus_priv->vfe_out[i].res_id);
+	CAM_INFO(CAM_ISP, "VFE:%u match mid :%d  PID:%d pid_mask 0x%lx, out resource:0x%x found",
+		bus_priv->common_data.core_index, get_res->mid, get_res->pid, out_data->pid_mask,
+		bus_priv->vfe_out[i].res_id);
 	get_res->out_res_id = bus_priv->vfe_out[i].res_id;
 	return 0;
 }
