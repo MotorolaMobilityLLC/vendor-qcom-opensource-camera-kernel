@@ -4876,6 +4876,11 @@ static int cam_vfe_bus_ver3_mc_ctxt_sel(
 	mc_config = (struct cam_isp_hw_get_cmd_update *)cmd_args;
 	ctxt_id  = *((uint32_t *)mc_config->data);
 
+	if (bus_priv->common_data.is_lite) {
+		CAM_DBG(CAM_ISP, "Skipping ctxt sel for IFE LITE");
+		return 0;
+	}
+
 	common_reg = bus_priv->common_data.common_reg;
 	reg_val[0] = bus_priv->common_data.bus_wr_base + common_reg->ctxt_sel;
 	reg_val[1] = (ctxt_id << common_reg->mc_write_sel_shift);
