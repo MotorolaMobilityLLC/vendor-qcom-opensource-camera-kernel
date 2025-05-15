@@ -289,6 +289,8 @@ struct cam_vfe_bus_ver3_vfe_out_hw_info {
  * @vfe_out_hw_info:                 VFE output capability
  * @num_cons_err:                    Number of constraint errors in list
  * @constraint_error_list:           Static list of all constraint errors
+ * @num_bus_errors:                  number of bus errors
+ * @bus_err_desc:                    Bus error IRQ descriptor
  * @num_comp_grp:                    Number of composite groups
  * @comp_done_mask:                  Mask shift for comp done mask
  * @mc_comp_done_mask:               Mask shift for hw multi-context comp done irq
@@ -325,7 +327,7 @@ struct cam_vfe_bus_ver3_hw_info {
 	uint32_t num_cons_err;
 	struct cam_vfe_constraint_error_info
 		constraint_error_list[CAM_VFE_BUS_VER3_CONS_ERR_MAX];
-	uint32_t *num_bus_errors;
+	uint32_t num_bus_errors;
 	struct cam_vfe_bus_ver3_err_irq_desc (*bus_err_desc)[][32];
 	uint32_t num_comp_grp;
 	uint32_t comp_done_mask[CAM_VFE_BUS_VER3_COMP_GRP_MAX];

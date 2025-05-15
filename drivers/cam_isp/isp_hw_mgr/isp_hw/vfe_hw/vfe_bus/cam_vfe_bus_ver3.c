@@ -4973,14 +4973,15 @@ static int cam_vfe_bus_ver3_dump_irq_desc(
 	inject_params = (struct cam_isp_irq_inject_param *)cmd_args;
 
 	reg_idx = inject_params->reg_unit - (CAM_VFE_IRQ_BUS_VER3_REG * REG_SHIFT);
+
 	if (reg_idx < CAM_IFE_IRQ_BUS_VER3_REG_STATUS0 ||
-		reg_idx >= CAM_IFE_IRQ_BUS_VER3_REG_MAX) {
+		reg_idx >= bus_hw_info->num_bus_errors) {
 		CAM_WARN(CAM_ISP, "Invalid reg_unit %d", inject_params->reg_unit);
 		return -EINVAL;
 	}
 
 	err_irq_desc = (*bus_hw_info->bus_err_desc)[reg_idx];
-	num_irq_desc = bus_hw_info->num_bus_errors[reg_idx];
+	num_irq_desc = ARRAY_SIZE(((*bus_hw_info->bus_err_desc))[reg_idx]);
 
 	offset += scnprintf(inject_params->line_buf + offset,
 		LINE_BUFFER_LEN - offset,

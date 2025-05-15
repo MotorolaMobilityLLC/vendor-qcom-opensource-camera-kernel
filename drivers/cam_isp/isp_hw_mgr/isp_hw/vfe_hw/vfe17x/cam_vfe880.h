@@ -1126,23 +1126,6 @@ static struct cam_vfe_bus_ver3_err_irq_desc vfe880_bus_irq_err_desc[][32] = {
 			.desc = "Programmed image size is not same as image size from the CCIF",
 		},
 	},
-	{
-		{
-			.bitmask = BIT(28),
-			.err_name = "EARLY_DONE",
-			.desc = "Early Buf done irq for client 20 (STATS_BAF)",
-		},
-		{
-			.bitmask = BIT(29),
-			.err_name = "EARLY_DONE",
-			.desc = "Early Buf done irq for client 21 (DUAL_PD)",
-		},
-	},
-};
-
-static uint32_t vfe880_num_bus_irq_err_desc[] = {
-	ARRAY_SIZE(vfe880_bus_irq_err_desc[0]),
-	ARRAY_SIZE(vfe880_bus_irq_err_desc[1]),
 };
 
 static struct cam_vfe_bus_ver3_hw_info vfe880_bus_hw_info = {
@@ -2707,7 +2690,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe880_bus_hw_info = {
 			.error_description = "Meta Stride unalign"
 		},
 	},
-	.num_bus_errors        = vfe880_num_bus_irq_err_desc,
+	.num_bus_errors        = 1,
 	.bus_err_desc          = &vfe880_bus_irq_err_desc,
 	.num_comp_grp          = 16,
 	.support_consumed_addr = true,

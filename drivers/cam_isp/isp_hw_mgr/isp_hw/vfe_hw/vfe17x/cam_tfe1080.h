@@ -942,7 +942,7 @@ static struct cam_vfe_top_ver4_reg_offset_common tfe1080_common_reg = {
 static struct cam_vfe_ver4_path_reg_data tfe1080_ipp_common_reg_data = {
 	.sof_irq_mask                    = 0x150,
 	.eof_irq_mask                    = 0x2A0,
-	.error_irq_mask                  = 0xF000005,
+	.error_irq_mask                  = 0xF000004,
 	.ipp_violation_mask              = 0x4000000,
 	.bayer_violation_mask            = 0x4,
 	.pdaf_violation_mask             = 0x2000000,
@@ -1307,23 +1307,6 @@ static struct cam_vfe_bus_ver3_err_irq_desc tfe1080_bus_irq_err_desc[][32] = {
 			.desc = "Programmed image size is not same as image size from the CCIF",
 		},
 	},
-	{
-		{
-			.bitmask = BIT(28),
-			.err_name = "EARLY_DONE",
-			.desc = "Early Buf done irq for client 20 (STATS_BAF)",
-		},
-		{
-			.bitmask = BIT(29),
-			.err_name = "EARLY_DONE",
-			.desc = "Early Buf done irq for client 21 (DUAL_PD)",
-		},
-	},
-};
-
-static uint32_t tfe1080_num_bus_irq_err_desc[] = {
-	ARRAY_SIZE(tfe1080_bus_irq_err_desc[0]),
-	ARRAY_SIZE(tfe1080_bus_irq_err_desc[1]),
 };
 
 static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
@@ -2023,6 +2006,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.mid           = tfe1080_out_port_mid[20],
 			.num_mid       = 1,
 			.num_wm        = 1,
+			.early_done_mask = BIT(28),
 			.wm_idx        = {
 				19,
 			},
@@ -2073,6 +2057,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.mid           = tfe1080_out_port_mid[23],
 			.num_mid       = 1,
 			.num_wm        = 1,
+			.early_done_mask = BIT(29),
 			.mc_based      = false,
 			.mc_grp_shift  = 4,
 			.wm_idx        = {
@@ -2215,7 +2200,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.error_description = "Meta Stride unalign",
 		},
 	},
-	.num_bus_errors        = tfe1080_num_bus_irq_err_desc,
+	.num_bus_errors        = 1,
 	.bus_err_desc          = &tfe1080_bus_irq_err_desc,
 	.num_comp_grp          = 10,
 	.support_consumed_addr = true,
