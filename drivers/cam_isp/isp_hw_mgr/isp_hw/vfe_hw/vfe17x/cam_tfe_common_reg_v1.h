@@ -1847,7 +1847,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 			.line_based               = 1,
 			.mid                      = {59, 60},
 			.num_mid                  = 2,
-			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD_SECURE,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD2,
 			.pid_mask                 = BIT_ULL(14) | BIT_ULL(15) | BIT_ULL(16),
 		},
 		/* BUS Client 29 FD_SECURE_C */
@@ -1858,7 +1858,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 			.line_based               = 1,
 			.mid                      = {61},
 			.num_mid                  = 1,
-			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD_SECURE,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD2,
 			.pid_mask                 = BIT_ULL(14) | BIT_ULL(15) | BIT_ULL(16),
 		},
 	},
