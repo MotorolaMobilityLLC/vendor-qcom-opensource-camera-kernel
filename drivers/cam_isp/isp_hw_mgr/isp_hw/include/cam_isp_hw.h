@@ -479,12 +479,14 @@ struct cam_isp_hw_get_wm_update {
  * @mid:             Mid number of hw outport numb
  * @out_res_id:      Out resource id
  * @pid:             PID of faulting hw
+ * @dump_handled     Flag to indicate if dump already handled.
  *
  */
 struct cam_isp_hw_get_res_for_mid {
 	uint32_t                       mid;
 	uint32_t                       out_res_id;
 	uint32_t                       pid;
+	bool                           dump_handled;
 };
 
 /**

@@ -995,6 +995,408 @@ static uint32_t vfe680_out_port_mid[][4] = {
 	{45, 0, 0, 0},
 };
 
+static struct  cam_vfe_bus_ver3_vfe_out_hw_info  vfe680_out_hw_hw_info[] = {
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_2,
+		.mid           = vfe680_out_port_mid[0],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			24,
+		},
+		.name          = {
+			"RDI_0",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_3,
+		.mid           = vfe680_out_port_mid[1],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			25,
+		},
+		.name          = {
+			"RDI_1",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_4,
+		.mid           = vfe680_out_port_mid[2],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			26,
+		},
+		.name          = {
+			"RDI_2",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FULL,
+		.max_width     = 4096,
+		.max_height    = 4096,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[3],
+		.num_mid       = 4,
+		.num_wm        = 2,
+		.line_based    = 1,
+		.wm_idx        = {
+			0,
+			1,
+		},
+		.name          = {
+			"FULL_Y",
+			"FULL_C",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS4,
+		.max_width     = 1920,
+		.max_height    = 1080,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[4],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			2,
+		},
+		.name          = {
+			"DS_4",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS16,
+		.max_width     = 1920,
+		.max_height    = 1080,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[5],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			3,
+		},
+		.name          = {
+			"DS_16",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RAW_DUMP,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[6],
+		.num_mid       = 2,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			10,
+		},
+		.name          = {
+			"PIXEL_RAW",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FD,
+		.max_width     = 1920,
+		.max_height    = 1080,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[7],
+		.num_mid       = 3,
+		.num_wm        = 2,
+		.line_based    = 1,
+		.wm_idx        = {
+			8,
+			9,
+		},
+		.name          = {
+			"FD_Y",
+			"FD_C",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_SPARSE_PD,
+		.max_width     = 1920,
+		.max_height    = 1080,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[8],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			20,
+		},
+		.name          = {
+			"PDAF",
+		},
+	},
+	{
+		.vfe_out_type  =
+			CAM_VFE_BUS_VER3_VFE_OUT_STATS_TL_BG,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[9],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			13,
+		},
+		.name          = {
+			"STATS_TL_BG",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BF,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+
+		.mid           = vfe680_out_port_mid[10],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			16,
+		},
+		.name          = {
+			"STATS_BF",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AWB_BG,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[11],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			14,
+		},
+		.name          = {
+			"STATS_AWB_BGB",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BHIST,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[12],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			12,
+		},
+		.name          = {
+			"STATS_BHIST",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_RS,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[13],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			18,
+		},
+		.name          = {
+			"STATS_RS",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_IHIST,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[14],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			19,
+		},
+		.name          = {
+			"STATS_IHIST",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FULL_DISP,
+		.max_width     = 4096,
+		.max_height    = 4096,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[15],
+		.num_mid       = 4,
+		.num_wm        = 2,
+		.line_based    = 1,
+		.wm_idx        = {
+			4,
+			5,
+		},
+		.name          = {
+			"FULL_DISP_Y",
+			"FULL_DISP_C",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS4_DISP,
+		.max_width     = 1920,
+		.max_height    = 1080,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[16],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			6,
+		},
+		.name          = {
+			"DISP_DS_4",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS16_DISP,
+		.max_width     = 1920,
+		.max_height    = 1080,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[17],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			7,
+		},
+		.name          = {
+			"DISP_DS_16",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_2PD,
+		.max_width     = 1920,
+		.max_height    = 1080,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
+		.mid           = vfe680_out_port_mid[18],
+		.num_mid       = 2,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			21,
+		},
+		.name          = {
+			"2PD",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_LCR,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[19],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			23,
+		},
+		.name          = {
+			"LCR",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_AWB_BFW,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[20],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			15,
+		},
+		.name          = {
+			"AWB_BFW",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_2PD,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
+		.mid           = vfe680_out_port_mid[21],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			22,
+		},
+		.name          = {
+			"2PD_STATS",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BE,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[22],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			11,
+		},
+		.name          = {
+			"AEC_BE",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_LTM_STATS,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[23],
+		.num_mid       = 2,
+		.num_wm        = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			27,
+		},
+		.name          = {
+			"LTM",
+		},
+	},
+	{
+		.vfe_out_type  =
+			CAM_VFE_BUS_VER3_VFE_OUT_STATS_GTM_BHIST,
+		.max_width     = 1920,
+		.max_height    = 1080,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe680_out_port_mid[24],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			17,
+		},
+		.name          = {
+			"GTM_BHIST",
+		},
+	},
+};
+
 static struct cam_vfe_bus_ver3_hw_info vfe680_bus_hw_info = {
 	.common_reg = {
 		.hw_version                       = 0x00000C00,
@@ -1944,408 +2346,8 @@ static struct cam_vfe_bus_ver3_hw_info vfe680_bus_hw_info = {
 			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN32),
 		},
 	},
-	.num_out = 25,
-	.vfe_out_hw_info = {
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_2,
-			.mid           = vfe680_out_port_mid[0],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				24,
-			},
-			.name          = {
-				"RDI_0",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_3,
-			.mid           = vfe680_out_port_mid[1],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				25,
-			},
-			.name          = {
-				"RDI_1",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_4,
-			.mid           = vfe680_out_port_mid[2],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				26,
-			},
-			.name          = {
-				"RDI_2",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FULL,
-			.max_width     = 4096,
-			.max_height    = 4096,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[3],
-			.num_mid       = 4,
-			.num_wm        = 2,
-			.line_based    = 1,
-			.wm_idx        = {
-				0,
-				1,
-			},
-			.name          = {
-				"FULL_Y",
-				"FULL_C",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS4,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[4],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				2,
-			},
-			.name          = {
-				"DS_4",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS16,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[5],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				3,
-			},
-			.name          = {
-				"DS_16",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RAW_DUMP,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[6],
-			.num_mid       = 2,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				10,
-			},
-			.name          = {
-				"PIXEL_RAW",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FD,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[7],
-			.num_mid       = 3,
-			.num_wm        = 2,
-			.line_based    = 1,
-			.wm_idx        = {
-				8,
-				9,
-			},
-			.name          = {
-				"FD_Y",
-				"FD_C",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_SPARSE_PD,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[8],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				20,
-			},
-			.name          = {
-				"PDAF",
-			},
-		},
-		{
-			.vfe_out_type  =
-				CAM_VFE_BUS_VER3_VFE_OUT_STATS_TL_BG,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[9],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				13,
-			},
-			.name          = {
-				"STATS_TL_BG",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BF,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-
-			.mid           = vfe680_out_port_mid[10],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				16,
-			},
-			.name          = {
-				"STATS_BF",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AWB_BG,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[11],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				14,
-			},
-			.name          = {
-				"STATS_AWB_BGB",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BHIST,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[12],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				12,
-			},
-			.name          = {
-				"STATS_BHIST",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_RS,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[13],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				18,
-			},
-			.name          = {
-				"STATS_RS",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_IHIST,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[14],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				19,
-			},
-			.name          = {
-				"STATS_IHIST",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FULL_DISP,
-			.max_width     = 4096,
-			.max_height    = 4096,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[15],
-			.num_mid       = 4,
-			.num_wm        = 2,
-			.line_based    = 1,
-			.wm_idx        = {
-				4,
-				5,
-			},
-			.name          = {
-				"FULL_DISP_Y",
-				"FULL_DISP_C",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS4_DISP,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[16],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				6,
-			},
-			.name          = {
-				"DISP_DS_4",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS16_DISP,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[17],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				7,
-			},
-			.name          = {
-				"DISP_DS_16",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_2PD,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
-			.mid           = vfe680_out_port_mid[18],
-			.num_mid       = 2,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				21,
-			},
-			.name          = {
-				"2PD",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_LCR,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[19],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				23,
-			},
-			.name          = {
-				"LCR",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_AWB_BFW,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[20],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				15,
-			},
-			.name          = {
-				"AWB_BFW",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_2PD,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
-			.mid           = vfe680_out_port_mid[21],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				22,
-			},
-			.name          = {
-				"2PD_STATS",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BE,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[22],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				11,
-			},
-			.name          = {
-				"AEC_BE",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_LTM_STATS,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[23],
-			.num_mid       = 2,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				27,
-			},
-			.name          = {
-				"LTM",
-			},
-		},
-		{
-			.vfe_out_type  =
-				CAM_VFE_BUS_VER3_VFE_OUT_STATS_GTM_BHIST,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe680_out_port_mid[24],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				17,
-			},
-			.name          = {
-				"GTM_BHIST",
-			},
-		},
-	},
+	.num_out = ARRAY_SIZE(vfe680_out_hw_hw_info),
+	.vfe_out_hw_info = vfe680_out_hw_hw_info,
 	.num_cons_err = 29,
 	.constraint_error_list = {
 		{

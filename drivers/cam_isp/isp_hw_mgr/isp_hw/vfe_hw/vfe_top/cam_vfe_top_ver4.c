@@ -19,6 +19,7 @@
 #include "cam_cdm_intf_api.h"
 #include "cam_vmrm_interface.h"
 #include "cam_mem_mgr_api.h"
+#include "cam_vfe_core.h"
 
 #define CAM_SHIFT_TOP_CORE_VER_4_CFG_DSP_EN            8
 #define CAM_VFE_CAMIF_IRQ_SOF_DEBUG_CNT_MAX            2
@@ -988,16 +989,58 @@ int cam_vfe_top_ver4_dump_timestamps(struct cam_vfe_top_ver4_priv *top_priv, int
 	return 0;
 }
 
+void cam_vfe_top_ver4_print_bus_debug_info(
+	struct cam_vfe_top_ver4_priv        *top_priv,
+	struct cam_vfe_core_debug_data      *debug_data)
+{
+	struct cam_vfe_top_ver4_common_data *common_data;
+	struct cam_hw_soc_info              *soc_info;
+	struct cam_vfe_soc_private *soc_private = NULL;
+	uint32_t                             i = 0, tmp;
+
+	common_data = &top_priv->common_data;
+	soc_info = top_priv->top_common.soc_info;
+	soc_private = soc_info->soc_private;
+
+	if (debug_data->overflow_status) {
+		CAM_INFO(CAM_ISP, "VFE[%u] Bus overflow status: 0x%x",
+			soc_info->index, debug_data->overflow_status);
+		tmp = debug_data->overflow_status;
+		while (tmp) {
+			if (tmp & 0x1)
+				CAM_ERR(CAM_ISP, "VFE[%u] Bus Overflow %s",
+					soc_info->index,
+					common_data->hw_info->wr_client_desc[i].desc);
+			tmp = tmp >> 1;
+			i++;
+		}
+	}
+
+	if (debug_data->violation_status) {
+		CAM_INFO(CAM_ISP, "VFE[%u] Bus violation status: 0x%x",
+			soc_info->index, debug_data->violation_status);
+
+		i = 0;
+		tmp = debug_data->violation_status;
+		while (tmp) {
+			if (tmp & 0x1)
+				CAM_ERR(CAM_ISP, "VFE[%u] Bus Violation %s",
+				soc_info->index, common_data->hw_info->wr_client_desc[i].desc);
+			tmp = tmp >> 1;
+			i++;
+		}
+	}
+}
+
 static int cam_vfe_top_ver4_print_overflow_debug_info(
 	struct cam_vfe_top_ver4_priv *top_priv, void *cmd_args)
 {
 	struct cam_vfe_top_ver4_common_data *common_data;
 	struct cam_hw_soc_info              *soc_info;
 	struct cam_vfe_soc_private *soc_private = NULL;
-	uint32_t                             violation_status = 0, bus_overflow_status = 0, tmp;
-	uint32_t                             i = 0;
 	int                                  res_id;
 	struct cam_isp_hw_overflow_info     *overflow_info = NULL;
+	struct cam_vfe_core_debug_data       debug_data = {0};
 
 	overflow_info = (struct cam_isp_hw_overflow_info *)cmd_args;
 	res_id = overflow_info->res_id;
@@ -1006,18 +1049,21 @@ static int cam_vfe_top_ver4_print_overflow_debug_info(
 	soc_info = top_priv->top_common.soc_info;
 	soc_private = soc_info->soc_private;
 
-	bus_overflow_status = cam_io_r(soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
+	debug_data.overflow_status = cam_io_r(soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
 		common_data->hw_info->bus_wr_base + common_data->common_reg->bus_overflow_status);
-	violation_status = cam_io_r(soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
+	debug_data.violation_status = cam_io_r(soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base +
 		common_data->hw_info->bus_wr_base + common_data->common_reg->bus_violation_status);
+
+	if (debug_data.overflow_status)
+		overflow_info->is_bus_overflow = true;
 
 	if (soc_private->is_ife_lite)
 		CAM_ERR(CAM_ISP,
 			"VFE[%u] sof_cnt:%d src_clk:%lu overflow:%s violation:%s",
 			soc_info->index, top_priv->sof_cnt,
 			soc_info->applied_src_clk_rates.sw_client,
-			CAM_BOOL_TO_YESNO(bus_overflow_status),
-			CAM_BOOL_TO_YESNO(violation_status));
+			CAM_BOOL_TO_YESNO(debug_data.overflow_status),
+			CAM_BOOL_TO_YESNO(debug_data.violation_status));
 	else
 		CAM_ERR(CAM_ISP,
 			"VFE[%u] sof_cnt:%d src_clk sw_client:%lu hw_client:[%lu %lu] overflow:%s violation:%s",
@@ -1025,42 +1071,19 @@ static int cam_vfe_top_ver4_print_overflow_debug_info(
 			soc_info->applied_src_clk_rates.sw_client,
 			soc_info->applied_src_clk_rates.hw_client[soc_info->index].high,
 			soc_info->applied_src_clk_rates.hw_client[soc_info->index].low,
-			CAM_BOOL_TO_YESNO(bus_overflow_status),
-			CAM_BOOL_TO_YESNO(violation_status));
+			CAM_BOOL_TO_YESNO(debug_data.overflow_status),
+			CAM_BOOL_TO_YESNO(debug_data.violation_status));
 
-	if (bus_overflow_status) {
-		overflow_info->is_bus_overflow = true;
-		CAM_INFO(CAM_ISP, "VFE[%u] Bus overflow status: 0x%x",
-			soc_info->index, bus_overflow_status);
-	}
 
-	tmp = bus_overflow_status;
-	while (tmp) {
-		if (tmp & 0x1)
-			CAM_ERR(CAM_ISP, "VFE[%u] Bus Overflow %s",
-				soc_info->index, common_data->hw_info->wr_client_desc[i].desc);
-		tmp = tmp >> 1;
-		i++;
-	}
+	if (common_data->hw_info->wr_client_desc)
+		cam_vfe_top_ver4_print_bus_debug_info(top_priv, &debug_data);
+	else
+		cam_vfe_core_debug_handler(common_data->hw_intf->hw_priv,
+			CAM_VFE_HW_CORE_TYPE_BUS, &debug_data);
 
-	cam_vfe_top_ver4_dump_timestamps(top_priv, res_id);
 	cam_cpas_dump_camnoc_buff_fill_info();
 	cam_cpas_log_votes(false);
-
-	if (violation_status)
-		CAM_INFO(CAM_ISP, "VFE[%u] Bus violation status: 0x%x",
-			soc_info->index, violation_status);
-
-	i = 0;
-	tmp = violation_status;
-	while (tmp) {
-		if (tmp & 0x1)
-			CAM_ERR(CAM_ISP, "VFE[%u] Bus Violation %s",
-				soc_info->index, common_data->hw_info->wr_client_desc[i].desc);
-		tmp = tmp >> 1;
-		i++;
-	}
-
+	cam_vfe_top_ver4_dump_timestamps(top_priv, res_id);
 	cam_vfe_top_ver4_print_debug_regs(top_priv);
 
 	return 0;

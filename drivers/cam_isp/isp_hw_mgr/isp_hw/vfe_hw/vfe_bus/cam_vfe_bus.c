@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2025, The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "cam_vfe_bus.h"
@@ -76,4 +77,16 @@ int cam_vfe_bus_deinit(uint32_t        bus_version,
 	}
 
 	return rc;
+}
+
+void cam_vfe_bus_debug_handler(
+	void *priv, int bus_version, void *data)
+{
+	if (!priv) {
+		CAM_ERR(CAM_ISP, "Bus version %u, invalid bus", bus_version);
+		return;
+	}
+
+	if (bus_version == CAM_VFE_BUS_VER_3_0)
+		cam_vfe_bus_ver3_debug_handler(priv, data);
 }

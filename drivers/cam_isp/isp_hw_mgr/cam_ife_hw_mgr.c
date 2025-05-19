@@ -15849,14 +15849,14 @@ static void cam_ife_mgr_pf_dump(struct cam_ife_hw_mgr_ctx *ctx)
 	}
 }
 
-static void cam_ife_mgr_pf_dump_mid_info(
+static int cam_ife_mgr_pf_dump_mid_info(
 	struct cam_ife_hw_mgr_ctx    *ctx,
 	struct cam_hw_cmd_args       *hw_cmd_args,
 	struct cam_isp_hw_intf_data  *hw_intf_data)
 {
 	struct cam_packet                  *packet;
 	struct cam_isp_hw_get_cmd_update    cmd_update;
-	struct cam_isp_hw_get_res_for_mid   get_res;
+	struct cam_isp_hw_get_res_for_mid   get_res = {0};
 	int                                 rc = 0;
 	struct cam_ctx_request             *req_pf;
 
@@ -15876,7 +15876,7 @@ static void cam_ife_mgr_pf_dump_mid_info(
 		CAM_ERR(CAM_ISP,
 			"getting mid port resource id failed ctx id:%u req id:%lld",
 			ctx->ctx_index, packet->header.request_id);
-		return;
+		return 0;
 	}
 
 	hw_cmd_args->u.pf_cmd_args->pf_args->pf_context_info.resource_type = get_res.out_res_id;
@@ -15886,6 +15886,7 @@ static void cam_ife_mgr_pf_dump_mid_info(
 	CAM_ERR(CAM_ISP,
 		"Page fault on resource id:(0x%x) ctx id:%u req id:%lld",
 		get_res.out_res_id, ctx->ctx_index, packet->header.request_id);
+	return get_res.dump_handled;
 }
 
 static void cam_ife_mgr_dump_pf_data(
@@ -15899,6 +15900,7 @@ static void cam_ife_mgr_dump_pf_data(
 	bool                               *ctx_found;
 	int                                 i, j;
 	struct cam_ctx_request             *req_pf;
+	bool                                dump_handled;
 
 	ctx = (struct cam_ife_hw_mgr_ctx *)hw_cmd_args->ctxt_to_hw_map;
 	req_pf = (struct cam_ctx_request *)
@@ -15929,7 +15931,8 @@ static void cam_ife_mgr_dump_pf_data(
 		 */
 		if (!g_ife_hw_mgr.hw_pid_support) {
 			if (ctx->base[i].split_id == CAM_ISP_HW_SPLIT_LEFT)
-				cam_ife_mgr_pf_dump_mid_info(ctx, hw_cmd_args, hw_intf_data);
+				dump_handled = cam_ife_mgr_pf_dump_mid_info(ctx, hw_cmd_args,
+					hw_intf_data);
 			continue;
 		}
 
@@ -15940,14 +15943,16 @@ static void cam_ife_mgr_dump_pf_data(
 					ctx->base[i].hw_type == CAM_ISP_HW_TYPE_VFE ? "VFE" : "SFE",
 					ctx->base[i].idx, pf_args->pf_smmu_info->pid,
 					ctx->ctx_index);
-				cam_ife_mgr_pf_dump_mid_info(ctx, hw_cmd_args, hw_intf_data);
+				dump_handled = cam_ife_mgr_pf_dump_mid_info(ctx, hw_cmd_args,
+					hw_intf_data);
 
 				/* If MID found - stop hw res and dump client info */
 				if (ctx->flags.pf_mid_found) {
 					cam_ife_hw_mgr_stop_pf_hw_res(ctx, ctx->pf_info.out_port_id,
 						ctx->base[i].hw_type);
-					cam_ife_hw_mgr_dump_bus_info(ctx->pf_info.out_port_id,
-						hw_intf_data);
+					if (!dump_handled)
+						cam_ife_hw_mgr_dump_bus_info(
+							ctx->pf_info.out_port_id, hw_intf_data);
 				}
 				break;
 			}
