@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -343,6 +343,7 @@ int cam_cdm_stream_on(uint32_t handle)
 					hw_index);
 			}
 	}
+
 	put_cdm_mgr_refcount();
 
 	return rc;
@@ -375,6 +376,7 @@ int cam_cdm_stream_off(uint32_t handle)
 				hw_index);
 		}
 	}
+
 	put_cdm_mgr_refcount();
 
 	return rc;
@@ -397,23 +399,52 @@ int cam_cdm_reset_hw(uint32_t handle)
 	if (hw_index < CAM_CDM_INTF_MGR_MAX_SUPPORTED_CDM) {
 		hw = cdm_mgr.nodes[hw_index].device;
 		if (hw && hw->hw_ops.process_cmd) {
-			rc = hw->hw_ops.process_cmd(hw->hw_priv,
-					CAM_CDM_HW_INTF_CMD_RESET_HW, &handle,
-					sizeof(handle));
+			rc = hw->hw_ops.process_cmd(hw->hw_priv, CAM_CDM_HW_INTF_CMD_RESET_HW,
+				&handle, sizeof(handle));
 			if (rc < 0)
-				CAM_ERR(CAM_CDM,
-					"CDM hw release failed for handle=%x",
-					handle);
+				CAM_ERR(CAM_CDM, "CDM hw reset failed for handle=%x", handle);
 		} else {
-			CAM_ERR(CAM_CDM, "hw idx %d doesn't have release ops",
-				hw_index);
+			CAM_ERR(CAM_CDM, "hw idx %d doesn't have reset ops", hw_index);
 		}
 	}
+
 	put_cdm_mgr_refcount();
 
 	return rc;
 }
 EXPORT_SYMBOL(cam_cdm_reset_hw);
+
+int cam_cdm_pause_hw(uint32_t handle)
+{
+	uint32_t hw_index;
+	int rc = -EINVAL;
+	struct cam_hw_intf *hw;
+
+	if (get_cdm_mgr_refcount()) {
+		CAM_ERR(CAM_CDM, "CDM intf mgr get refcount failed");
+		rc = -EPERM;
+		return rc;
+	}
+
+	hw_index = CAM_CDM_GET_HW_IDX(handle);
+	if (hw_index < CAM_CDM_INTF_MGR_MAX_SUPPORTED_CDM) {
+		hw = cdm_mgr.nodes[hw_index].device;
+		if (hw && hw->hw_ops.process_cmd) {
+			rc = hw->hw_ops.process_cmd(hw->hw_priv, CAM_CDM_HW_INTF_CMD_PAUSE_HW,
+				&handle, sizeof(handle));
+			if (rc < 0)
+				CAM_ERR(CAM_CDM, "CDM hw pause failed for handle=%x", handle);
+		} else {
+			CAM_ERR(CAM_CDM, "hw idx %d doesn't have pause ops",
+				hw_index);
+		}
+	}
+
+	put_cdm_mgr_refcount();
+
+	return rc;
+}
+EXPORT_SYMBOL(cam_cdm_pause_hw);
 
 int cam_cdm_flush_hw(uint32_t handle)
 {
@@ -443,6 +474,7 @@ int cam_cdm_flush_hw(uint32_t handle)
 				hw_index);
 		}
 	}
+
 	put_cdm_mgr_refcount();
 
 	return rc;
@@ -478,6 +510,7 @@ int cam_cdm_handle_error(uint32_t handle)
 				hw_index);
 		}
 	}
+
 	put_cdm_mgr_refcount();
 
 	return rc;
@@ -505,6 +538,7 @@ int cam_cdm_detect_hang_error(uint32_t handle)
 				&handle,
 				sizeof(handle));
 	}
+
 	put_cdm_mgr_refcount();
 
 	return rc;
@@ -532,6 +566,7 @@ int cam_cdm_dump_debug_registers(uint32_t handle)
 				&handle,
 				sizeof(handle));
 	}
+
 	put_cdm_mgr_refcount();
 
 	return rc;
@@ -573,6 +608,7 @@ int cam_cdm_intf_register_hw_cdm(struct cam_hw_intf *hw,
 		CAM_ERR(CAM_CDM, "CDM registration failed type=%d count=%d",
 			type, cdm_mgr.cdm_count);
 	}
+
 	mutex_unlock(&cam_cdm_mgr_lock);
 	put_cdm_mgr_refcount();
 
@@ -615,6 +651,7 @@ int cam_cdm_intf_deregister_hw_cdm(struct cam_hw_intf *hw,
 		CAM_ERR(CAM_CDM, "CDM Deregistration failed type=%d index=%d",
 			type, index);
 	}
+
 	mutex_unlock(&cam_cdm_mgr_lock);
 	put_cdm_mgr_refcount();
 
@@ -755,6 +792,7 @@ static void cam_cdm_intf_component_unbind(struct device *dev,
 		CAM_ERR(CAM_CDM, "Virtual CDM remove failed");
 		return;
 	}
+
 	put_cdm_mgr_refcount();
 
 	mutex_lock(&cam_cdm_mgr_lock);
@@ -770,6 +808,7 @@ static void cam_cdm_intf_component_unbind(struct device *dev,
 			CAM_ERR(CAM_CDM, "Valid node present in index=%d", i);
 			goto end;
 		}
+
 		mutex_lock(&cdm_mgr.nodes[i].lock);
 		cdm_mgr.nodes[i].device = NULL;
 		cdm_mgr.nodes[i].data = NULL;
