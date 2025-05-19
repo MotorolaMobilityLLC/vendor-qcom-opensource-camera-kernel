@@ -263,7 +263,7 @@ int mot_actuator_get_bootarg(char *key, char **value)
 		if (!bootargs_str)
 			goto putnode;
 	}
-	strlcpy(bootargs_str, bootargs_tmp, bootargs_tmp_len + 1);
+	strscpy(bootargs_str, bootargs_tmp, bootargs_tmp_len + 1);
 
 	idx = strnstr(bootargs_str, key, strlen(bootargs_str));
 	if (idx) {
@@ -288,7 +288,7 @@ static int cam_select_actuator_by_device_name(void)
 	uint32_t i;
 	// TO DO: Create API for mot_actuator_get_bootarg() from mmi_info instead of copy and paste
 	if (mot_actuator_get_bootarg("androidboot.device=", &str) == 0)
-		strlcpy(androidboot_device, str, ANDROIDBOOT_DEVICE_MAX_LEN);
+		strscpy(androidboot_device, str, ANDROIDBOOT_DEVICE_MAX_LEN);
 
 	mot_ois_select_device_by_name(str);
 
@@ -1292,7 +1292,7 @@ static int mot_actuator_init_subdev(struct device *dev, struct mot_actuator_ctrl
 
 	f_ctrl->v4l2_dev_str.internal_ops = &mot_actuator_internal_ops;
 	f_ctrl->v4l2_dev_str.ops = &mot_actuator_subdev_ops;
-	strlcpy(f_ctrl->device_name, MOT_ACTUATOR_NAME, sizeof(f_ctrl->device_name));
+	strscpy(f_ctrl->device_name, MOT_ACTUATOR_NAME, sizeof(f_ctrl->device_name));
 	f_ctrl->v4l2_dev_str.name = f_ctrl->device_name;
 	f_ctrl->v4l2_dev_str.sd_flags =
 		(V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS);
@@ -1371,12 +1371,20 @@ const static struct component_ops mot_actuator_component_ops = {
 	.unbind = mot_actuator_component_unbind,
 };
 
+#if (KERNEL_VERSION(5, 15, 0) <= LINUX_VERSION_CODE)
+static void mot_actuator_platform_remove(
+	struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &mot_actuator_component_ops);
+}
+#else
 static int32_t mot_actuator_platform_remove(
 	struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mot_actuator_component_ops);
 	return 0;
 }
+#endif
 
 static void mot_actuator_platform_shutdown(struct platform_device *pdev)
 {
