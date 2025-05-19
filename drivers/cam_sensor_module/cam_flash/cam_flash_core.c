@@ -609,7 +609,7 @@ static int cam_flash_ops(struct cam_flash_ctrl *flash_ctrl,
 						i, curr, rc);
 					return rc;
 				}
-				rc = led_set_flash_timeout(flash_ctrl->pmic_flcdev[i], 500000);
+				rc = led_set_flash_timeout(flash_ctrl->pmic_flcdev[i], 1000000);
 				if (rc) {
 					CAM_ERR(CAM_FLASH,
 						"LED_Flash[%d]: set flash timeout failed, rc=%d",

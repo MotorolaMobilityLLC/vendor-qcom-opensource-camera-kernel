@@ -360,6 +360,9 @@ static int cam_eeprom_i2c_driver_probe(struct i2c_client *client)
 	}
 
 	CAM_DBG(CAM_EEPROM, "Adding sensor eeprom component");
+
+	cam_soc_util_initialize_power_domain(&client->dev);
+
 	rc = component_add(&client->dev, &cam_eeprom_i2c_component_ops);
 	if (rc)
 		CAM_ERR(CAM_EEPROM, "failed to add component rc: %d", rc);
@@ -385,6 +388,9 @@ static int cam_eeprom_i2c_driver_probe(struct i2c_client *client,
 	}
 
 	CAM_DBG(CAM_EEPROM, "Adding sensor eeprom component");
+
+	cam_soc_util_initialize_power_domain(&client->dev);
+
 	rc = component_add(&client->dev, &cam_eeprom_i2c_component_ops);
 	if (rc)
 		CAM_ERR(CAM_EEPROM, "failed to add component rc: %d", rc);
@@ -393,19 +399,20 @@ static int cam_eeprom_i2c_driver_probe(struct i2c_client *client,
 }
 #endif
 
-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
-void cam_eeprom_i2c_driver_remove(struct i2c_client *client)
-{
-	component_del(&client->dev, &cam_eeprom_i2c_component_ops);
-}
-#else
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int cam_eeprom_i2c_driver_remove(struct i2c_client *client)
+#else
+void cam_eeprom_i2c_driver_remove(struct i2c_client *client)
+#endif
 {
+	cam_soc_util_uninitialize_power_domain(&client->dev);
+
 	component_del(&client->dev, &cam_eeprom_i2c_component_ops);
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
-}
 #endif
+}
 
 static int cam_eeprom_spi_setup(struct spi_device *spi)
 {
@@ -626,6 +633,9 @@ static int32_t cam_eeprom_platform_driver_probe(
 	int rc = 0;
 
 	CAM_DBG(CAM_EEPROM, "Adding EEPROM Sensor component");
+
+	cam_soc_util_initialize_power_domain(&pdev->dev);
+
 	rc = component_add(&pdev->dev, &cam_eeprom_component_ops);
 	if (rc)
 		CAM_ERR(CAM_EEPROM, "failed to add component rc: %d", rc);
@@ -640,6 +650,9 @@ static void cam_eeprom_platform_driver_remove(struct platform_device *pdev)
 #endif
 {
 	component_del(&pdev->dev, &cam_eeprom_component_ops);
+
+	cam_soc_util_uninitialize_power_domain(&pdev->dev);
+
 #if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
 #endif

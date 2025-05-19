@@ -1,13 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#ifndef _CPASTOP_V1080_100_H_
-#define _CPASTOP_V1080_100_H_
+#ifndef _CPASTOP_V1077_100_H_
+#define _CPASTOP_V1077_100_H_
 
-static struct cam_camnoc_irq_sbm cam_cpas_v1080_100_irq_sbm_rt = {
+static struct cam_camnoc_irq_sbm cam_cpas_v1077_100_irq_sbm_rt = {
 	.sbm_enable = {
 		.access_type = CAM_REG_TYPE_READ_WRITE,
 		.enable = true,
@@ -29,7 +28,7 @@ static struct cam_camnoc_irq_sbm cam_cpas_v1080_100_irq_sbm_rt = {
 	}
 };
 
-static struct cam_camnoc_irq_sbm cam_cpas_v1080_100_irq_sbm_nrt = {
+static struct cam_camnoc_irq_sbm cam_cpas_v1077_100_irq_sbm_nrt = {
 	.sbm_enable = {
 		.access_type = CAM_REG_TYPE_READ_WRITE,
 		.enable = true,
@@ -56,7 +55,7 @@ static struct cam_camnoc_irq_sbm cam_cpas_v1080_100_irq_sbm_nrt = {
 };
 
 static struct cam_camnoc_irq_err
-	cam_cpas_v1080_100_irq_err_rt[] = {
+	cam_cpas_v1077_100_irq_err_rt[] = {
 	{
 		.irq_type = CAM_CAMNOC_HW_IRQ_SLAVE_ERROR,
 		.enable = true,
@@ -145,7 +144,7 @@ static struct cam_camnoc_irq_err
 };
 
 static struct cam_camnoc_irq_err
-	cam_cpas_v1080_100_irq_err_nrt[] = {
+	cam_cpas_v1077_100_irq_err_nrt[] = {
 	{
 		.irq_type = CAM_CAMNOC_HW_IRQ_SLAVE_ERROR,
 		.enable = true,
@@ -319,7 +318,7 @@ static struct cam_camnoc_irq_err
 };
 
 static struct cam_camnoc_specific
-	cam_cpas_v1080_100_camnoc_specific_rt[] = {
+	cam_cpas_v1077_100_camnoc_specific_rt[] = {
 	/* RT ports */
 	{
 		.port_name = "RT0-TFE_DS16_FULL_RDI_RAW_PDAF",
@@ -667,7 +666,7 @@ static struct cam_camnoc_specific
 };
 
 static struct cam_camnoc_specific
-	cam_cpas_v1080_100_camnoc_specific_nrt[] = {
+	cam_cpas_v1077_100_camnoc_specific_nrt[] = {
 	/* NRT ports */
 	{
 		.port_name = "NRT0-IPE_WR_1",
@@ -1523,7 +1522,7 @@ static struct cam_camnoc_specific
 	},
 };
 
-static struct cam_camnoc_err_logger_info cam1080_cpas100_err_logger_offsets = {
+static struct cam_camnoc_err_logger_info cam1077_cpas100_err_logger_offsets = {
 	.mainctrl     =  0x08, /* NOC_ERL_MAINCTL_LOW */
 	.errvld       =  0x10, /* NOC_ERL_ERRVLD_LOW */
 	.errlog0_low  =  0x20, /* NOC_ERL_ERRLOG0_LOW */
@@ -1536,7 +1535,7 @@ static struct cam_camnoc_err_logger_info cam1080_cpas100_err_logger_offsets = {
 	.errlog3_high =  0x3C, /* NOC_ERL_ERRLOG3_HIGH */
 };
 
-static struct cam_cpas_hw_errata_wa_list cam1080_cpas100_errata_wa_list = {
+static struct cam_cpas_hw_errata_wa_list cam1077_cpas100_errata_wa_list = {
 	.camnoc_flush_slave_pending_trans = {
 		.enable = false,
 		.data.reg_info = {
@@ -1551,7 +1550,7 @@ static struct cam_cpas_hw_errata_wa_list cam1080_cpas100_errata_wa_list = {
 	},
 };
 
-static struct cam_cpas_cesta_vcd_reg_info cam_cpas_v1080_100_cesta_reg_info = {
+static struct cam_cpas_cesta_vcd_reg_info cam_cpas_v1077_100_cesta_reg_info = {
 	.vcd_currol = {
 		.reg_offset = 0x266C,
 		.vcd_base_inc = 0x210,
@@ -1559,7 +1558,7 @@ static struct cam_cpas_cesta_vcd_reg_info cam_cpas_v1080_100_cesta_reg_info = {
 	},
 };
 
-static struct cam_cpas_vcd_info cam_v1080_100_vcd_info[] = {
+static struct cam_cpas_vcd_info cam_v1077_100_vcd_info[] = {
 	{
 		.index = 0, .type = CAM_CESTA_CRMC, .clk = "cam_cc_tfe_0_clk_src",
 	},
@@ -1580,20 +1579,14 @@ static struct cam_cpas_vcd_info cam_v1080_100_vcd_info[] = {
 	},
 };
 
-static struct cam_cpas_llcc_reg_info cam_v1080_100_llcc_reg_info = {
-	.base_offset = 0x1000,
-	.config_offset = 0x10,
-	.status_offset = 0x4,
-};
-
-static struct cam_cpas_cesta_info cam_v1080_cesta_info = {
-	 .vcd_info = &cam_v1080_100_vcd_info[0],
-	 .num_vcds = ARRAY_SIZE(cam_v1080_100_vcd_info),
-	 .cesta_reg_info = &cam_cpas_v1080_100_cesta_reg_info,
+static struct cam_cpas_cesta_info cam_v1077_cesta_info = {
+	.vcd_info = &cam_v1077_100_vcd_info[0],
+	.num_vcds = ARRAY_SIZE(cam_v1077_100_vcd_info),
+	.cesta_reg_info = &cam_cpas_v1077_100_cesta_reg_info,
 };
 
 static struct cam_camnoc_addr_trans_client_info
-	cam1080_cpas100_addr_trans_client_info[] = {
+	cam1077_cpas100_addr_trans_client_info[] = {
 	{
 		.client_name = "icp1",
 		.reg_enable = 0x8088,
@@ -1607,59 +1600,58 @@ static struct cam_camnoc_addr_trans_client_info
 	},
 };
 
-static struct cam_camnoc_addr_trans_info cam1080_cpas100_addr_trans_info = {
-	.num_supported_clients = ARRAY_SIZE(cam1080_cpas100_addr_trans_client_info),
-	.addr_trans_client_info = &cam1080_cpas100_addr_trans_client_info[0],
+static struct cam_camnoc_addr_trans_info cam1077_cpas100_addr_trans_info = {
+	.num_supported_clients = ARRAY_SIZE(cam1077_cpas100_addr_trans_client_info),
+	.addr_trans_client_info = &cam1077_cpas100_addr_trans_client_info[0],
 };
 
-static struct cam_camnoc_info cam1080_cpas100_camnoc_info_rt = {
-	.specific = &cam_cpas_v1080_100_camnoc_specific_rt[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v1080_100_camnoc_specific_rt),
-	.irq_sbm = &cam_cpas_v1080_100_irq_sbm_rt,
-	.irq_err = &cam_cpas_v1080_100_irq_err_rt[0],
-	.irq_err_size = ARRAY_SIZE(cam_cpas_v1080_100_irq_err_rt),
-	.err_logger = &cam1080_cpas100_err_logger_offsets,
-	.errata_wa_list = &cam1080_cpas100_errata_wa_list,
+static struct cam_camnoc_info cam1077_cpas100_camnoc_info_rt = {
+	.specific = &cam_cpas_v1077_100_camnoc_specific_rt[0],
+	.specific_size = ARRAY_SIZE(cam_cpas_v1077_100_camnoc_specific_rt),
+	.irq_sbm = &cam_cpas_v1077_100_irq_sbm_rt,
+	.irq_err = &cam_cpas_v1077_100_irq_err_rt[0],
+	.irq_err_size = ARRAY_SIZE(cam_cpas_v1077_100_irq_err_rt),
+	.err_logger = &cam1077_cpas100_err_logger_offsets,
+	.errata_wa_list = &cam1077_cpas100_errata_wa_list,
 	.test_irq_info = {
 		.sbm_enable_mask = 0x8,
 		.sbm_clear_mask = 0x1,
 	},
 };
 
-static struct cam_camnoc_info cam1080_cpas100_camnoc_info_nrt = {
-	.specific = &cam_cpas_v1080_100_camnoc_specific_nrt[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v1080_100_camnoc_specific_nrt),
-	.irq_sbm = &cam_cpas_v1080_100_irq_sbm_nrt,
-	.irq_err = &cam_cpas_v1080_100_irq_err_nrt[0],
-	.irq_err_size = ARRAY_SIZE(cam_cpas_v1080_100_irq_err_nrt),
-	.err_logger = &cam1080_cpas100_err_logger_offsets,
-	.errata_wa_list = &cam1080_cpas100_errata_wa_list,
+static struct cam_camnoc_info cam1077_cpas100_camnoc_info_nrt = {
+	.specific = &cam_cpas_v1077_100_camnoc_specific_nrt[0],
+	.specific_size = ARRAY_SIZE(cam_cpas_v1077_100_camnoc_specific_nrt),
+	.irq_sbm = &cam_cpas_v1077_100_irq_sbm_nrt,
+	.irq_err = &cam_cpas_v1077_100_irq_err_nrt[0],
+	.irq_err_size = ARRAY_SIZE(cam_cpas_v1077_100_irq_err_nrt),
+	.err_logger = &cam1077_cpas100_err_logger_offsets,
+	.errata_wa_list = &cam1077_cpas100_errata_wa_list,
 	.test_irq_info = {
 		.sbm_enable_mask = 0x80,
 		.sbm_clear_mask = 0x1,
 	},
-	.addr_trans_info = &cam1080_cpas100_addr_trans_info,
+	.addr_trans_info = &cam1077_cpas100_addr_trans_info,
 };
 
-static struct cam_camnoc_info cam1080_cpas100_camnoc_info_pdx = {
+static struct cam_camnoc_info cam1077_cpas100_camnoc_info_pdx = {
 	.test_irq_info = {
 		.sbm_enable_mask = 0x1,
 		.sbm_clear_mask = 0x1,
 	},
 };
 
-
-static struct cam_cpas_camnoc_qchannel cam1080_cpas100_qchannel_info_rt = {
+static struct cam_cpas_camnoc_qchannel cam1077_cpas100_qchannel_info_rt = {
 	.qchannel_ctrl   = 0xEC,
 	.qchannel_status = 0xF0,
 };
 
-static struct cam_cpas_camnoc_qchannel cam1080_cpas100_qchannel_info_nrt = {
+static struct cam_cpas_camnoc_qchannel cam1077_cpas100_qchannel_info_nrt = {
 	.qchannel_ctrl   = 0xF4,
 	.qchannel_status = 0xF8,
 };
 
-static struct cam_cpas_camnoc_qchannel cam1080_cpas100_qchannel_info_pdx = {
+static struct cam_cpas_camnoc_qchannel cam1077_cpas100_qchannel_info_pdx = {
 	.qchannel_ctrl   = 0x130,
 	.qchannel_status = 0x12C,
 };
@@ -1669,12 +1661,12 @@ static struct cam_cpas_camnoc_qchannel cam1080_cpas100_qchannel_info_pdx = {
  * debug purpose, Register access is restricted in normal builds.
  *
  */
-static struct cam_cpas_secure_info cam1080_cpas100_secure_info = {
+static struct cam_cpas_secure_info cam1077_cpas100_secure_info = {
 	.secure_access_ctrl_offset = 0x1C,
 	.secure_access_ctrl_value = 0xFFFFFFFF,
 };
 
-static struct cam_cpas_subpart_info cam1080_cpas_camera_subpart_info = {
+static struct cam_cpas_subpart_info cam1077_cpas_camera_subpart_info = {
 	.num_bits = 3,
 	/*
 	 * Below fuse indexing is based on software fuse definition which is in SMEM and provided
@@ -1687,17 +1679,17 @@ static struct cam_cpas_subpart_info cam1080_cpas_camera_subpart_info = {
 	}
 };
 
-static struct cam_cpas_info cam1080_cpas100_cpas_info = {
+static struct cam_cpas_info cam1077_cpas100_cpas_info = {
 	.hw_caps_info = {
 		.num_caps_registers = 2,
 		.hw_caps_offsets = {0x8, 0xDC},
 	},
-	.qchannel_info = {&cam1080_cpas100_qchannel_info_rt,
-		&cam1080_cpas100_qchannel_info_nrt,
-		&cam1080_cpas100_qchannel_info_pdx},
+	.qchannel_info = {&cam1077_cpas100_qchannel_info_rt,
+		&cam1077_cpas100_qchannel_info_nrt,
+		&cam1077_cpas100_qchannel_info_pdx},
 	.num_qchannel = 3,
-	.hw_caps_secure_info = &cam1080_cpas100_secure_info,
-	.subpart_info = &cam1080_cpas_camera_subpart_info,
+	.hw_caps_secure_info = &cam1077_cpas100_secure_info,
+	.subpart_info = &cam1077_cpas_camera_subpart_info,
 };
 
-#endif /* _CPASTOP_V1080_100_H_ */
+#endif /* _CPASTOP_V1077_100_H_ */

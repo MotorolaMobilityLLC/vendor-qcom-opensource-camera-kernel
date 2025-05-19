@@ -523,6 +523,8 @@ static inline enum cam_cpas_reg_base __cam_cpas_get_internal_reg_base(
 	switch (reg_base) {
 	case CAM_CPAS_REGBASE_CPASTOP:
 		return CAM_CPAS_REG_CPASTOP;
+	case CAM_CPAS_REGBASE_LLCC:
+		return CAM_CPAS_REG_CAMNOC_LLCC;
 	default:
 		return CAM_CPAS_REG_MAX;
 	}
@@ -656,6 +658,36 @@ int cam_cpas_reg_read(uint32_t client_handle, enum cam_cpas_regbase_types reg_ba
 	return rc;
 }
 EXPORT_SYMBOL(cam_cpas_reg_read);
+
+int cam_cpas_read_llcc_status(
+	uint32_t scid, uint32_t *llcc_config,
+	uint32_t *llcc_status)
+{
+	int rc;
+
+	if (!CAM_CPAS_INTF_INITIALIZED()) {
+		CAM_ERR(CAM_CPAS, "cpas intf not initialized");
+		return -ENODEV;
+	}
+
+	if (!llcc_config || !llcc_status) {
+		CAM_ERR(CAM_CPAS, "Invalid arg value llcc_config:0x%x llcc_status:0x%x",
+			llcc_config, llcc_status);
+		return -EINVAL;
+	}
+
+	rc = cam_cpas_read_llcc_reg(g_cpas_intf->hw_intf->hw_priv,
+			scid, llcc_config, llcc_status);
+
+	if (rc) {
+		CAM_ERR(CAM_CPAS, "Failed in read llcc registers, rc = %d scid = %u",
+			rc, scid);
+		return rc;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(cam_cpas_read_llcc_status);
 
 int cam_cpas_update_axi_floor_lvl(uint32_t client_handle,
 	int32_t axi_floor_lvl)
@@ -1323,12 +1355,14 @@ static int cam_cpas_handle_fd_port_config(uint32_t is_secure)
 	rc = get_client_env_object(&client_env);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed getting mink env object, rc: %d", rc);
+		rc = -EINVAL;
 		goto disable_resources;
 	}
 
 	rc = IClientEnv_open(client_env, CTrustedCameraDriver_UID, &sc_object);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed getting mink sc_object, rc: %d", rc);
+		rc = -EINVAL;
 		goto client_release;
 	}
 
@@ -1347,12 +1381,14 @@ static int cam_cpas_handle_fd_port_config(uint32_t is_secure)
 	rc = Object_release(sc_object);
 	if (rc) {
 		CAM_ERR(CAM_CSIPHY, "Failed releasing secure camera object, rc: %d", rc);
+		rc = -EINVAL;
 		goto client_release;
 	}
 
 	rc = Object_release(client_env);
 	if (rc) {
 		CAM_ERR(CAM_CSIPHY, "Failed releasing mink env object, rc: %d", rc);
+		rc = -EINVAL;
 		goto disable_resources;
 	}
 
@@ -1437,7 +1473,7 @@ static int cam_cpas_get_scm_device_type(enum cam_device_type device_type,
 		*scm_dev_type = ITRUSTEDCAMERADRIVER_IPE;
 		break;
 	default:
-		CAM_ERR(CAM_CPAS, "unsupported dev type for SCM call",
+		CAM_ERR(CAM_CPAS, "unsupported dev type %d for DCP SCM call",
 			device_type);
 		rc = -EINVAL;
 	}
@@ -1459,15 +1495,16 @@ static int cam_cpas_get_scm_port_info(struct cam_cpas_cp_mapping_config_info *co
 				port_info->port_id[port_info->num_ports++] = IPE_DISP_C;
 				port_info->port_id[port_info->num_ports++] = IPE_DISP_Y;
 			} else {
-				CAM_ERR(CAM_CPAS, "unsupported port for DCP call",
-					config->port_ids[i]);
+				CAM_ERR(CAM_CPAS,
+					"unsupported port %d for DCP SCM call on device %d",
+					config->port_ids[i], config->device_type);
 				rc = -EINVAL;
 				break;
 			}
 		}
 		break;
 	default:
-		CAM_ERR(CAM_CPAS, "unsupported dev type for SCM call",
+		CAM_ERR(CAM_CPAS, "unsupported dev type %d for DCP SCM call",
 			config->device_type);
 		rc = -EINVAL;
 	}
@@ -1523,12 +1560,14 @@ int cam_cpas_config_cp_mapping_ctrl(
 	rc = get_client_env_object(&client_env);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed getting mink env object, rc: %d", rc);
+		rc = -EINVAL;
 		goto disable_resources;
 	}
 
 	rc = IClientEnv_open(client_env, CTrustedCameraDriver_UID, &sc_object);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed getting mink sc_object, rc: %d", rc);
+		rc = -EINVAL;
 		goto client_release;
 	}
 
@@ -1567,12 +1606,14 @@ int cam_cpas_config_cp_mapping_ctrl(
 	rc = Object_release(sc_object);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed releasing secure camera object, rc: %d", rc);
+		rc = -EINVAL;
 		goto client_release;
 	}
 
 	rc = Object_release(client_env);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed releasing mink env object, rc: %d", rc);
+		rc = -EINVAL;
 		goto disable_resources;
 	}
 
@@ -2130,6 +2171,9 @@ static int cam_cpas_dev_probe(struct platform_device *pdev)
 	int rc = 0;
 
 	CAM_DBG(CAM_CPAS, "Adding CPAS INTF component");
+
+	cam_soc_util_initialize_power_domain(&pdev->dev);
+
 	rc = component_add(&pdev->dev, &cam_cpas_dev_component_ops);
 	if (rc)
 		CAM_ERR(CAM_CPAS, "failed to add component rc: %d", rc);
@@ -2144,6 +2188,9 @@ static void cam_cpas_dev_remove(struct platform_device *pdev)
 #endif
 {
 	component_del(&pdev->dev, &cam_cpas_dev_component_ops);
+
+	cam_soc_util_uninitialize_power_domain(&pdev->dev);
+
 #if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
 #endif

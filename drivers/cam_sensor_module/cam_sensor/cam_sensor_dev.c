@@ -505,6 +505,9 @@ static int cam_sensor_i2c_driver_probe(struct i2c_client *client)
 	}
 
 	CAM_DBG(CAM_SENSOR, "Adding sensor component");
+
+	cam_soc_util_initialize_power_domain(&client->dev);
+
 	rc = component_add(&client->dev, &cam_sensor_i2c_component_ops);
 	if (rc)
 		CAM_ERR(CAM_SENSOR, "failed to add component rc: %d", rc);
@@ -530,6 +533,9 @@ static int cam_sensor_i2c_driver_probe(struct i2c_client *client,
 	}
 
 	CAM_DBG(CAM_SENSOR, "Adding sensor component");
+
+	cam_soc_util_initialize_power_domain(&client->dev);
+
 	rc = component_add(&client->dev, &cam_sensor_i2c_component_ops);
 	if (rc)
 		CAM_ERR(CAM_SENSOR, "failed to add component rc: %d", rc);
@@ -538,20 +544,20 @@ static int cam_sensor_i2c_driver_probe(struct i2c_client *client,
 }
 #endif
 
-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
-void cam_sensor_i2c_driver_remove(struct i2c_client *client)
-{
-	component_del(&client->dev, &cam_sensor_i2c_component_ops);
-}
-
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
+static int32_t cam_sensor_i2c_driver_remove(struct i2c_client *client)
 #else
-static int cam_sensor_i2c_driver_remove(struct i2c_client *client)
+void cam_sensor_i2c_driver_remove(struct i2c_client *client)
+#endif
 {
 	component_del(&client->dev, &cam_sensor_i2c_component_ops);
 
+	cam_soc_util_uninitialize_power_domain(&client->dev);
+
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
-}
 #endif
+}
 
 static int cam_sensor_component_bind(struct device *dev,
 	struct device *master_dev, void *data)
@@ -726,6 +732,9 @@ static void cam_sensor_platform_remove(struct platform_device *pdev)
 #endif
 {
 	component_del(&pdev->dev, &cam_sensor_component_ops);
+
+	cam_soc_util_uninitialize_power_domain(&pdev->dev);
+
 #if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
 #endif
@@ -743,6 +752,9 @@ static int32_t cam_sensor_driver_platform_probe(
 	int rc = 0;
 
 	CAM_DBG(CAM_SENSOR, "Adding Sensor component for %s", pdev->name);
+
+	cam_soc_util_initialize_power_domain(&pdev->dev);
+
 	rc = component_add(&pdev->dev, &cam_sensor_component_ops);
 	if (rc)
 		CAM_ERR(CAM_SENSOR, "failed to add component rc: %d", rc);

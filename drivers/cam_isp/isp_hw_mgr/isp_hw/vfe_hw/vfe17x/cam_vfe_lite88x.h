@@ -513,6 +513,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite88x_bus_hw_info = {
 			.name          = {
 				"LITE_0",
 			},
+			.pid_mask = BIT_ULL(27) | BIT_ULL(28),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
@@ -529,6 +530,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite88x_bus_hw_info = {
 			.name          = {
 				"LITE_1",
 			},
+			.pid_mask = BIT_ULL(27) | BIT_ULL(28),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
@@ -545,6 +547,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite88x_bus_hw_info = {
 			.name          = {
 				"LITE_2",
 			},
+			.pid_mask = BIT_ULL(27) | BIT_ULL(28),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
@@ -561,6 +564,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite88x_bus_hw_info = {
 			.name          = {
 				"LITE_3",
 			},
+			.pid_mask = BIT_ULL(27) | BIT_ULL(28),
 		},
 		{
 			.vfe_out_type  =
@@ -577,6 +581,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite88x_bus_hw_info = {
 			.name          = {
 				"PREPROCESS_RAW",
 			},
+			.pid_mask = BIT_ULL(27) | BIT_ULL(28),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BG,
@@ -592,6 +597,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite88x_bus_hw_info = {
 			.name          = {
 				"STATS_BG",
 			},
+			.pid_mask = BIT_ULL(27) | BIT_ULL(28),
 		},
 	},
 	.num_comp_grp    = 5,

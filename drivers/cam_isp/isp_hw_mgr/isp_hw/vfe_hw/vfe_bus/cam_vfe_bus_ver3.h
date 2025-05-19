@@ -260,6 +260,7 @@ struct cam_vfe_bus_ver3_reg_offset_bus_client {
  */
 struct cam_vfe_bus_ver3_vfe_out_hw_info {
 	enum cam_vfe_bus_ver3_vfe_out_type  vfe_out_type;
+	uint64_t                            pid_mask;
 	uint32_t                            max_width;
 	uint32_t                            max_height;
 	uint32_t                            source_group;

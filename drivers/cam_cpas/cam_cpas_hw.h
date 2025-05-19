@@ -453,6 +453,7 @@ struct cam_cpas_monitor {
  * @hlos_full_tree_axi_clk_lvl: Determined/applied hlos full tree axi clk level
  * @hlos_rt_tree_axi_clk_lvl: Determined/applied hlos axi RT clk rate
  * @hlos_nrt_tree_axi_clk_lvl: Determined/applied hlos axi NRT / ICP clk level
+ * @llcc_reg_info: holding the llcc register information
  */
 struct cam_cpas {
 	struct cam_cpas_hw_caps hw_caps;
@@ -496,6 +497,7 @@ struct cam_cpas {
 	enum cam_vote_level hlos_full_tree_axi_clk_lvl;
 	int64_t             hlos_rt_tree_axi_clk_rate;
 	enum cam_vote_level hlos_nrt_tree_axi_clk_lvl;
+	void *llcc_reg_info;
 };
 
 int cam_camsstop_get_internal_ops(struct cam_cpas_internal_ops *internal_ops);
@@ -510,5 +512,9 @@ int cam_cpas_util_client_cleanup(struct cam_hw_info *cpas_hw);
 
 int cam_cpas_util_vote_default_ahb_axi(struct cam_hw_info *cpas_hw,
 	int enable);
+
+int cam_cpas_read_llcc_reg(void *hw_priv,
+	uint32_t scid, uint32_t *llcc_config,
+	uint32_t *llcc_status);
 
 #endif /* _CAM_CPAS_HW_H_ */

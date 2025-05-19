@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -13,13 +13,17 @@
 #include "cam_common_util.h"
 
 #define CAM_UNIQUE_SRC_HDL_MAX 50
+#define CAM_UNIQUE_DST_HDL_MAX 50
 #define CAM_PRESIL_UNIQUE_HDL_MAX 50
 
-struct cam_patch_unique_src_buf_tbl {
+struct cam_patch_unique_buf_tbl {
 	int32_t       hdl;
-	dma_addr_t    iova;
 	size_t        buf_size;
 	uint32_t      flags;
+	union {
+		dma_addr_t iova;
+		uintptr_t  kva;
+	} u;
 };
 
 int cam_packet_util_get_cmd_mem_addr(int handle, uint32_t **buf_addr,
@@ -306,8 +310,8 @@ void cam_packet_util_dump_patch_info(struct cam_packet *packet,
 	}
 }
 
-static int cam_packet_util_get_patch_iova(
-	struct cam_patch_unique_src_buf_tbl *tbl,
+static inline int cam_packet_util_get_patch_iova(
+	struct cam_patch_unique_buf_tbl *tbl,
 	int32_t hdl, uint32_t buf_hdl, dma_addr_t *iova,
 	size_t *buf_size, uint32_t *flags, struct list_head *mapped_io_list)
 {
@@ -322,12 +326,12 @@ static int cam_packet_util_get_patch_iova(
 			CAM_DBG(CAM_UTIL,
 				"Matched entry for src_buf_hdl: 0x%x with src_hdl[%d]: 0x%x",
 				buf_hdl, idx, tbl[idx].hdl);
-			*iova = tbl[idx].iova;
+			*iova = tbl[idx].u.iova;
 			*buf_size = tbl[idx].buf_size;
 			*flags = tbl[idx].flags;
 			is_found = true;
 			break;
-		} else if ((tbl[idx].hdl == 0) || (tbl[idx].iova == 0)) {
+		} else if ((tbl[idx].hdl == 0) || (tbl[idx].u.iova == 0)) {
 			CAM_DBG(CAM_UTIL, "New src handle detected 0x%x", buf_hdl);
 			is_found = false;
 			break;
@@ -351,7 +355,7 @@ static int cam_packet_util_get_patch_iova(
 		/* Update the table entry with unique src buf handle */
 		if (idx < CAM_UNIQUE_SRC_HDL_MAX && tbl[idx].hdl == 0) {
 			tbl[idx].buf_size = src_buf_size;
-			tbl[idx].iova = iova_addr;
+			tbl[idx].u.iova = iova_addr;
 			tbl[idx].hdl = buf_hdl;
 			tbl[idx].flags = *flags;
 			CAM_DBG(CAM_UTIL,
@@ -365,80 +369,144 @@ static int cam_packet_util_get_patch_iova(
 	return rc;
 }
 
+static inline int cam_packet_util_get_patch_kva(
+	struct cam_patch_unique_buf_tbl *tbl,
+	uint32_t buf_hdl, uintptr_t *kva, size_t *buf_size)
+{
+	int       idx, rc = 0;
+	bool      is_found = false;
+	uintptr_t cpu_addr;
+	size_t    dst_buf_size;
+
+	for (idx = 0; idx < CAM_UNIQUE_DST_HDL_MAX; idx++) {
+		if (buf_hdl == tbl[idx].hdl) {
+			CAM_DBG(CAM_UTIL,
+				"Matched entry for dst_buf_hdl: 0x%x with dst_tbl[%d].handle: 0x%x",
+				buf_hdl, idx, tbl[idx].hdl);
+			*kva = tbl[idx].u.kva;
+			*buf_size = tbl[idx].buf_size;
+			is_found = true;
+			break;
+		} else if ((tbl[idx].hdl == 0) || (tbl[idx].u.kva == 0)) {
+			CAM_DBG(CAM_UTIL, "New dst handle detected 0x%x", buf_hdl);
+			is_found = false;
+			break;
+		}
+
+		CAM_DBG(CAM_UTIL,
+			"Index: %d is filled with differnt dst_hdl: 0x%x",
+			idx, buf_hdl);
+	}
+
+	if (!is_found) {
+		CAM_DBG(CAM_UTIL, "dst_hdl 0x%x is not found in table entries", buf_hdl);
+		rc = cam_mem_get_cpu_buf(buf_hdl, &cpu_addr, &dst_buf_size);
+		if (rc < 0) {
+			CAM_ERR(CAM_UTIL,
+				"unable to get kva for dst_hdl: 0x%x",
+				buf_hdl);
+			return rc;
+		}
+
+		/* Update the table entry with unique dst buf handle */
+		if (idx < CAM_UNIQUE_DST_HDL_MAX && tbl[idx].hdl == 0) {
+			tbl[idx].buf_size = dst_buf_size;
+			tbl[idx].u.kva = cpu_addr;
+			tbl[idx].hdl = buf_hdl;
+			CAM_DBG(CAM_UTIL,
+				"Updated table index: %d with dst_buf_hdl: 0x%x CPU va: 0x%lx",
+				idx, tbl[idx].hdl, tbl[idx].u.kva);
+		}
+		*kva = cpu_addr;
+		*buf_size = dst_buf_size;
+	}
+
+	return rc;
+}
+
 int cam_packet_util_process_patches(struct cam_packet *packet,
 	struct list_head *mapped_io_list, int32_t iommu_hdl, int32_t sec_mmu_hdl,
 	bool exp_mem)
 {
 	struct cam_patch_desc *patch_desc = NULL;
-	dma_addr_t iova_addr;
-	uintptr_t  cpu_addr = 0;
-	dma_addr_t temp;
+	dma_addr_t iova_addr, temp;
 	uint32_t  *dst_cpu_addr;
+	uintptr_t  cpu_addr;
 	size_t     dst_buf_len;
 	size_t     src_buf_size;
-	int        i  = 0;
-	int        rc = 0;
+	int        i, rc = 0;
 	uint32_t   flags = 0;
-	int32_t hdl;
-	struct cam_patch_unique_src_buf_tbl
-		tbl[CAM_UNIQUE_SRC_HDL_MAX];
+	int32_t    hdl;
+	struct cam_patch_unique_buf_tbl *src_tbl, *dst_tbl;
 
-	memset(tbl, 0, CAM_UNIQUE_SRC_HDL_MAX *
-		sizeof(struct cam_patch_unique_src_buf_tbl));
+	src_tbl = CAM_MEM_ZALLOC_ARRAY(CAM_UNIQUE_SRC_HDL_MAX,
+		sizeof(struct cam_patch_unique_buf_tbl), GFP_KERNEL);
+	if (!src_tbl) {
+		CAM_ERR(CAM_UTIL, "Failed at allocating memory for tbl for unique src buf hdl");
+		return -ENOMEM;
+	}
+
+	dst_tbl = CAM_MEM_ZALLOC_ARRAY(CAM_UNIQUE_DST_HDL_MAX,
+		sizeof(struct cam_patch_unique_buf_tbl), GFP_KERNEL);
+	if (!dst_tbl) {
+		CAM_ERR(CAM_UTIL, "Failed at allocating memory for tbl for unique dst buf hdl");
+		CAM_MEM_FREE(src_tbl);
+		return -ENOMEM;
+	}
 
 	/* process patch descriptor */
-	patch_desc = (struct cam_patch_desc *)
-			((uint32_t *) &packet->payload_flex +
-			packet->patch_offset/4);
+	patch_desc = (struct cam_patch_desc *)((uint32_t *) &packet->payload_flex +
+		packet->patch_offset/4);
 	CAM_DBG(CAM_UTIL, "packet = %pK patch_desc = %pK size = %lu",
-			(void *)packet, (void *)patch_desc,
-			sizeof(struct cam_patch_desc));
+		(void *)packet, (void *)patch_desc,
+		sizeof(struct cam_patch_desc));
 
 	for (i = 0; i < packet->num_patches; i++) {
 		hdl = cam_mem_is_secure_buf(patch_desc[i].src_buf_hdl) ?
 			sec_mmu_hdl : iommu_hdl;
 
-		rc = cam_packet_util_get_patch_iova(&tbl[0], hdl, patch_desc[i].src_buf_hdl,
+		rc = cam_packet_util_get_patch_iova(&src_tbl[0], hdl, patch_desc[i].src_buf_hdl,
 			&iova_addr, &src_buf_size, &flags, mapped_io_list);
-
 		if (rc) {
 			CAM_ERR(CAM_UTIL,
 				"get_iova failed for patch[%d], src_buf_hdl: 0x%x: rc: %d",
 				i, patch_desc[i].src_buf_hdl, rc);
-			return rc;
+			goto end;
 		}
 
 		if ((size_t)patch_desc[i].src_offset >= src_buf_size) {
 			CAM_ERR(CAM_UTIL,
 				"Invalid src buf patch offset: patch:src_offset: 0x%x, src_buf_size: %zu",
 				patch_desc[i].src_offset, src_buf_size);
-			return -EINVAL;
+			rc = -EINVAL;
+			goto end;
 		}
 
 		temp = iova_addr;
 
-		rc = cam_mem_get_cpu_buf(patch_desc[i].dst_buf_hdl,
+		rc = cam_packet_util_get_patch_kva(&dst_tbl[0], patch_desc[i].dst_buf_hdl,
 			&cpu_addr, &dst_buf_len);
-		if (rc < 0 || !cpu_addr || (dst_buf_len == 0)) {
-			CAM_ERR(CAM_UTIL, "unable to get dst buf address");
-			return rc;
+		if (rc) {
+			CAM_ERR(CAM_UTIL,
+				"get_kva failed for patch[%d], dst_buf_hdl: 0x%x: rc: %d",
+				i, patch_desc[i].dst_buf_hdl, rc);
+			goto end;
 		}
-		dst_cpu_addr = (uint32_t *)cpu_addr;
-
-		CAM_DBG(CAM_UTIL, "i = %d patch info = %x %x %x %x", i,
-			patch_desc[i].dst_buf_hdl, patch_desc[i].dst_offset,
-			patch_desc[i].src_buf_hdl, patch_desc[i].src_offset);
 
 		if ((dst_buf_len < sizeof(void *)) ||
 			((dst_buf_len - sizeof(void *)) <
 			(size_t)patch_desc[i].dst_offset)) {
 			CAM_ERR(CAM_UTIL,
 				"Invalid dst buf patch offset");
-			cam_mem_put_cpu_buf((int32_t)patch_desc[i].dst_buf_hdl);
-			return -EINVAL;
+			rc = -EINVAL;
+			goto end;
 		}
 
-		dst_cpu_addr = (uint32_t *)((uint8_t *)dst_cpu_addr +
+		CAM_DBG(CAM_UTIL, "i = %d patch info = %x %x %x %x", i,
+			patch_desc[i].dst_buf_hdl, patch_desc[i].dst_offset,
+			patch_desc[i].src_buf_hdl, patch_desc[i].src_offset);
+
+		dst_cpu_addr = (uint32_t *)((uint8_t *)cpu_addr +
 			patch_desc[i].dst_offset);
 		temp += patch_desc[i].src_offset;
 
@@ -459,14 +527,24 @@ int cam_packet_util_process_patches(struct cam_packet *packet,
 		}
 
 		CAM_DBG(CAM_UTIL,
-			"patch is done for dst %pK with base iova 0x%lx final iova 0x%lx patched value 0x%x, shared=%s, cmd=%s, HwAndCDM %s",
+			"patch is done for dst 0x%lx with base iova 0x%lx final iova 0x%lx patched value 0x%x, shared=%s, cmd=%s, HwAndCDM %s",
 			dst_cpu_addr, iova_addr, temp, *dst_cpu_addr,
 			CAM_BOOL_TO_YESNO(flags & CAM_MEM_FLAG_HW_SHARED_ACCESS),
 			CAM_BOOL_TO_YESNO(flags & CAM_MEM_FLAG_CMD_BUF_TYPE),
 			CAM_BOOL_TO_YESNO(flags & CAM_MEM_FLAG_HW_AND_CDM_OR_SHARED));
-		cam_mem_put_cpu_buf((int32_t)patch_desc[i].dst_buf_hdl);
 	}
 
+end:
+	/* Free acquired CPU buf */
+	for (i = 0; i < CAM_UNIQUE_DST_HDL_MAX; i++) {
+		if (dst_tbl[i].hdl == 0)
+			break;
+
+		cam_mem_put_cpu_buf(dst_tbl[i].hdl);
+	}
+
+	CAM_MEM_FREE(dst_tbl);
+	CAM_MEM_FREE(src_tbl);
 	return rc;
 }
 

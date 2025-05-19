@@ -55,6 +55,7 @@ enum secure_camera_qos_update_type {
  */
 enum cam_cpas_regbase_types {
 	CAM_CPAS_REGBASE_CPASTOP,
+	CAM_CPAS_REGBASE_LLCC,
 	CAM_CPAS_REGBASE_MAX
 };
 
@@ -105,6 +106,7 @@ enum cam_cpas_camera_version {
 	CAM_CPAS_CAMERA_VERSION_975  = 0x00090705,
 	CAM_CPAS_CAMERA_VERSION_980  = 0x00090800,
 	CAM_CPAS_CAMERA_VERSION_1080 = 0x000A0800,
+	CAM_CPAS_CAMERA_VERSION_1077 = 0x000A0707,
 	CAM_CPAS_CAMERA_VERSION_MAX
 };
 
@@ -144,6 +146,7 @@ enum cam_cpas_camera_version_map_id {
 	CAM_CPAS_CAMERA_VERSION_ID_980  = 0xE,
 	CAM_CPAS_CAMERA_VERSION_ID_1080 = 0xF,
 	CAM_CPAS_CAMERA_VERSION_ID_975  = 0x10,
+	CAM_CPAS_CAMERA_VERSION_ID_1077 = 0x11,
 	CAM_CPAS_CAMERA_VERSION_ID_MAX
 };
 
@@ -191,6 +194,7 @@ enum cam_cpas_hw_version {
 	CAM_CPAS_TITAN_975_V100  = 0x975100,
 	CAM_CPAS_TITAN_980_V100  = 0x980100,
 	CAM_CPAS_TITAN_1080_V100 = 0x1080100,
+	CAM_CPAS_TITAN_1077_V100 = 0x1077100,
 	CAM_CPAS_TITAN_MAX
 };
 
@@ -1167,5 +1171,25 @@ bool cam_cpas_is_fw_based_sys_caching_supported(void);
  */
 int cam_cpas_config_cp_mapping_ctrl(
 	struct cam_cpas_cp_mapping_config_info *config);
+
+/**
+ * cam_cpas_read_llcc_status()
+ *
+ * @brief: API to read LLCC state
+ *
+ * @reg_base      : Register base identifier
+ * @scid          : LLCC scid
+ * @llcc_config   : llcc configuration
+ * @llcc_status   : llcc satuts
+ * @mb            : memory barrier
+ *
+ * @return 0 on success.
+ *
+ */
+int cam_cpas_read_llcc_status(
+	uint32_t scid,
+	uint32_t *llcc_config,
+	uint32_t *llcc_status);
+
 
 #endif /* _CAM_CPAS_API_H_ */

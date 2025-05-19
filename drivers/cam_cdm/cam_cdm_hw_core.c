@@ -170,17 +170,18 @@ static int cam_hw_cdm_enable_bl_done_irq(struct cam_hw_info *cdm_hw,
 	return rc;
 }
 
-int cam_hw_cdm_pause_core(struct cam_hw_info *cdm_hw, bool pause)
+static int cam_hw_cdm_pause_core(struct cam_hw_info *cdm_hw, bool pause)
 {
 	int rc = 0;
 	struct cam_cdm *core = (struct cam_cdm *)cdm_hw->core_info;
 	uint32_t val = 0x1, core_en_reg, cdm_status_reg;
 	bool pause_core_supported;
 
-	pause_core_supported = (core->offsets->reg_data->capabilities & CAM_CDM_CAP_PAUSE_CORE);
+	if (pause)
+		val |= 0x2;
 
-	if (pause_core_supported && pause)
-		val |= core->offsets->cmn_reg->pause_core_enable_mask;
+	pause_core_supported = core->offsets->reg_data->capabilities &
+		CAM_CDM_CAP_PAUSE_CORE;
 
 	if (pause_core_supported) {
 		cam_cdm_read_hw_reg(cdm_hw,
@@ -191,10 +192,9 @@ int cam_hw_cdm_pause_core(struct cam_hw_info *cdm_hw, bool pause)
 		/* In both pause or resume, further action need not/cannot be taken */
 		if ((core_en_reg & core->offsets->cmn_reg->pause_core_enable_mask) &&
 			!(cdm_status_reg & core->offsets->cmn_reg->pause_core_done_mask)) {
-			if (!pause) {
+			if (!pause)
 				CAM_ERR(CAM_CDM, "Pause core not done yet, can't resume core");
-				return -EAGAIN;
-			}
+			return -EAGAIN;
 		}
 	}
 
@@ -2673,6 +2673,9 @@ int cam_hw_cdm_probe(struct platform_device *pdev)
 	int rc = 0;
 
 	CAM_DBG(CAM_CDM, "Adding HW CDM component");
+
+	cam_soc_util_initialize_power_domain(&pdev->dev);
+
 	rc = component_add(&pdev->dev, &cam_hw_cdm_component_ops);
 	if (rc)
 		CAM_ERR(CAM_CDM, "failed to add component rc: %d", rc);
@@ -2687,6 +2690,9 @@ void cam_hw_cdm_remove(struct platform_device *pdev)
 #endif
 {
 	component_del(&pdev->dev, &cam_hw_cdm_component_ops);
+
+	cam_soc_util_uninitialize_power_domain(&pdev->dev);
+
 #if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	return 0;
 #endif

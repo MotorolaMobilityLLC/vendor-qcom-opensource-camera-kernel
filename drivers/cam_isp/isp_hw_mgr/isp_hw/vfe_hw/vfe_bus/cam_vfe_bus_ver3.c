@@ -183,6 +183,7 @@ struct cam_vfe_bus_ver3_comp_grp_data {
 };
 
 struct cam_vfe_bus_ver3_vfe_out_data {
+	uint64_t                              pid_mask;
 	uint32_t                              out_type;
 	uint32_t                              source_group;
 	struct cam_vfe_bus_ver3_common_data  *common_data;
@@ -207,12 +208,12 @@ struct cam_vfe_bus_ver3_vfe_out_data {
 	uint32_t                        *mid;
 	uint32_t                         num_mid;
 	uint32_t                         early_done_mask;
-	bool                             limiter_enabled;
-	bool                             mc_based;
-	bool                             cntxt_cfg_except;
 	uint32_t                         dst_hw_ctxt_id_mask;
 	int                              mc_comp_irq_handle;
 	int                              early_done_irq_handle;
+	bool                             limiter_enabled;
+	bool                             mc_based;
+	bool                             cntxt_cfg_except;
 };
 
 struct cam_vfe_bus_ver3_priv {
@@ -2817,6 +2818,7 @@ static int cam_vfe_bus_ver3_init_vfe_out_resource(uint32_t  index,
 	rsrc_data->mc_based = ver3_hw_info->vfe_out_hw_info[index].mc_based;
 	rsrc_data->early_done_mask = ver3_hw_info->vfe_out_hw_info[index].early_done_mask;
 	rsrc_data->cntxt_cfg_except = ver3_hw_info->vfe_out_hw_info[index].cntxt_cfg_except;
+	rsrc_data->pid_mask = ver3_hw_info->vfe_out_hw_info[index].pid_mask;
 
 	rsrc_data->wm_res = CAM_MEM_ZALLOC((sizeof(struct cam_isp_resource_node) *
 		rsrc_data->num_wm), GFP_KERNEL);
@@ -3914,20 +3916,21 @@ static int cam_vfe_bus_ver3_update_wm(void *priv, void *cmd_args, uint32_t arg_s
 		}
 
 		val = stride;
-		CAM_DBG(CAM_ISP, "VFE:%u val before stride %d",
-			bus_priv->common_data.core_index, val);
+		CAM_DBG(CAM_ISP, "VFE:%u io config stride val %u wm config stride: %u",
+			bus_priv->common_data.core_index, val, cfg->stride);
 		val = ALIGNUP(val, 16);
 		if (val != stride)
-			CAM_DBG(CAM_ISP, "VFE:%u Warning stride %u expected %u",
+			CAM_DBG(CAM_ISP, "VFE:%u Warning unaligned stride %u expected %u",
 				bus_priv->common_data.core_index, stride, val);
 
 		if (cfg->stride != val || !wm_data->init_cfg_done ||
 			((wm_data->out_rsrc_data->mc_based ||
 			wm_data->out_rsrc_data->cntxt_cfg_except) &&
 			!wm_data->mc_data[hw_cntxt_id].init_cfg_done)) {
+			val = (cfg->stride ? cfg->stride : (cfg->stride = val));
+
 			CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair, MAX_REG_VAL_PAIR_SIZE, j,
-				wm_data->client_base + wm_data->hw_regs->image_cfg_2, stride);
-			cfg->stride = val;
+				wm_data->client_base + wm_data->hw_regs->image_cfg_2, val);
 			CAM_DBG(CAM_ISP, "VFE:%u WM:%d image stride 0x%X",
 				bus_priv->common_data.core_index, wm_data->index,
 				reg_val_pair[j-1]);
@@ -4059,6 +4062,14 @@ static int cam_vfe_bus_ver3_update_wm(void *priv, void *cmd_args, uint32_t arg_s
 		CAM_DBG(CAM_ISP, "VFE:%u WM:%d frame_inc: %d expanded_mem: %s",
 			bus_priv->common_data.core_index, wm_data->index, reg_val_pair[j-1],
 			CAM_BOOL_TO_YESNO(cam_smmu_is_expanded_memory));
+
+		if (wm_data->out_rsrc_data->cntxt_cfg_except) {
+			CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair, MAX_REG_VAL_PAIR_SIZE, j,
+				wm_data->client_base + wm_data->hw_regs->ctxt_cfg, io_cfg->flag);
+			CAM_DBG(CAM_ISP, "VFE:%u WM:%d %s ctxt cfg 0x%X",
+				bus_priv->common_data.core_index, wm_data->index,
+				vfe_out_data->wm_res[i].res_name, reg_val_pair[j-1]);
+		}
 
 		/* enable the WM */
 		CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair, MAX_REG_VAL_PAIR_SIZE, j,
@@ -4587,6 +4598,8 @@ static int cam_vfe_bus_ver3_update_wm_config_v2(
 		else
 			cfg->height = wm_config->height;
 
+		cfg->stride = wm_config->stride;
+
 		/*
 		 * For RAW10/RAW12/RAW14 sensor mode seamless switch case,
 		 * the format may be changed on RDIs, so we update RDIs WM data.
@@ -5077,6 +5090,9 @@ static int cam_vfe_bus_get_res_for_mid(
 		if (!out_data)
 			continue;
 
+		if (out_data->pid_mask && (!(out_data->pid_mask & BIT_ULL(get_res->pid))))
+			continue;
+
 		for (j = 0; j < out_data->num_mid; j++) {
 			if (out_data->mid[j] == get_res->mid)
 				goto end;
@@ -5092,8 +5108,9 @@ static int cam_vfe_bus_get_res_for_mid(
 	}
 
 end:
-	CAM_INFO(CAM_ISP, "VFE:%u match mid :%d  out resource:0x%x found",
-		bus_priv->common_data.core_index, get_res->mid, bus_priv->vfe_out[i].res_id);
+	CAM_INFO(CAM_ISP, "VFE:%u match mid :%d  PID:%d pid_mask 0x%lx, out resource:0x%x found",
+		bus_priv->common_data.core_index, get_res->mid, get_res->pid, out_data->pid_mask,
+		bus_priv->vfe_out[i].res_id);
 	get_res->out_res_id = bus_priv->vfe_out[i].res_id;
 	return 0;
 }

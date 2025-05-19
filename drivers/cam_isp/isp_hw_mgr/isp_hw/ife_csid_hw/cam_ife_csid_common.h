@@ -58,6 +58,7 @@
 #define CAM_IFE_CSID_CAP_DEBUG_ERR_VEC                    BIT(8)
 #define CAM_IFE_CSID_CAP_TOP_MASK_ALL_IRQS                BIT(9)
 #define CAM_IFE_CSID_CAP_RUP_MISS                         BIT(10)
+#define CAM_IFE_CSID_CAP_SPLIT_CTXT_RD_WR_SEL             BIT(11)
 
 /*
  * CSID RUP AUP reg-val pair array

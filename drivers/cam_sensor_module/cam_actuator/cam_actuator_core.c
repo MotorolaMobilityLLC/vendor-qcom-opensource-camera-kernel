@@ -463,14 +463,13 @@ static int32_t cam_actuator_park_lens_cb(void *priv, void *data)
 	}
 
 	rc = cam_actuator_apply_settings(a_ctrl, &a_ctrl->i2c_data.config_settings);
-	if (rc < 0) {
-		CAM_ERR(CAM_ACTUATOR, "Cannot apply park lens settings");
-		goto delete_req;
-	}
+	/* Power off regulator and release cci even if the apply is failed */
+	if (rc < 0)
+		CAM_ERR(CAM_ACTUATOR, "Apply park lens settings failed");
 
 	rc = cam_actuator_power_down(a_ctrl);
 	if (rc < 0) {
-		CAM_ERR(CAM_ACTUATOR, "Actuator Power Down Failed");
+		CAM_ERR(CAM_ACTUATOR, "Actuator power down failed");
 		goto delete_req;
 	}
 
@@ -478,7 +477,7 @@ static int32_t cam_actuator_park_lens_cb(void *priv, void *data)
 	a_ctrl->cam_act_state = CAM_ACTUATOR_INIT;
 
 delete_req:
-	/* Delete the request even if the apply is failed */
+	/* Delete the request even if the power down is failed */
 	rc = delete_request(&a_ctrl->i2c_data.config_settings);
 	if (rc < 0)
 		CAM_ERR(CAM_ACTUATOR, "Fail in deleting the config settings");
@@ -1102,6 +1101,7 @@ int32_t cam_actuator_driver_cmd(struct cam_actuator_ctrl_t *a_ctrl,
 			goto release_mutex;
 		}
 
+		a_ctrl->is_deferred_park_lens = false;
 		a_ctrl->cam_act_state = CAM_ACTUATOR_ACQUIRE;
 	}
 		break;

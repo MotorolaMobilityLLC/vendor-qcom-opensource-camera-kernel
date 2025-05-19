@@ -40,6 +40,7 @@
 #include "cpastop_v975_100.h"
 #include "cpastop_v980_100.h"
 #include "cpastop_v1080_100.h"
+#include "cpastop_v1077_100.h"
 #include "cam_req_mgr_workq.h"
 #include "cam_common_util.h"
 #include "cam_vmrm_interface.h"
@@ -222,6 +223,15 @@ static const uint32_t cam_cpas_hw_version_map
 		0,
 		0,
 	},
+	/* for camera_1077 */
+	{
+		CAM_CPAS_TITAN_1077_V100,
+		0,
+		0,
+		0,
+		0,
+		0,
+	},
 };
 
 static char *cam_cpastop_get_camnoc_name(enum cam_camnoc_hw_type type)
@@ -310,6 +320,9 @@ static int cam_cpas_translate_camera_cpas_version_id(
 		break;
 	case CAM_CPAS_CAMERA_VERSION_1080:
 		*cam_version_id = CAM_CPAS_CAMERA_VERSION_ID_1080;
+		break;
+	case CAM_CPAS_CAMERA_VERSION_1077:
+		*cam_version_id = CAM_CPAS_CAMERA_VERSION_ID_1077;
 		break;
 	default:
 		CAM_ERR(CAM_CPAS, "Invalid cam version %u",
@@ -548,6 +561,19 @@ static int cam_cpastop_setup_regbase_indices(struct cam_hw_soc_info *soc_info,
 		CAM_DBG(CAM_CPAS, "regbase not found for secure, rc=%d, %d %d",
 			rc, index, num_reg_map);
 		regbase_index[CAM_CPAS_REG_SECURE] = -1;
+	}
+
+	/* optional - llcc register map */
+	rc = cam_common_util_get_string_index(soc_info->mem_block_name,
+		soc_info->num_mem_block, "llcc_regbase", &index);
+	if ((rc == 0) && (index < num_reg_map)) {
+		regbase_index[CAM_CPAS_REG_CAMNOC_LLCC] = index;
+		CAM_DBG(CAM_CPAS, "regbase found for llcc, rc=%d, %d %d",
+			rc, index, num_reg_map);
+	} else {
+		CAM_DBG(CAM_CPAS, "regbase not found for llcc, rc=%d, %d %d",
+			rc, index, num_reg_map);
+		regbase_index[CAM_CPAS_REG_CAMNOC_LLCC] = -1;
 	}
 
 	return 0;
@@ -1515,6 +1541,7 @@ static int cam_cpastop_init_hw_version(struct cam_hw_info *cpas_hw,
 	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	struct cam_cpas_cesta_info *cesta_info = NULL;
+	struct cam_cpas_llcc_reg_info *llcc_reg_info = NULL;
 	struct cam_camnoc_info *alloc_camnoc_info[CAM_CAMNOC_HW_TYPE_MAX] = {0};
 
 	qchannel_info = NULL;
@@ -1635,6 +1662,14 @@ static int cam_cpastop_init_hw_version(struct cam_hw_info *cpas_hw,
 		alloc_camnoc_info[CAM_CAMNOC_HW_PDX] = &cam1080_cpas100_camnoc_info_pdx;
 		cpas_info = &cam1080_cpas100_cpas_info;
 		cesta_info = &cam_v1080_cesta_info;
+		llcc_reg_info = &cam_v1080_100_llcc_reg_info;
+		break;
+	case CAM_CPAS_TITAN_1077_V100:
+		alloc_camnoc_info[CAM_CAMNOC_HW_RT] = &cam1077_cpas100_camnoc_info_rt;
+		alloc_camnoc_info[CAM_CAMNOC_HW_NRT] = &cam1077_cpas100_camnoc_info_nrt;
+		alloc_camnoc_info[CAM_CAMNOC_HW_PDX] = &cam1077_cpas100_camnoc_info_pdx;
+		cpas_info = &cam1077_cpas100_cpas_info;
+		cesta_info = &cam_v1077_cesta_info;
 		break;
 	default:
 		CAM_ERR(CAM_CPAS, "Camera Version not supported %d.%d.%d",
@@ -1646,6 +1681,7 @@ static int cam_cpastop_init_hw_version(struct cam_hw_info *cpas_hw,
 
 	cpas_core->cesta_info = cesta_info;
 	cpas_core->cam_subpart_info =  cpas_info->subpart_info;
+	cpas_core->llcc_reg_info = llcc_reg_info;
 
 	rc = cam_cpastop_set_up_camnoc_info(cpas_core, alloc_camnoc_info);
 	if (rc) {

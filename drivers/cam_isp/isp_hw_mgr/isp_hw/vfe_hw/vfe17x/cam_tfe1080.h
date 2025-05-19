@@ -1663,6 +1663,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"RDI_0",
 			},
+			.pid_mask = BIT_ULL(0) | BIT_ULL(1) | BIT_ULL(2),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
@@ -1679,6 +1680,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"RDI_1",
 			},
+			.pid_mask = BIT_ULL(0) | BIT_ULL(1) | BIT_ULL(2),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
@@ -1695,6 +1697,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"RDI_2",
 			},
+			.pid_mask = BIT_ULL(0) | BIT_ULL(1) | BIT_ULL(2),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
@@ -1711,6 +1714,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"RDI_3",
 			},
+			.pid_mask = BIT_ULL(0) | BIT_ULL(1) | BIT_ULL(2),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI4,
@@ -1727,6 +1731,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"RDI_4",
 			},
+			.pid_mask = BIT_ULL(0) | BIT_ULL(1) | BIT_ULL(2),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FULL,
@@ -1745,6 +1750,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"FULL",
 			},
+			.pid_mask = BIT_ULL(0) | BIT_ULL(1) | BIT_ULL(2),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS4,
@@ -1765,6 +1771,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 				"DS4_Y",
 				"DS4_C"
 			},
+			.pid_mask = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS16,
@@ -1785,6 +1792,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 				"DS16_Y",
 				"DS16_C",
 			},
+			.pid_mask = BIT_ULL(0) | BIT_ULL(1) | BIT_ULL(2),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS2,
@@ -1804,6 +1812,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 				"DS2_Y",
 				"DS2_C",
 			},
+			.pid_mask = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FD,
@@ -1823,6 +1832,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 				"FD_Y",
 				"FD_C",
 			},
+			.pid_mask = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RAW_DUMP,
@@ -1841,6 +1851,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"PIXEL_RAW",
 			},
+			.pid_mask = BIT_ULL(0) | BIT_ULL(1) | BIT_ULL(2),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BE,
@@ -1858,6 +1869,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"STATS_AEC_BE",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BHIST,
@@ -1875,6 +1887,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"STATS_BHIST",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_TL_BG,
@@ -1892,6 +1905,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"STATS_TL_BG",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AWB_BG,
@@ -1909,6 +1923,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"STATS_AWB_BG",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_AWB_BFW,
@@ -1926,6 +1941,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"AWB_BFW",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AF_BHIST,
@@ -1943,6 +1959,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"AF_BHIST",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_ALSC,
@@ -1960,6 +1977,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"ALSC_BG",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BAYER_RS,
@@ -1977,6 +1995,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"STATS_RS",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_TMC_BHIST,
@@ -1994,6 +2013,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"STATS_TMC_BHIST",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_2PD,
@@ -2009,6 +2029,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"PDAF_0_2PD",
 			},
+			.pid_mask = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_2PD,
@@ -2025,6 +2046,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"PDAF_1_PREPROCESS_2PD",
 			},
+			.pid_mask = BIT_ULL(0) | BIT_ULL(1) | BIT_ULL(2),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PARSED,
@@ -2041,6 +2063,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"PDAF_2_PARSED_DATA",
 			},
+			.pid_mask = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
 		},
 		{
 			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_CAF,
@@ -2058,6 +2081,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.name          = {
 				"STATS_CAF",
 			},
+			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 	},
 	.num_cons_err = 32,
