@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/module.h>
@@ -19,6 +19,7 @@
 #include "cam_tfe980.h"
 #include "cam_tfe975.h"
 #include "cam_tfe1080.h"
+#include "cam_tfe_common_reg_v1.h"
 #include "cam_vfe_lite17x.h"
 #include "cam_vfe_lite48x.h"
 #include "cam_vfe_lite68x.h"
@@ -88,6 +89,10 @@ static const struct of_device_id cam_vfe_dt_match[] = {
 	{
 		.compatible = "qcom,mc_tfe1080",
 		.data  = &cam_tfe1080_hw_info,
+	},
+	{
+		.compatible = "qcom,mc_tfe1190",
+		.data  = &cam_tfe_common_reg_v1_hw_info,
 	},
 	{
 		.compatible = "qcom,vfe-lite170",

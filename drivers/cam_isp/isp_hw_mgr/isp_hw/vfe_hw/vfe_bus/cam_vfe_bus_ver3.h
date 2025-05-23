@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 
@@ -15,7 +15,7 @@
 #define CAM_VFE_BUS_VER3_MAX_SUB_GRPS        6
 #define CAM_VFE_BUS_VER3_MAX_MID_PER_PORT    4
 #define CAM_VFE_BUS_VER3_CONS_ERR_MAX        32
-#define CAM_VFE_BUS_VER3_MAX_CLIENTS         28
+#define CAM_VFE_BUS_VER3_MAX_CLIENTS         32
 
 /*
  * Max number of MIDs that a client can support.
@@ -112,6 +112,8 @@ enum cam_vfe_bus_ver3_vfe_out_type {
 	CAM_VFE_BUS_VER3_VFE_OUT_STATS_AF_BHIST,
 	CAM_VFE_BUS_VER3_VFE_OUT_STATS_TMC_BHIST,
 	CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BHIST,
+	CAM_VFE_BUS_VER3_VFE_OUT_FD_SECURE,
+	CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PREPROCESSED2,
 	CAM_VFE_BUS_VER3_VFE_OUT_MAX,
 };
 
