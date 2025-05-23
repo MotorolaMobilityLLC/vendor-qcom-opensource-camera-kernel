@@ -21,6 +21,7 @@
 #ifdef CONFIG_MOT_DRV_OIS_EARLY_UPGRADE_FW
 extern int32_t sem1217s_fw_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware *fw);
 extern int32_t dw9784_fw_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware *fw);
+extern int32_t sem1218s_fw_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware *fw);
 #endif
 
 #ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
@@ -1383,6 +1384,32 @@ static int mot_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 		return rc;
 	}
 
+	if (strstr(o_ctrl->ois_name, "sem1218")) {
+		rc = request_firmware(&fw, fw_name_prog, dev);
+		if (rc) {
+			CAM_ERR(CAM_OIS, "Failed to locate %s", fw_name_prog);
+			return rc;
+		}
+
+		mutex_lock(&o_ctrl->ois_early_fw_mutex);
+		for (i = 0; i < 3; i++) {
+			rc = sem1218s_fw_update(o_ctrl, fw);
+			if (rc == 0) {
+				CAM_INFO(CAM_OIS, "sem1218 FW upgrade checked success");
+				break;
+			}
+			CAM_WARN(CAM_OIS, "sem1218 FW upgrade checked try again, i %d, rc %d", i, rc);
+		}
+
+		if (rc != 0) {
+			CAM_ERR(CAM_OIS, "sem1218 FW upgrade checked failed");
+		}
+
+		release_firmware(fw);
+		mutex_unlock(&o_ctrl->ois_early_fw_mutex);
+		return rc;
+	}
+
 	return rc;
 }
 #endif
@@ -1963,81 +1990,6 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			goto end;
 		}
 		break;
-#ifdef CONFIG_MOT_OIS_AF_DRIFT
-        /* This is only for bu63169 OIS AF drift */
-	case MOT_CAM_OIS_PACKET_OPCODE_AF_DRIFT:
-		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
-			rc = -EINVAL;
-			CAM_WARN(CAM_OIS,
-				"Not in right state to control OIS: %d",
-				o_ctrl->cam_ois_state);
-			return rc;
-		}
-		offset = (uint32_t *)&csl_packet->payload;
-		offset += (csl_packet->cmd_buf_offset / sizeof(uint32_t));
-		cmd_desc = (struct cam_cmd_buf_desc *)(offset);
-		i2c_reg_settings = &(o_ctrl->i2c_af_drift_data);
-		i2c_reg_settings->is_settings_valid = 1;
-		i2c_reg_settings->request_id = 0;
-		rc = cam_sensor_i2c_command_parser(&o_ctrl->io_master_info,
-			i2c_reg_settings,
-			cmd_desc, 1, NULL);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS, "OIS pkt parsing failed: %d", rc);
-			return rc;
-		}
-
-		rc = cam_ois_apply_settings(o_ctrl, i2c_reg_settings);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS, "Cannot apply mode settings");
-			return rc;
-		}
-
-		rc = delete_request(i2c_reg_settings);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS,
-				"Fail deleting Mode data: rc: %d", rc);
-			return rc;
-		}
-		break;
-#endif
-#ifdef CONFIG_MOT_OIS_AFTER_SALES_SERVICE
-	case MOT_CAM_OIS_PACKET_OPCODE_OIS_GYRO_OFFSET:
-		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
-			rc = -EINVAL;
-			CAM_WARN(CAM_OIS,
-				"Not in right state to control OIS: %d",
-				o_ctrl->cam_ois_state);
-			return rc;
-		}
-		offset = (uint32_t *)&csl_packet->payload;
-		offset += (csl_packet->cmd_buf_offset / sizeof(uint32_t));
-		cmd_desc = (struct cam_cmd_buf_desc *)(offset);
-		i2c_reg_settings = &(o_ctrl->i2c_gyro_data);
-		i2c_reg_settings->is_settings_valid = 1;
-		i2c_reg_settings->request_id = 0;
-		rc = cam_sensor_i2c_command_parser(&o_ctrl->io_master_info,
-			i2c_reg_settings,
-			cmd_desc, 1, NULL);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS, "OIS pkt parsing failed: %d", rc);
-			return rc;
-		}
-
-		rc = cam_ois_apply_settings(o_ctrl, i2c_reg_settings);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS, "Cannot apply gyro offset settings");
-			return rc;
-		}
-
-		rc = delete_request(i2c_reg_settings);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS,
-				"Fail deleting gyro offset data: rc: %d", rc);
-			return rc;
-		}
-		break;
-#endif
 	case CAM_OIS_PACKET_OPCODE_READ: {
 		uint64_t qtime_ns;
 		struct cam_buf_io_cfg *io_cfg;
@@ -2159,7 +2111,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				(o_ctrl->fw_info.endianness & OIS_ENDIANNESS_MASK_INPUTPARAM) >> 4;
 			rc = cam_ois_update_time(i2c_reg_settings, ois_endianness);
 		} else
-#ifdef CONFIG_MOT_OIS_DW9784_DRIVER
+#ifdef CONFIG_MOT_DRV_OIS_DW9784_DRIVER
                 {
                         if (strstr(o_ctrl->ois_name, "dw9784"))
 				rc = cam_ois_update_time(i2c_reg_settings, CAM_ENDIANNESS_BIG);

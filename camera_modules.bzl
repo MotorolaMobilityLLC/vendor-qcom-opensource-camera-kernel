@@ -277,6 +277,7 @@ def _define_module(target, variant):
                 True: [
                     "drivers/cam_sensor_module/cam_ois/cam_ois_sem1217s.c",
                     "drivers/cam_sensor_module/cam_ois/cam_ois_dw9784.c",
+                    "drivers/cam_sensor_module/cam_ois/cam_ois_sem1218s.c",
                 ],
             },
             "CONFIG_CAM_PRESIL": {
