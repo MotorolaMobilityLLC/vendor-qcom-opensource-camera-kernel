@@ -1643,6 +1643,7 @@ static struct cam_camnoc_info cam1080_cpas100_camnoc_info_nrt = {
 		.sbm_clear_mask = 0x1,
 	},
 	.addr_trans_info = &cam1080_cpas100_addr_trans_info,
+	.dcd_div_offset = 0x7C08,
 };
 
 static struct cam_camnoc_info cam1080_cpas100_camnoc_info_pdx = {
