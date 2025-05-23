@@ -6454,13 +6454,19 @@ static int cam_ife_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	ife_ctx->wr_per_req_index = 0;
 	memset(ife_ctx->per_req_info, 0, sizeof(ife_ctx->per_req_info));
 
+	rc = cam_packet_util_get_unique_tbl(&ife_ctx->src_tbl, &ife_ctx->dst_tbl);
+	if (rc) {
+		CAM_ERR(CAM_ISP, "Failed at allocating mem for ISP unique src/dst buf handle tbl");
+		goto free_ctx;
+	}
+
 	acquire_hw_info = (struct cam_isp_acquire_hw_info *) acquire_args->acquire_info;
 
 	rc = cam_ife_mgr_check_and_update_fe(ife_ctx, acquire_hw_info,
 		acquire_args->acquire_info_size);
 	if (rc) {
 		CAM_ERR(CAM_ISP, "buffer size is not enough, ctx_idx: %u", ife_ctx->ctx_index);
-		goto free_ctx;
+		goto free_unique_tbl;
 	}
 
 	in_port = CAM_MEM_ZALLOC_ARRAY(acquire_hw_info->num_inputs,
@@ -6470,7 +6476,7 @@ static int cam_ife_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	if (!in_port) {
 		CAM_ERR(CAM_ISP, "No memory available, ctx_idx: %u", ife_ctx->ctx_index);
 		rc = -ENOMEM;
-		goto free_ctx;
+		goto free_unique_tbl;
 	}
 
 	ife_ctx->vfe_bus_comp_grp = CAM_MEM_ZALLOC_ARRAY(CAM_IFE_BUS_COMP_NUM_MAX,
@@ -6794,6 +6800,10 @@ free_mem:
 	ife_ctx->res_list_sfe_out = NULL;
 	CAM_MEM_FREE(ife_ctx->res_list_ife_out);
 	ife_ctx->res_list_ife_out = NULL;
+free_unique_tbl:
+	cam_packet_util_put_unique_tbl(ife_ctx->src_tbl, ife_ctx->dst_tbl);
+	ife_ctx->src_tbl = NULL;
+	ife_ctx->dst_tbl = NULL;
 free_ctx:
 	cam_ife_hw_mgr_put_ctx(&ife_hw_mgr->free_ctx_list, &ife_ctx);
 err:
@@ -9341,6 +9351,10 @@ static int cam_ife_mgr_release_hw(void *hw_mgr_priv,
 	CAM_MEM_FREE(ctx->sfe_bus_comp_grp);
 	ctx->vfe_bus_comp_grp = NULL;
 	ctx->sfe_bus_comp_grp = NULL;
+
+	cam_packet_util_put_unique_tbl(ctx->src_tbl, ctx->dst_tbl);
+	ctx->src_tbl = NULL;
+	ctx->dst_tbl = NULL;
 
 	atomic_set(&ctx->overflow_pending, 0);
 	for (i = 0; i < CAM_IFE_HW_NUM_MAX; i++) {
@@ -15377,14 +15391,24 @@ static int cam_ife_mgr_prepare_hw_update(void *hw_mgr_priv,
 		prepare_hw_data->frame_header_res_id = 0x0;
 	}
 
+	/* Zero out previous patching info */
+	if (ctx->src_tbl)
+		memset(ctx->src_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_SRC_HDL_MAX);
+	if (ctx->dst_tbl)
+		memset(ctx->dst_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_DST_HDL_MAX);
+
 	if (ctx->flags.internal_cdm)
 		rc = cam_packet_util_process_patches(prepare->packet,
 			prepare->buf_tracker, hw_mgr->mgr_common.img_iommu_hdl,
-			hw_mgr->mgr_common.img_iommu_hdl_secure, true);
+			hw_mgr->mgr_common.img_iommu_hdl_secure, true,
+			ctx->src_tbl, ctx->dst_tbl);
 	else
 		rc = cam_packet_util_process_patches(prepare->packet,
 			prepare->buf_tracker, hw_mgr->mgr_common.cmd_iommu_hdl,
-			hw_mgr->mgr_common.cmd_iommu_hdl_secure, true);
+			hw_mgr->mgr_common.cmd_iommu_hdl_secure, true,
+			ctx->src_tbl, ctx->dst_tbl);
 
 	if (rc) {
 		CAM_ERR(CAM_ISP, "Patch ISP packet failed. ctx_idx: %u", ctx->ctx_index);

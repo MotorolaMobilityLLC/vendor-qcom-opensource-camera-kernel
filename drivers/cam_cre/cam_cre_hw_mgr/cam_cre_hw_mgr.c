@@ -1751,10 +1751,16 @@ static int cam_cre_mgr_acquire_hw(void *hw_priv, void *hw_acquire_args)
 	ctx = &hw_mgr->ctx[ctx_id];
 	ctx->ctx_id = ctx_id;
 	mutex_lock(&ctx->ctx_mutex);
+	rc = cam_packet_util_get_unique_tbl(&ctx->src_tbl, &ctx->dst_tbl);
+	if (rc) {
+		CAM_ERR(CAM_CRE, "allocate unique src/dst tbl failed: %d", rc);
+		goto end;
+	}
+
 	rc = cam_cre_get_acquire_info(hw_mgr, args, ctx);
 	if (rc < 0) {
 		CAM_ERR(CAM_CRE, "get_acquire info failed: %d", rc);
-		goto end;
+		goto free_unique_tbl;
 	}
 
 	if (!hw_mgr->cre_ctx_cnt) {
@@ -1764,7 +1770,7 @@ static int cam_cre_mgr_acquire_hw(void *hw_priv, void *hw_acquire_args)
 				sizeof(init));
 			if (rc) {
 				CAM_ERR(CAM_CRE, "CRE Dev init failed: %d", rc);
-				goto end;
+				goto free_unique_tbl;
 			}
 		}
 
@@ -1907,6 +1913,10 @@ cre_irq_set_failed:
 				CAM_ERR(CAM_CRE, "CRE deinit fail");
 		}
 	}
+free_unique_tbl:
+	cam_packet_util_put_unique_tbl(ctx->src_tbl, ctx->dst_tbl);
+	ctx->src_tbl = NULL;
+	ctx->dst_tbl = NULL;
 end:
 	args->ctxt_to_hw_map = NULL;
 	cam_cre_put_free_ctx(hw_mgr, ctx_id);
@@ -1959,6 +1969,9 @@ static int cam_cre_mgr_release_ctx(struct cam_cre_hw_mgr *hw_mgr, int ctx_id)
 	hw_mgr->ctx[ctx_id].last_flush_req = 0;
 	hw_mgr->ctx[ctx_id].last_req_idx = 0;
 	hw_mgr->ctx[ctx_id].last_done_req_idx = 0;
+	cam_packet_util_put_unique_tbl(hw_mgr->ctx[ctx_id].src_tbl, hw_mgr->ctx[ctx_id].dst_tbl);
+	hw_mgr->ctx[ctx_id].src_tbl = NULL;
+	hw_mgr->ctx[ctx_id].dst_tbl = NULL;
 	cam_cre_put_free_ctx(hw_mgr, ctx_id);
 
 	rc = cam_cre_mgr_cre_clk_remove(hw_mgr, ctx_id);
@@ -2231,8 +2244,17 @@ static int cam_cre_mgr_prepare_hw_update(void *hw_priv,
 		return -EINVAL;
 	}
 
+	/* Zero out previous patching info */
+	if (ctx_data->src_tbl)
+		memset(ctx_data->src_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_SRC_HDL_MAX);
+	if (ctx_data->dst_tbl)
+		memset(ctx_data->dst_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_DST_HDL_MAX);
+
 	rc = cam_packet_util_process_patches(packet, prepare_args->buf_tracker,
-			hw_mgr->iommu_hdl, hw_mgr->iommu_sec_hdl, true);
+		hw_mgr->iommu_hdl, hw_mgr->iommu_sec_hdl, true,
+		ctx_data->src_tbl, ctx_data->dst_tbl);
 	if (rc) {
 		mutex_unlock(&ctx_data->ctx_mutex);
 		CAM_ERR(CAM_CRE, "Patch processing failed %d", rc);

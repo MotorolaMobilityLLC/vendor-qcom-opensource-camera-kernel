@@ -3402,7 +3402,7 @@ static int cam_ope_mgr_prepare_hw_update(void *hw_priv,
 	}
 
 	rc = cam_packet_util_process_patches(packet, prepare_args->buf_tracker,
-		hw_mgr->iommu_cdm_hdl, hw_mgr->iommu_sec_cdm_hdl, false);
+		hw_mgr->iommu_cdm_hdl, hw_mgr->iommu_sec_cdm_hdl, false, NULL, NULL);
 	if (rc) {
 		mutex_unlock(&ctx_data->ctx_mutex);
 		CAM_ERR(CAM_OPE, "Patching failed: %d req_id: %d ctx: %d",

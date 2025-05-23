@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef CAM_CRE_HW_MGR_H
@@ -316,6 +316,8 @@ struct cam_cre_request {
  * @cre_top:           Pointer to CRE top data structure
  * @req_list:          Request List
  * @ctxt_event_cb:     Callback of a context
+ * @src_tbl:           Unique buf handle table for src buffers to accelerate patching process
+ * @dst_tbl:           Unique buf handle table for dst buffers to accelerate patching process
  */
 struct cam_cre_ctx {
 	uint32_t ctx_id;
@@ -339,6 +341,9 @@ struct cam_cre_ctx {
 	struct cam_packet               *packet;
 	struct cam_cre_request          *req_list[CAM_CTX_REQ_MAX];
 	cam_hw_event_cb_func ctxt_event_cb;
+
+	struct cam_patch_unique_buf_tbl *src_tbl;
+	struct cam_patch_unique_buf_tbl *dst_tbl;
 };
 
 /**

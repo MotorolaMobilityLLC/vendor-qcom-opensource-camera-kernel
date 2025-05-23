@@ -5199,6 +5199,10 @@ static int cam_icp_mgr_release_ctx(
 	cam_icp_ctx_timer_stop(ctx_data);
 	ctx_data->hw_mgr_priv = NULL;
 
+	cam_packet_util_put_unique_tbl(ctx_data->src_tbl, ctx_data->dst_tbl);
+	ctx_data->src_tbl = NULL;
+	ctx_data->dst_tbl = NULL;
+
 	CAM_DBG(CAM_ICP, "[%s] X: ctx_id = %d", hw_mgr->hw_mgr_name, ctx_data->ctx_id);
 
 	cam_icp_mgr_put_ctx(hw_mgr, ctx_id);
@@ -7393,9 +7397,17 @@ static int cam_icp_mgr_prepare_hw_update(void *hw_mgr_priv,
 
 	CAM_DBG(CAM_REQ|CAM_ICP, "%s: req id = %lld", ctx_data->ctx_id_string,
 		packet->header.request_id);
+	/* Zero out previous patching info */
+	if (ctx_data->src_tbl)
+		memset(ctx_data->src_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_SRC_HDL_MAX);
+	if (ctx_data->dst_tbl)
+		memset(ctx_data->dst_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_DST_HDL_MAX);
 	/* Update Buffer Address from handles and patch information */
 	rc = cam_packet_util_process_patches(packet, prepare_args->buf_tracker,
-		hw_mgr->iommu_hdl, hw_mgr->iommu_sec_hdl, true);
+		hw_mgr->iommu_hdl, hw_mgr->iommu_sec_hdl, true,
+		ctx_data->src_tbl, ctx_data->dst_tbl);
 	if (rc)
 		goto end;
 
@@ -8883,6 +8895,10 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	ctx_data->hw_mgr_priv = hw_mgr_priv;
 	ctx_data->acquire_dev_api_version = args->api_version;
 
+	rc = cam_packet_util_get_unique_tbl(&ctx_data->src_tbl, &ctx_data->dst_tbl);
+	if (rc)
+		goto get_unique_tbl_failed;
+
 	rc = cam_icp_mgr_handle_acquire_info(hw_mgr, args, ctx_data, true);
 	if (rc)
 		goto copy_from_user_failed;
@@ -9053,6 +9069,10 @@ get_dev_failed:
 	ctx_data->icp_dev_acquire_info = NULL;
 	ctx_data->device_info = NULL;
 copy_from_user_failed:
+	cam_packet_util_put_unique_tbl(ctx_data->src_tbl, ctx_data->dst_tbl);
+	ctx_data->src_tbl = NULL;
+	ctx_data->dst_tbl = NULL;
+get_unique_tbl_failed:
 	cam_icp_mgr_process_dbg_buf(hw_mgr);
 	cam_icp_mgr_put_ctx(hw_mgr, ctx_id);
 	mutex_unlock(&hw_mgr->ctx_mutex[ctx_id]);

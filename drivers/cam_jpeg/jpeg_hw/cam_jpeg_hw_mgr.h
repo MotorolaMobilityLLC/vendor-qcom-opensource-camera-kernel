@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef CAM_JPEG_HW_MGR_H
@@ -106,6 +106,8 @@ struct cam_jpeg_hw_cfg_req {
  * @cdm_cmd: Cdm cmd submitted for that context.
  * @mini_dump_cb: Mini dump cb
  * @evt_inject_params: Event injection params for hw_mgr_ctx
+ * @src_tbl: Unique buf handle table for src buffers to accelerate patching process
+ * @dst_tbl: Unique buf handle table for dst buffers to accelerate patching process
  */
 struct cam_jpeg_hw_ctx_data {
 	void *context_priv;
@@ -117,6 +119,8 @@ struct cam_jpeg_hw_ctx_data {
 	struct cam_cdm_bl_request *cdm_cmd;
 	cam_ctx_mini_dump_cb_func      mini_dump_cb;
 	struct cam_hw_inject_evt_param evt_inject_params;
+	struct cam_patch_unique_buf_tbl *src_tbl;
+	struct cam_patch_unique_buf_tbl *dst_tbl;
 };
 
 /**

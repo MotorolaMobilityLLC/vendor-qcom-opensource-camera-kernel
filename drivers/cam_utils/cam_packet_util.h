@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_PACKET_UTIL_H_
@@ -9,6 +9,30 @@
 
 #include <media/cam_defs.h>
 #include "cam_hw_mgr_intf.h"
+
+#define CAM_UNIQUE_SRC_HDL_MAX 50
+#define CAM_UNIQUE_DST_HDL_MAX 50
+#define CAM_PRESIL_UNIQUE_HDL_MAX 50
+
+/**
+ * @brief:                 Unique buf handle table to accelerate patching
+ *
+ * @hdl:                   buf handle
+ * @buf_size:              Offset from the start of the buffer
+ * @flags:                 Flag
+ * @iova:                  IO virtual address
+ * @kva:                   Kernel virtual address
+ *
+ */
+struct cam_patch_unique_buf_tbl {
+	int32_t       hdl;
+	size_t        buf_size;
+	uint32_t      flags;
+	union {
+		dma_addr_t iova;
+		uintptr_t  kva;
+	} u;
+};
 
 /**
  * @brief                  KMD scratch buffer information
@@ -106,6 +130,33 @@ void cam_packet_util_dump_patch_info(struct cam_packet *packet,
 	int32_t iommu_hdl, int32_t sec_iommu_hdl, struct cam_hw_dump_pf_args *pf_args);
 
 /**
+ * cam_packet_util_get_unique_tbl()
+ *
+ * @brief:              Get unique src/dst table to accelerate patching process
+ *
+ * @src_tbl:            Output pointer for unique src table
+ * @dst_tbl:            Output pointer for unique dst table
+ *
+ * @return:             0: Success
+ *                      Negative: Failure
+ *
+ */
+int cam_packet_util_get_unique_tbl(struct cam_patch_unique_buf_tbl **src_tbl,
+	struct cam_patch_unique_buf_tbl **dst_tbl);
+
+/**
+ * cam_packet_util_put_unique_tbl()
+ *
+ * @brief:              Put unique src/dst table and free the space
+ *
+ * @src_tbl:            Input pointer for unique src table that needs to be freed
+ * @dst_tbl:            Input pointer for unique dst table that needs to be freed
+ *
+ */
+void cam_packet_util_put_unique_tbl(struct cam_patch_unique_buf_tbl *src_tbl,
+	struct cam_patch_unique_buf_tbl *dst_tbl);
+
+/**
  * cam_packet_util_process_patches()
  *
  * @brief:              Replace the handle in Packet to Address using the
@@ -118,13 +169,16 @@ void cam_packet_util_dump_patch_info(struct cam_packet *packet,
  *                      received the packet
  * @exp_mem:            Boolean to know if patched address is in expanded memory range
  *                      or within default 32-bit address space.
+ * @in_src_tbl:         Unique buf handle table for src buffers
+ * @in_dst_tbl:         Unique buf handle table for dst buffers
  *
  * @return:             0: Success
  *                      Negative: Failure
  */
 int cam_packet_util_process_patches(struct cam_packet *packet,
 	struct list_head *mapped_io_list,  int32_t iommu_hdl, int32_t sec_mmu_hdl,
-	bool exp_mem);
+	bool exp_mem, struct cam_patch_unique_buf_tbl *in_src_tbl,
+	struct cam_patch_unique_buf_tbl *in_dst_tbl);
 
 /**
  * cam_packet_util_dump_io_bufs()

@@ -442,6 +442,8 @@ struct cam_cmd_buf_desc_addr_len {
  * @drv_info:                Array to include the per request drv info
  * @is_init_drv_cfg_received: Indicate if init drv config has received
  * @current_leading_dt:      Current leading dt for this ctx
+ * @src_tbl:                Unique buf handle table for src buffers to accelerate patching process
+ * @dst_tbl:                Unique buf handle table for dst buffers to accelerate patching process
  */
 struct cam_ife_hw_mgr_ctx {
 	struct list_head                           list;
@@ -515,6 +517,8 @@ struct cam_ife_hw_mgr_ctx {
 	uint8_t                                    wr_per_req_index;
 	bool                                       is_init_drv_cfg_received;
 	uint32_t                                   current_leading_dt;
+	struct cam_patch_unique_buf_tbl           *src_tbl;
+	struct cam_patch_unique_buf_tbl           *dst_tbl;
 };
 
 /**
