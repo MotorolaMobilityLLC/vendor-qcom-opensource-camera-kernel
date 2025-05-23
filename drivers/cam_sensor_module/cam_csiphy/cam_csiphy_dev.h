@@ -194,7 +194,7 @@ struct cam_cphy_dphy_status_reg_params_t {
  * @csiphy_reset_enter_array_size     : CSIPhy reset array size
  * @csiphy_reset_exit_array_size      : CSIPhy reset release array size
  * @csiphy_2ph_config_array_size      : 2ph settings size
- * @csiphy_2ph_clk_cfg_array_size     : 2ph clk config size
+ * @csiphy_2ph_clk_cfg_array_size     : 2ph clock config settings size
  * @csiphy_3ph_config_array_size      : 3ph settings size
  * @aon_sel_params                    : aon selection parameters
  */
@@ -353,6 +353,7 @@ struct csiphy_ctrl_t {
  * @conn_csid_idx              :  Connected CSID core idx (Primary csid in case of dual ife)
  * @use_hw_client_voting       :  Whether to use hw client voting for clk on chipsets with cesta
  * @is_drv_config_en           :  If drv is configured in CSID
+ * @use_sec_dphy_clk_lane      :  If the sensor (DPHY only) is streaming with ln6 as clk lane
  * @channel_type               :  Channel type for different channel settings
  * @t3_prepare                 :  T3-Prepare in ns
  * @t3_preamble                :  T3-Preamble in ns
@@ -374,6 +375,7 @@ struct cam_csiphy_param {
 	int32_t                          conn_csid_idx;
 	bool                             use_hw_client_voting;
 	bool                             is_drv_config_en;
+	bool                             use_sec_dphy_clk_lane;
 	uint32_t                         channel_type;
 	uint32_t                         t3_prepare;
 	uint32_t                         t3_preamble;
@@ -447,6 +449,7 @@ struct csiphy_qmargin_sweep_data {
  * @acquire_count              : Acquire device count
  * @start_dev_count            : Start count
  * @cpas_handle                : CPAS handle
+ * @lane_enable                : Overall mask of all lanes enabled from sensor(s)
  * @session_max_device_support : Max number of devices supported in a session
  * @combo_mode                 : Info regarding combo_mode is enable / disable
  * @cphy_dphy_combo_mode       : Info regarding 2ph/3ph combo modes
@@ -483,6 +486,7 @@ struct csiphy_device {
 	uint32_t                                 acquire_count;
 	uint32_t                                 start_dev_count;
 	uint32_t                                 cpas_handle;
+	uint32_t                                 lane_enable;
 	uint8_t                                  session_max_device_support;
 	uint8_t                                  combo_mode;
 	uint8_t                                  cphy_dphy_combo_mode;
