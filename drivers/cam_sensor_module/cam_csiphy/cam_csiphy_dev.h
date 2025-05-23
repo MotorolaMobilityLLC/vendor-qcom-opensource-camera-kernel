@@ -57,11 +57,13 @@
 #define CSIPHY_SHORT_CHANNEL_PARAMS      BIT(12)
 #define CSIPHY_STANDARD_CHANNEL_PARAMS   BIT(13)
 #define CSIPHY_DNP_PARAMS                BIT(14)
+#define CSIPHY_2PH_SEC_CLK_LN_SETTINGS   BIT(15)
 
 #define CSIPHY_MAX_INSTANCES_PER_PHY     3
 
 #define CAM_CSIPHY_MAX_DPHY_LANES            4
 #define CAM_CSIPHY_MAX_CPHY_LANES            3
+#define CAM_CSIPHY_MAX_DPHY_CLK_LANES        2
 #define CAM_CSIPHY_MAX_CPHY_DPHY_COMBO_LN    3
 #define CAM_CSIPHY_MAX_DATARATE_VARIANTS     3
 #define CSIPHY_QMARGIN_CMN_STATUS_REG_COUNT  11
@@ -74,6 +76,20 @@
 #define CPHY_LANE_2    BIT(5)
 #define DPHY_LANE_3    BIT(6)
 #define DPHY_CLK_LN    BIT(7)
+
+#define DPHY_DATA_LANE_POS_0  0
+#define DPHY_DATA_LANE_POS_1  2
+#define DPHY_DATA_LANE_POS_2  4
+#define DPHY_DATA_LANE_POS_3  6
+#define DPHY_CLOCK_LANE_POS   7
+
+#define CPHY_LANE_POS_0 1
+#define CPHY_LANE_POS_1 3
+#define CPHY_LANE_POS_2 5
+
+#define CLK_SEC_SEL   BIT(1)
+#define CLK_EN_SEL    BIT(2)
+#define BIST_CLK_SEL  BIT(3)
 
 /* Lane info packing for scm call */
 #define LANE_0_SEL                   BIT(0)
@@ -178,10 +194,8 @@ struct cam_cphy_dphy_status_reg_params_t {
  * @csiphy_reset_enter_array_size     : CSIPhy reset array size
  * @csiphy_reset_exit_array_size      : CSIPhy reset release array size
  * @csiphy_2ph_config_array_size      : 2ph settings size
+ * @csiphy_2ph_clk_cfg_array_size     : 2ph clk config size
  * @csiphy_3ph_config_array_size      : 3ph settings size
- * @csiphy_2ph_3ph_config_array_size  : Size of the 2ph-3ph combo settings array
- * @csiphy_2ph_combo_config_array_size: Size of the 2ph-2ph combo settings array
- * @csiphy_3ph_combo_config_array_size: Size of the 3ph-3ph combo settings array
  * @aon_sel_params                    : aon selection parameters
  */
 struct csiphy_reg_parms_t {
@@ -197,10 +211,8 @@ struct csiphy_reg_parms_t {
 	uint32_t csiphy_reset_enter_array_size;
 	uint32_t csiphy_reset_exit_array_size;
 	uint32_t csiphy_2ph_config_array_size;
+	uint32_t csiphy_2ph_clk_cfg_array_size;
 	uint32_t csiphy_3ph_config_array_size;
-	uint32_t csiphy_2ph_3ph_config_array_size;
-	uint32_t csiphy_2ph_combo_config_array_size;
-	uint32_t csiphy_3ph_combo_config_array_size;
 	struct cam_csiphy_aon_sel_params_t *aon_sel_params;
 };
 
@@ -216,6 +228,17 @@ struct csiphy_hdl_tbl {
 
 /**
  * struct csiphy_reg_t
+ *
+ * @brief  : Note that reg_addr is a partial offset for registers
+ *           involving CPHY and DPHY lanes. These include register
+ *           settings for CPHY datarates (data_rate_reg_array),
+ *           2phase register settings (csiphy_2ph_reg), 2phase clk
+ *           register settings (csiphy_2ph_prim_clk_ln_reg and
+ *           csiphy_2ph_sec_clk_ln_reg), 3phase register settings
+ *           (csiphy_3ph_reg), and bist 2phase and 3phase register
+ *           settings. Final register addresses are derived from
+ *           adding these with the lane register offsets
+ *
  * @reg_addr              : Register address
  * @reg_data              : Register data
  * @delay                 : Delay in us
@@ -232,13 +255,17 @@ struct csiphy_device;
 
 /*
  * struct data_rate_reg_info_t
- * @bandwidth                 : max bandwidth supported by this reg settings
- * @data_rate_reg_array_size  : data rate settings size
- * @data_rate_reg_array       : array of data rate specific reg value pairs
+ * @bandwidth                  : max bandwidth supported by this reg settings
+ * @data_rate_reg_array_size   : data rate settings size
+ * @common_ctrl_reg_array_size : common ctrl settings size
+ * @common_ctrl_reg_array      : common ctrl reg for all lanes reg value pairs
+ * @data_rate_reg_array        : array of data rate specific reg value pairs
  */
 struct data_rate_reg_info_t {
 	uint64_t bandwidth;
 	ssize_t  data_rate_reg_array_size;
+	ssize_t  common_ctrl_reg_array_size;
+	struct csiphy_reg_t *common_ctrl_reg_array[MAX_CSIPHY][CAM_CSIPHY_MAX_DATARATE_VARIANTS];
 	struct csiphy_reg_t *data_rate_reg_array[MAX_CSIPHY][CAM_CSIPHY_MAX_DATARATE_VARIANTS];
 };
 
@@ -283,10 +310,9 @@ struct bist_reg_settings_t {
  * @csiphy_lane_config_reg    : Lane select register
  * @csiphy_bist_reg           : Bist register set
  * @csiphy_2ph_reg            : 2phase register set
- * @csiphy_2ph_combo_mode_reg : 2ph-2ph combo register set
  * @csiphy_3ph_reg            : 3phase register set
- * @csiphy_3ph_combo_reg      : 3ph-3ph combo register set
- * @csiphy_2ph_3ph_mode_reg   : 2ph-3ph combo register set
+ * @csiphy_2ph_clk_ln_reg     : 2phase clk ln reg settings
+ * @csiphy_ln_offsets         : lane register offsets
  * @getclockvoting            : function pointer which is used to find the clock
  *                               voting for the sensor output data rate
  * @data_rate_settings_table  : Table which maintains the resgister settings specific to data rate
@@ -300,10 +326,9 @@ struct csiphy_ctrl_t {
 	struct csiphy_reg_t *csiphy_lane_config_reg;
 	struct bist_reg_settings_t *csiphy_bist_reg;
 	struct csiphy_reg_t *csiphy_2ph_reg;
-	struct csiphy_reg_t *csiphy_2ph_combo_mode_reg;
 	struct csiphy_reg_t *csiphy_3ph_reg;
-	struct csiphy_reg_t *csiphy_3ph_combo_reg;
-	struct csiphy_reg_t *csiphy_2ph_3ph_mode_reg;
+	struct csiphy_reg_t *csiphy_2ph_clk_ln_reg;
+	uint32_t csiphy_ln_offsets[CAM_CSIPHY_MAX_DPHY_LANES + CAM_CSIPHY_MAX_CPHY_LANES + 1];
 	enum   cam_vote_level (*getclockvoting)(struct csiphy_device *phy_dev, int32_t index);
 	struct data_rate_settings_t *data_rates_settings_table;
 };
