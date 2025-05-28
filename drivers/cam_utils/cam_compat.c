@@ -807,7 +807,7 @@ int cam_req_mgr_ordered_list_cmp(void *priv,
 }
 #endif
 
-#if ((KERNEL_VERSION(6, 7, 0) >= LINUX_VERSION_CODE) && IS_ENABLED(CONFIG_QCOM_MEM_BUF))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 long cam_dma_buf_set_name(struct dma_buf *dmabuf, const char *name)
 {
 	long ret = 0;
