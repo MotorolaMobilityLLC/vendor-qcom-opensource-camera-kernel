@@ -4804,7 +4804,6 @@ static int __cam_isp_ctx_handle_error(struct cam_isp_context *ctx_isp,
 
 	__cam_isp_ctx_dump_frame_timing_record(ctx_isp);
 	__cam_isp_ctx_print_event_record(ctx_isp);
-	__cam_isp_ctx_trigger_reg_dump(CAM_HW_MGR_CMD_REG_DUMP_ON_ERROR, ctx, NULL);
 	__cam_isp_ctx_dump_state_monitor_array(ctx_isp);
 
 	__cam_isp_get_notification_evt_params(error_event_data->error_type,

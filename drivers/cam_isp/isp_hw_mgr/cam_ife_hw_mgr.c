@@ -1044,12 +1044,10 @@ static int cam_ife_mgr_regspace_data_cb(uint32_t reg_base_type,
 
 static int cam_ife_mgr_handle_reg_dump(struct cam_ife_hw_mgr_ctx *ctx,
 	struct cam_cmd_buf_desc *reg_dump_buf_desc, uint32_t num_reg_dump_buf,
-	uint32_t meta_type,
-	void *soc_dump_args,
-	bool user_triggered_dump)
+	uint32_t meta_type, void *soc_dump_args, bool user_triggered_dump)
 {
 	int rc = 0, i;
-	struct cam_hw_soc_skip_dump_args skip_dump_args;
+	struct cam_hw_soc_skip_dump_args skip_dump_args = {0};
 	uintptr_t cpu_addr = 0;
 	size_t    buf_size = 0;
 	uint8_t total_ctx_acquired = 0;
@@ -1093,6 +1091,8 @@ static int cam_ife_mgr_handle_reg_dump(struct cam_ife_hw_mgr_ctx *ctx,
 	}
 
 	if (g_ife_hw_mgr.isp_caps.skip_regdump_data.skip_regdump &&
+		(meta_type == CAM_ISP_PACKET_META_REG_DUMP_PER_REQUEST) &&
+		(!ctx->hw_mgr->debug_cfg.ignore_skip_reg_dump) &&
 			(total_ctx_acquired != 1)) {
 		skip_dump_args.skip_regdump =
 			g_ife_hw_mgr.isp_caps.skip_regdump_data.skip_regdump;
@@ -7861,7 +7861,7 @@ static int cam_ife_mgr_config_hw(
 		return -EPERM;
 	}
 
-	if (atomic_read(&ctx->overflow_pending)) {
+	if (atomic_read(&ctx->err_handle_pending)) {
 		CAM_DBG(CAM_ISP,
 			"Ctx[%pK][%u] Overflow pending, cannot apply req %llu",
 			ctx, ctx->ctx_index, cfg->request_id);
@@ -8285,8 +8285,7 @@ static int cam_ife_mgr_stop_hw_in_overflow(void *stop_hw_args)
 		return -EPERM;
 	}
 
-	CAM_DBG(CAM_ISP, "Enter...ctx id:%u",
-		ctx->ctx_index);
+	CAM_DBG(CAM_ISP, "Enter...ctx id:%u", ctx->ctx_index);
 
 	if (!ctx->num_base) {
 		CAM_ERR(CAM_ISP, "Number of bases are zero, ctx_index %u", ctx->ctx_index);
@@ -8303,6 +8302,26 @@ static int cam_ife_mgr_stop_hw_in_overflow(void *stop_hw_args)
 
 	if (i == ctx->num_base)
 		master_base_idx = ctx->base[0].idx;
+
+	rc = cam_cdm_reset_hw(ctx->cdm_handle);
+	if (rc) {
+		CAM_WARN(CAM_ISP, "CDM: %u reset failed rc: %d in ctx: %u",
+			ctx->cdm_id, rc, ctx->ctx_index);
+		rc = 0;
+	}
+
+	/* In error case, do reg dump after cdm is reset */
+	if (atomic_read(&ctx->err_handle_pending) && (!ctx->flags.dump_on_error)) {
+		ctx->flags.dump_on_error = true;
+		rc = cam_ife_mgr_handle_reg_dump(ctx, ctx->reg_dump_buf_desc,
+			ctx->num_reg_dump_buf,
+			CAM_ISP_PACKET_META_REG_DUMP_ON_ERROR, NULL, false);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "Reg dump on error failed rc: %d in ctx: %u",
+				rc, ctx->ctx_index);
+			rc = 0;
+		}
+	}
 
 	/* stop the master CSID path first */
 	cam_ife_mgr_csid_stop_hw(ctx, &ctx->res_list_ife_csid,
@@ -8334,8 +8353,7 @@ static int cam_ife_mgr_stop_hw_in_overflow(void *stop_hw_args)
 
 	/* Stop tasklet for context */
 	cam_tasklet_stop(ctx->common.tasklet_info);
-	CAM_DBG(CAM_ISP, "Exit...ctx id:%u rc :%d",
-		ctx->ctx_index, rc);
+	CAM_DBG(CAM_ISP, "Exit...ctx id:%u rc :%d", ctx->ctx_index, rc);
 
 	return rc;
 }
@@ -8471,6 +8489,19 @@ static int cam_ife_mgr_stop_hw(void *hw_mgr_priv, void *stop_hw_args)
 		CAM_WARN(CAM_ISP, "CDM: %u reset failed rc: %d in ctx: %u",
 			ctx->cdm_id, rc, ctx->ctx_index);
 		rc = 0;
+	}
+
+	/* In error case, do reg dump after cdm is reset */
+	if (atomic_read(&ctx->err_handle_pending) && (!ctx->flags.dump_on_error)) {
+		ctx->flags.dump_on_error = true;
+		rc = cam_ife_mgr_handle_reg_dump(ctx, ctx->reg_dump_buf_desc,
+			ctx->num_reg_dump_buf,
+			CAM_ISP_PACKET_META_REG_DUMP_ON_ERROR, NULL, false);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "Reg dump on error failed rc: %d in ctx: %u",
+				rc, ctx->ctx_index);
+			rc = 0;
+		}
 	}
 
 	/*
@@ -9065,7 +9096,7 @@ static int cam_ife_mgr_start_hw(void *hw_mgr_priv, void *start_hw_args)
 
 start_only:
 
-	atomic_set(&ctx->overflow_pending, 0);
+	atomic_set(&ctx->err_handle_pending, 0);
 
 	/* Apply initial configuration */
 	CAM_DBG(CAM_ISP, "Config HW, ctx_idx: %u", ctx->ctx_index);
@@ -9356,7 +9387,8 @@ static int cam_ife_mgr_release_hw(void *hw_mgr_priv,
 	ctx->src_tbl = NULL;
 	ctx->dst_tbl = NULL;
 
-	atomic_set(&ctx->overflow_pending, 0);
+	atomic_set(&ctx->err_handle_pending, 0);
+
 	for (i = 0; i < CAM_IFE_HW_NUM_MAX; i++) {
 		ctx->sof_cnt[i] = 0;
 		ctx->eof_cnt[i] = 0;
@@ -16941,7 +16973,7 @@ static int cam_ife_mgr_recover_hw(void *priv, void *data)
 			rc, ctx->ctx_index);
 	}
 
-	atomic_set(&ctx->overflow_pending, 0);
+	atomic_set(&ctx->err_handle_pending, 0);
 	CAM_DBG(CAM_ISP, "Recovery Done rc (%d)", rc);
 
 	CAM_DBG(CAM_ISP, "Exit: ErrorType = %d", error_type);
@@ -17091,13 +17123,13 @@ static int  cam_ife_hw_mgr_find_affected_ctx(
 			affected_core, CAM_IFE_HW_NUM_MAX))
 			continue;
 
-		if (!force_recover && atomic_read(&ife_hwr_mgr_ctx->overflow_pending)) {
+		if (!force_recover && atomic_read(&ife_hwr_mgr_ctx->err_handle_pending)) {
 			CAM_INFO(CAM_ISP, "CTX:%u already error reported",
 				ife_hwr_mgr_ctx->ctx_index);
 			continue;
 		}
 
-		atomic_set(&ife_hwr_mgr_ctx->overflow_pending, 1);
+		atomic_set(&ife_hwr_mgr_ctx->err_handle_pending, 1);
 		notify_err_cb = ife_hwr_mgr_ctx->common.event_cb;
 
 		/* Add affected_context in list of recovery data */
@@ -17269,7 +17301,7 @@ static int cam_ife_hw_mgr_handle_csid_error(
 		if (ctx->try_recovery_cnt < MAX_INTERNAL_RECOVERY_ATTEMPTS) {
 			error_event_data.try_internal_recovery = true;
 
-			if (!atomic_read(&ctx->overflow_pending))
+			if (!atomic_read(&ctx->err_handle_pending))
 				ctx->try_recovery_cnt++;
 
 			if (!ctx->recovery_req_id)
@@ -17285,7 +17317,7 @@ static int cam_ife_hw_mgr_handle_csid_error(
 	}
 
 	/* For out of sync continue to try recovery */
-	if ((error_event_data.try_internal_recovery) && (atomic_read(&ctx->overflow_pending)))
+	if ((error_event_data.try_internal_recovery) && (atomic_read(&ctx->err_handle_pending)))
 		force_recover = err_type & CAM_ISP_HW_ERROR_CSID_SENSOR_SWITCH_ERROR;
 
 	rc = cam_ife_hw_mgr_find_affected_ctx(&error_event_data,
@@ -17323,7 +17355,7 @@ static int cam_ife_hw_mgr_handle_csid_rup(
 	case CAM_IFE_PIX_PATH_RES_RDI_3:
 	case CAM_IFE_PIX_PATH_RES_RDI_4:
 	case CAM_IFE_PIX_PATH_RES_PPP:
-		if (atomic_read(&ctx->overflow_pending))
+		if (atomic_read(&ctx->err_handle_pending))
 			break;
 		rup_event_data.camif_irq = true;
 
@@ -17388,7 +17420,7 @@ static int cam_ife_hw_mgr_handle_csid_eof(
 	case CAM_IFE_PIX_PATH_RES_RDI_3:
 	case CAM_IFE_PIX_PATH_RES_RDI_4:
 	case CAM_IFE_PIX_PATH_RES_PPP:
-		if (atomic_read(&ctx->overflow_pending))
+		if (atomic_read(&ctx->err_handle_pending))
 			break;
 
 		ife_hwr_irq_rup_cb(ctx->common.cb_priv,
@@ -17436,7 +17468,7 @@ static int cam_ife_hw_mgr_handle_csid_camif_sof(
 	case CAM_IFE_PIX_PATH_RES_RDI_3:
 	case CAM_IFE_PIX_PATH_RES_RDI_4:
 	case CAM_IFE_PIX_PATH_RES_PPP:
-		if (atomic_read(&ctx->overflow_pending))
+		if (atomic_read(&ctx->err_handle_pending))
 			break;
 		if (ctx->ctx_config & CAM_IFE_CTX_CFG_FRAME_HEADER_TS) {
 			sof_done_event_data.timestamp = 0x0;
@@ -17516,7 +17548,7 @@ static int cam_ife_hw_mgr_handle_csid_camif_epoch(
 	case CAM_IFE_PIX_PATH_RES_RDI_3:
 	case CAM_IFE_PIX_PATH_RES_RDI_4:
 	case CAM_IFE_PIX_PATH_RES_PPP:
-		if (atomic_read(&ctx->overflow_pending))
+		if (atomic_read(&ctx->err_handle_pending))
 			break;
 
 		epoch_event_data.frame_id_meta = event_info->reg_val;
@@ -17826,7 +17858,7 @@ static int cam_ife_hw_mgr_handle_hw_rup(
 			ife_hw_mgr_ctx->left_hw_idx))
 			break;
 
-		if (atomic_read(&ife_hw_mgr_ctx->overflow_pending))
+		if (atomic_read(&ife_hw_mgr_ctx->err_handle_pending))
 			break;
 		ife_hwr_irq_rup_cb(ife_hw_mgr_ctx->common.cb_priv,
 			CAM_ISP_HW_EVENT_REG_UPDATE, (void *)&rup_event_data);
@@ -17839,7 +17871,7 @@ static int cam_ife_hw_mgr_handle_hw_rup(
 	case CAM_ISP_HW_VFE_IN_RDI4:
 		if (!cam_isp_is_ctx_primary_rdi(ife_hw_mgr_ctx))
 			break;
-		if (atomic_read(&ife_hw_mgr_ctx->overflow_pending))
+		if (atomic_read(&ife_hw_mgr_ctx->err_handle_pending))
 			break;
 		ife_hwr_irq_rup_cb(ife_hw_mgr_ctx->common.cb_priv,
 			CAM_ISP_HW_EVENT_REG_UPDATE, (void *)&rup_event_data);
@@ -17872,7 +17904,7 @@ static int cam_ife_hw_mgr_handle_hw_epoch(
 
 	switch (event_info->res_id) {
 	case CAM_ISP_HW_VFE_IN_CAMIF:
-		if (atomic_read(&ife_hw_mgr_ctx->overflow_pending))
+		if (atomic_read(&ife_hw_mgr_ctx->err_handle_pending))
 			break;
 
 		epoch_done_event_data.frame_id_meta = event_info->reg_val;
@@ -17950,7 +17982,7 @@ static int cam_ife_hw_mgr_handle_hw_sof(
 
 		cam_hw_mgr_reset_out_of_sync_cnt(ife_hw_mgr_ctx);
 
-		if (atomic_read(&ife_hw_mgr_ctx->overflow_pending))
+		if (atomic_read(&ife_hw_mgr_ctx->err_handle_pending))
 			break;
 
 		ife_hw_irq_sof_cb(ife_hw_mgr_ctx->common.cb_priv,
@@ -17980,7 +18012,7 @@ static int cam_ife_hw_mgr_handle_hw_sof(
 
 		cam_hw_mgr_reset_out_of_sync_cnt(ife_hw_mgr_ctx);
 
-		if (atomic_read(&ife_hw_mgr_ctx->overflow_pending))
+		if (atomic_read(&ife_hw_mgr_ctx->err_handle_pending))
 			break;
 
 		ife_hw_irq_sof_cb(ife_hw_mgr_ctx->common.cb_priv,
@@ -18014,7 +18046,7 @@ static int cam_ife_hw_mgr_handle_hw_eof(
 
 	switch (event_info->res_id) {
 	case CAM_ISP_HW_VFE_IN_CAMIF:
-		if (atomic_read(&ife_hw_mgr_ctx->overflow_pending))
+		if (atomic_read(&ife_hw_mgr_ctx->err_handle_pending))
 			break;
 
 		ife_hw_irq_eof_cb(ife_hw_mgr_ctx->common.cb_priv,
@@ -18029,7 +18061,7 @@ static int cam_ife_hw_mgr_handle_hw_eof(
 	case CAM_ISP_HW_VFE_IN_RDI4:
 		if (!ife_hw_mgr_ctx->flags.is_rdi_only_context)
 			break;
-		if (atomic_read(&ife_hw_mgr_ctx->overflow_pending))
+		if (atomic_read(&ife_hw_mgr_ctx->err_handle_pending))
 			break;
 
 		ife_hw_irq_eof_cb(ife_hw_mgr_ctx->common.cb_priv,
@@ -18212,7 +18244,7 @@ static int cam_ife_hw_mgr_handle_hw_buf_done(
 	buf_done_event_data.comp_group_id = bufdone_evt_info->comp_grp_id;
 	buf_done_event_data.is_early_done = bufdone_evt_info->is_early_done;
 
-	if (atomic_read(&ife_hw_mgr_ctx->overflow_pending))
+	if (atomic_read(&ife_hw_mgr_ctx->err_handle_pending))
 		return 0;
 
 	if (buf_done_event_data.resource_handle > 0 && ife_hwr_irq_wm_done_cb) {
@@ -19672,6 +19704,9 @@ static int cam_ife_hw_mgr_debug_register(void)
 	debugfs_create_bool("use_last_consumed_addr", 0644,
 		g_ife_hw_mgr.debug_cfg.dentry,
 		&g_ife_hw_mgr.debug_cfg.use_last_consumed_addr);
+	debugfs_create_bool("ignore_skip_reg_dump", 0644,
+		g_ife_hw_mgr.debug_cfg.dentry,
+		&g_ife_hw_mgr.debug_cfg.ignore_skip_reg_dump);
 
 end:
 	g_ife_hw_mgr.debug_cfg.enable_csid_recovery = 1;
@@ -19734,8 +19769,7 @@ static unsigned long cam_ife_hw_mgr_mini_dump_cb(void *dst, unsigned long len,
 		ctx_md->last_cdm_done_req = ctx->last_cdm_done_req;
 		ctx_md->applied_req_id = ctx->applied_req_id;
 		ctx_md->ctx_type = ctx->ctx_type;
-		ctx_md->overflow_pending =
-			atomic_read(&ctx->overflow_pending);
+		ctx_md->err_handle_pending = atomic_read(&ctx->err_handle_pending);
 		ctx_md->cdm_done = atomic_read(&ctx->cdm_done);
 		memcpy(&ctx_md->pf_info, &ctx->pf_info,
 			sizeof(struct cam_ife_hw_mgr_ctx_pf_info));
