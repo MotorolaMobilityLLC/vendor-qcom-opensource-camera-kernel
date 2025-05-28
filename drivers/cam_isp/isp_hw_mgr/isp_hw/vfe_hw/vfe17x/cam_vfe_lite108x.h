@@ -97,18 +97,18 @@ static struct cam_vfe_ver4_path_reg_data vfe_lite108x_ipp_reg_data = {
 	.eof_irq_mask                    = 0x2,
 	.error_irq_mask                  = 0x6,
 	.enable_diagnostic_hw            = 0x1,
-	.top_debug_cfg_en                = 0x3,
-	.ipp_violation_mask              = 0x10,
+	.ipp_violation_mask              = 0x2,
 	.diag_violation_mask             = 0x4,
 	.diag_sensor_sel_mask            = 0x40,
 	.diag_frm_count_mask_1           = 0x100,
+	.top_debug_cfg_en                = 0x3,
 };
 
 static struct cam_vfe_ver4_path_reg_data vfe_lite108x_rdi_reg_data[4] = {
 
 	{
-		.sof_irq_mask                    = 0x4,
-		.eof_irq_mask                    = 0x8,
+		.sof_irq_mask                    = 0x10000,
+		.eof_irq_mask                    = 0x20000,
 		.error_irq_mask                  = 0x0,
 		.diag_sensor_sel_mask            = 0x0,
 		.diag_frm_count_mask_0           = 0x80,
@@ -116,8 +116,8 @@ static struct cam_vfe_ver4_path_reg_data vfe_lite108x_rdi_reg_data[4] = {
 		.top_debug_cfg_en                = 0x3,
 	},
 	{
-		.sof_irq_mask                    = 0x10,
-		.eof_irq_mask                    = 0x20,
+		.sof_irq_mask                    = 0x40000,
+		.eof_irq_mask                    = 0x80000,
 		.error_irq_mask                  = 0x0,
 		.diag_sensor_sel_mask            = 0x2,
 		.diag_frm_count_mask_0           = 0x100,
@@ -125,8 +125,8 @@ static struct cam_vfe_ver4_path_reg_data vfe_lite108x_rdi_reg_data[4] = {
 		.top_debug_cfg_en                = 0x3,
 	},
 	{
-		.sof_irq_mask                    = 0x40,
-		.eof_irq_mask                    = 0x80,
+		.sof_irq_mask                    = 0x100000,
+		.eof_irq_mask                    = 0x200000,
 		.error_irq_mask                  = 0x0,
 		.diag_sensor_sel_mask            = 0x4,
 		.diag_frm_count_mask_0           = 0x200,
@@ -134,8 +134,8 @@ static struct cam_vfe_ver4_path_reg_data vfe_lite108x_rdi_reg_data[4] = {
 		.top_debug_cfg_en                = 0x3,
 	},
 	{
-		.sof_irq_mask                    = 0x100,
-		.eof_irq_mask                    = 0x200,
+		.sof_irq_mask                    = 0x400000,
+		.eof_irq_mask                    = 0x800000,
 		.error_irq_mask                  = 0x0,
 		.diag_sensor_sel_mask            = 0x6,
 		.diag_frm_count_mask_0           = 0x400,
@@ -370,20 +370,20 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite108x_bus_hw_info = {
 			.mmu_prefetch_max_offset  = 0x00000064,
 			.system_cache_cfg         = 0x00000068,
 			.addr_cfg                 = 0x00000070,
+			.debug_status_cfg         = 0x0000007C,
+			.debug_status_0           = 0x00000080,
+			.debug_status_1           = 0x00000084,
 			.addr_status_0            = 0x00000090,
 			.addr_status_1            = 0x00000094,
 			.addr_status_2            = 0x00000098,
 			.addr_status_3            = 0x0000009C,
-			.debug_status_cfg         = 0x0000007C,
-			.debug_status_0           = 0x00000080,
-			.debug_status_1           = 0x00000084,
 		},
 	.bus_client_reg = {
 		/* BUS Client 0 RDI0 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_1,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
-			.name                     = "RDI_0",
+			.name                     = "LITE_RDI_0",
 			.line_based               = 1,
 			.mid                      = {32},
 			.num_mid                  = 1,
@@ -394,7 +394,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite108x_bus_hw_info = {
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
-			.name                     = "RDI_1",
+			.name                     = "LITE_RDI_1",
 			.line_based               = 1,
 			.mid                      = {33},
 			.num_mid                  = 1,
@@ -405,7 +405,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite108x_bus_hw_info = {
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
-			.name                     = "RDI_2",
+			.name                     = "LITE_RDI_2",
 			.line_based               = 1,
 			.mid                      = {34},
 			.num_mid                  = 1,
@@ -417,7 +417,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite108x_bus_hw_info = {
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_4,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
-			.name                     = "RDI_3",
+			.name                     = "LITE_RDI_3",
 			.line_based               = 1,
 			.mid                      = {35},
 			.num_mid                  = 1,
