@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_VFE_TOP_VER4_H_
@@ -58,6 +58,7 @@ struct cam_vfe_top_ver4_reg_offset_common {
 	uint32_t ipp_violation_status;
 	uint32_t bayer_violation_status;
 	uint32_t pdaf_violation_status;
+	uint32_t core_violation_status;
 	uint32_t custom_frame_idx;
 	uint32_t dsp_status;
 	uint32_t diag_config;
@@ -217,6 +218,7 @@ struct cam_vfe_top_ver4_hw_info {
 	struct cam_vfe_ver4_fcg_module_info             *fcg_module_info;
 	struct cam_vfe_top_ver4_diag_reg_fields         *diag_sensor_info;
 	struct cam_vfe_top_ver4_diag_reg_fields         *diag_frame_info;
+	struct cam_vfe_top_ver4_module_desc             *core_violation_desc;
 	uint64_t                                         top_hm_base;
 	uint64_t                                         bayer_hm_base;
 	uint64_t                                         fcg_clc_base;
@@ -240,6 +242,7 @@ struct cam_vfe_ver4_path_reg_data {
 	uint32_t                                     bayer_violation_mask;
 	uint32_t                                     pdaf_violation_mask;
 	uint32_t                                     diag_violation_mask;
+	uint32_t                                     core_violation_mask;
 	uint32_t                                     diag_sensor_sel_mask;
 	uint32_t                                     diag_frm_count_mask_0;
 	uint32_t                                     diag_frm_count_mask_1;
