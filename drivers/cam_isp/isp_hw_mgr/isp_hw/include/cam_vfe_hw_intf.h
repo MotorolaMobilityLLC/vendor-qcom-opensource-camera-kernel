@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_VFE_HW_INTF_H_
@@ -27,9 +27,11 @@
 #define CAM_VFE_PERF_CNT_MAX          8
 
 /* Common capabilities for VFE */
-#define CAM_VFE_COMMON_CAP_SKIP_CORE_CFG BIT(0)
-#define CAM_VFE_COMMON_CAP_CORE_MUX_CFG  BIT(1)
-#define CAM_VFE_COMMON_CAP_DEBUG_ERR_VEC BIT(2)
+#define CAM_VFE_COMMON_CAP_SKIP_CORE_CFG        BIT(0)
+#define CAM_VFE_COMMON_CAP_CORE_MUX_CFG         BIT(1)
+#define CAM_VFE_COMMON_CAP_DEBUG_ERR_VEC        BIT(2)
+#define CAM_VFE_COMMON_CAP_SPLIT_CTXT_RD_WR_SEL BIT(3)
+
 
 enum cam_isp_hw_vfe_in_mux {
 	CAM_ISP_HW_VFE_IN_CAMIF       = 0,
@@ -418,6 +420,7 @@ struct cam_vfe_generic_ubwc_config {
  * @use_last_consumed_addr      : Use last consumed addr instead of
  *                                frameheader to verify buf done on
  *                                targets supporting frameheader scheme
+ * @is_per_req_reg_dump_enabled :Checks whether per-request reg dump is enabled
  */
 struct cam_vfe_generic_debug_config {
 	uint64_t  diag_config;
@@ -427,6 +430,7 @@ struct cam_vfe_generic_debug_config {
 	bool      disable_ife_mmu_prefetch;
 	bool      enable_ife_frame_irqs;
 	bool      use_last_consumed_addr;
+	bool      is_per_req_reg_dump_enabled;
 };
 
 /*

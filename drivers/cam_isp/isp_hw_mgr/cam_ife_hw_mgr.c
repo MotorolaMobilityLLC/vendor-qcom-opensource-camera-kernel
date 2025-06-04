@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/slab.h>
@@ -8870,6 +8870,7 @@ static void cam_ife_hw_mgr_set_hw_debug_config(
 	vfe_debug_args.num_counters = hw_mgr->isp_caps.num_ife_perf_counters;
 	vfe_debug_args.diag_config = hw_mgr->debug_cfg.camif_debug;
 	vfe_debug_args.use_last_consumed_addr = hw_mgr->debug_cfg.use_last_consumed_addr;
+	vfe_debug_args.is_per_req_reg_dump_enabled = g_ife_hw_mgr.debug_cfg.per_req_reg_dump;
 	for (i = 0; i < hw_mgr->isp_caps.num_ife_perf_counters; i++)
 		vfe_debug_args.vfe_perf_counter_val[i] =
 			hw_mgr->debug_cfg.ife_perf_counter_val[i];

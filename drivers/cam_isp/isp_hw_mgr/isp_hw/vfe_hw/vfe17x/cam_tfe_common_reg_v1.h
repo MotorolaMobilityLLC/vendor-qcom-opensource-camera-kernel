@@ -1326,6 +1326,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 		.debug_status_top_cfg             = 0x12C,
 		.debug_status_top                 = 0x130,
 		.ctxt_sel                         = 0x13C,
+		.rd_ctxt_sel                      = 0x140,
 		.test_bus_ctrl                    = 0x144,
 		.mc_read_sel_shift                = 0x0,
 		.mc_write_sel_shift               = 0x0,
@@ -1377,6 +1378,9 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 				.perf_cnt_val = 0x104,
 			},
 		},
+		/* HW capabilities*/
+		.capabilities =
+			CAM_VFE_COMMON_CAP_SPLIT_CTXT_RD_WR_SEL,
 	},
 	.bus_wr_base                              = 0x800,
 	.support_dyn_offset                       = true,

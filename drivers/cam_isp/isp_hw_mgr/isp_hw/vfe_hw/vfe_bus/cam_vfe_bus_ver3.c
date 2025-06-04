@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 
@@ -98,6 +98,7 @@ struct cam_vfe_bus_ver3_common_data {
 	bool                                        perf_cnt_en;
 	bool                                        support_buf_done_with_framehdr;
 	bool                                        use_last_consumed_addr;
+	bool                                        is_per_req_reg_dump_enabled;
 	cam_hw_mgr_event_cb_func                    event_cb;
 	int                        rup_irq_handle[CAM_VFE_BUS_VER3_SRC_GRP_MAX];
 	uint32_t                                    pack_align_shift;
@@ -253,6 +254,12 @@ static int cam_vfe_bus_ver3_process_cmd(
 static int cam_vfe_bus_ver3_config_ubwc_regs(
 	struct cam_vfe_bus_ver3_wm_resource_data *wm_data,
 	struct cam_vfe_bus_ver3_wm_ubwc_cfg_data *ubwc_cfg_data);
+
+static int cam_vfe_bus_ver3_set_rd_ctxt_sel(
+	struct cam_vfe_bus_ver3_priv *bus_priv, uint32_t rd_ctxt);
+
+static void cam_vfe_bus_ver3_get_rd_ctxt_sel(
+	struct cam_vfe_bus_ver3_priv *bus_priv, uint32_t *rd_ctxt);
 
 
 void cam_vfe_bus_ver3_debug_handler(
@@ -1462,8 +1469,7 @@ static int cam_vfe_bus_ver3_start_wm(struct cam_isp_resource_node *wm_res)
 				continue;
 
 			/* Program reg context select before programming multibank registers*/
-			cam_io_w_mb(((i << common_data->common_reg->mc_write_sel_shift) |
-				(i << common_data->common_reg->mc_read_sel_shift)),
+			cam_io_w_mb((i << common_data->common_reg->mc_write_sel_shift),
 				common_data->mem_base + common_data->bus_wr_base +
 				common_data->common_reg->ctxt_sel);
 			rc = cam_vfe_bus_ver3_start_wm_util(rsrc_data, i);
@@ -3066,34 +3072,66 @@ static int cam_vfe_bus_ver3_deinit_vfe_out_resource(
 }
 
 static void cam_vfe_bus_ver3_print_wm_info(
-	struct cam_vfe_bus_ver3_wm_resource_data  *wm_data,
-	struct cam_vfe_bus_ver3_common_data  *common_data,
+	struct cam_vfe_bus_ver3_wm_resource_data *wm_data,
+	struct cam_vfe_bus_ver3_common_data *common_data,
+	struct cam_vfe_bus_ver3_priv *bus_priv,
 	uint8_t *wm_name)
 {
 	uint32_t addr_status0, addr_status1, addr_status2, addr_status3, limiter;
-	void __iomem                               *reg_base;
+	void __iomem *reg_base;
+	uint32_t rd_context, original_rd_context = 0;
+	uint32_t context_to_print, max_contexts = 1;
+	uint32_t reg_addr = 0;
+	bool print_all_contexts_info = false;
 
-	reg_base =  common_data->mem_base + wm_data->client_base;
+	reg_base = common_data->mem_base + wm_data->client_base;
 
-	addr_status0 = cam_io_r_mb(reg_base + wm_data->hw_regs->addr_status_0);
-	addr_status1 = cam_io_r_mb(reg_base + wm_data->hw_regs->addr_status_1);
-	addr_status2 = cam_io_r_mb(reg_base + wm_data->hw_regs->addr_status_2);
-	addr_status3 = cam_io_r_mb(reg_base + wm_data->hw_regs->addr_status_3);
-	limiter = cam_io_r_mb(reg_base + wm_data->hw_regs->bw_limiter_addr);
+	/*
+	 * We dump all contexts if per-request reg dump is NOT enabled,
+	 * as it might interfere with per-request reg dump. Otherwise, we
+	 * only log whatever context is currently active, without changing
+	 * hardware context selection.
+	 */
+	if ((common_data->common_reg->capabilities & CAM_VFE_COMMON_CAP_SPLIT_CTXT_RD_WR_SEL) &&
+		(!(common_data->is_per_req_reg_dump_enabled))) {
 
+		print_all_contexts_info = true;
+		max_contexts = CAM_ISP_MULTI_CTXT_MAX;
+		reg_addr = common_data->common_reg->rd_ctxt_sel;
+
+		cam_vfe_bus_ver3_get_rd_ctxt_sel(bus_priv, &original_rd_context);
+		CAM_DBG(CAM_ISP, "Captured original read rd_context: %u (reg: 0x%x)",
+			original_rd_context, reg_addr);
+	}
 	CAM_INFO(CAM_ISP,
 		"VFE:%u WM:%d wm_name:%s width:%u height:%u stride:%u x_init:%u en_cfg:%u acquired width:%u height:%u",
 		wm_data->common_data->core_index, wm_data->index, wm_name,
-		wm_data->cfg.width,
-		wm_data->cfg.height,
+		wm_data->cfg.width, wm_data->cfg.height,
 		wm_data->cfg.stride, wm_data->cfg.h_init,
 		wm_data->cfg.en_cfg,
-		wm_data->acquired_width,
-		wm_data->acquired_height);
-	CAM_INFO(CAM_ISP,
-		"VFE:%u WM:%u last consumed address:0x%x last frame addr:0x%x fifo cnt:0x%x current client address:0x%x limiter: 0x%x",
-		common_data->hw_intf->hw_idx, wm_data->index,
-		addr_status0, addr_status1, addr_status2, addr_status3, limiter);
+		wm_data->acquired_width, wm_data->acquired_height);
+
+	for (rd_context = 0; rd_context < max_contexts; rd_context++) {
+		if (print_all_contexts_info)
+			cam_vfe_bus_ver3_set_rd_ctxt_sel(bus_priv, rd_context);
+
+		context_to_print = print_all_contexts_info ? rd_context : original_rd_context;
+		addr_status0 = cam_io_r_mb(reg_base + wm_data->hw_regs->addr_status_0);
+		addr_status1 = cam_io_r_mb(reg_base + wm_data->hw_regs->addr_status_1);
+		addr_status2 = cam_io_r_mb(reg_base + wm_data->hw_regs->addr_status_2);
+		addr_status3 = cam_io_r_mb(reg_base + wm_data->hw_regs->addr_status_3);
+		limiter = cam_io_r_mb(reg_base + wm_data->hw_regs->bw_limiter_addr);
+		CAM_INFO(CAM_ISP,
+			"VFE:%u WM:%u Context:%u last consumed address:0x%x last frame addr:0x%x fifo cnt:0x%x current client address:0x%x limiter: 0x%x",
+			common_data->hw_intf->hw_idx, wm_data->index, context_to_print,
+			addr_status0, addr_status1, addr_status2, addr_status3, limiter);
+	}
+
+	/* Restore the original context only if we changed it earlier */
+	if (print_all_contexts_info) {
+		cam_vfe_bus_ver3_set_rd_ctxt_sel(bus_priv, original_rd_context);
+		CAM_DBG(CAM_ISP, "Restored original read rd_context: %u", original_rd_context);
+	}
 }
 
 static int cam_vfe_bus_ver3_print_dimensions(
@@ -3140,7 +3178,7 @@ static int cam_vfe_bus_ver3_print_dimensions(
 		wm_data = rsrc_data->wm_res[i]->res_priv;
 		wm_name = rsrc_data->wm_res[i]->res_name;
 		common_data = rsrc_data->common_data;
-		cam_vfe_bus_ver3_print_wm_info(wm_data, common_data, wm_name);
+		cam_vfe_bus_ver3_print_wm_info(wm_data, common_data, bus_priv, wm_name);
 	}
 	return 0;
 }
@@ -3418,7 +3456,7 @@ static void cam_vfe_check_violations(
 
 			if (status & BIT(wm_data->index)) {
 				cam_vfe_bus_ver3_print_wm_info(wm_data,
-					common_data, wm_name);
+					common_data, bus_priv, wm_name);
 				*out_port |= BIT_ULL(rsrc_node->res_id & 0xFF);
 
 				/* check what type of violation it is*/
@@ -5016,6 +5054,59 @@ add_reg_pair:
 	return 0;
 }
 
+static int cam_vfe_bus_ver3_set_rd_ctxt_sel(
+	struct cam_vfe_bus_ver3_priv *bus_priv, uint32_t rd_ctxt)
+{
+	struct cam_vfe_bus_ver3_reg_offset_common *common_reg;
+	uint32_t reg_addr, reg_val;
+
+	common_reg = bus_priv->common_data.common_reg;
+
+	/* Skip if hardware doesn't support separate RD/WR */
+	if (!(common_reg->capabilities & CAM_VFE_COMMON_CAP_SPLIT_CTXT_RD_WR_SEL)) {
+		CAM_DBG(CAM_ISP, "Skipping read select for old hardware");
+		return 0;
+	}
+
+	reg_addr = common_reg->rd_ctxt_sel;
+	reg_val = (rd_ctxt << common_reg->mc_read_sel_shift);
+
+	CAM_DBG(CAM_ISP,
+		"AHB write for RD ctxt: %u, reg: 0x%x, val: 0x%x, VFE: %u",
+		rd_ctxt, reg_addr, reg_val, bus_priv->common_data.hw_intf->hw_idx);
+
+	return cam_io_w_mb(reg_val, bus_priv->common_data.mem_base + reg_addr);
+}
+
+static void cam_vfe_bus_ver3_get_rd_ctxt_sel(
+	struct cam_vfe_bus_ver3_priv *bus_priv, uint32_t *rd_ctxt)
+{
+
+	struct cam_vfe_bus_ver3_reg_offset_common *common_reg;
+	uint32_t reg_addr, reg_val;
+
+	common_reg = bus_priv->common_data.common_reg;
+
+	// Skip if hardware does not support separate RD/WR select
+	if (!(common_reg->capabilities & CAM_VFE_COMMON_CAP_SPLIT_CTXT_RD_WR_SEL)) {
+
+		CAM_DBG(CAM_ISP, "Skipping read select read: separate RD/WR not supported");
+		*rd_ctxt = 0; // default to 0 for unsupported hardware
+
+		return;
+	}
+
+	reg_addr = common_reg->rd_ctxt_sel;
+	reg_val = cam_io_r_mb(bus_priv->common_data.mem_base + reg_addr);
+	*rd_ctxt = reg_val >> common_reg->mc_read_sel_shift;
+
+	CAM_DBG(CAM_ISP,
+		"Read SEL Register: reg=0x%x, val=0x%x, RD ctxt=%u, VFE=%u, mem_base=0x%pK",
+		reg_addr, reg_val, *rd_ctxt,
+		bus_priv->common_data.hw_intf->hw_idx,
+		bus_priv->common_data.mem_base);
+}
+
 static int cam_vfe_bus_ver3_mc_ctxt_sel(
 	void *priv, void *cmd_args, uint32_t arg_size)
 
@@ -5285,7 +5376,7 @@ found:
 				meta_mid == get_res->mid ? "YES" : "NO");
 
 			cam_vfe_bus_ver3_print_wm_info(wm_data, &bus_priv->common_data,
-				c_reg->name);
+				bus_priv, c_reg->name);
 			break;
 		}
 	}
@@ -5575,6 +5666,8 @@ static int cam_vfe_bus_ver3_process_cmd(
 			debug_cfg->disable_ife_mmu_prefetch;
 		bus_priv->common_data.use_last_consumed_addr =
 			debug_cfg->use_last_consumed_addr;
+		bus_priv->common_data.is_per_req_reg_dump_enabled =
+			debug_cfg->is_per_req_reg_dump_enabled;
 
 		for (i = 0; i < CAM_VFE_PERF_CNT_MAX; i++) {
 			bus_priv->common_data.perf_cnt_cfg[i] =
