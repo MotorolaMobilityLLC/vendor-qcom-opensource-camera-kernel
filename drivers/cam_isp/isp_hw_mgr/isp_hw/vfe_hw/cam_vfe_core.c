@@ -701,8 +701,6 @@ int cam_vfe_core_init(struct cam_vfe_hw_core_info  *core_info,
 			core_info->vfe_rd_bus, hw_intf->hw_idx);
 	}
 
-	spin_lock_init(&core_info->spin_lock);
-
 	return rc;
 
 deinit_top:
@@ -718,10 +716,7 @@ deinit_controller:
 int cam_vfe_core_deinit(struct cam_vfe_hw_core_info  *core_info,
 	struct cam_vfe_hw_info                       *vfe_hw_info)
 {
-	int                rc = -EINVAL;
-	unsigned long      flags;
-
-	spin_lock_irqsave(&core_info->spin_lock, flags);
+	int rc;
 
 	rc = cam_vfe_bus_deinit(vfe_hw_info->bus_version,
 		&core_info->vfe_bus);
@@ -737,8 +732,6 @@ int cam_vfe_core_deinit(struct cam_vfe_hw_core_info  *core_info,
 	if (rc)
 		CAM_ERR(CAM_ISP,
 			"Error cam_irq_controller_deinit failed rc=%d", rc);
-
-	spin_unlock_irqrestore(&core_info->spin_lock, flags);
 
 	return rc;
 }

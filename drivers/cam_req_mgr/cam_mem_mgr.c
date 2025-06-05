@@ -260,7 +260,7 @@ static void cam_mem_trace_reset(void)
 	list_for_each_entry_safe(page_header, page_header_tmp,
 		&g_trace.record_page_list, list) {
 		list_del_init(&page_header->list);
-		cam_mem_trace_free(page_header);
+		cam_mem_trace_free(page_header, false);
 	}
 
 	list_for_each_entry_safe(trace_header, trace_header_tmp,
@@ -277,7 +277,7 @@ static void cam_mem_trace_reset(void)
 }
 
 void *cam_mem_trace_alloc(size_t size, gfp_t gfp_flags,
-	const char *owner, int line)
+	bool force_kalloc, const char *owner, int line)
 {
 	size_t alloc_sz;
 	unsigned long flags;
@@ -287,7 +287,11 @@ void *cam_mem_trace_alloc(size_t size, gfp_t gfp_flags,
 
 	alloc_sz = size + sizeof(struct cam_mem_trace_header)
 		+ sizeof(struct cam_mem_trace_footer);
-	header_kva = kvzalloc(alloc_sz, gfp_flags);
+
+	if (force_kalloc)
+		header_kva = kzalloc(alloc_sz, gfp_flags);
+	else
+		header_kva = kvzalloc(alloc_sz, gfp_flags);
 	if (!header_kva) {
 		CAM_ERR(CAM_MEM, "Failed to alloc mem with size: %lu bytes", size);
 		return NULL;
@@ -428,7 +432,7 @@ again:
 	spin_unlock_irqrestore(&g_trace.lock, flags);
 }
 
-void cam_mem_trace_free(const void *vaddr_ptr)
+void cam_mem_trace_free(const void *vaddr_ptr, bool force_kfree)
 {
 	int header_magic, footer_magic;
 	unsigned long flags;
@@ -444,7 +448,10 @@ void cam_mem_trace_free(const void *vaddr_ptr)
 		CAM_WARN(CAM_MEM,
 			"Likely memory corruption - No header magic detected for %pK",
 			vaddr_ptr);
-		kvfree(vaddr_ptr);
+		if (force_kfree)
+			kfree(vaddr_ptr);
+		else
+			kvfree(vaddr_ptr);
 		return;
 	}
 
@@ -463,7 +470,10 @@ void cam_mem_trace_free(const void *vaddr_ptr)
 	if (list_empty(&g_trace.trace_list)) {
 		spin_unlock_irqrestore(&g_trace.lock, flags);
 		CAM_WARN(CAM_MEM, "Empty memory trace list. Fallback to kvfree.");
-		kvfree(vaddr_ptr);
+		if (force_kfree)
+			kfree(vaddr_ptr);
+		else
+			kvfree(vaddr_ptr);
 		return;
 	}
 
@@ -473,7 +483,10 @@ void cam_mem_trace_free(const void *vaddr_ptr)
 		+ sizeof(struct cam_mem_trace_footer));
 	spin_unlock_irqrestore(&g_trace.lock, flags);
 
-	kvfree(header_kva);
+	if (force_kfree)
+		kfree(header_kva);
+	else
+		kvfree(header_kva);
 }
 EXPORT_SYMBOL(cam_mem_trace_free);
 
@@ -482,7 +495,7 @@ void *memdup_user_trace(const void __user *src, size_t len,
 {
 	void *p;
 
-	p = cam_mem_trace_alloc(len, GFP_USER | __GFP_NOWARN, owner, line);
+	p = cam_mem_trace_alloc(len, GFP_USER | __GFP_NOWARN, false, owner, line);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 

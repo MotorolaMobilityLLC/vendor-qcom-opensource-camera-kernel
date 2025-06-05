@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -499,7 +499,7 @@ int cam_sfe_core_init(
 	struct cam_hw_intf           *hw_intf,
 	struct cam_sfe_hw_info       *sfe_hw_info)
 {
-	int rc = -EINVAL;
+	int rc;
 
 	rc = cam_irq_controller_init(drv_name,
 		CAM_SOC_GET_REG_MAP_START(soc_info, SFE_CORE_BASE_IDX),
@@ -535,7 +535,6 @@ int cam_sfe_core_init(
 		goto deinit_bus_wr;
 	}
 
-	spin_lock_init(&core_info->spin_lock);
 	CAM_DBG(CAM_SFE, "SFE device [%u] INIT success",
 		hw_intf->hw_idx);
 	return rc;
@@ -558,10 +557,7 @@ int cam_sfe_core_deinit(
 	struct cam_sfe_hw_core_info  *core_info,
 	struct cam_sfe_hw_info       *sfe_hw_info)
 {
-	int                rc = -EINVAL;
-	unsigned long      flags;
-
-	spin_lock_irqsave(&core_info->spin_lock, flags);
+	int rc;
 
 	rc = cam_sfe_bus_deinit(sfe_hw_info->bus_rd_version,
 		BUS_TYPE_SFE_RD, &core_info->sfe_bus_rd);
@@ -586,6 +582,5 @@ int cam_sfe_core_deinit(
 		CAM_ERR(CAM_SFE,
 			"Error cam_irq_controller_deinit failed rc=%d", rc);
 
-	spin_unlock_irqrestore(&core_info->spin_lock, flags);
 	return rc;
 }

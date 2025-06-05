@@ -65,7 +65,6 @@ struct cam_vfe_hw_core_info {
 	struct cam_vfe_bus                 *vfe_bus;
 	struct cam_vfe_bus                 *vfe_rd_bus;
 	void                               *tasklet_info;
-	spinlock_t                          spin_lock;
 };
 /**
  * struct cam_vfe_core_debug_data - Placeholder for Debug data for bus and top
