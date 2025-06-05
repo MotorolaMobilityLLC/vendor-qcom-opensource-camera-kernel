@@ -230,6 +230,69 @@ static uint32_t vfe48x_out_port_mid[][4] = {
 	{19, 0, 0, 0},
 };
 
+static struct  cam_vfe_bus_ver3_vfe_out_hw_info  vfe48x_out_hw_hw_info[] = {
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.mid           = vfe48x_out_port_mid[0],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			0,
+		},
+		.name          = {
+			"LITE_0",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
+		.mid           = vfe48x_out_port_mid[1],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			1,
+		},
+		.name          = {
+			"LITE_1",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_2,
+		.mid           = vfe48x_out_port_mid[2],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			2,
+		},
+		.name          = {
+			"LITE_2",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_3,
+		.mid           = vfe48x_out_port_mid[3],
+		.num_mid       = 1,
+		.num_wm        = 1,
+		.wm_idx        = {
+			3,
+		},
+		.name          = {
+			"LITE_3",
+		},
+	},
+};
+
 static struct cam_vfe_bus_ver3_hw_info vfe48x_bus_hw_info = {
 	.common_reg = {
 		.hw_version                       = 0x00001A00,
@@ -416,69 +479,8 @@ static struct cam_vfe_bus_ver3_hw_info vfe48x_bus_hw_info = {
 				BIT_ULL(CAM_FORMAT_PLAIN64) | BIT_ULL(CAM_FORMAT_YUV422_10),
 		},
 	},
-	.num_out = 4,
-	.vfe_out_hw_info = {
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = vfe48x_out_port_mid[0],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				0,
-			},
-			.name          = {
-				"LITE_0",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
-			.mid           = vfe48x_out_port_mid[1],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				1,
-			},
-			.name          = {
-				"LITE_1",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_2,
-			.mid           = vfe48x_out_port_mid[2],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				2,
-			},
-			.name          = {
-				"LITE_2",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_3,
-			.mid           = vfe48x_out_port_mid[3],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.wm_idx        = {
-				3,
-			},
-			.name          = {
-				"LITE_3",
-			},
-		},
-	},
+	.num_out = ARRAY_SIZE(vfe48x_out_hw_hw_info),
+	.vfe_out_hw_info = vfe48x_out_hw_hw_info,
 	.num_comp_grp    = 4,
 	.comp_done_mask = {
 		BIT(4), BIT(5), BIT(6), BIT(7),

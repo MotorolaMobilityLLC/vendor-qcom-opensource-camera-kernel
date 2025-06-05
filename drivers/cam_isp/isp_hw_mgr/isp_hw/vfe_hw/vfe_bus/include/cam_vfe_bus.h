@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_VFE_BUS_H_
@@ -90,5 +90,19 @@ int cam_vfe_bus_init(uint32_t          bus_version,
  */
 int cam_vfe_bus_deinit(uint32_t        bus_version,
 	struct cam_vfe_bus           **vfe_bus);
+/*
+ * cam_vfe_bus_debug_handler()
+ *
+ * @Brief:                   Debug handler for bus layer
+ *
+ * @priv:                    Private pointer to bus layer
+ * @bus_version:             Version of BUS to deinitialize
+ * @data:                    Pointer to information passed for debug purpose
+ *
+ * @Return:                 void
+ *
+ */
+void cam_vfe_bus_debug_handler(
+	void *priv, int bus_version, void *data);
 
 #endif /* _CAM_VFE_BUS_ */

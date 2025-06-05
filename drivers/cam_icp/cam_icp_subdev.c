@@ -88,7 +88,7 @@ static int cam_icp_dev_evt_inject_cb(void *inject_args)
 
 static void cam_icp_dev_iommu_fault_handler(struct cam_smmu_pf_info *pf_smmu_info)
 {
-	int i, rc;
+	int i = 0, rc;
 	struct cam_node *node = NULL;
 	struct cam_hw_dump_pf_args pf_args = {0};
 
@@ -103,10 +103,25 @@ static void cam_icp_dev_iommu_fault_handler(struct cam_smmu_pf_info *pf_smmu_inf
 
 	/* Checked whether client with SMMU issued pid should be handled by this handler */
 	if (node->ctx_size != 0 && cam_smmu_is_fault_ids_valid(pf_smmu_info)) {
-		pf_args.check_pid = true;
-		cam_context_dump_pf_info(&(node->ctx_list[0]), &pf_args);
-		if (!pf_args.pid_found)
-			return;
+		for (i = 0; i < node->ctx_size; i++) {
+			CAM_DBG(CAM_ICP, "Node name %s ctx_idx %d", node->name, i);
+			pf_args.check_pid = true;
+			cam_context_dump_pf_info(&(node->ctx_list[i]), &pf_args);
+			if (pf_args.pf_pid_found_status == CAM_PF_PID_FOUND_PENDING) {
+				continue;
+			} else if (pf_args.pf_pid_found_status == CAM_PF_PID_FOUND_FAILURE) {
+				CAM_INFO(CAM_ICP, "pid %d was not found for %s",
+					pf_args.pf_smmu_info->pid, node->name);
+				return;
+			} else
+				break;
+		}
+	}
+
+	if (i == node->ctx_size) {
+		CAM_INFO(CAM_ICP, "All contexts are inactive. PID %d was not found for %s",
+			pf_args.pf_smmu_info->pid, node->name);
+		return;
 	}
 
 	for (i = 0; i < node->ctx_size; i++) {

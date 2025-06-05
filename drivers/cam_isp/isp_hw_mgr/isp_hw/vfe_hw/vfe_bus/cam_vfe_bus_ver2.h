@@ -194,8 +194,7 @@ struct cam_vfe_bus_ver2_hw_info {
 	struct cam_vfe_bus_ver2_reg_offset_comp_grp
 		comp_grp_reg[CAM_VFE_BUS_VER2_COMP_GRP_MAX];
 	uint32_t num_out;
-	struct cam_vfe_bus_ver2_vfe_out_hw_info
-		vfe_out_hw_info[CAM_VFE_BUS_VER2_VFE_OUT_MAX];
+	struct cam_vfe_bus_ver2_vfe_out_hw_info *vfe_out_hw_info;
 	uint32_t top_irq_shift;
 	bool support_consumed_addr;
 	uint32_t max_out_res;

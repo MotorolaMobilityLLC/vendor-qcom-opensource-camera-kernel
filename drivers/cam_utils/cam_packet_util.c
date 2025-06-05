@@ -12,20 +12,6 @@
 #include "cam_debug_util.h"
 #include "cam_common_util.h"
 
-#define CAM_UNIQUE_SRC_HDL_MAX 50
-#define CAM_UNIQUE_DST_HDL_MAX 50
-#define CAM_PRESIL_UNIQUE_HDL_MAX 50
-
-struct cam_patch_unique_buf_tbl {
-	int32_t       hdl;
-	size_t        buf_size;
-	uint32_t      flags;
-	union {
-		dma_addr_t iova;
-		uintptr_t  kva;
-	} u;
-};
-
 int cam_packet_util_get_cmd_mem_addr(int handle, uint32_t **buf_addr,
 	size_t *len)
 {
@@ -424,34 +410,64 @@ static inline int cam_packet_util_get_patch_kva(
 	return rc;
 }
 
-int cam_packet_util_process_patches(struct cam_packet *packet,
-	struct list_head *mapped_io_list, int32_t iommu_hdl, int32_t sec_mmu_hdl,
-	bool exp_mem)
+int cam_packet_util_get_unique_tbl(struct cam_patch_unique_buf_tbl **src_tbl,
+	struct cam_patch_unique_buf_tbl **dst_tbl)
 {
-	struct cam_patch_desc *patch_desc = NULL;
-	dma_addr_t iova_addr, temp;
-	uint32_t  *dst_cpu_addr;
-	uintptr_t  cpu_addr;
-	size_t     dst_buf_len;
-	size_t     src_buf_size;
-	int        i, rc = 0;
-	uint32_t   flags = 0;
-	int32_t    hdl;
-	struct cam_patch_unique_buf_tbl *src_tbl, *dst_tbl;
+	struct cam_patch_unique_buf_tbl *unique_src_tbl, *unique_dst_tbl;
 
-	src_tbl = CAM_MEM_ZALLOC_ARRAY(CAM_UNIQUE_SRC_HDL_MAX,
+	unique_src_tbl = CAM_MEM_ZALLOC_ARRAY(CAM_UNIQUE_SRC_HDL_MAX,
 		sizeof(struct cam_patch_unique_buf_tbl), GFP_KERNEL);
-	if (!src_tbl) {
-		CAM_ERR(CAM_UTIL, "Failed at allocating memory for tbl for unique src buf hdl");
+	if (!unique_src_tbl) {
+		CAM_ERR(CAM_UTIL, "Failed at allocating unique src tbl");
 		return -ENOMEM;
 	}
 
-	dst_tbl = CAM_MEM_ZALLOC_ARRAY(CAM_UNIQUE_DST_HDL_MAX,
+	unique_dst_tbl = CAM_MEM_ZALLOC_ARRAY(CAM_UNIQUE_DST_HDL_MAX,
 		sizeof(struct cam_patch_unique_buf_tbl), GFP_KERNEL);
-	if (!dst_tbl) {
-		CAM_ERR(CAM_UTIL, "Failed at allocating memory for tbl for unique dst buf hdl");
-		CAM_MEM_FREE(src_tbl);
+	if (!unique_dst_tbl) {
+		CAM_ERR(CAM_UTIL, "Failed at allocating unique dst tbl");
+		CAM_MEM_FREE(unique_src_tbl);
 		return -ENOMEM;
+	}
+
+	*src_tbl = unique_src_tbl;
+	*dst_tbl = unique_dst_tbl;
+
+	return 0;
+}
+
+void cam_packet_util_put_unique_tbl(struct cam_patch_unique_buf_tbl *src_tbl,
+	struct cam_patch_unique_buf_tbl *dst_tbl)
+{
+	CAM_MEM_FREE(src_tbl);
+	CAM_MEM_FREE(dst_tbl);
+}
+
+int cam_packet_util_process_patches(struct cam_packet *packet,
+	struct list_head *mapped_io_list, int32_t iommu_hdl, int32_t sec_mmu_hdl,
+	bool exp_mem, struct cam_patch_unique_buf_tbl *in_src_tbl,
+	struct cam_patch_unique_buf_tbl *in_dst_tbl)
+{
+	struct cam_patch_desc *patch_desc;
+	dma_addr_t iova_addr, temp;
+	uint32_t  *dst_cpu_addr, flags = 0;
+	uintptr_t  cpu_addr;
+	size_t     dst_buf_len, src_buf_size;
+	int        i, rc = 0;
+	int32_t    hdl;
+	struct cam_patch_unique_buf_tbl *src_tbl, *dst_tbl;
+
+	src_tbl = in_src_tbl;
+	dst_tbl = in_dst_tbl;
+	if (!in_src_tbl || !in_dst_tbl) {
+		CAM_DBG(CAM_UTIL,
+			"Unique src/dst table is not provided by the client, src_tbl: 0x%x, dst_tbl: 0x%x",
+			in_src_tbl, in_dst_tbl);
+		rc = cam_packet_util_get_unique_tbl(&src_tbl, &dst_tbl);
+		if (rc) {
+			CAM_ERR(CAM_UTIL, "Failed at allocating mem for unique buf handle table");
+			return rc;
+		}
 	}
 
 	/* process patch descriptor */
@@ -543,8 +559,10 @@ end:
 		cam_mem_put_cpu_buf(dst_tbl[i].hdl);
 	}
 
-	CAM_MEM_FREE(dst_tbl);
-	CAM_MEM_FREE(src_tbl);
+	/* Free unique src/dst table only if clients do not provide it */
+	if (!in_src_tbl || !in_dst_tbl)
+		cam_packet_util_put_unique_tbl(src_tbl, dst_tbl);
+
 	return rc;
 }
 

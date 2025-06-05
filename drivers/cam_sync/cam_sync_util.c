@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2018, 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "cam_sync_util.h"
@@ -447,6 +447,25 @@ clean_children_info:
 	return rc;
 }
 
+static inline void cam_sync_deinit_row(struct sync_table_row *row)
+{
+	/* Zero out content of sync table row except completion variable */
+	row->type = 0;
+	row->sync_id = 0;
+	row->state = 0;
+	row->remaining = 0;
+	row->ext_fence_mask = 0;
+	atomic_set(&row->ref_cnt, 0);
+
+	memset(row->name, 0, sizeof(char) * CAM_SYNC_OBJ_NAME_LEN);
+	memset(&row->parents_list, 0, sizeof(struct list_head));
+	memset(&row->children_list, 0, sizeof(struct list_head));
+	memset(&row->callback_list, 0, sizeof(struct list_head));
+	memset(&row->user_payload_list, 0, sizeof(struct list_head));
+	memset(&row->dma_fence_info, 0, sizeof(struct sync_dma_fence_info));
+	memset(&row->synx_obj_info, 0, sizeof(struct sync_synx_obj_info));
+}
+
 int cam_sync_deinit_object(struct sync_table_row *table, uint32_t idx,
 	struct cam_sync_check_for_dma_release *check_for_dma_release,
 	struct cam_sync_check_for_synx_release *check_for_synx_release)
@@ -618,7 +637,14 @@ int cam_sync_deinit_object(struct sync_table_row *table, uint32_t idx,
 		}
 	}
 
-	memset(row, 0, sizeof(*row));
+	cam_sync_deinit_row(row);
+
+	/*
+	 * Unblock other threads waiting on this completion variable to
+	 * avoid potential race condition when operating on such field
+	 */
+	complete_all(&row->signaled);
+
 	clear_bit(idx, sync_dev->bitmap);
 	INIT_LIST_HEAD(&row->callback_list);
 	INIT_LIST_HEAD(&row->parents_list);

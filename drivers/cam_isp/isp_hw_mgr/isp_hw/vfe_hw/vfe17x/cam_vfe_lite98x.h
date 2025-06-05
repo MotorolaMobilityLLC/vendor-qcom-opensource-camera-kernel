@@ -220,7 +220,6 @@ static struct cam_vfe_top_ver4_hw_info vfe_lite98x_top_hw_info = {
 		.reg_data       = &vfe_lite98x_ipp_reg_data,
 	},
 	.ipp_module_desc        = vfe_lite78x_ipp_mod_desc,
-	.wr_client_desc         = vfe_lite78x_wr_client_desc,
 	.num_mux = 5,
 	.mux_type = {
 		CAM_VFE_CAMIF_VER_4_0,
@@ -248,15 +247,6 @@ static struct cam_irq_register_set vfe_lite98x_bus_irq_reg[1] = {
 		.clear_reg_offset  = 0x00000020,
 		.status_reg_offset = 0x00000028,
 	},
-};
-
-static uint32_t vfe_lite98x_out_port_mid[][4] = {
-	{8, 0, 0, 0},
-	{9, 0, 0, 0},
-	{10, 0, 0, 0},
-	{11, 0, 0, 0},
-	{12, 0, 0, 0},
-	{13, 0, 0, 0},
 };
 
 static struct cam_vfe_bus_ver3_hw_info vfe_lite98x_bus_hw_info = {
@@ -333,21 +323,45 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite98x_bus_hw_info = {
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_1,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
+			.name                     = "LITE_0",
+			.line_based               = 1,
+			.mid                      = {8},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
+			.pid_mask                 = BIT_ULL(19) | BIT_ULL(20),
 		},
 		/* BUS Client 1 RDI1 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
+			.name                     = "LITE_1",
+			.line_based               = 1,
+			.mid                      = {9},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
+			.pid_mask                 = BIT_ULL(19) | BIT_ULL(20),
 		},
 		/* BUS Client 2 RDI2 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
+			.name                     = "LITE_2",
+			.line_based               = 1,
+			.mid                      = {10},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
+			.pid_mask                 = BIT_ULL(19) | BIT_ULL(20),
 		},
 		/* BUS Client 3 RDI3 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_4,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
+			.name                     = "LITE_3",
+			.line_based               = 1,
+			.mid                      = {11},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
+			.pid_mask                 = BIT_ULL(19) | BIT_ULL(20),
 		},
 		/* BUS Client 4 Gamma */
 		{
@@ -363,117 +377,24 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite98x_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "PREPROCESS_RAW",
+			.mid                      = {12},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_RAW,
+			.pid_mask                 = BIT_ULL(19) | BIT_ULL(20),
 		},
 		/* BUS Client 5 Stats BE */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "STATS_BG",
+			.mid                      = {13},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BG,
+			.pid_mask                 = BIT_ULL(19) | BIT_ULL(20),
 		},
 	},
 	.valid_wm_mask   = 0x1F,
-	.vfe_out_hw_info = {
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.mid           = vfe_lite98x_out_port_mid[0],
-			.num_mid       = 1,
-			.wm_idx        = {
-				0,
-			},
-			.name          = {
-				"LITE_0",
-			},
-			.pid_mask = BIT_ULL(19) | BIT_ULL(20),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_2,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.mid           = vfe_lite98x_out_port_mid[1],
-			.num_mid       = 1,
-			.wm_idx        = {
-				1,
-			},
-			.name          = {
-				"LITE_1",
-			},
-			.pid_mask = BIT_ULL(19) | BIT_ULL(20),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_3,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.mid           = vfe_lite98x_out_port_mid[2],
-			.num_mid       = 1,
-			.wm_idx        = {
-				2,
-			},
-			.name          = {
-				"LITE_2",
-			},
-			.pid_mask = BIT_ULL(19) | BIT_ULL(20),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_4,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.mid           = vfe_lite98x_out_port_mid[3],
-			.num_mid       = 1,
-			.wm_idx        = {
-				3,
-			},
-			.name          = {
-				"LITE_3",
-			},
-			.pid_mask = BIT_ULL(19) | BIT_ULL(20),
-		},
-		{
-			.vfe_out_type  =
-				CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_RAW,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.num_wm        = 1,
-			.mid           = vfe_lite98x_out_port_mid[4],
-			.num_mid       = 1,
-			.wm_idx        = {
-				4,
-			},
-			.name          = {
-				"PREPROCESS_RAW",
-			},
-			.pid_mask = BIT_ULL(19) | BIT_ULL(20),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BG,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.num_wm        = 1,
-			.mid           = vfe_lite98x_out_port_mid[5],
-			.num_mid       = 1,
-			.wm_idx        = {
-				5,
-			},
-			.name          = {
-				"STATS_BG",
-			},
-			.pid_mask = BIT_ULL(19) | BIT_ULL(20),
-		},
-	},
 	.num_comp_grp    = 5,
 	.support_consumed_addr = true,
 	.comp_done_mask = {

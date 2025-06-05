@@ -339,6 +339,104 @@ static uint32_t vfe680x_out_port_mid[][4] = {
 	{13, 0, 0, 0},
 };
 
+static struct  cam_vfe_bus_ver3_vfe_out_hw_info  vfe68x_out_hw_hw_info[] = {
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
+		.num_wm        = 1,
+		.mid           = vfe680x_out_port_mid[0],
+		.num_mid       = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			0,
+		},
+		.name          = {
+			"LITE_0",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_2,
+		.num_wm        = 1,
+		.mid           = vfe680x_out_port_mid[1],
+		.num_mid       = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			1,
+		},
+		.name          = {
+			"LITE_1",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_3,
+		.num_wm        = 1,
+		.mid           = vfe680x_out_port_mid[2],
+		.num_mid       = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			2,
+		},
+		.name          = {
+			"LITE_2",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_4,
+		.num_wm        = 1,
+		.mid           = vfe680x_out_port_mid[3],
+		.num_mid       = 1,
+		.line_based    = 1,
+		.wm_idx        = {
+			3,
+		},
+		.name          = {
+			"LITE_3",
+		},
+	},
+	{
+		.vfe_out_type  =
+			CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_RAW,
+		.max_width     = 1920,
+		.max_height    = 1080,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.num_wm        = 1,
+		.mid           = vfe680x_out_port_mid[4],
+		.num_mid       = 1,
+		.wm_idx        = {
+			4,
+		},
+		.name          = {
+			"PREPROCESS_RAW",
+		},
+	},
+	{
+		.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BG,
+		.max_width     = -1,
+		.max_height    = -1,
+		.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
+		.num_wm        = 1,
+		.mid           = vfe680x_out_port_mid[5],
+		.num_mid       = 1,
+		.wm_idx        = {
+			5,
+		},
+		.name          = {
+			"STATS_BG",
+		},
+	},
+};
+
 static struct cam_vfe_bus_ver3_hw_info vfe680x_bus_hw_info = {
 	.common_reg = {
 		.hw_version                       = 0x00001200,
@@ -594,104 +692,8 @@ static struct cam_vfe_bus_ver3_hw_info vfe680x_bus_hw_info = {
 			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN64),
 		},
 	},
-	.num_out = 6,
-	.vfe_out_hw_info = {
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
-			.num_wm        = 1,
-			.mid           = vfe680x_out_port_mid[0],
-			.num_mid       = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				0,
-			},
-			.name          = {
-				"LITE_0",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_2,
-			.num_wm        = 1,
-			.mid           = vfe680x_out_port_mid[1],
-			.num_mid       = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				1,
-			},
-			.name          = {
-				"LITE_1",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_3,
-			.num_wm        = 1,
-			.mid           = vfe680x_out_port_mid[2],
-			.num_mid       = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				2,
-			},
-			.name          = {
-				"LITE_2",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_4,
-			.num_wm        = 1,
-			.mid           = vfe680x_out_port_mid[3],
-			.num_mid       = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				3,
-			},
-			.name          = {
-				"LITE_3",
-			},
-		},
-		{
-			.vfe_out_type  =
-				CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_RAW,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.num_wm        = 1,
-			.mid           = vfe680x_out_port_mid[4],
-			.num_mid       = 1,
-			.wm_idx        = {
-				4,
-			},
-			.name          = {
-				"PREPROCESS_RAW",
-			},
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BG,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.num_wm        = 1,
-			.mid           = vfe680x_out_port_mid[5],
-			.num_mid       = 1,
-			.wm_idx        = {
-				5,
-			},
-			.name          = {
-				"STATS_BG",
-			},
-		},
-	},
+	.num_out = ARRAY_SIZE(vfe68x_out_hw_hw_info),
+	.vfe_out_hw_info = vfe68x_out_hw_hw_info,
 	.num_comp_grp    = 5,
 	.support_consumed_addr = true,
 	.comp_done_mask = {

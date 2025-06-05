@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -52,6 +52,12 @@ struct g_csiphy_data {
 	uint32_t aon_cam_id;
 	struct cam_csiphy_aon_sel_params_t *aon_sel_param;
 	struct csiphy_qmargin_sweep_data *qmargin_data;
+};
+
+struct csiphy_lane_settings_param {
+	uint32_t num_offsets;
+	uint32_t lane_reg_offset;
+	struct csiphy_reg_t *reg_array;
 };
 
 static DEFINE_MUTEX(active_csiphy_cnt_mutex);
@@ -475,6 +481,7 @@ static void cam_csiphy_reset_phyconfig_param(struct csiphy_device *csiphy_dev,
 	csiphy_dev->csiphy_info[index].is_drv_config_en = false;
 	csiphy_dev->csiphy_info[index].t3_prepare = 0;
 	csiphy_dev->csiphy_info[index].t3_preamble = 0;
+	csiphy_dev->csiphy_info[index].use_sec_dphy_clk_lane = false;
 }
 
 static inline void cam_csiphy_apply_onthego_reg_values(void __iomem *csiphybase, uint8_t csiphy_idx)
@@ -857,13 +864,14 @@ static int cam_csiphy_update_secure_info(struct csiphy_device *csiphy_dev, int32
 
 static int cam_csiphy_get_lane_enable(
 	struct csiphy_device *csiphy, int index,
-	uint16_t lane_assign, uint32_t *lane_enable)
+	uint16_t lane_assign, uint32_t *lane_enable,
+	uint8_t *lowest_dphy_ln_idx)
 {
 	uint32_t lane_select = 0;
 
 	if (csiphy->csiphy_info[index].csiphy_3phase) {
 		CAM_DBG(CAM_CSIPHY, "LaneEnable for CPHY");
-		switch (lane_assign & 0xF) {
+		switch (lane_assign) {
 		case 0x0:
 			lane_select |= CPHY_LANE_0;
 			break;
@@ -882,32 +890,18 @@ static int cam_csiphy_get_lane_enable(
 		}
 	} else {
 		CAM_DBG(CAM_CSIPHY, "LaneEnable for DPHY");
-		switch (lane_assign & 0xF) {
+		switch (lane_assign) {
 		case 0x0:
 			lane_select |= DPHY_LANE_0;
-			lane_select |= DPHY_CLK_LN;
 			break;
 		case 0x1:
 			lane_select |= DPHY_LANE_1;
-			lane_select |= DPHY_CLK_LN;
 			break;
 		case 0x2:
 			lane_select |= DPHY_LANE_2;
-			if (csiphy->combo_mode)
-				lane_select |= DPHY_LANE_3;
-			else
-				lane_select |= DPHY_CLK_LN;
 			break;
 		case 0x3:
-			if (csiphy->combo_mode) {
-				CAM_ERR(CAM_CSIPHY,
-					"Wrong lane configuration for DPHYCombo: %d",
-					lane_assign);
-				*lane_enable = 0;
-				return -EINVAL;
-			}
 			lane_select |= DPHY_LANE_3;
-			lane_select |= DPHY_CLK_LN;
 			break;
 		default:
 			CAM_ERR(CAM_CSIPHY,
@@ -916,6 +910,8 @@ static int cam_csiphy_get_lane_enable(
 			*lane_enable = 0;
 			return -EINVAL;
 		}
+		if (lowest_dphy_ln_idx)
+			*lowest_dphy_ln_idx = min(lane_assign, *lowest_dphy_ln_idx);
 	}
 
 	*lane_enable = lane_select;
@@ -965,7 +961,7 @@ static int __cam_csiphy_parse_lane_info_cmd_buf(
 	struct cam_cmd_buf_desc *cmd_desc)
 {
 	int index, rc = 0;
-	uint8_t lane_cnt = 0;
+	uint8_t lane_cnt = 0, lowest_dphy_lane_idx = CAM_CSIPHY_MAX_DPHY_LANES;
 	uint32_t lane_enable = 0;
 	uint16_t lane_assign = 0, preamble_en = 0;
 	uintptr_t generic_ptr;
@@ -1102,7 +1098,7 @@ static int __cam_csiphy_parse_lane_info_cmd_buf(
 
 	while (lane_cnt--) {
 		rc = cam_csiphy_get_lane_enable(csiphy_dev, index,
-			(lane_assign & 0xF), &lane_enable);
+			(lane_assign & 0xF), &lane_enable, &lowest_dphy_lane_idx);
 		if (rc) {
 			CAM_ERR(CAM_CSIPHY, "Wrong lane configuration: %d",
 				csiphy_dev->csiphy_info[index].lane_assign);
@@ -1118,6 +1114,39 @@ static int __cam_csiphy_parse_lane_info_cmd_buf(
 		}
 		csiphy_dev->csiphy_info[index].lane_enable |= lane_enable;
 		lane_assign >>= 4;
+	}
+
+	/**
+	 * The physical lane layout of the PHY is as follows:
+	 * +-----------------------------------------------------------------------------------+
+	 * |   ln7   |    ln0  |   ln1   |   ln2   |   ln3   |   ln4   |   ln5   |     ln6     |
+	 * | DPHYclk | DPHYln0 | CPHYln0 | DPHYln1 | CPHYln1 | DPHYln2 | CPHYln2 | DPHYln3/clk |
+	 * +-----------------------------------------------------------------------------------+
+	 * ln7 and ln6 on either end can be configured as clk ln for DPHY,
+	 * and the group of lanes streaming for a sensor needs to be grouped together.
+	 * eg, (ln0, ln4) and (ln2, ln6) not valid due to physical interference concerns
+	 * With the above restriction, by getting the lowest lane idx in lane_assign, we
+	 * can determine if ln7 or ln6 is the clk lane
+	 */
+	if (!csiphy_dev->csiphy_info[index].csiphy_3phase) {
+		csiphy_dev->csiphy_info[index].use_sec_dphy_clk_lane =
+			(lowest_dphy_lane_idx != DPHY_DATA_LANE_POS_0);
+		csiphy_dev->csiphy_info[index].lane_enable |=
+			lowest_dphy_lane_idx ? DPHY_LANE_3 : DPHY_CLK_LN;
+
+		CAM_DBG(CAM_CSIPHY, "PHY[%u] use_sec_dphy_clk_lane: %s",
+			csiphy_dev->soc_info.index,
+			CAM_BOOL_TO_YESNO(csiphy_dev->csiphy_info[index].use_sec_dphy_clk_lane));
+	}
+
+	if ((csiphy_dev->lane_enable | csiphy_dev->csiphy_info[index].lane_enable) !=
+		(csiphy_dev->lane_enable ^ csiphy_dev->csiphy_info[index].lane_enable)) {
+		CAM_ERR(CAM_CSIPHY,
+			"Lane(s) already in use: currenly enabled: 0x%x, to be enabled: 0x%x",
+			csiphy_dev->lane_enable,
+			csiphy_dev->csiphy_info[index].lane_enable);
+		rc = -EINVAL;
+		goto reset_settings;
 	}
 
 	if (csiphy_dev->csiphy_info[index].secure_mode == 1) {
@@ -1527,8 +1556,70 @@ static inline void __cam_csiphy_compute_cdr_value(
 	*cdr_val = computed_cdr;
 }
 
-static int cam_csiphy_cphy_data_rate_config(struct csiphy_device *csiphy_device, int32_t idx,
-	uint8_t datarate_variant_idx)
+static void cam_csiphy_program_cphy_common_ctrl_settings(
+	struct csiphy_device *csiphy_dev, uint8_t datarate_variant_idx)
+{
+	void __iomem *csiphybase;
+	ssize_t num_ctrl_settings;
+	struct data_rate_settings_t *settings_table;
+	struct data_rate_reg_info_t *drate_settings;
+	uint32_t reg_addr, reg_data, reg_param_type;
+	int32_t  delay;
+	struct csiphy_reg_t *common_settings;
+	uint8_t csiphy_index = 0;
+	int i;
+
+	if (!csiphy_dev) {
+		CAM_ERR(CAM_CSIPHY, "Device is NULL");
+		return;
+	}
+
+	if (datarate_variant_idx >= CAM_CSIPHY_MAX_DATARATE_VARIANTS) {
+		CAM_ERR(CAM_CSIPHY, "Datarate variant Idx: %u can not exceed %u",
+			datarate_variant_idx, CAM_CSIPHY_MAX_DATARATE_VARIANTS-1);
+		return;
+	}
+
+	/* This is always called after cphy_data_rate_config */
+
+	csiphybase = csiphy_dev->soc_info.reg_map[0].mem_base;
+	csiphy_index = csiphy_dev->soc_info.index;
+	settings_table = csiphy_dev->ctrl_reg->data_rates_settings_table;
+	drate_settings = settings_table->data_rate_settings;
+	num_ctrl_settings = drate_settings[
+		csiphy_dev->curr_data_rate_idx].common_ctrl_reg_array_size;
+	common_settings = drate_settings[
+		csiphy_dev->curr_data_rate_idx].common_ctrl_reg_array[
+			csiphy_index][datarate_variant_idx];
+
+	for (i = 0; i < num_ctrl_settings; i++) {
+		reg_addr = common_settings[i].reg_addr;
+		reg_data = common_settings[i].reg_data;
+		reg_param_type = common_settings[i].csiphy_param_type;
+		delay = common_settings[i].delay;
+
+		switch (reg_param_type) {
+		case CSIPHY_DEFAULT_PARAMS:
+			cam_io_w_mb(reg_data, csiphybase + reg_addr);
+		break;
+		case CSIPHY_AUXILIARY_SETTING: {
+			uint32_t phy_idx = csiphy_dev->soc_info.index;
+
+			if (g_phy_data[phy_idx].data_rate_aux_mask &
+				BIT_ULL(csiphy_dev->curr_data_rate_idx)) {
+				cam_io_w_mb(reg_data, csiphybase + reg_addr);
+				CAM_DBG(CAM_CSIPHY,
+					"CSIPHY: %u configuring new aux setting reg_addr: 0x%x reg_val: 0x%x",
+					csiphy_dev->soc_info.index, reg_addr, reg_data);
+			}
+		}
+		break;
+		}
+	}
+}
+
+static int cam_csiphy_cphy_data_rate_config(struct csiphy_device *csiphy_device,
+	int32_t idx, uint16_t lane_idx, uint8_t datarate_variant_idx)
 {
 	int i, j = 0, rc = 0;
 	unsigned int data_rate_idx;
@@ -1536,8 +1627,9 @@ static int cam_csiphy_cphy_data_rate_config(struct csiphy_device *csiphy_device,
 	void __iomem *csiphybase;
 	ssize_t num_data_rates;
 	struct data_rate_settings_t *settings_table;
+	struct data_rate_reg_info_t *drate_settings;
 	uint16_t settle_cnt = 0;
-	uint32_t reg_addr, reg_data, reg_param_type;
+	uint32_t lane_reg_offset, reg_addr, reg_data, reg_param_type;
 	int32_t  delay;
 	struct csiphy_reg_t *config_params, *cdr_regs;
 	uint8_t csiphy_index = 0;
@@ -1564,6 +1656,7 @@ static int cam_csiphy_cphy_data_rate_config(struct csiphy_device *csiphy_device,
 	csiphybase = csiphy_device->soc_info.reg_map[0].mem_base;
 	settings_table = csiphy_device->ctrl_reg->data_rates_settings_table;
 	num_data_rates = settings_table->num_data_rate_settings;
+	drate_settings = settings_table->data_rate_settings;
 
 	rc = cam_csiphy_get_settle_count(csiphy_device, idx, &settle_cnt);
 	if (rc)
@@ -1578,7 +1671,7 @@ static int cam_csiphy_cphy_data_rate_config(struct csiphy_device *csiphy_device,
 		uint64_t supported_phy_bw = drate_settings[data_rate_idx].bandwidth;
 		ssize_t  num_reg_entries = drate_settings[data_rate_idx].data_rate_reg_array_size;
 		struct csiphy_reg_t **drate_reg_array =
-			drate_settings[data_rate_idx].data_rate_reg_array[csiphy_index];
+		drate_settings[data_rate_idx].data_rate_reg_array[csiphy_index];
 
 		if ((required_phy_data_rate > supported_phy_bw) &&
 			(data_rate_idx < (num_data_rates - 1))) {
@@ -1600,15 +1693,15 @@ static int cam_csiphy_cphy_data_rate_config(struct csiphy_device *csiphy_device,
 			return -EINVAL;
 		}
 
+		lane_reg_offset = csiphy_device->ctrl_reg->csiphy_ln_offsets[lane_idx];
 		config_params = drate_reg_array[datarate_variant_idx];
 		if (!config_params) {
-			CAM_ERR(CAM_CSIPHY, "Datarate settings are null. datarate variant idx: %u",
-				datarate_variant_idx);
+			CAM_ERR(CAM_CSIPHY, "Datarate settings are null.");
 			return -EINVAL;
 		}
 
 		for (i = 0; i < num_reg_entries; i++) {
-			reg_addr = config_params[i].reg_addr;
+			reg_addr = lane_reg_offset + config_params[i].reg_addr;
 			reg_data = config_params[i].reg_data;
 			reg_param_type = config_params[i].csiphy_param_type;
 			delay = config_params[i].delay;
@@ -1638,18 +1731,6 @@ static int cam_csiphy_cphy_data_rate_config(struct csiphy_device *csiphy_device,
 			case CSIPHY_SETTLE_CNT_HIGHER_BYTE:
 				cam_io_w_mb((settle_cnt >> 8) & 0xFF,
 					csiphybase + reg_addr);
-			break;
-			case CSIPHY_AUXILIARY_SETTING: {
-				uint32_t phy_idx = csiphy_device->soc_info.index;
-
-				if (g_phy_data[phy_idx].data_rate_aux_mask &
-					BIT_ULL(data_rate_idx)) {
-					cam_io_w_mb(reg_data, csiphybase + reg_addr);
-					CAM_DBG(CAM_CSIPHY,
-						"CSIPHY: %u configuring new aux setting reg_addr: 0x%x reg_val: 0x%x",
-						csiphy_device->soc_info.index, reg_addr, reg_data);
-				}
-			}
 			break;
 			default:
 				CAM_DBG(CAM_CSIPHY, "Do Nothing");
@@ -1709,10 +1790,158 @@ static int cam_csiphy_cphy_data_rate_config(struct csiphy_device *csiphy_device,
 	return 0;
 }
 
-static int __cam_csiphy_prgm_bist_reg(struct csiphy_device *csiphy_dev, bool is_3phase)
+static void cam_csiphy_get_lane_settings_param(struct csiphy_device *csiphy_dev,
+	uint16_t lane_idx, bool is_3phase, struct csiphy_lane_settings_param *lane_settings)
+{
+	struct csiphy_reg_parms_t *csiphy_reg = csiphy_dev->ctrl_reg->csiphy_reg;
+
+	lane_settings->lane_reg_offset =
+		csiphy_dev->ctrl_reg->csiphy_ln_offsets[lane_idx];
+
+	if (is_3phase) {
+		lane_settings->num_offsets = csiphy_reg->csiphy_3ph_config_array_size;
+		lane_settings->reg_array = csiphy_dev->ctrl_reg->csiphy_3ph_reg;
+	} else {
+		lane_settings->num_offsets = csiphy_reg->csiphy_2ph_config_array_size;
+		lane_settings->reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg;
+	}
+}
+
+static int cam_csiphy_program_lane_settings(struct csiphy_device *csiphy_dev,
+	int index, uint16_t settle_cnt, bool skew_cal_enable,
+	struct csiphy_lane_settings_param *lane_settings)
+{
+	void __iomem *csiphybase;
+	uint32_t num_offsets, lane_reg_offset, reg_addr;
+	struct csiphy_reg_t *reg_array;
+	struct csiphy_reg_parms_t *csiphy_reg;
+	int i;
+
+	if (!csiphy_dev) {
+		CAM_ERR(CAM_CSIPHY, "Device is NULL");
+		return -EINVAL;
+	}
+
+	csiphybase = csiphy_dev->soc_info.reg_map[0].mem_base;
+	csiphy_reg = csiphy_dev->ctrl_reg->csiphy_reg;
+	reg_array = lane_settings->reg_array;
+	num_offsets = lane_settings->num_offsets;
+	lane_reg_offset = lane_settings->lane_reg_offset;
+
+	if (!num_offsets || !reg_array) {
+		CAM_ERR(CAM_CSIPHY, "Invalid lane settings param, num_offsets: %u, reg_array: %s",
+			num_offsets, CAM_BOOL_TO_YESNO(reg_array));
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_offsets; i++) {
+		reg_addr = lane_reg_offset + reg_array[i].reg_addr;
+
+		switch (reg_array[i].csiphy_param_type) {
+		case CSIPHY_DEFAULT_PARAMS:
+			cam_io_w_mb(reg_array[i].reg_data, csiphybase + reg_addr);
+		break;
+		case CSIPHY_SETTLE_CNT_LOWER_BYTE:
+			cam_io_w_mb(settle_cnt & 0xFF, csiphybase + reg_addr);
+		break;
+		case CSIPHY_SETTLE_CNT_HIGHER_BYTE:
+			cam_io_w_mb((settle_cnt >> 8) & 0xFF, csiphybase + reg_addr);
+		break;
+		case CSIPHY_SKEW_CAL:
+			if (skew_cal_enable)
+				cam_io_w_mb(reg_array[i].reg_data, csiphybase + reg_addr);
+			else
+				cam_io_w_mb(0x00, csiphybase + reg_addr);
+		break;
+		case CSIPHY_2PH_SEC_CLK_LN_SETTINGS:
+			if (csiphy_dev->csiphy_info[index].use_sec_dphy_clk_lane)
+				cam_io_w_mb((CLK_SEC_SEL | BIST_CLK_SEL), csiphybase + reg_addr);
+		break;
+		default:
+			CAM_DBG(CAM_CSIPHY, "Do Nothing");
+		break;
+		}
+
+		if (reg_array[i].delay > 0)
+			usleep_range(reg_array[i].delay, reg_array[i].delay + 5);
+	}
+
+	return 0;
+}
+
+static int cam_csiphy_program_dphy_clk_lane(struct csiphy_device *csiphy_dev,
+	int index, uint16_t settle_cnt, bool skew_cal_enable)
+{
+	void __iomem *csiphybase;
+	struct csiphy_lane_settings_param lane_settings;
+	uint32_t num_offsets, reg_addr;
+	struct csiphy_reg_t *reg_array;
+	struct csiphy_reg_parms_t *csiphy_reg;
+	int i, rc;
+	bool program_secondary = csiphy_dev->csiphy_info[index].use_sec_dphy_clk_lane;
+
+	csiphybase = csiphy_dev->soc_info.reg_map[0].mem_base;
+	csiphy_reg = csiphy_dev->ctrl_reg->csiphy_reg;
+
+	/* First program the usual settings */
+	lane_settings.reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg;
+	lane_settings.num_offsets = csiphy_reg->csiphy_2ph_config_array_size;
+	lane_settings.lane_reg_offset = program_secondary ?
+		csiphy_dev->ctrl_reg->csiphy_ln_offsets[DPHY_DATA_LANE_POS_3] :
+		csiphy_dev->ctrl_reg->csiphy_ln_offsets[DPHY_CLOCK_LANE_POS];
+
+	CAM_DBG(CAM_CSIPHY, "Prgm dphy clk lane, primary : %s",
+		CAM_BOOL_TO_YESNO(!program_secondary));
+
+	rc = cam_csiphy_program_lane_settings(csiphy_dev, index, settle_cnt,
+		skew_cal_enable, &lane_settings);
+	if (rc) {
+		CAM_ERR(CAM_CSIPHY, "Error while programming DPHY clk lane");
+		return rc;
+	}
+
+	/* Now program the edge cases */
+	reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_clk_ln_reg;
+	num_offsets = csiphy_dev->ctrl_reg->csiphy_reg->csiphy_2ph_clk_cfg_array_size;
+	if (!num_offsets || !reg_array) {
+		CAM_ERR(CAM_CSIPHY,
+			"Invalid clk reg params, num offsets: %u, reg_array: %s",
+			CAM_BOOL_TO_YESNO(reg_array));
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_offsets; i++) {
+		reg_addr = lane_settings.lane_reg_offset + reg_array[i].reg_addr;
+
+		switch (reg_array[i].csiphy_param_type) {
+		case CSIPHY_DEFAULT_PARAMS:
+			cam_io_w_mb(reg_array[i].reg_data, csiphybase + reg_addr);
+		break;
+		case CSIPHY_2PH_SEC_CLK_LN_SETTINGS:
+			if (program_secondary)
+				cam_io_w_mb((CLK_SEC_SEL | CLK_EN_SEL | BIST_CLK_SEL),
+					csiphybase + reg_addr);
+			else
+				cam_io_w_mb(CLK_EN_SEL, csiphybase + reg_addr);
+		break;
+		default:
+			CAM_DBG(CAM_CSIPHY, "Do Nothing");
+		break;
+		}
+
+		if (reg_array[i].delay > 0)
+			usleep_range(reg_array[i].delay, reg_array[i].delay + 5);
+	}
+
+	return rc;
+}
+
+static int __cam_csiphy_prgm_bist_reg(struct csiphy_device *csiphy_dev,
+	uint16_t lane_idx, bool is_3phase)
 {
 	int i;
 	int bist_arr_size;
+	uint32_t lane_reg_offset;
 	struct csiphy_reg_t *csiphy_common_reg;
 	void __iomem *csiphybase;
 
@@ -1732,9 +1961,11 @@ static int __cam_csiphy_prgm_bist_reg(struct csiphy_device *csiphy_dev, bool is_
 		return 0;
 	}
 
+	lane_reg_offset = csiphy_dev->ctrl_reg->csiphy_ln_offsets[lane_idx];
+
 	for (i = 0; i < bist_arr_size; i++) {
 		cam_io_w_mb(csiphy_common_reg[i].reg_data,
-			csiphybase + csiphy_common_reg[i].reg_addr);
+			csiphybase + lane_reg_offset + csiphy_common_reg[i].reg_addr);
 
 		if (csiphy_common_reg[i].delay)
 			usleep_range(csiphy_common_reg[i].delay, csiphy_common_reg[i].delay + 5);
@@ -1778,19 +2009,48 @@ static int cam_csiphy_program_secure_mode(struct csiphy_device *csiphy_dev,
 	return rc;
 }
 
-int32_t cam_csiphy_config_dev(struct csiphy_device *csiphy_dev,
-	int32_t dev_handle, uint8_t datarate_variant_idx)
+static int cam_csiphy_update_lane_selection(struct csiphy_device *csiphy, int index, bool enable)
 {
-	int32_t      rc = 0;
-	uint32_t     lane_enable = 0;
-	uint16_t     i = 0, cfg_size = 0;
-	uint16_t     settle_cnt = 0;
-	uint8_t      skew_cal_enable = 0;
-	int          index;
+	uint32_t lane_enable;
+	void __iomem *base_address;
+	int32_t lane_reg_addr;
+	int32_t delay;
+
+	base_address = csiphy->soc_info.reg_map[0].mem_base;
+	lane_reg_addr = csiphy->ctrl_reg->csiphy_lane_config_reg->reg_addr;
+	delay = csiphy->ctrl_reg->csiphy_lane_config_reg->delay;
+
+	lane_enable = cam_io_r(base_address + lane_reg_addr);
+
+	if (enable) {
+		lane_enable |= csiphy->csiphy_info[index].lane_enable;
+		csiphy->lane_enable |= csiphy->csiphy_info[index].lane_enable;
+	} else {
+		lane_enable &= ~csiphy->csiphy_info[index].lane_enable;
+		csiphy->lane_enable ^= csiphy->csiphy_info[index].lane_enable;
+	}
+
+	CAM_INFO(CAM_CSIPHY, "lane_reg_addr: 0x%x, lane_assign: 0x%x, lane_enable: 0x%x, delay: %d",
+		lane_reg_addr, csiphy->csiphy_info[index].lane_assign, lane_enable, delay);
+
+	cam_io_w_mb(lane_enable, base_address + lane_reg_addr);
+
+	if (delay)
+		usleep_range(delay, delay + 5);
+
+	return 0;
+}
+
+int32_t cam_csiphy_config_dev(struct csiphy_device *csiphy_dev,
+	int32_t index, uint8_t datarate_variant_idx)
+{
+	int32_t       rc = 0;
+	uint32_t      lane_idx;
+	uint16_t      settle_cnt = 0, lane_assign;
+	uint8_t       skew_cal_enable = 0, lane_cnt;
 	void __iomem *csiphybase;
-	struct csiphy_reg_t *reg_array;
-	struct csiphy_reg_parms_t *csiphy_reg;
-	bool         is_3phase = false;
+	bool          is_3phase = false;
+	struct csiphy_lane_settings_param lane_settings;
 
 	csiphybase = csiphy_dev->soc_info.reg_map[0].mem_base;
 
@@ -1800,120 +2060,66 @@ int32_t cam_csiphy_config_dev(struct csiphy_device *csiphy_dev,
 		return -EINVAL;
 	}
 
-	index = cam_csiphy_get_instance_offset(csiphy_dev, dev_handle);
-	if (index < 0 || index >= csiphy_dev->session_max_device_support) {
-		CAM_ERR(CAM_CSIPHY, "index is invalid: %d", index);
-		return -EINVAL;
+	rc = cam_csiphy_update_lane_selection(csiphy_dev, index, true);
+	if (rc) {
+		CAM_ERR(CAM_CSIPHY, "Update enable lane failed, rc: %d", rc);
+		return rc;
 	}
-
-	CAM_DBG(CAM_CSIPHY,
-		"Index: %d: expected dev_hdl: 0x%x : derived dev_hdl: 0x%x",
-		index, dev_handle,
-		csiphy_dev->csiphy_info[index].hdl_data.device_hdl);
 
 	if (csiphy_dev->csiphy_info[index].csiphy_3phase)
 		is_3phase = true;
 
-	csiphy_reg = csiphy_dev->ctrl_reg->csiphy_reg;
-	if (csiphy_dev->combo_mode) {
-		/* for CPHY(3Phase) or DPHY(2Phase) combo mode selection */
-		if (is_3phase) {
-			/* CPHY combo mode */
-			if (csiphy_dev->ctrl_reg->csiphy_3ph_combo_reg) {
-				reg_array = csiphy_dev->ctrl_reg->csiphy_3ph_combo_reg;
-				cfg_size = csiphy_reg->csiphy_3ph_combo_config_array_size;
-			} else {
-				CAM_WARN(CAM_CSIPHY, "CPHY combo mode reg settings not found");
-				reg_array = csiphy_dev->ctrl_reg->csiphy_3ph_reg;
-				cfg_size = csiphy_reg->csiphy_3ph_config_array_size;
-			}
-		} else {
-			/* DPHY combo mode*/
-			if (csiphy_dev->ctrl_reg->csiphy_2ph_combo_mode_reg) {
-				reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_combo_mode_reg;
-				cfg_size = csiphy_reg->csiphy_2ph_combo_config_array_size;
-			} else {
-				CAM_WARN(CAM_CSIPHY, "DPHY combo mode reg settings not found");
-				reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg;
-				cfg_size = csiphy_reg->csiphy_2ph_config_array_size;
-			}
-		}
-	} else if (csiphy_dev->cphy_dphy_combo_mode) {
-		/* for CPHY and DPHY combo mode selection */
-		if (csiphy_dev->ctrl_reg->csiphy_2ph_3ph_mode_reg) {
-			reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_3ph_mode_reg;
-			cfg_size = csiphy_reg->csiphy_2ph_3ph_config_array_size;
-		} else {
-			reg_array = csiphy_dev->ctrl_reg->csiphy_3ph_reg;
-			cfg_size = csiphy_reg->csiphy_3ph_config_array_size;
-			CAM_WARN(CAM_CSIPHY,
-					"Unsupported configuration, Falling back to CPHY mission mode");
-		}
-	} else {
-		/* for CPHY(3Phase) or DPHY(2Phase) Non combe mode selection */
-		if (is_3phase) {
-			CAM_DBG(CAM_CSIPHY,
-				"3phase Non combo mode reg array selected");
-			reg_array = csiphy_dev->ctrl_reg->csiphy_3ph_reg;
-			cfg_size = csiphy_reg->csiphy_3ph_config_array_size;
-		} else {
-			CAM_DBG(CAM_CSIPHY,
-				"2PHASE Non combo mode reg array selected");
-			reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg;
-			cfg_size = csiphy_reg->csiphy_2ph_config_array_size;
-		}
-	}
-
-	lane_enable = csiphy_dev->csiphy_info[index].lane_enable;
-
-	if (csiphy_dev->csiphy_info[index].csiphy_3phase) {
-		rc = cam_csiphy_cphy_data_rate_config(csiphy_dev, index, datarate_variant_idx);
-		if (rc) {
-			CAM_ERR(CAM_CSIPHY,
-				"Date rate specific configuration failed rc: %d",
-				rc);
-			return rc;
-		}
-	}
-
 	rc = cam_csiphy_get_settle_count(csiphy_dev, index, &settle_cnt);
 	if (rc)
 		return rc;
-	skew_cal_enable = csiphy_dev->csiphy_info[index].mipi_flags;
 
-	for (i = 0; i < cfg_size; i++) {
-		switch (reg_array[i].csiphy_param_type) {
-		case CSIPHY_LANE_ENABLE:
-			cam_io_w_mb(lane_enable, csiphybase + reg_array[i].reg_addr);
-		break;
-		case CSIPHY_DEFAULT_PARAMS:
-			cam_io_w_mb(reg_array[i].reg_data, csiphybase + reg_array[i].reg_addr);
-		break;
-		case CSIPHY_SETTLE_CNT_LOWER_BYTE:
-			cam_io_w_mb(settle_cnt & 0xFF, csiphybase + reg_array[i].reg_addr);
-		break;
-		case CSIPHY_SETTLE_CNT_HIGHER_BYTE:
-			cam_io_w_mb((settle_cnt >> 8) & 0xFF, csiphybase + reg_array[i].reg_addr);
-		break;
-		case CSIPHY_SKEW_CAL:
-		if (skew_cal_enable)
-			cam_io_w_mb(reg_array[i].reg_data, csiphybase + reg_array[i].reg_addr);
-		else
-			cam_io_w_mb(0x00, csiphybase + reg_array[i].reg_addr);
-		break;
-		default:
-			CAM_DBG(CAM_CSIPHY, "Do Nothing");
-		break;
+	skew_cal_enable = csiphy_dev->csiphy_info[index].mipi_flags;
+	lane_cnt = csiphy_dev->csiphy_info[index].lane_cnt;
+	lane_assign = csiphy_dev->csiphy_info[index].lane_assign;
+
+	while (lane_cnt--) {
+		cam_csiphy_get_lane_enable(csiphy_dev, index, lane_assign & 0xF,
+			&lane_idx, NULL);
+
+		lane_idx = ffs(lane_idx) - 1;
+
+		CAM_DBG(CAM_CSIPHY, "Program  CSIPHY[%u] lane settings for ln%u, is_3phase: %s",
+			csiphy_dev->soc_info.index, lane_idx, CAM_BOOL_TO_YESNO(is_3phase));
+
+		cam_csiphy_get_lane_settings_param(csiphy_dev, lane_idx, is_3phase,
+			&lane_settings);
+
+		rc = cam_csiphy_program_lane_settings(csiphy_dev, index, settle_cnt,
+			skew_cal_enable, &lane_settings);
+		if (rc) {
+			CAM_ERR(CAM_CSIPHY,
+				"Error in programming CSIPHY[%u] settings for ln%u, is_3phase : %s",
+				csiphy_dev->soc_info.index, lane_idx, CAM_BOOL_TO_YESNO(is_3phase));
+			return rc;
 		}
 
-		if (reg_array[i].delay > 0)
-			usleep_range(reg_array[i].delay, reg_array[i].delay + 5);
+		if (csiphy_dev->csiphy_info[index].csiphy_3phase) {
+			rc = cam_csiphy_cphy_data_rate_config(csiphy_dev, index,
+					(uint16_t)lane_idx, datarate_variant_idx);
+			if (rc) {
+				CAM_ERR(CAM_CSIPHY,
+					"Date rate specific configuration failed rc: %d",
+					rc);
+				return rc;
+			}
+		}
+
+		if (csiphy_dev->preamble_enable)
+			__cam_csiphy_prgm_bist_reg(csiphy_dev, lane_idx, is_3phase);
+
+		lane_assign >>= 4;
 	}
 
-	if (csiphy_dev->preamble_enable)
-		__cam_csiphy_prgm_bist_reg(csiphy_dev, is_3phase);
-
-	cam_csiphy_cphy_irq_config(csiphy_dev);
+	if (!is_3phase)
+		rc = cam_csiphy_program_dphy_clk_lane(csiphy_dev, index,
+			settle_cnt, skew_cal_enable);
+	else
+		cam_csiphy_program_cphy_common_ctrl_settings(csiphy_dev, datarate_variant_idx);
 
 	CAM_DBG(CAM_CSIPHY, "EXIT");
 	return rc;
@@ -2007,6 +2213,7 @@ void cam_csiphy_shutdown(struct csiphy_device *csiphy_dev)
 	csiphy_dev->ref_count = 0;
 	csiphy_dev->acquire_count = 0;
 	csiphy_dev->start_dev_count = 0;
+	csiphy_dev->lane_enable = 0;
 	csiphy_dev->csiphy_state = CAM_CSIPHY_INIT;
 }
 
@@ -2047,35 +2254,6 @@ static int32_t cam_csiphy_external_cmd(struct csiphy_device *csiphy_dev,
 	}
 
 	return rc;
-}
-
-static int cam_csiphy_update_lane_selection(struct csiphy_device *csiphy, int index, bool enable)
-{
-	uint32_t lane_enable;
-	void __iomem *base_address;
-	int32_t lane_reg_addr;
-	int32_t delay;
-
-	base_address = csiphy->soc_info.reg_map[0].mem_base;
-	lane_reg_addr = csiphy->ctrl_reg->csiphy_lane_config_reg->reg_addr;
-	delay = csiphy->ctrl_reg->csiphy_lane_config_reg->delay;
-
-	lane_enable = cam_io_r(base_address + lane_reg_addr);
-
-	if (enable)
-		lane_enable |= csiphy->csiphy_info[index].lane_enable;
-	else
-		lane_enable &= ~csiphy->csiphy_info[index].lane_enable;
-
-	CAM_INFO(CAM_CSIPHY, "lane_reg_addr: 0x%x, lane_assign: 0x%x, lane_enable: 0x%x, delay: %d",
-		lane_reg_addr, csiphy->csiphy_info[index].lane_assign, lane_enable, delay);
-
-	cam_io_w_mb(lane_enable, base_address + lane_reg_addr);
-
-	if (delay)
-		usleep_range(delay, delay + 5);
-
-	return 0;
 }
 
 static int __csiphy_cpas_configure_for_main_or_aon(
@@ -2651,6 +2829,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 		csiphy_dev->csiphy_info[index].conn_csid_idx = -1;
 		csiphy_dev->csiphy_info[index].use_hw_client_voting = false;
 		csiphy_dev->csiphy_info[index].is_drv_config_en = false;
+		csiphy_dev->csiphy_info[index].use_sec_dphy_clk_lane = false;
 
 		CAM_DBG(CAM_CSIPHY, "Add dev_handle:0x%x at index: %d ",
 			csiphy_dev->csiphy_info[index].hdl_data.device_hdl,
@@ -2887,6 +3066,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 				}
 			}
 			csiphy_dev->combo_mode = 0;
+			csiphy_dev->lane_enable = 0;
 			csiphy_dev->csiphy_state = CAM_CSIPHY_INIT;
 		}
 
@@ -2931,7 +3111,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 		int32_t offset;
 		int clk_vote_level_high = -1;
 		int clk_vote_level_low = -1;
-		uint8_t data_rate_variant_idx = 0;
+		uint8_t datarate_variant_idx = 0;
 		uint16_t settle_cnt = 0;
 
 		CAM_DBG(CAM_CSIPHY, "START_DEV Called");
@@ -3045,20 +3225,9 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 				}
 			}
 
-			if (csiphy_dev->csiphy_info[offset].csiphy_3phase) {
-				rc = cam_csiphy_cphy_data_rate_config(
-					csiphy_dev, offset, data_rate_variant_idx);
-				if (rc) {
-					CAM_ERR(CAM_CSIPHY,
-						"Data rate specific configuration failed rc: %d",
-						rc);
-					goto release_mutex;
-				}
-			}
-
-			rc = cam_csiphy_update_lane_selection(csiphy_dev, offset, true);
-			if (rc) {
-				CAM_ERR(CAM_CSIPHY, "Update enable lane failed, rc: %d", rc);
+			rc = cam_csiphy_config_dev(csiphy_dev, offset, datarate_variant_idx);
+			if (rc < 0) {
+				CAM_ERR(CAM_CSIPHY, "cam_csiphy_config_dev failed");
 				goto release_mutex;
 			}
 
@@ -3130,12 +3299,6 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 			goto cpas_stop;
 		}
 
-		rc = cam_csiphy_update_lane_selection(csiphy_dev, offset, true);
-		if (rc) {
-			CAM_ERR(CAM_CSIPHY, "Update enable lane failed, rc: %d", rc);
-			goto cpas_stop;
-		}
-
 		if (csiphy_dev->prgm_cmn_reg_across_csiphy) {
 			cam_csiphy_program_common_registers(csiphy_dev, false, CAM_CSIPHY_PRGM_ALL);
 			mutex_lock(&active_csiphy_cnt_mutex);
@@ -3146,12 +3309,14 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 				CAM_CSIPHY_PRGM_INDVDL);
 		}
 
-		rc = cam_csiphy_config_dev(csiphy_dev, config.dev_handle, data_rate_variant_idx);
+		rc = cam_csiphy_config_dev(csiphy_dev, offset, datarate_variant_idx);
 		if (rc < 0) {
 			CAM_ERR(CAM_CSIPHY, "cam_csiphy_config_dev failed");
 			cam_csiphy_disable_hw(csiphy_dev, offset);
 			goto hw_cnt_decrement;
 		}
+
+		cam_csiphy_cphy_irq_config(csiphy_dev);
 
 		if (csiphy_onthego_reg_count[soc_info->index])
 			cam_csiphy_apply_onthego_reg_values(csiphybase, soc_info->index);

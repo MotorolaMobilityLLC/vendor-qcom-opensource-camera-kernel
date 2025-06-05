@@ -4788,7 +4788,7 @@ static int cam_tfe_mgr_prepare_hw_update(void *hw_mgr_priv,
 
 	rc = cam_packet_util_process_patches(prepare->packet,
 		prepare->buf_tracker, hw_mgr->mgr_common.cmd_iommu_hdl,
-		hw_mgr->mgr_common.cmd_iommu_hdl_secure, false);
+		hw_mgr->mgr_common.cmd_iommu_hdl_secure, false, NULL, NULL);
 	if (rc) {
 		CAM_ERR(CAM_ISP, "Patch ISP packet failed.");
 		return rc;

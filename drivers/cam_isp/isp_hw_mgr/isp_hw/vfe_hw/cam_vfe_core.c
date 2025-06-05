@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/delay.h>
@@ -21,6 +21,24 @@
 #include "cam_common_util.h"
 
 static const char drv_name[] = "vfe";
+
+void cam_vfe_core_debug_handler(void *hw_priv,
+	uint32_t hw_type, void *data)
+{
+	struct cam_hw_info                *vfe_hw = hw_priv;
+	struct cam_vfe_hw_core_info       *core_info = NULL;
+
+	if (!hw_priv) {
+		CAM_ERR(CAM_ISP, "Invalid arguments");
+		return;
+	}
+
+	core_info = (struct cam_vfe_hw_core_info *)vfe_hw->core_info;
+
+	if (hw_type == CAM_VFE_HW_CORE_TYPE_BUS)
+		cam_vfe_bus_debug_handler(core_info->vfe_bus->bus_priv,
+			core_info->vfe_hw_info->bus_version, data);
+}
 
 int cam_vfe_get_hw_caps(void *hw_priv, void *get_hw_cap_args, uint32_t arg_size)
 {

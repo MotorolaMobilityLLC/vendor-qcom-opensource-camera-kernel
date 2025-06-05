@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 
@@ -15,7 +15,14 @@
 #define CAM_VFE_BUS_VER3_MAX_SUB_GRPS        6
 #define CAM_VFE_BUS_VER3_MAX_MID_PER_PORT    4
 #define CAM_VFE_BUS_VER3_CONS_ERR_MAX        32
-#define CAM_VFE_BUS_VER3_MAX_CLIENTS         28
+#define CAM_VFE_BUS_VER3_MAX_CLIENTS         32
+
+/*
+ * Max number of MIDs that a client can support.
+ * Max value is determined considering the ports supporting
+ * meta buffers and Multi Context.
+ */
+#define CAM_VFE_BUS_VER3_NUM_MID_MAX         6
 
 enum cam_vfe_bus_wr_wm_mode {
 	CAM_VFE_WM_LINE_BASED_MODE,
@@ -105,6 +112,8 @@ enum cam_vfe_bus_ver3_vfe_out_type {
 	CAM_VFE_BUS_VER3_VFE_OUT_STATS_AF_BHIST,
 	CAM_VFE_BUS_VER3_VFE_OUT_STATS_TMC_BHIST,
 	CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BHIST,
+	CAM_VFE_BUS_VER3_VFE_OUT_FD_SECURE,
+	CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PREPROCESSED2,
 	CAM_VFE_BUS_VER3_VFE_OUT_MAX,
 };
 
@@ -215,42 +224,52 @@ struct cam_vfe_bus_ver3_reg_offset_ubwc_client {
  * @Brief:        Register offsets for BUS Clients
  */
 struct cam_vfe_bus_ver3_reg_offset_bus_client {
-	uint32_t cfg;
-	uint32_t image_addr;
-	uint32_t frame_incr;
-	uint32_t image_cfg_0;
-	uint32_t image_cfg_1;
-	uint32_t image_cfg_2;
-	uint32_t packer_cfg;
-	uint32_t frame_header_addr;
-	uint32_t frame_header_incr;
-	uint32_t frame_header_cfg;
-	uint32_t line_done_cfg;
-	uint32_t irq_subsample_period;
-	uint32_t irq_subsample_pattern;
-	uint32_t framedrop_period;
-	uint32_t framedrop_pattern;
-	uint32_t mmu_prefetch_cfg;
-	uint32_t mmu_prefetch_max_offset;
-	uint32_t addr_cfg;
-	uint32_t ctxt_cfg;
-	uint32_t burst_limit;
-	uint32_t system_cache_cfg;
-	void    *ubwc_regs;
-	uint32_t addr_status_0;
-	uint32_t addr_status_1;
-	uint32_t addr_status_2;
-	uint32_t addr_status_3;
-	uint32_t debug_status_cfg;
-	uint32_t debug_status_0;
-	uint32_t debug_status_1;
-	uint32_t debug_status_ctxt;
-	uint32_t hw_ctxt_cfg;
-	uint32_t bw_limiter_addr;
-	uint32_t comp_group;
-	uint64_t supported_pack_formats;
-	uint64_t supported_formats;
-	uint32_t rcs_en_mask;
+	uint32_t  cfg;
+	uint32_t  image_addr;
+	uint32_t  frame_incr;
+	uint32_t  image_cfg_0;
+	uint32_t  image_cfg_1;
+	uint32_t  image_cfg_2;
+	uint32_t  packer_cfg;
+	uint32_t  frame_header_addr;
+	uint32_t  frame_header_incr;
+	uint32_t  frame_header_cfg;
+	uint32_t  line_done_cfg;
+	uint32_t  irq_subsample_period;
+	uint32_t  irq_subsample_pattern;
+	uint32_t  framedrop_period;
+	uint32_t  framedrop_pattern;
+	uint32_t  mmu_prefetch_cfg;
+	uint32_t  mmu_prefetch_max_offset;
+	uint32_t  addr_cfg;
+	uint32_t  ctxt_cfg;
+	uint32_t  burst_limit;
+	uint32_t  system_cache_cfg;
+	void     *ubwc_regs;
+	uint32_t  addr_status_0;
+	uint32_t  addr_status_1;
+	uint32_t  addr_status_2;
+	uint32_t  addr_status_3;
+	uint32_t  debug_status_cfg;
+	uint32_t  debug_status_0;
+	uint32_t  debug_status_1;
+	uint32_t  debug_status_ctxt;
+	uint32_t  hw_ctxt_cfg;
+	uint32_t  bw_limiter_addr;
+	uint32_t  comp_group;
+	uint64_t  supported_pack_formats;
+	uint64_t  supported_formats;
+	uint32_t  rcs_en_mask;
+	uint32_t  out_type;
+	uint32_t  wm_idx;
+	uint32_t  line_based;
+	uint32_t  num_mid;
+	uint64_t  pid_mask;
+	uint32_t  early_done_mask;
+	uint32_t  mid[CAM_VFE_BUS_VER3_NUM_MID_MAX];
+	uint8_t  *name;
+	bool      mc_based;
+	bool      cntxt_cfg_except;
 };
 
 /*
@@ -273,7 +292,7 @@ struct cam_vfe_bus_ver3_vfe_out_hw_info {
 	uint32_t                            early_done_mask;
 	uint8_t                            *name[PLANE_MAX];
 	bool                                mc_based;
-	bool                               cntxt_cfg_except;
+	bool                                cntxt_cfg_except;
 };
 
 
@@ -289,6 +308,8 @@ struct cam_vfe_bus_ver3_vfe_out_hw_info {
  * @vfe_out_hw_info:                 VFE output capability
  * @num_cons_err:                    Number of constraint errors in list
  * @constraint_error_list:           Static list of all constraint errors
+ * @num_bus_errors:                  number of bus errors
+ * @bus_err_desc:                    Bus error IRQ descriptor
  * @num_comp_grp:                    Number of composite groups
  * @comp_done_mask:                  Mask shift for comp done mask
  * @mc_comp_done_mask:               Mask shift for hw multi-context comp done irq
@@ -320,12 +341,11 @@ struct cam_vfe_bus_ver3_hw_info {
 	struct cam_vfe_bus_ver3_reg_offset_bus_client
 		bus_client_reg[CAM_VFE_BUS_VER3_MAX_CLIENTS];
 	uint32_t num_out;
-	struct cam_vfe_bus_ver3_vfe_out_hw_info
-		vfe_out_hw_info[CAM_VFE_BUS_VER3_VFE_OUT_MAX];
+	struct cam_vfe_bus_ver3_vfe_out_hw_info *vfe_out_hw_info;
 	uint32_t num_cons_err;
 	struct cam_vfe_constraint_error_info
 		constraint_error_list[CAM_VFE_BUS_VER3_CONS_ERR_MAX];
-	uint32_t *num_bus_errors;
+	uint32_t num_bus_errors;
 	struct cam_vfe_bus_ver3_err_irq_desc (*bus_err_desc)[][32];
 	uint32_t num_comp_grp;
 	uint32_t comp_done_mask[CAM_VFE_BUS_VER3_COMP_GRP_MAX];
@@ -430,4 +450,15 @@ int cam_vfe_bus_ver3_init(
  */
 int cam_vfe_bus_ver3_deinit(struct cam_vfe_bus     **vfe_bus);
 
+/*
+ * cam_vfe_bus_ver3_debug_handler()
+ *
+ * @Brief:                   Debug Bus handler to dump debug info
+ *
+ * @priv:                    Private Pointer to vfe_bus structure
+ * @data:                    Data to be dumped
+ *
+ * @Return:                  Void
+ */
+void cam_vfe_bus_ver3_debug_handler(void *priv, void *data);
 #endif /* _CAM_VFE_BUS_VER3_H_ */

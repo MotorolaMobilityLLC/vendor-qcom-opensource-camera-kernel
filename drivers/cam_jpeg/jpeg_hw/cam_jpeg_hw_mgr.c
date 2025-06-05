@@ -1056,8 +1056,16 @@ static int cam_jpeg_mgr_prepare_hw_update(void *hw_mgr_priv,
 		return -EINVAL;
 	}
 
+	/* Zero out previous patching info */
+	if (ctx_data->src_tbl)
+		memset(ctx_data->src_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_SRC_HDL_MAX);
+	if (ctx_data->dst_tbl)
+		memset(ctx_data->dst_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_DST_HDL_MAX);
+
 	rc = cam_packet_util_process_patches(packet, prepare_args->buf_tracker,
-		hw_mgr->iommu_hdl, -1, false);
+		hw_mgr->iommu_hdl, -1, false, ctx_data->src_tbl, ctx_data->dst_tbl);
 	if (rc) {
 		CAM_ERR(CAM_JPEG, "Patch processing failed %d", rc);
 		return rc;
@@ -1416,6 +1424,9 @@ static int cam_jpeg_mgr_release_hw(void *hw_mgr_priv, void *release_hw_args)
 
 	CAM_MEM_FREE(ctx_data->cdm_cmd);
 	ctx_data->cdm_cmd = NULL;
+	cam_packet_util_put_unique_tbl(ctx_data->src_tbl, ctx_data->dst_tbl);
+	ctx_data->src_tbl = NULL;
+	ctx_data->dst_tbl = NULL;
 	CAM_DBG(CAM_JPEG, "handle %llu", ctx_data);
 
 	return rc;
@@ -1462,13 +1473,19 @@ static int cam_jpeg_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 
 	ctx_data = &hw_mgr->ctx_data[ctx_id];
 
+	rc = cam_packet_util_get_unique_tbl(&ctx_data->src_tbl, &ctx_data->dst_tbl);
+	if (rc) {
+		CAM_ERR(CAM_JPEG, "Failed at allocating mem for unique buf tbl");
+		goto jpeg_release_ctx;
+	}
+
 	ctx_data->cdm_cmd =
 		CAM_MEM_ZALLOC(((sizeof(struct cam_cdm_bl_request)) +
 			((CAM_JPEG_HW_ENTRIES_MAX - 1) *
 			sizeof(struct cam_cdm_bl_cmd))), GFP_KERNEL);
 	if (!ctx_data->cdm_cmd) {
 		rc = -ENOMEM;
-		goto jpeg_release_ctx;
+		goto jpeg_free_unique_tbl;
 	}
 
 	mutex_lock(&ctx_data->ctx_mutex);
@@ -1558,6 +1575,10 @@ start_cdm_hdl_failed:
 	hw_mgr->cdm_info[dev_type][0].ref_cnt--;
 acq_cdm_hdl_failed:
 	CAM_MEM_FREE(ctx_data->cdm_cmd);
+jpeg_free_unique_tbl:
+	cam_packet_util_put_unique_tbl(ctx_data->src_tbl, ctx_data->dst_tbl);
+	ctx_data->src_tbl = NULL;
+	ctx_data->dst_tbl = NULL;
 jpeg_release_ctx:
 	cam_jpeg_mgr_release_ctx(hw_mgr, ctx_data);
 	mutex_unlock(&hw_mgr->hw_mgr_mutex);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -937,7 +937,7 @@ static int cam_lrme_mgr_hw_prepare_update(void *hw_mgr_priv,
 		kmd_buf.size, kmd_buf.used_bytes);
 
 	rc = cam_packet_util_process_patches(args->packet,
-		hw_mgr->device_iommu.non_secure, hw_mgr->device_iommu.secure, false);
+		hw_mgr->device_iommu.non_secure, hw_mgr->device_iommu.secure, false, NULL, NULL);
 	if (rc) {
 		CAM_ERR(CAM_LRME, "Patch packet failed, rc=%d", rc);
 		return rc;

@@ -188,121 +188,6 @@ struct cam_vfe_top_ver4_module_desc tfe980_bayer_mod_desc[] = {
 	},
 };
 
-static struct cam_vfe_top_ver4_wr_client_desc tfe980_wr_client_desc[] = {
-	{
-		.wm_id = 0,
-		.desc = "VIDEO",
-	},
-	{
-		.wm_id = 1,
-		.desc = "DS4_Y",
-	},
-	{
-		.wm_id = 2,
-		.desc = "DS4_C",
-	},
-	{
-		.wm_id = 3,
-		.desc  = "DS16_Y",
-	},
-	{
-		.wm_id = 4,
-		.desc = "DS16_C",
-	},
-	{
-		.wm_id = 5,
-		.desc = "DS2_Y",
-	},
-	{
-		.wm_id = 6,
-		.desc = "DS2_C",
-	},
-	{
-		.wm_id = 7,
-		.desc = "FD_Y",
-	},
-	{
-		.wm_id = 8,
-		.desc = "FD_C",
-	},
-	{
-		.wm_id = 9,
-		.desc = "IR_OUT",
-	},
-	{
-		.wm_id = 10,
-		.desc = "STATS_AEC_BE",
-	},
-	{
-		.wm_id = 11,
-		.desc = "STATS_AEC_BHIST",
-	},
-	{
-		.wm_id = 12,
-		.desc = "STATS_TINTLESS_BG",
-	},
-	{
-		.wm_id = 13,
-		.desc = "STATS_AWB_BG",
-	},
-	{
-		.wm_id = 14,
-		.desc = "STATS_AWB_BFW",
-	},
-	{
-		.wm_id = 15,
-		.desc = "STATS_AF_BHIST",
-	},
-	{
-		.wm_id = 16,
-		.desc = "STATS_ALSC_BG",
-	},
-	{
-		.wm_id = 17,
-		.desc = "STATS_FLICKER",
-	},
-	{
-		.wm_id = 18,
-		.desc = "STATS_TMC_BHIST",
-	},
-	{
-		.wm_id = 19,
-		.desc = "PDAF_0_STATS",
-	},
-	{
-		.wm_id = 20,
-		.desc = "PDAF_1_PREPROCESS_2PD",
-	},
-	{
-		.wm_id = 21,
-		.desc = "PDAF_2_PARSED_DATA",
-	},
-	{
-		.wm_id = 22,
-		.desc = "PDAF_3_CAF",
-	},
-	{
-		.wm_id = 23,
-		.desc = "RDI0",
-	},
-	{
-		.wm_id = 24,
-		.desc = "RDI1",
-	},
-	{
-		.wm_id = 25,
-		.desc = "RDI2",
-	},
-	{
-		.wm_id = 26,
-		.desc = "RDI3",
-	},
-	{
-		.wm_id = 27,
-		.desc = "RDI4",
-	},
-};
-
 static struct cam_vfe_top_ver4_top_err_irq_desc tfe980_top_irq_err_desc[] = {
 	{
 		.bitmask = BIT(2),
@@ -1133,7 +1018,6 @@ static struct cam_vfe_top_ver4_hw_info tfe980_top_hw_info = {
 		.reg_data       = &tfe980_pdlib_reg_data,
 	},
 	.rdi_hw_info            = tfe980_rdi_hw_info_arr,
-	.wr_client_desc         = tfe980_wr_client_desc,
 	.ipp_module_desc        = tfe980_ipp_mod_desc,
 	.bayer_module_desc      = tfe980_bayer_mod_desc,
 	.num_mux = 7,
@@ -1205,33 +1089,6 @@ static struct cam_vfe_bus_ver3_reg_offset_ubwc_client
 	.ubwc_comp_en_bit = BIT(1),
 };
 
-static uint32_t tfe980_out_port_mid[][12] = {
-	{58},
-	{59},
-	{60},
-	{61},
-	{62},
-	{32, 34, 36, 33, 35, 37},
-	{32, 34, 36, 33, 35, 37, 38, 40, 42, 39, 41, 43},
-	{44, 46, 48, 45, 47, 49, 50, 52, 54, 51, 53, 55},
-	{38, 40, 42, 39, 41, 43, 44, 46, 48, 45, 47, 49},
-	{8, 9, 10},
-	{56, 57},
-	{32, 33, 34},
-	{35, 36, 37},
-	{38, 39, 40},
-	{41, 42, 43},
-	{44, 45, 46},
-	{47, 48, 49},
-	{50, 51, 52},
-	{53, 54, 55},
-	{56, 57, 58},
-	{11},
-	{50, 51},
-	{12},
-	{13},
-};
-
 static struct cam_vfe_bus_ver3_err_irq_desc tfe980_bus_irq_err_desc[][32] = {
 	{
 		{
@@ -1260,23 +1117,6 @@ static struct cam_vfe_bus_ver3_err_irq_desc tfe980_bus_irq_err_desc[][32] = {
 			.desc = "Programmed image size is not same as image size from the CCIF",
 		},
 	},
-	{
-		{
-			.bitmask = BIT(28),
-			.err_name = "EARLY_DONE",
-			.desc = "Early Buf done irq for client 20 (STATS_BAF)",
-		},
-		{
-			.bitmask = BIT(29),
-			.err_name = "EARLY_DONE",
-			.desc = "Early Buf done irq for client 21 (DUAL_PD)",
-		},
-	},
-};
-
-static uint32_t tfe980_num_bus_irq_err_desc[] = {
-	ARRAY_SIZE(tfe980_bus_irq_err_desc[0]),
-	ARRAY_SIZE(tfe980_bus_irq_err_desc[1]),
 };
 
 static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
@@ -1390,7 +1230,11 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 
 	},
 	.bus_client_reg = {
-		/* BUS Client 0 FULL Y */
+		/*
+		 * For clients with Meta outputs, META MID is programmed in [31 : 16]
+		 * Image MID is programmed in [16 : 0]
+		 */
+		/* BUS Client 0 FULL */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10) |
@@ -1403,28 +1247,70 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
-			.rcs_en_mask             =  0x200,
+			.rcs_en_mask              = 0x200,
+			.name                     = "FULL",
+			.line_based               = 1,
+			.mid                      = {(33 <<  16) | 32, (35 << 16) | 34,
+							    (37 << 16) | 36},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FULL,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(8) | BIT_ULL(9) | BIT_ULL(12),
 		},
 		/* BUS Client 1 DS_4 Y */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
 			.rcs_en_mask              = 0x200,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10),
+			.name                     = "DS4_Y",
+			.line_based               = 1,
+			.mid                      = {(33 <<  16) | 32, (35 << 16) | 34,
+							    (37 << 16) | 36},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_DS4,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
+
 		},
 		/* BUS Client 2 DS_4 C */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10),
+			.name                     = "DS4_C",
+			.line_based               = 1,
+			.mid                      = {(39 <<  16) | 38, (41 << 16) | 40,
+							    (43 << 16) | 42},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_DS4,
+			.mc_based                 = true,
+			.pid_mask                 = 0x6400,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
 		},
 		/* BUS Client 3 DS_16 Y */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10),
+			.name                     = "DS16_Y",
+			.line_based               = 1,
+			.mid                      = {(45 <<  16) | 44, (47 << 16) | 46,
+							    (49 << 16) | 48},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_DS16,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
 		},
 		/* BUS Client 4 DS_16 C */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10),
+			.name                     = "DS16_C",
+			.line_based               = 1,
+			.mid                      = {(51 <<  16) | 50, (53 << 16) | 52,
+							    (55 << 16) | 54},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_DS16,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
 		},
 		/* BUS Client 5 DS_2 Y */
 		{
@@ -1437,13 +1323,21 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP) |
 				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
 				BIT_ULL(PACKER_FMT_VER3_TP_10),
-			.rcs_en_mask             =  0x200,
+			.rcs_en_mask              = 0x200,
+			.name                     = "DS2_Y",
+			.line_based               = 1,
+			.mid                      = {(39 <<  16) | 38, (41 << 16) | 40,
+							    (43 << 16) | 42},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_DS2,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(8) | BIT_ULL(9) | BIT_ULL(12),
 		},
 
 		/* BUS Client 6 DS_2 C */
 		{
-			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
-			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
+			.comp_group               =  CAM_VFE_BUS_VER3_COMP_GRP_0,
+			.supported_pack_formats   =  BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
@@ -1451,7 +1345,15 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP) |
 				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
 				BIT_ULL(PACKER_FMT_VER3_TP_10),
-			.rcs_en_mask             =  0x200,
+			.rcs_en_mask              = 0x200,
+			.name                     = "DS2_C",
+			.line_based               = 1,
+			.mid                      = {(45 <<  16) | 44, (47 << 16) | 46,
+							    (49 << 16) | 48},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_DS2,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(8) | BIT_ULL(9) | BIT_ULL(12),
 		},
 		/* BUS Client 7 FD Y */
 		{
@@ -1459,6 +1361,13 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10_ODD_EVEN) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10),
+			.name                     = "FD_Y",
+			.line_based               = 1,
+			.mid                      = {(9 << 16) | 8},
+			.num_mid                  = 2,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD,
+			.cntxt_cfg_except         = true,
+			.pid_mask                 = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
 		},
 		/* BUS Client 8 FD C */
 		{
@@ -1466,6 +1375,13 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10_ODD_EVEN) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_8_LSB_MSB_10),
+			.name                     = "FD_C",
+			.line_based               = 1,
+			.mid                      = {10},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD,
+			.cntxt_cfg_except         = true,
+			.pid_mask                 = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
 		},
 		/* BUS Client 9 IR */
 		{
@@ -1479,65 +1395,139 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
 				BIT_ULL(PACKER_FMT_VER3_MIPI12) |
 				BIT_ULL(PACKER_FMT_VER3_MIPI14),
+			.name                     = "IR",
+			.line_based               = 1,
+			.mid                      = {(25 << 16) | 24},
+			.num_mid                  = 2,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_IR,
+			.cntxt_cfg_except         = true,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
 		},
 		/* BUS Client 10 STATS_AEC_BE */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "STATS_AEC_BE",
+			.mid                      = {32, 33, 34},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BE,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		/* BUS Client 11 STATS_AEC_BHIST */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "STATS_BHIST",
+			.mid                      = {35, 36, 37},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BHIST,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		/* BUS Client 12 STATS_TINTLESS_BG */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "STATS_TL_BG",
+			.mid                      = {38, 39, 40},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_TL_BG,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		/* BUS Client 13 STATS_AWB_BG */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "STATS_AWB_BG",
+			.mid                      = {41, 42, 43},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AWB_BG,
+			.mc_based                 = true,
+			.pid_mask                 = 0x70,
+			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		/* BUS Client 14 STATS_AWB_BFW */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "AWB_BFW",
+			.mid                      = {44, 45, 46},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_AWB_BFW,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		/* BUS Client 15 STATS_AF_BHIST */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "AF_BHIST",
+			.mid                      = {47, 48, 49},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AF_BHIST,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		/* BUS Client 16 STATS_ALSC_BG */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "ALSC_BG",
+			.mid                      = {50, 51, 52},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_ALSC,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		/* BUS Client 17 STATS_FLICKER_BAYERS */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_32),
+			.name                     = "STATS_RS",
+			.mid                      = {53, 54, 55},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BAYER_RS,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		/* BUS Client 18 STATS_TMC_BHIST */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "STATS_TMC_BHIST",
+			.mid                      = {56, 57, 58},
+			.num_mid                  = 3,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_TMC_BHIST,
+			.mc_based                 = true,
+			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
 		},
 		/* BUS Client 19 PDAF_0 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "PDAF_0_2PD",
+			.mid                      = {11},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_2PD,
+			.pid_mask                 = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
+			.early_done_mask          = BIT(28),
 		},
 		/* BUS Client 20 PDAF_1 */
 		{
-			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
-			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
+			.comp_group                = CAM_VFE_BUS_VER3_COMP_GRP_3,
+			.supported_pack_formats    = BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
+			.name                      = "PDAF_1_PREPROCESS_2PD",
+			.line_based                = 1,
+			.mid                       = {(51 << 16) | 50},
+			.num_mid                   = 2,
+			.out_type                  = CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_2PD,
+			.pid_mask                  = BIT_ULL(8) | BIT_ULL(9) | BIT_ULL(12),
 		},
 		/* BUS Client 21 PDAF_2 */
 		{
@@ -1548,11 +1538,25 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
+			.name                     = "PDAF_2_PARSED_DATA",
+			.line_based               = 1,
+			.line_based               = 1,
+			.mid                      = {12},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PARSED,
+			.pid_mask                 = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
 		},
 		/* BUS Client 22 PDAF_3 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_4,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
+			.name                     = "STATS_CAF",
+			.mid                      = {13},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_STATS_CAF,
+			.early_done_mask          = BIT(29),
+			.pid_mask                 = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
+			.early_done_mask          = BIT(29),
 		},
 		/* BUS Client 23 RDI_0 */
 		{
@@ -1565,6 +1569,12 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
+			.name                     = "RDI_0",
+			.line_based               = 0,
+			.mid                      = {58},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
 		},
 		/* BUS Client 24 RDI_1 */
 		{
@@ -1577,6 +1587,12 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
+			.name                     = "RDI_1",
+			.line_based               = 1,
+			.mid                      = {59},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
 		},
 		/* BUS Client 25 RDI_2 */
 		{
@@ -1590,457 +1606,37 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_10BPP),
+			.name                     = "RDI_2",
+			.line_based               = 1,
+			.mid                      = {60},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
 		},
 		/* BUS Client 26 RDI_3 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_8,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
+			.name                     = "RDI_3",
+			.line_based               = 1,
+			.mid                      = {61},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
 		},
 		/* BUS Client 27 RDI_4 */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_9,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
+			.name                     = "RDI_4",
+			.line_based               = 1,
+			.mid                      = {62},
+			.num_mid                  = 1,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI4,
+			.pid_mask                 = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
 		},
 	},
 	.valid_wm_mask   = 0xFFFFFFF,
-	.vfe_out_hw_info = {
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI0,
-			.max_width     = 16384,
-			.max_height    = 16384,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_2,
-			.mid           = tfe980_out_port_mid[0],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				23,
-			},
-			.name          = {
-				"RDI_0",
-			},
-			.pid_mask = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI1,
-			.max_width     = 16384,
-			.max_height    = 16384,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_3,
-			.mid           = tfe980_out_port_mid[1],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				24,
-			},
-			.name          = {
-				"RDI_1",
-			},
-			.pid_mask = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
-			.max_width     = 16384,
-			.max_height    = 16384,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_4,
-			.mid           = tfe980_out_port_mid[2],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				25,
-			},
-			.name          = {
-				"RDI_2",
-			},
-			.pid_mask = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI3,
-			.max_width     = 16384,
-			.max_height    = 16384,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_5,
-			.mid           = tfe980_out_port_mid[3],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				26,
-			},
-			.name          = {
-				"RDI_3",
-			},
-			.pid_mask = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_RDI4,
-			.max_width     = 16384,
-			.max_height    = 16384,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_6,
-			.mid           = tfe980_out_port_mid[4],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				27,
-			},
-			.name          = {
-				"RDI_4",
-			},
-			.pid_mask = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FULL,
-			.max_width     = 4672,
-			.max_height    = 16384,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[5],
-			.num_mid       = 6,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 0,
-			.wm_idx        = {
-				0,
-			},
-			.name          = {
-				"FULL",
-			},
-			.pid_mask = BIT_ULL(8) | BIT_ULL(9) | BIT_ULL(12),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS4,
-			.max_width     = 1168,
-			.max_height    = 4096,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[6],
-			.num_mid       = 12,
-			.num_wm        = 2,
-			.line_based    = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 0,
-			.wm_idx        = {
-				1,
-				2,
-			},
-			.name          = {
-				"DS4_Y",
-				"DS4_C"
-			},
-			.pid_mask = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS16,
-			.max_width     = 292,
-			.max_height    = 1024,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[7],
-			.num_mid       = 12,
-			.num_wm        = 2,
-			.line_based    = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 0,
-			.wm_idx        = {
-				3,
-				4,
-			},
-			.name          = {
-				"DS16_Y",
-				"DS16_C",
-			},
-			.pid_mask = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_DS2,
-			.max_width     = 4672,
-			.max_height    = 8192,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[8],
-			.num_mid       = 12,
-			.num_wm        = 2,
-			.line_based    = 1,
-			.mc_based      = true,
-			.wm_idx        = {
-				5,
-				6,
-			},
-			.name          = {
-				"DS2_Y",
-				"DS2_C",
-			},
-			.pid_mask = BIT_ULL(8) | BIT_ULL(9) | BIT_ULL(12),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_FD,
-			.max_width     = 9312,
-			.max_height    = 16384,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[9],
-			.num_mid       = 3,
-			.num_wm        = 2,
-			.line_based    = 1,
-			.cntxt_cfg_except = true,
-			.wm_idx        = {
-				7,
-				8,
-			},
-			.name          = {
-				"FD_Y",
-				"FD_C",
-			},
-			.pid_mask = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_IR,
-			.max_width     = 9312,
-			.max_height    = 8192,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[10],
-			.num_mid       = 2,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.cntxt_cfg_except = true,
-			.wm_idx        = {
-				9,
-			},
-			.name          = {
-				"IR",
-			},
-			.pid_mask = BIT_ULL(10) | BIT_ULL(13) | BIT_ULL(14),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BE,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[11],
-			.num_mid       = 3,
-			.num_wm        = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				10,
-			},
-			.name          = {
-				"STATS_AEC_BE",
-			},
-			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BHIST,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[12],
-			.num_mid       = 3,
-			.num_wm        = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				11,
-			},
-			.name          = {
-				"STATS_BHIST",
-			},
-			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_TL_BG,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[13],
-			.num_mid       = 3,
-			.num_wm        = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				12,
-			},
-			.name          = {
-				"STATS_TL_BG",
-			},
-			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AWB_BG,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[14],
-			.num_mid       = 3,
-			.num_wm        = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				13,
-			},
-			.name          = {
-				"STATS_AWB_BG",
-			},
-			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_AWB_BFW,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[15],
-			.num_mid       = 3,
-			.num_wm        = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				14,
-			},
-			.name          = {
-				"AWB_BFW",
-			},
-			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AF_BHIST,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[16],
-			.num_mid       = 3,
-			.num_wm        = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				15,
-			},
-			.name          = {
-				"AF_BHIST",
-			},
-			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_ALSC,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[17],
-			.num_mid       = 3,
-			.num_wm        = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				16,
-			},
-			.name          = {
-				"ALSC_BG",
-			},
-			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_BAYER_RS,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[18],
-			.num_mid       = 3,
-			.num_wm        = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				17,
-			},
-			.name          = {
-				"STATS_RS",
-			},
-			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_TMC_BHIST,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_0,
-			.mid           = tfe980_out_port_mid[19],
-			.num_mid       = 3,
-			.num_wm        = 1,
-			.mc_based      = true,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				18,
-			},
-			.name          = {
-				"STATS_TMC_BHIST",
-			},
-			.pid_mask = BIT_ULL(4) | BIT_ULL(5) | BIT_ULL(6),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_2PD,
-			.max_width     = 14592,
-			.max_height    = 4096,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
-			.mid           = tfe980_out_port_mid[20],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.early_done_mask = BIT_ULL(28),
-			.wm_idx        = {
-				19,
-			},
-			.name          = {
-				"PDAF_0_2PD",
-			},
-			.pid_mask = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_2PD,
-			.max_width     = 1920,
-			.max_height    = 1080,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
-			.mid           = tfe980_out_port_mid[21],
-			.num_mid       = 2,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				20,
-			},
-			.name          = {
-				"PDAF_1_PREPROCESS_2PD",
-			},
-			.pid_mask = BIT_ULL(8) | BIT_ULL(9) | BIT_ULL(12),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PARSED,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
-			.mid           = tfe980_out_port_mid[22],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.line_based    = 1,
-			.wm_idx        = {
-				21,
-			},
-			.name          = {
-				"PDAF_2_PARSED_DATA",
-			},
-			.pid_mask = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
-		},
-		{
-			.vfe_out_type  = CAM_VFE_BUS_VER3_VFE_OUT_STATS_CAF,
-			.max_width     = -1,
-			.max_height    = -1,
-			.source_group  = CAM_VFE_BUS_VER3_SRC_GRP_1,
-			.mid           = tfe980_out_port_mid[23],
-			.num_mid       = 1,
-			.num_wm        = 1,
-			.early_done_mask = BIT_ULL(29),
-			.mc_based      = false,
-			.mc_grp_shift  = 4,
-			.wm_idx        = {
-				22,
-			},
-			.name          = {
-				"STATS_CAF",
-			},
-			.pid_mask = BIT_ULL(16) | BIT_ULL(17) | BIT_ULL(18),
-		},
-	},
 	.num_cons_err = 32,
 	.constraint_error_list = {
 		{
@@ -2172,7 +1768,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe980_bus_hw_info = {
 			.error_description = "Meta Stride unalign",
 		},
 	},
-	.num_bus_errors        = tfe980_num_bus_irq_err_desc,
+	.num_bus_errors        = 1,
 	.bus_err_desc          = &tfe980_bus_irq_err_desc,
 	.num_comp_grp          = 10,
 	.support_consumed_addr = true,

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_VFE_CORE_H_
@@ -25,6 +25,9 @@
 #define CAM_VFE_HW_IRQ_CAP_LITE_INT_CSID   0x79
 #define CAM_VFE_HW_IRQ_CAP_EXT_CSID        0x27
 #define CAM_VFE_HW_IRQ_CAP_LITE_EXT_CSID   0x21
+
+#define CAM_VFE_HW_CORE_TYPE_TOP           0
+#define CAM_VFE_HW_CORE_TYPE_BUS           1
 
 struct cam_vfe_irq_hw_info {
 	int                                   reset_irq_handle;
@@ -64,6 +67,16 @@ struct cam_vfe_hw_core_info {
 	void                               *tasklet_info;
 	spinlock_t                          spin_lock;
 };
+/**
+ * struct cam_vfe_core_debug_data - Placeholder for Debug data for bus and top
+ * overflow_status:  Overflow status.
+ * violation_status: Violation status..
+ */
+struct cam_vfe_core_debug_data {
+	uint32_t overflow_status;
+	uint32_t violation_status;
+
+};
 
 int cam_vfe_get_hw_caps(void *device_priv,
 	void *get_hw_cap_args, uint32_t arg_size);
@@ -98,5 +111,8 @@ int cam_vfe_core_init(struct cam_vfe_hw_core_info *core_info,
 
 int cam_vfe_core_deinit(struct cam_vfe_hw_core_info *core_info,
 	struct cam_vfe_hw_info             *vfe_hw_info);
+
+void cam_vfe_core_debug_handler(void *hw_priv,
+	uint32_t hw_type, void *data);
 
 #endif /* _CAM_VFE_CORE_H_ */

@@ -430,6 +430,8 @@ struct cam_icp_hw_ctx_info {
  * @abort_timed_out: Indicates if abort timed out
  * @sys_cache_cfg: sys cache config information
  * @port_security_map: security status per port in a secure usecase
+ * @src_tbl: Unique buf handle table for src buffers to accelerate patching process
+ * @dst_tbl: Unique buf handle table for dst buffers to accelerate patching process
  */
 struct cam_icp_hw_ctx_data {
 	void *context_priv;
@@ -458,6 +460,8 @@ struct cam_icp_hw_ctx_data {
 	bool abort_timed_out;
 	struct cam_icp_sys_cache_cfg sys_cache_cfg;
 	bool port_security_map[CAM_MAX_OUTPUT_PORTS_PER_DEVICE];
+	struct cam_patch_unique_buf_tbl *src_tbl;
+	struct cam_patch_unique_buf_tbl *dst_tbl;
 };
 
 /**

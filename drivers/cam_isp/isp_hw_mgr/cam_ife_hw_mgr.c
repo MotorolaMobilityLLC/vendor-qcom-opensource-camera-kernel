@@ -559,6 +559,13 @@ static int cam_isp_mgr_drv_config(struct cam_ife_hw_mgr_ctx         *ctx,
 
 	ife_hw_mgr = ctx->hw_mgr;
 
+	if (!g_ife_hw_mgr.cam_ddr_drv_support || g_ife_hw_mgr.debug_cfg.disable_isp_drv) {
+		CAM_DBG(CAM_ISP, "Skipping DRV config. drv_support: %d, drv_disable %d",
+			g_ife_hw_mgr.cam_ddr_drv_support,
+			g_ife_hw_mgr.debug_cfg.disable_isp_drv);
+		return rc;
+	}
+
 	/*
 	 * The main logic in this function is checking if per request drv info is valid,
 	 * if it is valid then we do the decision logic based on per request drv info.
@@ -676,9 +683,6 @@ static int cam_isp_mgr_drv_config(struct cam_ife_hw_mgr_ctx         *ctx,
 		"DRV per frame info: req:%llu is_valid:%s frame duration:%llu ns, vertical blanking duration:%llu ns, ctx:%d",
 		request_id, CAM_BOOL_TO_YESNO(drv_info->req_id == request_id),
 		drv_info->frame_duration, drv_info->blanking_duration, ctx->ctx_index);
-
-	if (!g_ife_hw_mgr.cam_ddr_drv_support || g_ife_hw_mgr.debug_cfg.disable_isp_drv)
-		return rc;
 
 	if (is_blob_config_valid &&
 		(prepare_hw_data->packet_opcode_type == CAM_ISP_PACKET_INIT_DEV)) {
@@ -6450,13 +6454,19 @@ static int cam_ife_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	ife_ctx->wr_per_req_index = 0;
 	memset(ife_ctx->per_req_info, 0, sizeof(ife_ctx->per_req_info));
 
+	rc = cam_packet_util_get_unique_tbl(&ife_ctx->src_tbl, &ife_ctx->dst_tbl);
+	if (rc) {
+		CAM_ERR(CAM_ISP, "Failed at allocating mem for ISP unique src/dst buf handle tbl");
+		goto free_ctx;
+	}
+
 	acquire_hw_info = (struct cam_isp_acquire_hw_info *) acquire_args->acquire_info;
 
 	rc = cam_ife_mgr_check_and_update_fe(ife_ctx, acquire_hw_info,
 		acquire_args->acquire_info_size);
 	if (rc) {
 		CAM_ERR(CAM_ISP, "buffer size is not enough, ctx_idx: %u", ife_ctx->ctx_index);
-		goto free_ctx;
+		goto free_unique_tbl;
 	}
 
 	in_port = CAM_MEM_ZALLOC_ARRAY(acquire_hw_info->num_inputs,
@@ -6466,7 +6476,7 @@ static int cam_ife_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	if (!in_port) {
 		CAM_ERR(CAM_ISP, "No memory available, ctx_idx: %u", ife_ctx->ctx_index);
 		rc = -ENOMEM;
-		goto free_ctx;
+		goto free_unique_tbl;
 	}
 
 	ife_ctx->vfe_bus_comp_grp = CAM_MEM_ZALLOC_ARRAY(CAM_IFE_BUS_COMP_NUM_MAX,
@@ -6790,6 +6800,10 @@ free_mem:
 	ife_ctx->res_list_sfe_out = NULL;
 	CAM_MEM_FREE(ife_ctx->res_list_ife_out);
 	ife_ctx->res_list_ife_out = NULL;
+free_unique_tbl:
+	cam_packet_util_put_unique_tbl(ife_ctx->src_tbl, ife_ctx->dst_tbl);
+	ife_ctx->src_tbl = NULL;
+	ife_ctx->dst_tbl = NULL;
 free_ctx:
 	cam_ife_hw_mgr_put_ctx(&ife_hw_mgr->free_ctx_list, &ife_ctx);
 err:
@@ -9337,6 +9351,10 @@ static int cam_ife_mgr_release_hw(void *hw_mgr_priv,
 	CAM_MEM_FREE(ctx->sfe_bus_comp_grp);
 	ctx->vfe_bus_comp_grp = NULL;
 	ctx->sfe_bus_comp_grp = NULL;
+
+	cam_packet_util_put_unique_tbl(ctx->src_tbl, ctx->dst_tbl);
+	ctx->src_tbl = NULL;
+	ctx->dst_tbl = NULL;
 
 	atomic_set(&ctx->overflow_pending, 0);
 	for (i = 0; i < CAM_IFE_HW_NUM_MAX; i++) {
@@ -15373,14 +15391,24 @@ static int cam_ife_mgr_prepare_hw_update(void *hw_mgr_priv,
 		prepare_hw_data->frame_header_res_id = 0x0;
 	}
 
+	/* Zero out previous patching info */
+	if (ctx->src_tbl)
+		memset(ctx->src_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_SRC_HDL_MAX);
+	if (ctx->dst_tbl)
+		memset(ctx->dst_tbl, 0,
+			sizeof(struct cam_patch_unique_buf_tbl) * CAM_UNIQUE_DST_HDL_MAX);
+
 	if (ctx->flags.internal_cdm)
 		rc = cam_packet_util_process_patches(prepare->packet,
 			prepare->buf_tracker, hw_mgr->mgr_common.img_iommu_hdl,
-			hw_mgr->mgr_common.img_iommu_hdl_secure, true);
+			hw_mgr->mgr_common.img_iommu_hdl_secure, true,
+			ctx->src_tbl, ctx->dst_tbl);
 	else
 		rc = cam_packet_util_process_patches(prepare->packet,
 			prepare->buf_tracker, hw_mgr->mgr_common.cmd_iommu_hdl,
-			hw_mgr->mgr_common.cmd_iommu_hdl_secure, true);
+			hw_mgr->mgr_common.cmd_iommu_hdl_secure, true,
+			ctx->src_tbl, ctx->dst_tbl);
 
 	if (rc) {
 		CAM_ERR(CAM_ISP, "Patch ISP packet failed. ctx_idx: %u", ctx->ctx_index);
@@ -15845,14 +15873,14 @@ static void cam_ife_mgr_pf_dump(struct cam_ife_hw_mgr_ctx *ctx)
 	}
 }
 
-static void cam_ife_mgr_pf_dump_mid_info(
+static int cam_ife_mgr_pf_dump_mid_info(
 	struct cam_ife_hw_mgr_ctx    *ctx,
 	struct cam_hw_cmd_args       *hw_cmd_args,
 	struct cam_isp_hw_intf_data  *hw_intf_data)
 {
 	struct cam_packet                  *packet;
 	struct cam_isp_hw_get_cmd_update    cmd_update;
-	struct cam_isp_hw_get_res_for_mid   get_res;
+	struct cam_isp_hw_get_res_for_mid   get_res = {0};
 	int                                 rc = 0;
 	struct cam_ctx_request             *req_pf;
 
@@ -15872,7 +15900,7 @@ static void cam_ife_mgr_pf_dump_mid_info(
 		CAM_ERR(CAM_ISP,
 			"getting mid port resource id failed ctx id:%u req id:%lld",
 			ctx->ctx_index, packet->header.request_id);
-		return;
+		return 0;
 	}
 
 	hw_cmd_args->u.pf_cmd_args->pf_args->pf_context_info.resource_type = get_res.out_res_id;
@@ -15882,6 +15910,7 @@ static void cam_ife_mgr_pf_dump_mid_info(
 	CAM_ERR(CAM_ISP,
 		"Page fault on resource id:(0x%x) ctx id:%u req id:%lld",
 		get_res.out_res_id, ctx->ctx_index, packet->header.request_id);
+	return get_res.dump_handled;
 }
 
 static void cam_ife_mgr_dump_pf_data(
@@ -15895,6 +15924,7 @@ static void cam_ife_mgr_dump_pf_data(
 	bool                               *ctx_found;
 	int                                 i, j;
 	struct cam_ctx_request             *req_pf;
+	bool                                dump_handled;
 
 	ctx = (struct cam_ife_hw_mgr_ctx *)hw_cmd_args->ctxt_to_hw_map;
 	req_pf = (struct cam_ctx_request *)
@@ -15925,7 +15955,8 @@ static void cam_ife_mgr_dump_pf_data(
 		 */
 		if (!g_ife_hw_mgr.hw_pid_support) {
 			if (ctx->base[i].split_id == CAM_ISP_HW_SPLIT_LEFT)
-				cam_ife_mgr_pf_dump_mid_info(ctx, hw_cmd_args, hw_intf_data);
+				dump_handled = cam_ife_mgr_pf_dump_mid_info(ctx, hw_cmd_args,
+					hw_intf_data);
 			continue;
 		}
 
@@ -15936,14 +15967,16 @@ static void cam_ife_mgr_dump_pf_data(
 					ctx->base[i].hw_type == CAM_ISP_HW_TYPE_VFE ? "VFE" : "SFE",
 					ctx->base[i].idx, pf_args->pf_smmu_info->pid,
 					ctx->ctx_index);
-				cam_ife_mgr_pf_dump_mid_info(ctx, hw_cmd_args, hw_intf_data);
+				dump_handled = cam_ife_mgr_pf_dump_mid_info(ctx, hw_cmd_args,
+					hw_intf_data);
 
 				/* If MID found - stop hw res and dump client info */
 				if (ctx->flags.pf_mid_found) {
 					cam_ife_hw_mgr_stop_pf_hw_res(ctx, ctx->pf_info.out_port_id,
 						ctx->base[i].hw_type);
-					cam_ife_hw_mgr_dump_bus_info(ctx->pf_info.out_port_id,
-						hw_intf_data);
+					if (!dump_handled)
+						cam_ife_hw_mgr_dump_bus_info(
+							ctx->pf_info.out_port_id, hw_intf_data);
 				}
 				break;
 			}
