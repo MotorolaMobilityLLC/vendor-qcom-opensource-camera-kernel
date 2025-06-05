@@ -1788,7 +1788,8 @@ static void __cam_isp_ctx_send_sof_timestamp(
 	struct cam_context           *ctx = ctx_isp->base;
 	struct shutter_event         shutter_event = {0};
 
-	if (ctx_isp->reported_frame_id == ctx_isp->frame_id) {
+	if ((ctx_isp->reported_frame_id == ctx_isp->frame_id) ||
+		(ctx_isp->last_sof_timestamp >= ctx_isp->sof_timestamp_val)) {
 		if (__cam_isp_ctx_recover_sof_timestamp(ctx_isp->base, request_id))
 			CAM_WARN(CAM_ISP, "Missed SOF.No SOF timestamp recovery,ctx:%u,link:0x%x",
 				ctx->ctx_id, ctx->link_hdl);
@@ -1803,6 +1804,14 @@ static void __cam_isp_ctx_send_sof_timestamp(
 
 	ctx_isp->reported_frame_id = ctx_isp->frame_id;
 	shutter_event.status = sof_event_status;
+
+	if (ctx_isp->last_sof_timestamp >= ctx_isp->sof_timestamp_val) {
+		CAM_ERR(CAM_ISP,
+			"SOF timestamp recovery fail, current timestamp:0x%llx, last timestamp:0x%llx, ctx:%u, link:0x%x",
+			ctx_isp->sof_timestamp_val, ctx_isp->last_sof_timestamp,
+			ctx->ctx_id, ctx->link_hdl);
+		return;
+	}
 
 	if ((ctx_isp->v4l2_event_sub_ids & (1 << V4L_EVENT_CAM_REQ_MGR_SOF_UNIFIED_TS))
 		&& !ctx_isp->use_frame_header_ts) {
@@ -2039,6 +2048,7 @@ static int __cam_isp_ctx_handle_buf_done_for_req_list(
 				__cam_isp_ctx_send_sof_timestamp(ctx_isp,
 					buf_done_req_id,
 					CAM_REQ_MGR_SOF_EVENT_SUCCESS);
+				ctx_isp->last_sof_timestamp = ctx_isp->sof_timestamp_val;
 			}
 		}
 
