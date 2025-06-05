@@ -402,7 +402,7 @@ static int32_t cam_sensor_get_io_buffer(
 			io_cfg->direction);
 		rc = -EINVAL;
 	}
-	cam_mem_put_cpu_buf(io_cfg->mem_handle[0]);
+
 	return rc;
 }
 
@@ -2865,5 +2865,35 @@ void cam_sensor_util_release_resources(struct camera_io_master *io_master_info,
 		(io_master_info->qup_client != NULL)) {
 		CAM_MEM_FREE(io_master_info->qup_client);
 		io_master_info->qup_client = NULL;
+	}
+}
+
+int cam_sensor_util_add_read_buf_to_list(struct list_head *read_buf_list,
+	int32_t read_buffer_handle)
+{
+	struct cam_sensor_read_buf_list *tmp_buf;
+
+	tmp_buf = CAM_MEM_ZALLOC(sizeof(struct cam_sensor_read_buf_list), GFP_KERNEL);
+	if (!tmp_buf)
+		return -ENOMEM;
+
+	tmp_buf->read_buf_handle = read_buffer_handle;
+	list_add_tail(&(tmp_buf->list), read_buf_list);
+
+	return 0;
+}
+
+void cam_sensor_util_release_read_buf(struct list_head *read_buf_list)
+{
+	struct cam_sensor_read_buf_list *buf_list = NULL, *buf_next = NULL;
+
+	list_for_each_entry_safe(buf_list, buf_next,
+		read_buf_list, list) {
+		if (buf_list->read_buf_handle) {
+			cam_mem_put_cpu_buf(buf_list->read_buf_handle);
+		}
+
+		list_del(&(buf_list->list));
+		CAM_MEM_FREE(buf_list);
 	}
 }

@@ -104,6 +104,8 @@ struct actuator_intf_params {
  * @cam_act_park_state    : Actuator park state
  * @is_deferred_park_lens : Flag to specify deferred park lens
  * @park_lens_complete    : Indicator for park lens complete
+ * @read_buf_list         : Actuator register read cmd buffer handle list
+ * @read_buf_lock         : Actuator register read cmd buffer mutex
  */
 struct cam_actuator_ctrl_t {
 	char device_name[CAM_CTX_DEV_NAME_MAX_LENGTH];
@@ -124,6 +126,8 @@ struct cam_actuator_ctrl_t {
 	struct mutex actuator_park_mutex;
 	bool is_deferred_park_lens;
 	struct completion park_lens_complete;
+	struct list_head read_buf_list;
+	struct mutex read_buf_lock;
 };
 
 /**
