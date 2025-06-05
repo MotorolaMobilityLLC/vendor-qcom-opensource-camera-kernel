@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/of.h>
@@ -523,8 +523,6 @@ static inline enum cam_cpas_reg_base __cam_cpas_get_internal_reg_base(
 	switch (reg_base) {
 	case CAM_CPAS_REGBASE_CPASTOP:
 		return CAM_CPAS_REG_CPASTOP;
-	case CAM_CPAS_REGBASE_LLCC:
-		return CAM_CPAS_REG_CAMNOC_LLCC;
 	default:
 		return CAM_CPAS_REG_MAX;
 	}

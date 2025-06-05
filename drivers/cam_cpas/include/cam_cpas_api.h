@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_CPAS_API_H_
@@ -55,7 +55,6 @@ enum secure_camera_qos_update_type {
  */
 enum cam_cpas_regbase_types {
 	CAM_CPAS_REGBASE_CPASTOP,
-	CAM_CPAS_REGBASE_LLCC,
 	CAM_CPAS_REGBASE_MAX
 };
 
