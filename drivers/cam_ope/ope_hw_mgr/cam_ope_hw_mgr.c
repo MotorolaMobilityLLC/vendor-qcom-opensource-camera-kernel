@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * ​​Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/uaccess.h>
@@ -867,10 +867,6 @@ static int32_t cam_ope_process_request_timer(void *priv, void *data)
 			ctx_data->clk_info.axi_path[i].mnoc_ab_bw;
 		clk_info->axi_path[path_index].mnoc_ib_bw -=
 			ctx_data->clk_info.axi_path[i].mnoc_ib_bw;
-		clk_info->axi_path[path_index].ddr_ab_bw -=
-			ctx_data->clk_info.axi_path[i].ddr_ab_bw;
-		clk_info->axi_path[path_index].ddr_ib_bw -=
-			ctx_data->clk_info.axi_path[i].ddr_ib_bw;
 	}
 
 	memset(&ctx_data->clk_info.axi_path[0], 0,
@@ -895,12 +891,6 @@ static int32_t cam_ope_process_request_timer(void *priv, void *data)
 				device_share_ratio);
 			do_div(
 			clk_update.axi_vote.axi_path[i].mnoc_ib_bw,
-				device_share_ratio);
-			do_div(
-			clk_update.axi_vote.axi_path[i].ddr_ab_bw,
-				device_share_ratio);
-			do_div(
-			clk_update.axi_vote.axi_path[i].ddr_ib_bw,
 				device_share_ratio);
 		}
 	}
@@ -1549,10 +1539,6 @@ static bool cam_ope_update_bw_v2(struct cam_ope_hw_mgr *hw_mgr,
 		ctx_data->clk_info.axi_path[i].mnoc_ab_bw;
 	hw_mgr_clk_info->axi_path[path_index].mnoc_ib_bw -=
 		ctx_data->clk_info.axi_path[i].mnoc_ib_bw;
-	hw_mgr_clk_info->axi_path[path_index].ddr_ab_bw -=
-		ctx_data->clk_info.axi_path[i].ddr_ab_bw;
-	hw_mgr_clk_info->axi_path[path_index].ddr_ib_bw -=
-		ctx_data->clk_info.axi_path[i].ddr_ib_bw;
 	}
 
 	ctx_data->clk_info.num_paths =
@@ -1590,10 +1576,7 @@ static bool cam_ope_update_bw_v2(struct cam_ope_hw_mgr *hw_mgr,
 			ctx_data->clk_info.axi_path[i].mnoc_ab_bw;
 		hw_mgr_clk_info->axi_path[path_index].mnoc_ib_bw +=
 			ctx_data->clk_info.axi_path[i].mnoc_ib_bw;
-		hw_mgr_clk_info->axi_path[path_index].ddr_ab_bw +=
-			ctx_data->clk_info.axi_path[i].ddr_ab_bw;
-		hw_mgr_clk_info->axi_path[path_index].ddr_ib_bw +=
-			ctx_data->clk_info.axi_path[i].ddr_ib_bw;
+
 		CAM_DBG(CAM_OPE,
 			"Consolidate Path Vote : Dev[%s] i[%d] path_idx[%d] : [%s %s] [%lld %lld]",
 			ctx_data->ope_acquire.dev_name,
@@ -2858,8 +2841,6 @@ static int cam_ope_mgr_acquire_hw(void *hw_priv, void *hw_acquire_args)
 			hw_mgr->clk_info.axi_path[i].camnoc_bw = 0;
 			hw_mgr->clk_info.axi_path[i].mnoc_ab_bw = 0;
 			hw_mgr->clk_info.axi_path[i].mnoc_ib_bw = 0;
-			hw_mgr->clk_info.axi_path[i].ddr_ab_bw = 0;
-			hw_mgr->clk_info.axi_path[i].ddr_ib_bw = 0;
 		}
 	}
 
@@ -2905,8 +2886,6 @@ static int cam_ope_mgr_acquire_hw(void *hw_priv, void *hw_acquire_args)
 		bw_update->axi_vote.axi_path[0].camnoc_bw = 600000000;
 		bw_update->axi_vote.axi_path[0].mnoc_ab_bw = 600000000;
 		bw_update->axi_vote.axi_path[0].mnoc_ib_bw = 600000000;
-		bw_update->axi_vote.axi_path[0].ddr_ab_bw = 600000000;
-		bw_update->axi_vote.axi_path[0].ddr_ib_bw = 600000000;
 		bw_update->axi_vote.axi_path[0].transac_type =
 			CAM_AXI_TRANSACTION_WRITE;
 		bw_update->axi_vote.axi_path[0].path_data_type =
@@ -3023,10 +3002,6 @@ static int cam_ope_mgr_remove_bw(struct cam_ope_hw_mgr *hw_mgr, int ctx_id)
 			ctx_data->clk_info.axi_path[i].mnoc_ab_bw;
 		hw_mgr_clk_info->axi_path[path_index].mnoc_ib_bw -=
 			ctx_data->clk_info.axi_path[i].mnoc_ib_bw;
-		hw_mgr_clk_info->axi_path[path_index].ddr_ab_bw -=
-			ctx_data->clk_info.axi_path[i].ddr_ab_bw;
-		hw_mgr_clk_info->axi_path[path_index].ddr_ib_bw -=
-			ctx_data->clk_info.axi_path[i].ddr_ib_bw;
 	}
 
 	rc = cam_ope_update_cpas_vote(hw_mgr, ctx_data);
