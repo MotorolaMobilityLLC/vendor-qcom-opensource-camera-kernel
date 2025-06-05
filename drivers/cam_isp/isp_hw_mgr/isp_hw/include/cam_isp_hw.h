@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_ISP_HW_H_
@@ -654,12 +654,29 @@ struct cam_isp_hw_intf_data {
  * @skip_regdump_stop_offset:  Register address which needs to stop skiping register dump
  *
  */
-
 struct cam_isp_hw_regiter_dump_data {
 	bool                    skip_regdump;
 	uint32_t                skip_regdump_start_offset;
 	uint32_t                skip_regdump_stop_offset;
 };
+
+/**
+ * struct cam_isp_hw_out_port_data:
+ *
+ * @Brief:                           ISP out port data
+ *
+ * @valid:                           Mask containing valid out ports
+ * @mc_based_mask:                   Multi-context ports mask
+ * @single_ctxt_except_mask:         Single context ports with the exception of
+ *                                   taking in any of the contexts
+ *
+ */
+struct cam_isp_hw_out_port_data {
+	uint64_t                     valid_mask;
+	uint64_t                     mc_based_mask;
+	uint64_t                     single_ctxt_except_mask;
+};
+
 
 /**
  * struct cam_isp_hw_bus_cap:
@@ -677,6 +694,7 @@ struct cam_isp_hw_regiter_dump_data {
  * @support_consumed_addr:  Indicate whether HW has last consumed addr reg
  * @support_buf_done_with_framehdr:  Indicate whether HW supports using frameheader
  *                                  for buf done verification
+ * @out_port_data:          Data specific to output ports for validating acquire
  *
  */
 struct cam_isp_hw_cap {
@@ -691,6 +709,7 @@ struct cam_isp_hw_cap {
 	bool                                 support_consumed_addr;
 	struct cam_isp_hw_regiter_dump_data  skip_regdump_data;
 	bool                                 support_buf_done_with_framehdr;
+	struct cam_isp_hw_out_port_data      out_port_data;
 };
 
 /**

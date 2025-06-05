@@ -579,6 +579,7 @@ static enum cam_vfe_bus_ver3_vfe_out_type
 		*index = CAM_VFE_BUS_VER3_VFE_OUT_MAX;
 		return vfe_out_type;
 	}
+
 	*index = bus_priv->vfe_out_map_outtype[vfe_out_type];
 
 	return vfe_out_type;
@@ -5536,6 +5537,36 @@ static int cam_vfe_bus_ver3_read_rst_perf_cntrs(
 	return 0;
 }
 
+static int cam_vfe_bus_ver3_get_out_port_data(struct cam_vfe_bus_ver3_priv *bus_priv,
+	struct cam_isp_hw_cap *vfe_bus_cap)
+{
+	int i;
+	uint32_t out_index;
+	static enum cam_vfe_bus_ver3_vfe_out_type vfe_out_type;
+	struct cam_vfe_bus_ver3_vfe_out_data     *rsrc_data = NULL;
+	uint32_t max_num_out_ports = (bus_priv->max_out_res - CAM_ISP_IFE_OUT_RES_BASE);
+
+	for (i = 0; i < max_num_out_ports; i++) {
+		vfe_out_type =  cam_vfe_bus_ver3_get_out_res_id_and_index(bus_priv,
+			(CAM_ISP_IFE_OUT_RES_BASE + i), &out_index);
+		if ((vfe_out_type >= CAM_VFE_BUS_VER3_VFE_OUT_MAX) ||
+			(out_index >= bus_priv->num_out))
+			continue;
+
+		rsrc_data = bus_priv->vfe_out[out_index].res_priv;
+		if (rsrc_data && (bus_priv->vfe_out[out_index].res_state ==
+			CAM_ISP_RESOURCE_STATE_AVAILABLE)) {
+			vfe_bus_cap->out_port_data.valid_mask |= BIT_ULL(i);
+			vfe_bus_cap->out_port_data.mc_based_mask |=
+				(rsrc_data->mc_based ? BIT_ULL(i) : 0);
+			vfe_bus_cap->out_port_data.single_ctxt_except_mask |=
+				(rsrc_data->cntxt_cfg_except ? BIT_ULL(i) : 0);
+		}
+	}
+
+	return 0;
+}
+
 static int cam_vfe_bus_ver3_process_cmd(
 	struct cam_isp_resource_node *priv,
 	uint32_t cmd_type, void *cmd_args, uint32_t arg_size)
@@ -5630,6 +5661,8 @@ static int cam_vfe_bus_ver3_process_cmd(
 		bus_priv = (struct cam_vfe_bus_ver3_priv  *) priv;
 		vfe_bus_cap = (struct cam_isp_hw_cap *) cmd_args;
 		vfe_bus_cap->max_out_res_type = bus_priv->max_out_res;
+		rc = cam_vfe_bus_ver3_get_out_port_data(bus_priv, vfe_bus_cap);
+
 		vfe_bus_cap->support_consumed_addr =
 			bus_priv->common_data.support_consumed_addr;
 		vfe_bus_cap->skip_regdump_data.skip_regdump =
@@ -5807,8 +5840,7 @@ int cam_vfe_bus_ver3_init(
 	}
 
 	for (i = 0; i < CAM_VFE_BUS_VER3_VFE_OUT_MAX; i++)
-		bus_priv->vfe_out_map_outtype[i] =
-			CAM_VFE_BUS_VER3_VFE_OUT_MAX;
+		bus_priv->vfe_out_map_outtype[i] = CAM_VFE_BUS_VER3_VFE_OUT_MAX;
 
 	bus_priv->comp_grp = CAM_MEM_ZALLOC((sizeof(struct cam_isp_resource_node) *
 		bus_priv->num_comp_grp), GFP_KERNEL);
@@ -5849,7 +5881,6 @@ int cam_vfe_bus_ver3_init(
 	}
 
 	rc = cam_vfe_bus_ver3_init_vfe_out_resource(bus_priv, bus_hw_info);
-
 	if (rc) {
 		CAM_ERR(CAM_ISP, "VFE:%u Failed to update outport info",
 			bus_priv->common_data.core_index);

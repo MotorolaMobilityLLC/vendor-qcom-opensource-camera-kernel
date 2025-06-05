@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_IFE_HW_MGR_H_
@@ -555,6 +555,8 @@ struct cam_isp_fcg_caps {
  * @max_dt_supported              :  max DT CSID can decode
  * @support_consumed_addr         :  indicate whether hw supports last consumed address
  * @support_buf_done_with_framehdr :  if target supports this scheme
+ * @out_port_data                  : Data specific to output ports for validating acquire
+
  */
 struct cam_isp_hw_caps {
 	struct cam_isp_fcg_caps fcg_caps;
@@ -569,6 +571,7 @@ struct cam_isp_hw_caps {
 	bool                    support_consumed_addr;
 	struct cam_isp_hw_regiter_dump_data skip_regdump_data;
 	bool                    support_buf_done_with_framehdr;
+	struct cam_isp_hw_out_port_data out_port_data;
 };
 /*
  * struct cam_isp_sys_cache_info:

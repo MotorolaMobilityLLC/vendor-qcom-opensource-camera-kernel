@@ -5163,7 +5163,7 @@ static int cam_ife_hw_mgr_preprocess_port(
 	struct cam_isp_in_port_generic_info *in_port,
 	uint32_t                    *max_height)
 {
-	uint32_t i;
+	uint32_t i, trunc_res_type = 0;
 	struct cam_isp_out_port_generic_info *out_port;
 
 	if (in_port->res_type == CAM_ISP_IFE_IN_RES_RD ||
@@ -5191,10 +5191,17 @@ static int cam_ife_hw_mgr_preprocess_port(
 				out_port->res_type))
 			in_port->lcr_count++;
 		else {
-			CAM_DBG(CAM_ISP, "out_res_type 0x%x, ife_ctx_idx: %u",
-				out_port->res_type, ife_ctx->ctx_index);
+			trunc_res_type = (out_port->res_type - CAM_ISP_IFE_OUT_RES_BASE);
+			CAM_DBG(CAM_ISP, "out_res_type 0x%x, trunc_res_id:%d ife_ctx_idx: %u",
+				out_port->res_type, trunc_res_type, ife_ctx->ctx_index);
 			if ((in_port->major_ver == 3) && (in_port->path_id &
-				(CAM_ISP_PXL_PATH | CAM_ISP_PXL1_PATH | CAM_ISP_PXL2_PATH))) {
+				(CAM_ISP_PXL_PATH | CAM_ISP_PXL1_PATH | CAM_ISP_PXL2_PATH)) &&
+				(g_ife_hw_mgr.isp_caps.out_port_data.valid_mask &
+					BIT_ULL(trunc_res_type)) &&
+				((g_ife_hw_mgr.isp_caps.out_port_data.mc_based_mask &
+					BIT_ULL(trunc_res_type)) ||
+				(g_ife_hw_mgr.isp_caps.out_port_data.single_ctxt_except_mask &
+					BIT_ULL(trunc_res_type)))) {
 				CAM_DBG(CAM_ISP,
 					"preprocess csid path resource: 0x%x, ipp_dst_hw_ctxt_mask: 0x%x, outport ctxt_id: %d",
 					in_port->path_id, in_port->ipp_dst_hw_ctxt_mask,
@@ -20037,6 +20044,7 @@ int cam_ife_hw_mgr_init(struct cam_hw_mgr_intf *hw_mgr_intf, int *iommu_hdl,
 			g_ife_hw_mgr.cdm_reg_map[i] = NULL;
 		}
 	}
+
 	if (j == 0) {
 		CAM_ERR(CAM_ISP, "no valid IFE HW");
 		return -EINVAL;
@@ -20066,14 +20074,15 @@ int cam_ife_hw_mgr_init(struct cam_hw_mgr_intf *hw_mgr_intf, int *iommu_hdl,
 		isp_cap.skip_regdump_data.skip_regdump_start_offset;
 	g_ife_hw_mgr.isp_caps.skip_regdump_data.skip_regdump_stop_offset =
 		isp_cap.skip_regdump_data.skip_regdump_stop_offset;
+	g_ife_hw_mgr.isp_caps.out_port_data = isp_cap.out_port_data;
 	memset(&isp_cap, 0x0, sizeof(struct cam_isp_hw_cap));
 
 	for (i = 0; i < path_port_map.num_entries; i++) {
 		g_ife_hw_mgr.path_port_map.entry[i][0] = path_port_map.entry[i][0];
 		g_ife_hw_mgr.path_port_map.entry[i][1] = path_port_map.entry[i][1];
 	}
-	g_ife_hw_mgr.path_port_map.num_entries = path_port_map.num_entries;
 
+	g_ife_hw_mgr.path_port_map.num_entries = path_port_map.num_entries;
 	g_ife_hw_mgr.isp_device_type = isp_device_type;
 
 	/* fill csid hw intf information */
@@ -20375,9 +20384,10 @@ end:
 			g_ife_hw_mgr.ctx_pool[i].common.tasklet_info = NULL;
 		}
 	}
-	cam_smmu_destroy_handle(
-		g_ife_hw_mgr.mgr_common.img_iommu_hdl_secure);
+
+	cam_smmu_destroy_handle(g_ife_hw_mgr.mgr_common.img_iommu_hdl_secure);
 	g_ife_hw_mgr.mgr_common.img_iommu_hdl_secure = -1;
+
 secure_fail:
 	cam_smmu_destroy_handle(g_ife_hw_mgr.mgr_common.img_iommu_hdl);
 	g_ife_hw_mgr.mgr_common.img_iommu_hdl = -1;
@@ -20400,8 +20410,7 @@ void cam_ife_hw_mgr_deinit(void)
 	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.csid_perf_counter_val1);
 
 	for (i = 0; i < CAM_IFE_CTX_MAX; i++) {
-		cam_tasklet_deinit(
-			&g_ife_hw_mgr.mgr_common.tasklet_pool[i]);
+		cam_tasklet_deinit(&g_ife_hw_mgr.mgr_common.tasklet_pool[i]);
 		g_ife_hw_mgr.ctx_pool[i].cdm_cmd = NULL;
 		CAM_MEM_FREE(g_ife_hw_mgr.ctx_pool[i].vfe_out_map);
 		CAM_MEM_FREE(g_ife_hw_mgr.ctx_pool[i].sfe_out_map);
@@ -20410,8 +20419,7 @@ void cam_ife_hw_mgr_deinit(void)
 		g_ife_hw_mgr.ctx_pool[i].common.tasklet_info = NULL;
 	}
 
-	cam_smmu_destroy_handle(
-		g_ife_hw_mgr.mgr_common.img_iommu_hdl_secure);
+	cam_smmu_destroy_handle(g_ife_hw_mgr.mgr_common.img_iommu_hdl_secure);
 	g_ife_hw_mgr.mgr_common.img_iommu_hdl_secure = -1;
 
 	cam_smmu_destroy_handle(g_ife_hw_mgr.mgr_common.img_iommu_hdl);
