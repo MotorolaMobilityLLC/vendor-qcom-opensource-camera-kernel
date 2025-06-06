@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/dma-mapping.h>
@@ -807,7 +807,7 @@ int cam_req_mgr_ordered_list_cmp(void *priv,
 }
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) && IS_ENABLED(CONFIG_QCOM_MEM_BUF))
 long cam_dma_buf_set_name(struct dma_buf *dmabuf, const char *name)
 {
 	long ret = 0;
