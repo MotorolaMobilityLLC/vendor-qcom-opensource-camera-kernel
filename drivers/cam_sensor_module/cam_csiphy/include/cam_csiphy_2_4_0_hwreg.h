@@ -273,6 +273,23 @@ struct csiphy_reg_t datarate_240_700Msps_RFI[] = {
 	{0x0014, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
+struct csiphy_reg_t datarate_240_800Msps_RFI[] = {
+	/* AFE Settings */
+	{0x0068, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x006C, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0070, 0x03, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0074, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0078, 0x5F, 0x00, CSIPHY_CDR_LN_SETTINGS},
+	{0x0088, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x008C, 0x88, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0090, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
+	/* Datarate Sensitive */
+	{0x000C, 0x46, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
+	{0x0008, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
+	{0x0010, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0014, 0x09, 0x00, CSIPHY_DEFAULT_PARAMS},
+};
+
 struct csiphy_reg_t datarate_240_600Msps[] = {
 	/* AFE Settings */
 	{0x0068, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -773,7 +790,7 @@ static struct data_rate_reg_info_t data_rate_settings_2_4_0[] = {
 		.data_rate_reg_array[1][0] = datarate_240_800Msps,
 		.data_rate_reg_array[2][0] = datarate_240_800Msps,
 		.data_rate_reg_array[3][0] = datarate_240_800Msps,
-		.data_rate_reg_array[4][0] = datarate_240_800Msps,
+		.data_rate_reg_array[4][0] = datarate_240_800Msps_RFI,
 		.data_rate_reg_array[5][0] = datarate_240_800Msps,
 		.data_rate_reg_array[6][0] = datarate_240_800Msps,
 		.data_rate_reg_array[7][0] = datarate_240_800Msps,
