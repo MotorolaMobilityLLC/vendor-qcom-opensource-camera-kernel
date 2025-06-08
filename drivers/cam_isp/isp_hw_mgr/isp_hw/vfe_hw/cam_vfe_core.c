@@ -562,6 +562,7 @@ int cam_vfe_process_cmd(void *hw_priv, uint32_t cmd_type,
 	case CAM_ISP_HW_CMD_UBWC_UPDATE_V3:
 	case CAM_ISP_HW_CMD_WM_CONFIG_UPDATE_V2:
 	case CAM_ISP_HW_CMD_READ_RST_PERF_CNTRS:
+	case CAM_ISP_HW_CMD_TRIGGER_ERR_NO_FAULT_STREAM:
 		rc = core_info->vfe_bus->hw_ops.process_cmd(
 			core_info->vfe_bus->bus_priv, cmd_type, cmd_args,
 			arg_size);

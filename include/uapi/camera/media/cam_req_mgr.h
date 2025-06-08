@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef __UAPI_LINUX_CAM_REQ_MGR_H
@@ -712,6 +712,9 @@ struct cam_mem_cpu_access_op {
  * @CAM_REQ_MGR_VALID_SHUTTER_DROPPED          : Valid shutter dropped
  * @CAM_REQ_MGR_ISP_ERR_HWPD_VIOLATION         : HWPD image size violation
  * @CAM_REQ_MGR_ISP_ERR_SETTING_MISMATCHED     : Setting mismatched between sensor and isp
+ * @CAM_REQ_MGR_ISP_ERR_ILLEGAL_DT_SWITCH      : CSID received ILLEGAL DT SWITCH error
+ * @CAM_REQ_MGR_ISP_ERR_NON_FAULTING_STREAM    : Error is propagated from a different
+ *                                               stream/SW context
  */
 #define CAM_REQ_MGR_ISP_UNREPORTED_ERROR                 0
 #define CAM_REQ_MGR_LINK_STALLED_ERROR                   BIT(0)
@@ -737,6 +740,7 @@ struct cam_mem_cpu_access_op {
 #define CAM_REQ_MGR_ISP_ERR_BUSIF_OVERFLOW               BIT(20)
 #define CAM_REQ_MGR_ISP_ERR_SETTING_MISMATCHED           BIT(21)
 #define CAM_REQ_MGR_ISP_ERR_ILLEGAL_DT_SWITCH            BIT(22)
+#define CAM_REQ_MGR_ISP_ERR_NON_FAULTING_STREAM          BIT(23)
 
 /**
  * struct cam_req_mgr_error_msg

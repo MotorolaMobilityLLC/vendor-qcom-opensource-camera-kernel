@@ -3476,9 +3476,9 @@ static int cam_vfe_bus_ver3_handle_err_irq_bottom_half(
 	struct cam_vfe_bus_irq_evt_payload *evt_payload = evt_payload_priv;
 	struct cam_vfe_bus_ver3_priv *bus_priv = handler_priv;
 	struct cam_vfe_bus_ver3_common_data *common_data;
-	struct cam_isp_hw_event_info evt_info;
-	struct cam_isp_hw_error_event_info err_evt_info;
-	struct cam_vfe_bus_irq_violation_type violation_type;
+	struct cam_isp_hw_event_info evt_info = {0};
+	struct cam_isp_hw_error_event_info err_evt_info = {0};
+	struct cam_vfe_bus_irq_violation_type violation_type = {0};
 	uint32_t status = 0, image_size_violation = 0, ccif_violation = 0, constraint_violation = 0;
 	uint64_t out_port_mask = 0;
 	int idx = -1;
@@ -3497,10 +3497,6 @@ static int cam_vfe_bus_ver3_handle_err_irq_bottom_half(
 		"VFE[%u] BUS error image size violation: %s, CCIF violation: %s, Constraint violation: %s",
 		bus_priv->common_data.core_index, CAM_BOOL_TO_YESNO(image_size_violation),
 		CAM_BOOL_TO_YESNO(ccif_violation), CAM_BOOL_TO_YESNO(constraint_violation));
-
-	memset(&evt_info, 0, sizeof(evt_info));
-	memset(&err_evt_info, 0, sizeof(err_evt_info));
-	memset(&violation_type, 0, sizeof(violation_type));
 
 	if (image_size_violation || constraint_violation) {
 		status = evt_payload->image_size_violation_status;
@@ -3545,6 +3541,8 @@ static int cam_vfe_bus_ver3_handle_err_irq_bottom_half(
 
 	evt_info.hw_idx = common_data->core_index;
 	evt_info.res_type = CAM_ISP_RESOURCE_VFE_OUT;
+	evt_info.reg_idx = CAM_IFE_IRQ_BUS_VER3_REG_STATUS0;
+	evt_info.trigger_no_fault_stream_err = true;
 	evt_info.hw_type = CAM_ISP_HW_TYPE_VFE;
 	err_evt_info.err_type = CAM_VFE_IRQ_STATUS_VIOLATION;
 	evt_info.event_data = (void *)&err_evt_info;
@@ -3572,6 +3570,7 @@ static int cam_vfe_bus_ver3_handle_err_irq_bottom_half(
 			(void *)&evt_info);
 		out_port_mask >>= 1;
 	}
+
 	return 0;
 }
 
@@ -5456,8 +5455,7 @@ static uint32_t cam_vfe_bus_ver3_get_last_consumed_addr(
 	return last_consumed_addr;
 }
 
-static int cam_vfe_bus_ver3_read_rst_perf_cntrs(
-	struct cam_vfe_bus_ver3_priv *bus_priv)
+static int cam_vfe_bus_ver3_read_rst_perf_cntrs(struct cam_vfe_bus_ver3_priv *bus_priv)
 {
 	int i;
 	bool print = false;
@@ -5524,6 +5522,28 @@ static int cam_vfe_bus_ver3_get_out_port_data(struct cam_vfe_bus_ver3_priv *bus_
 	}
 
 	return 0;
+}
+
+static int cam_vfe_bus_ver3_trigger_err_irq(struct cam_vfe_bus_ver3_priv *bus_priv)
+{
+	int rc = 0;
+
+	CAM_DBG(CAM_ISP, "VFE:%u Err irq set irq_reg_idx: %d irq_mask 0x%x",
+		bus_priv->common_data.hw_intf->hw_idx,
+		bus_priv->common_data.common_reg->no_fault_irq_set_reg_idx,
+		bus_priv->common_data.common_reg->no_fault_irq_set_mask);
+
+	rc = cam_irq_controller_set_irq(bus_priv->common_data.bus_irq_controller,
+		bus_priv->common_data.common_reg->no_fault_irq_set_reg_idx,
+		bus_priv->common_data.common_reg->no_fault_irq_set_mask);
+	if (rc) {
+		CAM_ERR(CAM_ISP, "VFE:%u Failed to set irq for bus reg idx: %d",
+			bus_priv->common_data.hw_intf->hw_idx,
+			bus_priv->common_data.common_reg->no_fault_irq_set_reg_idx);
+		return rc;
+	}
+
+	return rc;
 }
 
 static int cam_vfe_bus_ver3_process_cmd(
@@ -5693,6 +5713,10 @@ static int cam_vfe_bus_ver3_process_cmd(
 		bus_priv = (struct cam_vfe_bus_ver3_priv  *) priv;
 		rc = cam_vfe_bus_ver3_read_rst_perf_cntrs(bus_priv);
 	}
+		break;
+	case CAM_ISP_HW_CMD_TRIGGER_ERR_NO_FAULT_STREAM:
+		bus_priv = (struct cam_vfe_bus_ver3_priv  *) priv;
+		rc = cam_vfe_bus_ver3_trigger_err_irq(bus_priv);
 		break;
 	default:
 		CAM_ERR_RATE_LIMIT(CAM_ISP, "VFE:%u Invalid camif process command:%d",

@@ -4434,11 +4434,12 @@ static int __cam_isp_ctx_buf_done_in_bubble_applied(
 }
 
 static void __cam_isp_get_notification_evt_params(
-	uint32_t hw_error, uint32_t *fence_evt_cause,
-	uint32_t *req_mgr_err_code, uint32_t *recovery_type)
+	struct cam_isp_hw_error_event_data  *error_event_data,
+	uint32_t *fence_evt_cause, uint32_t *req_mgr_err_code, uint32_t *recovery_type)
 {
-	uint32_t err_type, err_code = 0, recovery_type_temp;
+	uint32_t hw_error, err_type, err_code = 0, recovery_type_temp;
 
+	hw_error = error_event_data->error_type;
 	err_type = CAM_SYNC_ISP_EVENT_UNKNOWN;
 	recovery_type_temp = CAM_REQ_MGR_ERROR_TYPE_RECOVERY;
 
@@ -4527,6 +4528,9 @@ static void __cam_isp_get_notification_evt_params(
 		err_type = CAM_SYNC_ISP_EVENT_OVERFLOW;
 		recovery_type_temp |= CAM_REQ_MGR_ERROR_TYPE_RECOVERY;
 	}
+
+	if (error_event_data->is_no_fault_ctx)
+		err_code |= CAM_REQ_MGR_ISP_ERR_NON_FAULTING_STREAM;
 
 	if (recovery_type_temp == (CAM_REQ_MGR_ERROR_TYPE_FULL_RECOVERY |
 		CAM_REQ_MGR_ERROR_TYPE_RECOVERY))
@@ -4811,7 +4815,7 @@ static int __cam_isp_ctx_handle_error(struct cam_isp_context *ctx_isp,
 	__cam_isp_ctx_print_event_record(ctx_isp);
 	__cam_isp_ctx_dump_state_monitor_array(ctx_isp);
 
-	__cam_isp_get_notification_evt_params(error_event_data->error_type,
+	__cam_isp_get_notification_evt_params(error_event_data,
 		&fence_evt_cause, &req_mgr_err_code, &recovery_type);
 	/*
 	 * The error is likely caused by first request on the active list.

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_IFE_CSID_HW_VER2_H_
@@ -684,6 +684,8 @@ struct cam_ife_csid_ver2_common_reg_info {
 	bool     camif_irq_support;
 	bool     ts_comb_vcdt_en;
 	bool     direct_cid_config;
+	bool     no_fault_stream_err_en;
+	uint32_t no_fault_irq_set_mask;
 	uint32_t drv_rup_en_val_map[CAM_IFE_PIX_PATH_RES_MAX];
 	uint32_t drv_path_idle_en_val_map[CAM_ISP_MAX_PATHS];
 	uint32_t path_domain_id_cfg0;
@@ -839,8 +841,7 @@ struct cam_ife_csid_ver2_reg_info {
  *
  */
 struct cam_ife_csid_ver2_hw {
-	struct cam_isp_resource_node           path_res
-						    [CAM_IFE_PIX_PATH_RES_MAX];
+	struct cam_isp_resource_node           path_res[CAM_IFE_PIX_PATH_RES_MAX];
 	struct cam_ife_csid_cid_data           cid_data[CAM_IFE_CSID_CID_MAX];
 	struct cam_ife_csid_ver2_top_cfg       top_cfg;
 	struct cam_ife_csid_ver2_rx_cfg        rx_cfg;
@@ -848,10 +849,8 @@ struct cam_ife_csid_ver2_hw {
 	struct cam_ife_csid_hw_flags           flags;
 	struct cam_ife_csid_ver2_debug_info    debug_info;
 	struct cam_ife_csid_timestamp          timestamp;
-	struct cam_ife_csid_ver2_evt_payload   rx_evt_payload[
-						CAM_IFE_CSID_VER2_PAYLOAD_MAX];
-	struct cam_ife_csid_ver2_evt_payload   path_evt_payload[
-						CAM_IFE_CSID_VER2_PAYLOAD_MAX];
+	struct cam_ife_csid_ver2_evt_payload   rx_evt_payload[CAM_IFE_CSID_VER2_PAYLOAD_MAX];
+	struct cam_ife_csid_ver2_evt_payload   path_evt_payload[CAM_IFE_CSID_VER2_PAYLOAD_MAX];
 	struct list_head                       rx_free_payload_list;
 	struct list_head                       path_free_payload_list;
 	spinlock_t                             lock_state;
@@ -868,8 +867,7 @@ struct cam_ife_csid_ver2_hw {
 	struct cam_ife_csid_core_info         *core_info;
 	void                                  *token;
 	cam_hw_mgr_event_cb_func               event_cb;
-	uint8_t                                log_buf
-						[CAM_IFE_CSID_LOG_BUF_LEN];
+	uint8_t                                log_buf[CAM_IFE_CSID_LOG_BUF_LEN];
 	uint64_t                               clk_rate;
 	uint32_t                               res_type;
 	uint32_t                               dual_core_idx;

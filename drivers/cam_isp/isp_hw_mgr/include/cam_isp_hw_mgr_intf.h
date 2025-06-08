@@ -499,6 +499,7 @@ struct cam_isp_hw_eof_event_data {
  * @enable_req_dump:       Enable request dump on HW errors
  * @try_internal_recovery: Enable internal recovery on HW errors
  * @print_hw_info:         Indicate if debugging needs in Driver
+ * @is_no_fault_ctx:       Indicate if current context is non faulting one while handling error
  */
 struct cam_isp_hw_error_event_data {
 	uint32_t             error_type;
@@ -507,6 +508,7 @@ struct cam_isp_hw_error_event_data {
 	bool                 enable_req_dump;
 	bool                 try_internal_recovery;
 	bool                 print_hw_info;
+	bool                 is_no_fault_ctx;
 };
 
 /**

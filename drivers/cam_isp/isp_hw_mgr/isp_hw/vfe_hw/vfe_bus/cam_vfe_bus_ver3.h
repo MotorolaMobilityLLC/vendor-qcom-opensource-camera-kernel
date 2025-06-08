@@ -195,6 +195,8 @@ struct cam_vfe_bus_ver3_reg_offset_common {
 	uint32_t frmheader_en_shift;
 	uint32_t virtual_frm_en_shift;
 	uint32_t top_irq_mask_0;
+	uint32_t no_fault_irq_set_reg_idx;
+	uint32_t no_fault_irq_set_mask;
 	struct cam_irq_controller_reg_info irq_reg_info;
 	uint32_t num_perf_counters;
 	uint32_t perf_cnt_status;
