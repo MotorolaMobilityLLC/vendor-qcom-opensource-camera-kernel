@@ -68,6 +68,8 @@ else ifneq (,$(filter eqs eqs_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/eqs.mk
 else ifneq (,$(filter rtwo rtwo_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/rtwo.mk
+else ifneq (,$(filter roadstr roadstr_factory, $(TARGET_PRODUCT)))
+include $(CAMERA_KERNEL_ROOT)/config/roadstr.mk
 endif
 
 ifneq ($(KBUILD_EXTRA_CONFIGS),)
