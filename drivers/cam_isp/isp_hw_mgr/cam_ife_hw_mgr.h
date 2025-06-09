@@ -119,6 +119,7 @@ struct cam_isp_reg_read_evt_param {
  * @csid_perf_cnt_res_id:        res_id of csid res for which perf cnt is enabled
  * @csid_perf_counter_val0:      csid perf counter values for cfg0
  * @csid_perf_counter_val1:      csid perf counter values for cfg1
+ * @force_acq_csid               Acquire specific csid
  * @enable_req_dump:             Enable request dump on HW errors
  * @per_req_reg_dump:            Enable per request reg dump
  * @disable_ubwc_comp:           Disable UBWC compression
@@ -157,6 +158,7 @@ struct cam_ife_hw_mgr_debug {
 	uint32_t       csid_perf_cnt_res_id;
 	uint32_t      *csid_perf_counter_val0;
 	uint32_t      *csid_perf_counter_val1;
+	uint32_t       force_acq_csid;
 	bool           enable_req_dump;
 	bool           per_req_reg_dump;
 	bool           disable_ubwc_comp;
