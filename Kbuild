@@ -108,7 +108,7 @@ else ifneq (,$(filter mona monai, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/mona.mk
 else ifneq (,$(filter mona_factory monai_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/mona_factory.mk
-else ifneq (,$(filter portov, $(TARGET_PRODUCT)))
+else ifneq (,$(filter portov portov_cn, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/portov.mk
 else ifneq (,$(filter portov_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/portov_factory.mk
