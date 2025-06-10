@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_IFE_CSID_COMMON_REG_V1_H_
@@ -1474,7 +1474,8 @@ static struct cam_ife_csid_ver2_common_reg_info
 							CAM_IFE_CSID_CAP_SKIP_EPOCH_CFG |
 							CAM_IFE_CSID_CAP_DEBUG_ERR_VEC |
 							CAM_IFE_CSID_CAP_TOP_MASK_ALL_IRQS |
-							CAM_IFE_CSID_CAP_RUP_MISS,
+							CAM_IFE_CSID_CAP_RUP_MISS |
+							CAM_IFE_CSID_CAP_MULTI_CTXT,
 	.top_top2_irq_mask                       = 0x80000000,
 	.drv_rup_en_val_map = {
 		2, /*RDI0 */
