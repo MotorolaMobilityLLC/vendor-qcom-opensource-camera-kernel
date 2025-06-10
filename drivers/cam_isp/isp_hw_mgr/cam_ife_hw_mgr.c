@@ -127,6 +127,23 @@ static int cam_convert_rdi_out_res_id_to_src(int res_id);
 
 static inline char *__cam_isp_irq_inject_hw_type_to_name(int32_t hw_type);
 
+static bool cam_ife_hw_mgr_is_multi_context_port(uint32_t res_id,
+	bool *is_single_ctxt_except)
+{
+	uint32_t trunc_res_id = (res_id - CAM_ISP_IFE_OUT_RES_BASE);
+
+	if (!(g_ife_hw_mgr.isp_caps.out_port_data.valid_mask & BIT_ULL(trunc_res_id))) {
+		CAM_ERR(CAM_ISP, "Invalid res_id: 0x%x trunc_res_id: %d", res_id, trunc_res_id);
+		return false;
+	}
+
+	*is_single_ctxt_except = (g_ife_hw_mgr.isp_caps.out_port_data.single_ctxt_except_mask &
+		BIT_ULL(trunc_res_id));
+
+	return ((g_ife_hw_mgr.isp_caps.out_port_data.mc_based_mask &
+		BIT_ULL(trunc_res_id)) || (*is_single_ctxt_except));
+}
+
 static int cam_ife_hw_mgr_translate_hw_event(int evt)
 {
 	switch (evt) {
@@ -2911,7 +2928,7 @@ static int cam_ife_hw_mgr_acquire_res_ife_out_pixel(
 	struct cam_isp_hw_mgr_res                *ife_out_res;
 	struct cam_hw_intf                       *hw_intf;
 	struct cam_isp_context_comp_record       *comp_grp = NULL;
-	bool                                      is_ife_out_in_list;
+	bool                                      is_ife_out_in_list, is_single_ctxt_except;
 
 	for (i = 0; i < in_port->num_out_res; i++) {
 		is_ife_out_in_list = false;
@@ -3020,7 +3037,9 @@ static int cam_ife_hw_mgr_acquire_res_ife_out_pixel(
 				comp_grp->res_id[comp_grp->num_res] =
 					ife_out_res->hw_res[j]->res_id;
 
-				if ((in_port->major_ver == 3) && vfe_acquire.vfe_out.use_hw_ctxt)
+				if ((in_port->major_ver == 3) && vfe_acquire.vfe_out.use_hw_ctxt &&
+					cam_ife_hw_mgr_is_multi_context_port(out_port->res_type,
+						&is_single_ctxt_except) && !is_single_ctxt_except)
 					comp_grp->hw_ctxt_id[comp_grp->num_res] =
 						vfe_acquire.vfe_out.out_port_info->hw_context_id;
 				else
@@ -5167,7 +5186,8 @@ static int cam_ife_hw_mgr_preprocess_port(
 	struct cam_isp_in_port_generic_info *in_port,
 	uint32_t                    *max_height)
 {
-	uint32_t i, trunc_res_type = 0;
+	uint32_t i;
+	bool is_single_ctxt_except;
 	struct cam_isp_out_port_generic_info *out_port;
 
 	if (in_port->res_type == CAM_ISP_IFE_IN_RES_RD ||
@@ -5195,17 +5215,12 @@ static int cam_ife_hw_mgr_preprocess_port(
 				out_port->res_type))
 			in_port->lcr_count++;
 		else {
-			trunc_res_type = (out_port->res_type - CAM_ISP_IFE_OUT_RES_BASE);
-			CAM_DBG(CAM_ISP, "out_res_type 0x%x, trunc_res_id:%d ife_ctx_idx: %u",
-				out_port->res_type, trunc_res_type, ife_ctx->ctx_index);
+			CAM_DBG(CAM_ISP, "out_res_type 0x%x, ife_ctx_idx: %u",
+				out_port->res_type, ife_ctx->ctx_index);
 			if ((in_port->major_ver == 3) && (in_port->path_id &
 				(CAM_ISP_PXL_PATH | CAM_ISP_PXL1_PATH | CAM_ISP_PXL2_PATH)) &&
-				(g_ife_hw_mgr.isp_caps.out_port_data.valid_mask &
-					BIT_ULL(trunc_res_type)) &&
-				((g_ife_hw_mgr.isp_caps.out_port_data.mc_based_mask &
-					BIT_ULL(trunc_res_type)) ||
-				(g_ife_hw_mgr.isp_caps.out_port_data.single_ctxt_except_mask &
-					BIT_ULL(trunc_res_type)))) {
+				cam_ife_hw_mgr_is_multi_context_port(out_port->res_type,
+					&is_single_ctxt_except)) {
 				CAM_DBG(CAM_ISP,
 					"preprocess csid path resource: 0x%x, ipp_dst_hw_ctxt_mask: 0x%x, outport ctxt_id: %d",
 					in_port->path_id, in_port->ipp_dst_hw_ctxt_mask,
