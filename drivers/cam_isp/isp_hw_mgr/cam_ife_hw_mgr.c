@@ -268,6 +268,11 @@ static int cam_ife_hw_mgr_print_debug_reg(struct cam_ife_hw_mgr_ctx *ctx,
 				hw_intf  = g_ife_hw_mgr.csid_devices[hw_idx];
 			else if (hw_type == CAM_SW_DEBUG_REG_HW_IFE)
 				hw_intf  = g_ife_hw_mgr.ife_devices[hw_idx]->hw_intf;
+			else {
+				CAM_ERR(CAM_ISP, "Ctx %u, invalid hardware type %d",
+					ctx->ctx_index, hw_type);
+				return -EINVAL;
+			}
 		}
 
 		evt_str = cam_ife_hw_mgr_translate_reg_event_str(evt_id);
@@ -5319,6 +5324,8 @@ static int cam_ife_hw_mgr_acquire_offline_res_ife_camif(
 			continue;
 
 		hw_intf = ife_hw_mgr->ife_devices[i]->hw_intf;
+		if (!hw_intf)
+			continue;
 		rc = hw_intf->hw_ops.reserve(hw_intf->hw_priv, &vfe_acquire,
 			sizeof(struct cam_vfe_acquire_args));
 
@@ -7678,6 +7685,13 @@ static int cam_ife_hw_mgr_irq_inject_or_dump_desc(
 		goto end;
 	}
 
+	if (!hw_intf) {
+		scnprintf(line_buf, LINE_BUFFER_LEN, "No hw interface for hw type 0x%x\n",
+			params->hw_type);
+		rc = -EINVAL;
+		goto end;
+	}
+
 	if (dump_irq_desc) {
 		rc = hw_intf->hw_ops.process_cmd(hw_intf->hw_priv,
 			CAM_ISP_HW_CMD_DUMP_IRQ_DESCRIPTION, params,
@@ -7853,7 +7867,7 @@ static int cam_ife_mgr_config_hw(
 {
 	int rc, i, skip = 0;
 	struct cam_hw_config_args *cfg;
-	struct cam_hw_update_entry *cmd;
+	struct cam_hw_update_entry *cmd = NULL;
 	struct cam_cdm_bl_request *cdm_cmd;
 	struct cam_ife_hw_mgr_ctx *ctx;
 	struct cam_isp_prepare_hw_update_data *hw_update_data;
@@ -8226,8 +8240,8 @@ skip_bw_clk_update:
 				if (rc < 0) {
 					cam_cdm_dump_debug_registers(
 						ctx->cdm_handle);
-					if (cam_presil_mode_enabled()) {
-						CAM_DBG(CAM_MEM, "PRESIL-HACK for CSIM config_hw always times out",
+					if (cam_presil_mode_enabled() && cmd) {
+						CAM_DBG(CAM_MEM, "PRESIL-HACK for CSIM config_hw always times out %u",
 							cmd->flags);
 						rc = 0;
 					} else
@@ -10750,7 +10764,7 @@ static int cam_isp_update_csid_mode_update_util(
 {
 	struct cam_hw_intf *hw_intf;
 	struct cam_ife_hw_mgr *ife_hw_mgr = ctx->hw_mgr;
-	int i, rc;
+	int i, rc = -EINVAL;
 
 	for (i = 0; i < ctx->num_base; i++) {
 		if (ctx->base[i].hw_type != CAM_ISP_HW_TYPE_CSID)
@@ -20028,7 +20042,7 @@ int cam_ife_hw_mgr_init(struct cam_hw_mgr_intf *hw_mgr_intf, int *iommu_hdl,
 	int rc = -EFAULT;
 	int i, j;
 	struct cam_iommu_handle cdm_handles;
-	struct cam_ife_hw_mgr_ctx *ctx_pool;
+	struct cam_ife_hw_mgr_ctx *ctx_pool = NULL;
 	struct cam_isp_hw_cap isp_cap = {0};
 	struct cam_isp_hw_path_port_map path_port_map;
 
