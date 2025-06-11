@@ -17,6 +17,9 @@
 #define CAM_VFE_DIAG_SENSOR_STATUS_MAX                 4
 #define CAM_VFE_DIAG_FRAME_COUNT_STATUS_MAX            3
 
+#define CAM_QUERY_TYPE_CLC                             0
+#define CAM_QUERY_TYPE_HM                              1
+
 struct cam_vfe_top_ver4_perf_count_reg_offset {
 	uint32_t perf_count_cfg;
 	uint32_t perf_count_cfg_mc;
@@ -192,6 +195,24 @@ struct cam_vfe_ver4_fcg_module_info {
 	uint32_t fcg_reg_ctxt_sel;
 };
 
+struct cam_vfe_top_ver4_query_dmi_reg_info {
+	uint32_t dmi_cfg;
+	uint32_t dmi_lut_cfg;
+	uint32_t dmi_data;
+	uint32_t reg_base_mask;
+	uint32_t valid_mask;
+	uint32_t query_sel_val;
+	uint32_t num_entries_per_hm;
+	uint32_t hm_start_id;
+	uint32_t num_entries_per_clc;
+	uint32_t clc_start_id;
+	uint32_t hm_id_top;
+	uint32_t hm_id_bayer;
+	uint32_t clc_id_bus_wr;
+	uint32_t clc_id_haf;
+	uint32_t clc_id_fcg;
+};
+
 struct cam_vfe_top_ver4_hw_info {
 	struct cam_vfe_top_ver4_reg_offset_common      *common_reg;
 	struct cam_vfe_ver4_path_hw_info                vfe_full_hw_info;
@@ -219,6 +240,7 @@ struct cam_vfe_top_ver4_hw_info {
 	struct cam_vfe_top_ver4_diag_reg_fields         *diag_sensor_info;
 	struct cam_vfe_top_ver4_diag_reg_fields         *diag_frame_info;
 	struct cam_vfe_top_ver4_module_desc             *core_violation_desc;
+	struct cam_vfe_top_ver4_query_dmi_reg_info      *query_reg;
 	uint64_t                                         top_hm_base;
 	uint64_t                                         bayer_hm_base;
 	uint64_t                                         fcg_clc_base;
@@ -259,6 +281,8 @@ int cam_vfe_top_ver4_init(struct cam_hw_soc_info     *soc_info,
 
 int cam_vfe_top_ver4_deinit(struct cam_vfe_top      **vfe_top);
 
+int cam_vfe_top_ver4_read_hw_query(struct cam_hw_soc_info *soc_info,
+	void *top_hw_info);
 #define VFE_DBG_INFO(shift_val, name) {.shift = shift_val, .clc_name = name}
 
 #define VFE_DBG_INFO_ARRAY_4bit(name1, name2, name3, name4, name5, name6, name7, name8) \

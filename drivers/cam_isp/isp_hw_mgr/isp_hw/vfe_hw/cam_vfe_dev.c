@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 
@@ -101,22 +101,13 @@ static int cam_vfe_component_bind(struct device *dev,
 
 	match_dev = of_match_device(pdev->dev.driver->of_match_table,
 		&pdev->dev);
-	if (!match_dev) {
+	if (!match_dev || !match_dev->data) {
 		CAM_ERR(CAM_ISP, "Of_match Failed");
 		rc = -EINVAL;
 		goto free_core_info;
 	}
+
 	hw_info = (struct cam_vfe_hw_info *)match_dev->data;
-
-	if (hw_info && hw_info->override_cb) {
-		CAM_DBG(CAM_ISP, "VFE[%u] calling override", vfe_dev_idx);
-		rc = hw_info->override_cb((void *)&hw_info);
-
-		if (rc) {
-			CAM_ERR(CAM_ISP, "VFE[%u] Failed to override", vfe_dev_idx);
-			goto free_core_info;
-		}
-	}
 
 	core_info->vfe_hw_info = hw_info;
 
@@ -125,6 +116,28 @@ static int cam_vfe_component_bind(struct device *dev,
 	if (rc < 0) {
 		CAM_ERR(CAM_ISP, "Failed to init soc rc=%d", rc);
 		goto free_core_info;
+	}
+
+	if (hw_info->hw_query_supported && !hw_info->hw_query_done) {
+
+		CAM_DBG(CAM_ISP, "VFE[%u] calling read hw query", vfe_hw_intf->hw_idx);
+		rc = cam_vfe_core_read_hw_query(&vfe_hw->soc_info, hw_info);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "VFE[%u]Read hw query failed", vfe_hw_intf->hw_idx);
+			goto free_core_info;
+		}
+		hw_info->hw_query_done = true;
+	}
+
+	if (hw_info->override_cb && !hw_info->overrride_done) {
+		CAM_DBG(CAM_ISP, "VFE[%u] calling override", vfe_hw_intf->hw_idx);
+		rc = hw_info->override_cb((void *)&hw_info);
+
+		if (rc) {
+			CAM_ERR(CAM_ISP, "VFE[%u] Failed to override", vfe_hw_intf->hw_idx);
+			goto free_core_info;
+		}
+		hw_info->overrride_done = true;
 	}
 
 	rc = cam_vfe_core_init(core_info, &vfe_hw->soc_info,

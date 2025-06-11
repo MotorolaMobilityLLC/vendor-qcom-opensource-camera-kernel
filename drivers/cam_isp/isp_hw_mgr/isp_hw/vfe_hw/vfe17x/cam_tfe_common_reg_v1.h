@@ -1195,6 +1195,24 @@ static struct cam_vfe_ver4_fcg_module_info tfe_common_reg_v1_fcg_module_info = {
 	.fcg_reg_ctxt_mask                   = 0x7,
 };
 
+struct cam_vfe_top_ver4_query_dmi_reg_info tfe_common_reg_v1_top_query_reg = {
+		.dmi_cfg                     = 0x14,
+		.dmi_lut_cfg                 = 0x18,
+		.dmi_data                    = 0x1C,
+		.num_entries_per_hm          = 3,
+		.hm_start_id                 = 10,
+		.num_entries_per_clc         = 15,
+		.clc_start_id                = 34,
+		.reg_base_mask               = 0xFFFFF,
+		.valid_mask                  = 0x1,
+		.query_sel_val               = 1,
+		.hm_id_top                   = 0,
+		.hm_id_bayer                 = 1,
+		.clc_id_bus_wr               = 1,
+		.clc_id_haf                  = 2,
+		.clc_id_fcg                  = 11,
+};
+
 static struct cam_vfe_top_ver4_hw_info tfe_common_reg_v1_top_hw_info = {
 	.common_reg = &tfe_common_reg_v1_common_reg,
 	.vfe_full_hw_info = {
@@ -1236,6 +1254,7 @@ static struct cam_vfe_top_ver4_hw_info tfe_common_reg_v1_top_hw_info = {
 	.fcg_mc_supported                = true,
 	.diag_sensor_info                = tfe_common_reg_v1_diag_sensor_field,
 	.diag_frame_info                 = tfe_common_reg_v1_diag_frame_field,
+	.query_reg                       = &tfe_common_reg_v1_top_query_reg,
 	.top_hm_base                     = 0x0,
 	.bayer_hm_base                   = 0x12800,
 	.fcg_clc_base                    = 0x14C80,
