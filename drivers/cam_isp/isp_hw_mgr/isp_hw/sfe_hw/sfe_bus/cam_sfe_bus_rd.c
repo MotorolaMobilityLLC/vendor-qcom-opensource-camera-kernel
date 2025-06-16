@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/ratelimit.h>
@@ -1773,6 +1773,7 @@ static int cam_sfe_bus_rd_get_res_for_mid(
 	struct cam_isp_hw_get_cmd_update       *cmd_update = cmd_args;
 	struct cam_isp_hw_get_res_for_mid      *get_res = NULL;
 	int i, j;
+	int max_num_rd_resc;
 
 	get_res = (struct cam_isp_hw_get_res_for_mid *)cmd_update->data;
 	if (!get_res) {
@@ -1782,7 +1783,12 @@ static int cam_sfe_bus_rd_get_res_for_mid(
 	}
 
 	hw_info =  bus_priv->bus_rd_hw_info;
-	for (i = 0; i < bus_priv->num_bus_rd_resc; i++) {
+
+	max_num_rd_resc = (bus_priv->num_bus_rd_resc > CAM_SFE_BUS_RD_MAX)
+			  ? CAM_SFE_BUS_RD_MAX
+			  : bus_priv->num_bus_rd_resc;
+
+	for (i = 0; i < max_num_rd_resc; i++) {
 		for (j = 0; j < CAM_SFE_BUS_MAX_MID_PER_PORT; j++) {
 			if (hw_info->sfe_bus_rd_info[i].mid[j] == get_res->mid)
 				goto end;

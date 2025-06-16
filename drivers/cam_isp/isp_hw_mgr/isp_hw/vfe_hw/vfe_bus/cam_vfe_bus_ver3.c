@@ -4237,11 +4237,18 @@ static int cam_vfe_bus_ver3_update_wm(void *priv, void *cmd_args, uint32_t arg_s
 			CAM_BOOL_TO_YESNO(cam_smmu_is_expanded_memory));
 
 		if (wm_data->out_rsrc_data->cntxt_cfg_except) {
-			CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair, MAX_REG_VAL_PAIR_SIZE, j,
-				wm_data->client_base + wm_data->hw_regs->ctxt_cfg, io_cfg->flag);
-			CAM_DBG(CAM_ISP, "VFE:%u WM:%d %s ctxt cfg 0x%X",
-				bus_priv->common_data.core_index, wm_data->index,
-				vfe_out_data->wm_res[i]->res_name, reg_val_pair[j-1]);
+			if (io_cfg) {
+				CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair,
+					MAX_REG_VAL_PAIR_SIZE, j,
+					wm_data->client_base + wm_data->hw_regs->ctxt_cfg,
+					io_cfg->flag);
+				CAM_DBG(CAM_ISP, "VFE:%u WM:%d %s ctxt cfg 0x%X",
+					bus_priv->common_data.core_index, wm_data->index,
+					vfe_out_data->wm_res[i]->res_name, reg_val_pair[j-1]);
+			} else {
+				CAM_ERR(CAM_ISP, "io_cfg is NULL");
+				return -EINVAL;
+			}
 		}
 
 		/* enable the WM */
@@ -4688,7 +4695,6 @@ static int cam_vfe_bus_ver3_update_wm_config_v2(
 
 	wm_config_update = cmd_args;
 	vfe_out_data = wm_config_update->res->res_priv;
-	bus_priv = vfe_out_data->bus_priv;
 	wm_config = (struct cam_isp_vfe_wm_config_v2  *)
 		wm_config_update->data;
 
@@ -4696,6 +4702,8 @@ static int cam_vfe_bus_ver3_update_wm_config_v2(
 		CAM_ERR(CAM_ISP, "Invalid data");
 		return -EINVAL;
 	}
+
+	bus_priv = vfe_out_data->bus_priv;
 
 	for (i = 0; i < vfe_out_data->num_wm; i++) {
 		context_id_mask = wm_config->context_id_mask;
@@ -4812,15 +4820,16 @@ static int cam_vfe_bus_ver3_update_wm_config(
 	}
 
 	wm_config_update = cmd_args;
-	vfe_out_data = wm_config_update->res->res_priv;
-	bus_priv = vfe_out_data->bus_priv;
 	wm_config = (struct cam_isp_vfe_wm_config  *)
 			wm_config_update->data;
 
+	vfe_out_data = wm_config_update->res->res_priv;
 	if (!vfe_out_data || !vfe_out_data->common_data->cdm_util_ops || !wm_config) {
 		CAM_ERR(CAM_ISP, "Invalid data");
 		return -EINVAL;
 	}
+
+	bus_priv = vfe_out_data->bus_priv;
 
 	for (i = 0; i < vfe_out_data->num_wm; i++) {
 		wm_data = vfe_out_data->wm_res[i]->res_priv;
@@ -5366,7 +5375,7 @@ int cam_vfe_bus_ver3_get_out_res_mid_info(struct cam_vfe_bus_ver3_priv *bus_priv
 		}
 	}
 
-	if (i == bus_priv->num_out) {
+	if (i == bus_priv->num_out || !out_data) {
 		CAM_ERR(CAM_ISP,
 			"VFE:%u mid:%d does not match with any out resource",
 			bus_priv->common_data.core_index, get_res->mid);

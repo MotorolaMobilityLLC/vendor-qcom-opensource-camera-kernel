@@ -775,7 +775,7 @@ int cam_vfe_top_apply_bw_start_stop(struct cam_vfe_top_priv_common *top_common)
 		goto end;
 	}
 
-	if (top_common->bw_state == CAM_CLK_BW_STATE_UNCHANGED)
+	if ((!to_be_applied_axi_vote) || (top_common->bw_state == CAM_CLK_BW_STATE_UNCHANGED))
 		goto end;
 
 	rc = cam_vfe_top_set_axi_bw_vote(top_common, to_be_applied_axi_vote,
