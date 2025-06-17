@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_CPASTOP_HW_H_
@@ -518,7 +518,6 @@ struct cam_camnoc_addr_trans_info {
  * @test_irq_info: CAMNOC Test IRQ info
  * @cesta_info: cpas cesta reg info
  * @addr_trans_info: CAMNOC address translator info
- * @dcd_div_offset: Clk DCD div register offset
  *
  */
 struct cam_camnoc_info {
@@ -538,7 +537,6 @@ struct cam_camnoc_info {
 	struct cam_cpas_test_irq_info test_irq_info;
 	struct cam_cpas_cesta_info *cesta_info;
 	struct cam_camnoc_addr_trans_info *addr_trans_info;
-	uint32_t dcd_div_offset;
 };
 
 /**
