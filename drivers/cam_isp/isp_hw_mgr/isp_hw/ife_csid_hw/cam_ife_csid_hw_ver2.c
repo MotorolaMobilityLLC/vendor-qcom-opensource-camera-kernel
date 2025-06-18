@@ -4634,14 +4634,19 @@ int cam_ife_csid_ver2_reserve(void *hw_priv,
 			csid_hw->core_info->csid_reg;
 
 	res = &csid_hw->path_res[reserve->res_id];
+	if (reserve->is_new_csid_acq && csid_hw->counters.csi2_reserve_cnt) {
+		CAM_DBG(CAM_ISP, "CSID %d already acquired csi2_reserve_cnt: %d",
+			csid_hw->hw_intf->hw_idx, csid_hw->counters.csi2_reserve_cnt);
+		return -EBUSY;
+	}
+
 	if (res->res_state != CAM_ISP_RESOURCE_STATE_AVAILABLE) {
 		/**
 		 * intentionally set as DBG log to since this log gets printed when hw manager
 		 * checks if resource is available
 		 */
-		CAM_DBG(CAM_ISP, "CSID %d Res_id %d state %d",
-			csid_hw->hw_intf->hw_idx, reserve->res_id,
-			res->res_state);
+		CAM_DBG(CAM_ISP, "CSID %d Res_id %d state %d", csid_hw->hw_intf->hw_idx,
+			reserve->res_id, res->res_state);
 		return -EBUSY;
 	}
 

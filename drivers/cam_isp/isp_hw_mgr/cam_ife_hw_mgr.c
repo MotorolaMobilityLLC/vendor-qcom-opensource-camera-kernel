@@ -4477,6 +4477,7 @@ static int cam_ife_hw_mgr_acquire_csid_hw(
 			continue;
 		}
 
+		csid_acquire->is_new_csid_acq = true;
 		rc = hw_intf->hw_ops.reserve(hw_intf->hw_priv, csid_acquire,
 			sizeof(struct cam_csid_hw_reserve_resource_args));
 		if (!rc)
@@ -4631,6 +4632,7 @@ static int cam_ife_hw_mgr_acquire_res_ife_csid_pxl(
 		csid_acquire.cb_priv = ife_ctx;
 		csid_acquire.crop_enable = crop_enable;
 		csid_acquire.drop_enable = false;
+		csid_acquire.is_new_csid_acq = false;
 
 		if (csid_res->is_dual_isp)
 			csid_acquire.sync_mode = i == CAM_ISP_HW_SPLIT_LEFT ?
@@ -4639,9 +4641,7 @@ static int cam_ife_hw_mgr_acquire_res_ife_csid_pxl(
 		csid_acquire.tasklet = ife_ctx->common.tasklet_info;
 		csid_acquire.cdm_ops = ife_ctx->cdm_ops;
 
-		rc = cam_ife_hw_mgr_acquire_csid_hw(ife_ctx,
-			&csid_acquire,
-			in_port);
+		rc = cam_ife_hw_mgr_acquire_csid_hw(ife_ctx, &csid_acquire, in_port);
 
 		if (rc) {
 			CAM_ERR(CAM_ISP,
@@ -4776,6 +4776,7 @@ static int cam_ife_hw_mgr_acquire_csid_rdi_util(
 	csid_acquire.tasklet = ife_ctx->common.tasklet_info;
 	csid_acquire.cb_priv = ife_ctx;
 	csid_acquire.cdm_ops = ife_ctx->cdm_ops;
+	csid_acquire.is_new_csid_acq = false;
 	if (ife_ctx->ctx_type == CAM_IFE_CTX_TYPE_SFE)
 		csid_acquire.sfe_en = true;
 
@@ -4827,8 +4828,7 @@ static int cam_ife_hw_mgr_acquire_csid_rdi_util(
 	 */
 	csid_acquire.drop_enable = true;
 	csid_acquire.crop_enable = true;
-	rc = cam_ife_hw_mgr_acquire_csid_hw(ife_ctx,
-		&csid_acquire, in_port);
+	rc = cam_ife_hw_mgr_acquire_csid_hw(ife_ctx, &csid_acquire, in_port);
 
 	if (rc) {
 		CAM_ERR(CAM_ISP,
@@ -5220,7 +5220,7 @@ static int cam_ife_hw_mgr_preprocess_port(
 			if ((in_port->major_ver == 3) && (in_port->path_id &
 				(CAM_ISP_PXL_PATH | CAM_ISP_PXL1_PATH | CAM_ISP_PXL2_PATH)) &&
 				cam_ife_hw_mgr_is_multi_context_port(out_port->res_type,
-					&is_single_ctxt_except)) {
+					&is_single_ctxt_except) && !is_single_ctxt_except) {
 				CAM_DBG(CAM_ISP,
 					"preprocess csid path resource: 0x%x, ipp_dst_hw_ctxt_mask: 0x%x, outport ctxt_id: %d",
 					in_port->path_id, in_port->ipp_dst_hw_ctxt_mask,
@@ -5535,9 +5535,9 @@ static int cam_ife_hw_mgr_acquire_offline_res_csid(
 	csid_acquire.cdm_ops = ife_ctx->cdm_ops;
 	csid_acquire.sync_mode = CAM_ISP_HW_SYNC_NONE;
 	csid_acquire.is_offline = true;
+	csid_acquire.is_new_csid_acq = false;
 
-	rc = cam_ife_hw_mgr_acquire_csid_hw(ife_ctx,
-		&csid_acquire, in_port);
+	rc = cam_ife_hw_mgr_acquire_csid_hw(ife_ctx, &csid_acquire, in_port);
 
 	if (rc || (csid_acquire.node_res == NULL)) {
 		CAM_ERR(CAM_ISP,
