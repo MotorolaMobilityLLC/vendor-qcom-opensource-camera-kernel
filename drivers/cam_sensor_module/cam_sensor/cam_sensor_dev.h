@@ -119,6 +119,8 @@ struct cam_sensor_dev_res_info {
  * @is_res_info_updated         : Indicate if resolution info is updated
  * @last_applied_done_timestamp : Last applied done timestamp value
  * @hw_no_ops                   : To determine whether HW operations need to be disabled
+ * @read_buf_list               : Sensor register read cmd buffer handle list
+ * @read_buf_lock               : Sensor register read cmd buffer mutex
  */
 struct cam_sensor_ctrl_t {
 	char                           device_name[CAM_CTX_DEV_NAME_MAX_LENGTH];
@@ -159,6 +161,8 @@ struct cam_sensor_ctrl_t {
 	bool                           hw_no_ops;
 	int32_t                        req_table_wr_idx;
 	uint64_t                       req_table[MAX_PER_FRAME_ARRAY];
+	struct list_head               read_buf_list;
+	struct mutex                   read_buf_lock;
 };
 
 /**

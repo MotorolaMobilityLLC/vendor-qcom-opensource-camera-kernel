@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/device.h>
@@ -820,7 +820,7 @@ int cam_cpas_read_llcc_reg(void *hw_priv,
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	struct cam_cpas_llcc_reg_info *llcc_reg_info =
 		(struct cam_cpas_llcc_reg_info *)cpas_core->llcc_reg_info;
-	uint32_t reg_base = CAM_CPAS_REGBASE_LLCC;
+	uint32_t reg_base = CAM_CPAS_REG_CAMNOC_LLCC;
 	int reg_base_index =
 		cpas_core->regbase_index[reg_base];
 	uint32_t base_offset;

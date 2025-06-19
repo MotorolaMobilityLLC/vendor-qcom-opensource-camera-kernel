@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "cam_vfe_top.h"
@@ -56,6 +57,27 @@ int cam_vfe_top_deinit(uint32_t        top_version,
 		break;
 	default:
 		CAM_ERR(CAM_ISP, "Error! Unsupported Version %x", top_version);
+		break;
+	}
+
+	return rc;
+}
+
+int cam_vfe_top_read_hw_query(struct cam_hw_soc_info *soc_info,
+	void *top_hw_info, uint32_t version)
+{
+	int rc = 0;
+
+	switch (version) {
+	case CAM_VFE_TOP_VER_2_0:
+		break;
+	case CAM_VFE_TOP_VER_3_0:
+		break;
+	case CAM_VFE_TOP_VER_4_0:
+		rc = cam_vfe_top_ver4_read_hw_query(soc_info, top_hw_info);
+		break;
+	default:
+		CAM_ERR(CAM_ISP, "Error! Unsupported Version %x", version);
 		break;
 	}
 

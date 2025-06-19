@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_IFE_HW_MGR_H_
@@ -119,6 +119,7 @@ struct cam_isp_reg_read_evt_param {
  * @csid_perf_cnt_res_id:        res_id of csid res for which perf cnt is enabled
  * @csid_perf_counter_val0:      csid perf counter values for cfg0
  * @csid_perf_counter_val1:      csid perf counter values for cfg1
+ * @force_acq_csid               Acquire specific csid
  * @enable_req_dump:             Enable request dump on HW errors
  * @per_req_reg_dump:            Enable per request reg dump
  * @disable_ubwc_comp:           Disable UBWC compression
@@ -134,6 +135,7 @@ struct cam_isp_reg_read_evt_param {
  *                               of CSIPHY CDR tuning
  * @is_csid_perf_cnt_enabled:    Flag to indicate if csid perf counter debug is enabled
  * @use_last_consumed_addr:      Use last consumed addr scheme to verify buf dones
+ * @ignore_skip_reg_dump:        Flag to ignore skip regdump data
  */
 struct cam_ife_hw_mgr_debug {
 	struct dentry  *dentry;
@@ -156,6 +158,7 @@ struct cam_ife_hw_mgr_debug {
 	uint32_t       csid_perf_cnt_res_id;
 	uint32_t      *csid_perf_counter_val0;
 	uint32_t      *csid_perf_counter_val1;
+	uint32_t       force_acq_csid;
 	bool           enable_req_dump;
 	bool           per_req_reg_dump;
 	bool           disable_ubwc_comp;
@@ -171,6 +174,7 @@ struct cam_ife_hw_mgr_debug {
 	bool           enable_sfe_wr_perf_cntr;
 	bool           is_csid_perf_cnt_enabled;
 	bool           use_last_consumed_addr;
+	bool           ignore_skip_reg_dump;
 };
 
 /**
@@ -407,7 +411,7 @@ struct cam_cmd_buf_desc_addr_len {
  * @sof_cnt                 sof count value per core, used for dual VFE
  * @epoch_cnt               epoch count value per core, used for dual VFE
  * @eof_cnt                 eof count value per core, used for dual VFE
- * @overflow_pending        flat to specify the overflow is pending for the
+ * @err_handle_pending      flag to specify the error handling is pending for the
  *                          context
  * @cdm_done                flag to indicate cdm has finished writing shadow
  *                          registers
@@ -479,7 +483,7 @@ struct cam_ife_hw_mgr_ctx {
 	uint32_t                                   sof_cnt[CAM_IFE_HW_NUM_MAX];
 	uint32_t                                   epoch_cnt[CAM_IFE_HW_NUM_MAX];
 	uint32_t                                   eof_cnt[CAM_IFE_HW_NUM_MAX];
-	atomic_t                                   overflow_pending;
+	atomic_t                                   err_handle_pending;
 	atomic_t                                   cdm_done;
 	uint64_t                                   last_cdm_done_req;
 	struct completion                          config_done_complete;
@@ -553,6 +557,8 @@ struct cam_isp_fcg_caps {
  * @max_dt_supported              :  max DT CSID can decode
  * @support_consumed_addr         :  indicate whether hw supports last consumed address
  * @support_buf_done_with_framehdr :  if target supports this scheme
+ * @out_port_data                  : Data specific to output ports for validating acquire
+
  */
 struct cam_isp_hw_caps {
 	struct cam_isp_fcg_caps fcg_caps;
@@ -567,6 +573,7 @@ struct cam_isp_hw_caps {
 	bool                    support_consumed_addr;
 	struct cam_isp_hw_regiter_dump_data skip_regdump_data;
 	bool                    support_buf_done_with_framehdr;
+	struct cam_isp_hw_out_port_data out_port_data;
 };
 /*
  * struct cam_isp_sys_cache_info:
@@ -743,7 +750,7 @@ struct cam_ife_hw_event_recovery_data {
  * @num_base:               number of valid base data in the base array
  * @cdm_id:                 cdm id of the acquired cdm
  * @ctx_type:               Type of IFE ctx [CUSTOM/SFE etc.]
- * @overflow_pending:       flat to specify the overflow is pending for the
+ * @err_handle_pending:     flag to specify the error handling is pending for the context
  * @cdm_done:               flag to indicate cdm has finished writing shadow
  *                          registers
  */
@@ -765,7 +772,7 @@ struct cam_ife_hw_mini_dump_ctx {
 	uint8_t                               num_base;
 	enum cam_cdm_id                       cdm_id;
 	enum cam_ife_ctx_master_type          ctx_type;
-	bool                                  overflow_pending;
+	bool                                  err_handle_pending;
 	bool                                  cdm_done;
 };
 

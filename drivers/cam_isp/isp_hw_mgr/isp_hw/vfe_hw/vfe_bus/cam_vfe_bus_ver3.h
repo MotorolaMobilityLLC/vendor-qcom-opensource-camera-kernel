@@ -175,6 +175,7 @@ struct cam_vfe_bus_ver3_reg_offset_common {
 	uint32_t comp_cfg_0;
 	uint32_t comp_cfg_1;
 	uint32_t ctxt_sel;
+	uint32_t rd_ctxt_sel;
 	uint32_t if_frameheader_cfg[CAM_VFE_BUS_VER3_MAX_SUB_GRPS];
 	uint32_t ubwc_static_ctrl;
 	uint32_t pwr_iso_cfg;
@@ -198,6 +199,7 @@ struct cam_vfe_bus_ver3_reg_offset_common {
 	uint32_t num_perf_counters;
 	uint32_t perf_cnt_status;
 	struct cam_vfe_bus_perf_cnt_hw_info perf_cnt_reg[CAM_VFE_PERF_CNT_MAX];
+	uint32_t capabilities;
 };
 
 /*

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_VFE_TOP_H_
@@ -50,4 +50,6 @@ int cam_vfe_top_init(uint32_t          top_version,
 int cam_vfe_top_deinit(uint32_t        top_version,
 	struct cam_vfe_top           **vfe_top);
 
+int cam_vfe_top_read_hw_query(struct cam_hw_soc_info *soc_info,
+	void *top_hw_info, uint32_t version);
 #endif /* _CAM_VFE_TOP_H_*/

@@ -29,6 +29,7 @@
 #include "cam_vfe_lite98x.h"
 #include "cam_vfe_lite97x.h"
 #include "cam_vfe_lite108x.h"
+#include "cam_vfe_lite_common_reg_v1.h"
 #include "cam_vfe_hw_intf.h"
 #include "cam_vfe_core.h"
 #include "cam_vfe_dev.h"
@@ -150,6 +151,10 @@ static const struct of_device_id cam_vfe_dt_match[] = {
 	{
 		.compatible = "qcom,vfe-lite1080",
 		.data = &cam_vfe_lite108x_hw_info,
+	},
+	{
+		.compatible = "qcom,vfe-lite1190",
+		.data = &cam_vfe_lite_common_reg_v1_hw_info,
 	},
 	{}
 };

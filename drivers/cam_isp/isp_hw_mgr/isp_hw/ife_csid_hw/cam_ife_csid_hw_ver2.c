@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/iopoll.h>
@@ -7181,6 +7181,9 @@ int cam_ife_csid_ver2_start(void *hw_priv, void *args,
 	 */
 	if (start_args->dyn_eof_enable)
 		csid_hw->flags.dyn_eof_enabled = true;
+
+	if (csid_hw->debug_info.debug_val & CAM_IFE_CSID_DEBUG_ENABLE_CAMIF_EOF_IRQ)
+		csid_hw->flags.dyn_eof_enabled = false;
 
 	CAM_DBG(CAM_ISP,
 		"csid %d is_drv_config_en %d start_only %d is_internal_start %d, clk_rate=%lld, dyn EOF enabled: %s",

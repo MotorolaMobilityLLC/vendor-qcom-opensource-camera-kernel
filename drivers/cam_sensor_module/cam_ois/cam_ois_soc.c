@@ -83,6 +83,8 @@ end:
 	INIT_LIST_HEAD(&(o_ctrl->i2c_fw_version_data.list_head));
 	INIT_LIST_HEAD(&(o_ctrl->i2c_mode_data.list_head));
 	INIT_LIST_HEAD(&(o_ctrl->i2c_time_data.list_head));
+	INIT_LIST_HEAD(&(o_ctrl->read_buf_list));
+	mutex_init(&(o_ctrl->read_buf_lock));
 
 	return rc;
 }

@@ -646,6 +646,37 @@ int cam_vfe_test_irq_line(void *hw_priv)
 	return rc;
 }
 
+int cam_vfe_core_read_hw_query(struct cam_hw_soc_info *soc_info,
+	struct cam_vfe_hw_info  *hw_info)
+{
+	struct cam_vfe_hw_info *base;
+	int rc = 0;
+
+	/* Copy base params to hw_info for a derived hw */
+	if (hw_info->base) {
+		base = hw_info->base;
+		hw_info->irq_hw_info = base->irq_hw_info;
+		hw_info->bus_version = base->bus_version;
+		hw_info->top_version = base->top_version;
+		hw_info->top_hw_info = base->top_hw_info;
+	}
+
+	rc = cam_vfe_enable_soc_resources(soc_info);
+	if (rc) {
+		CAM_ERR(CAM_ISP, "Enable SOC Failed rc %d", rc);
+		return rc;
+	}
+
+	rc = cam_vfe_top_read_hw_query(soc_info, hw_info->top_hw_info, hw_info->top_version);
+
+	if (rc)
+		CAM_ERR(CAM_ISP, "Read  top query failed rc %d", rc);
+
+	cam_vfe_disable_soc_resources(soc_info);
+
+	return rc;
+}
+
 int cam_vfe_core_init(struct cam_vfe_hw_core_info  *core_info,
 	struct cam_hw_soc_info                     *soc_info,
 	struct cam_hw_intf                         *hw_intf,
@@ -701,8 +732,6 @@ int cam_vfe_core_init(struct cam_vfe_hw_core_info  *core_info,
 			core_info->vfe_rd_bus, hw_intf->hw_idx);
 	}
 
-	spin_lock_init(&core_info->spin_lock);
-
 	return rc;
 
 deinit_top:
@@ -718,10 +747,7 @@ deinit_controller:
 int cam_vfe_core_deinit(struct cam_vfe_hw_core_info  *core_info,
 	struct cam_vfe_hw_info                       *vfe_hw_info)
 {
-	int                rc = -EINVAL;
-	unsigned long      flags;
-
-	spin_lock_irqsave(&core_info->spin_lock, flags);
+	int rc;
 
 	rc = cam_vfe_bus_deinit(vfe_hw_info->bus_version,
 		&core_info->vfe_bus);
@@ -737,8 +763,6 @@ int cam_vfe_core_deinit(struct cam_vfe_hw_core_info  *core_info,
 	if (rc)
 		CAM_ERR(CAM_ISP,
 			"Error cam_irq_controller_deinit failed rc=%d", rc);
-
-	spin_unlock_irqrestore(&core_info->spin_lock, flags);
 
 	return rc;
 }

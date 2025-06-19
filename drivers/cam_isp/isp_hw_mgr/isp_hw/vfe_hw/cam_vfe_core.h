@@ -54,6 +54,9 @@ struct cam_vfe_hw_info {
 	void                             *camif_lite_reg;
 	int                             (*override_cb)(void **hw_info);
 	void                             *base;
+	bool                              hw_query_supported;
+	bool                              hw_query_done;
+	bool                              overrride_done;
 };
 
 #define CAM_VFE_EVT_MAX                    256
@@ -65,7 +68,6 @@ struct cam_vfe_hw_core_info {
 	struct cam_vfe_bus                 *vfe_bus;
 	struct cam_vfe_bus                 *vfe_rd_bus;
 	void                               *tasklet_info;
-	spinlock_t                          spin_lock;
 };
 /**
  * struct cam_vfe_core_debug_data - Placeholder for Debug data for bus and top
@@ -115,4 +117,6 @@ int cam_vfe_core_deinit(struct cam_vfe_hw_core_info *core_info,
 void cam_vfe_core_debug_handler(void *hw_priv,
 	uint32_t hw_type, void *data);
 
+int cam_vfe_core_read_hw_query(struct cam_hw_soc_info *soc_info,
+	struct cam_vfe_hw_info  *hw_info);
 #endif /* _CAM_VFE_CORE_H_ */

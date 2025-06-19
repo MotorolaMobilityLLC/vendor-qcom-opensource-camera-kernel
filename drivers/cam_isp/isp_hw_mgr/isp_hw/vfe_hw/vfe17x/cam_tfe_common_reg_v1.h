@@ -289,6 +289,12 @@ static struct cam_vfe_top_ver4_top_err_irq_desc tfe_common_reg_v1_top_irq_err_de
 		.desc = "Sensor: The HBI at TFE input is less than the spec (64 cycles)",
 		.debug = "Check sensor config",
 	},
+	{
+		.bitmask = BIT(28),
+		.err_name = "STATIC SWI CHECK VIOLATION",
+		.desc = "Core mux/timestamp frame ID updated outside of idle time",
+	},
+
 };
 
 static struct cam_vfe_top_ver4_pdaf_violation_desc tfe_common_reg_v1_haf_violation_desc[] = {
@@ -323,6 +329,45 @@ static struct cam_vfe_top_ver4_pdaf_violation_desc tfe_common_reg_v1_haf_violati
 	{
 		.bitmask = BIT(7),
 		.desc = "Sim Monitor 5 violation",
+	},
+};
+
+static struct cam_vfe_top_ver4_module_desc tfe_common_reg_v1_core_violation_desc[] = {
+	{
+		.id = 0,
+		.desc = "CORE_MUX_CFG__MUX_FD_EXPOSURE_SEL",
+	},
+	{
+		.id = 1,
+		.desc = "CORE_MUX_CFG__MUX_RAW_REMO_SEL",
+	},
+	{
+		.id = 2,
+		.desc = "CORE_MUX_CFG__MUX_AE_STATS_SEL",
+	},
+	{
+		.id = 3,
+		.desc = "CORE_MUX_CFG__MUX_AF_STATS_SEL",
+	},
+	{
+		.id = 4,
+		.desc = "CORE_MUX_CFG__MUX_DS4_SEL",
+	},
+	{
+		.id = 5,
+		.desc = "CORE_MUX_CFG__MUX_FULL_OUT_SEL",
+	},
+	{
+		.id = 6,
+		.desc = "TIMESTAMP_FRAME_ID_CFG__CONTEXT2_INPUT_SEL",
+	},
+	{
+		.id = 7,
+		.desc = "TIMESTAMP_FRAME_ID_CFG__CONTEXT1_INPUT_SEL",
+	},
+	{
+		.id = 8,
+		.desc = "TIMESTAMP_FRAME_ID_CFG__CONTEXT0_INPUT_SEL",
 	},
 };
 
@@ -798,6 +843,7 @@ static struct cam_vfe_top_ver4_reg_offset_common tfe_common_reg_v1_common_reg = 
 	.diag_sensor_status       = {0x3A0, 0x3A4, 0x3A8, 0x3AC},
 	.diag_frm_cnt_status      = {0x3B0, 0x3B4, 0x3B8},
 	.ipp_violation_status     = 0x248,
+	.core_violation_status    = 0x24C,
 	.dsp_status               = 0x0,
 	.num_perf_counters        = 4,
 	.perf_count_reg = {
@@ -915,11 +961,12 @@ static struct cam_vfe_top_ver4_reg_offset_common tfe_common_reg_v1_common_reg = 
 static struct cam_vfe_ver4_path_reg_data tfe_common_reg_v1_ipp_common_reg_data = {
 	.sof_irq_mask                    = 0x150,
 	.eof_irq_mask                    = 0x2A0,
-	.error_irq_mask                  = 0xF000004,
+	.error_irq_mask                  = 0x1F000004,
 	.ipp_violation_mask              = 0x4000000,
 	.bayer_violation_mask            = 0x4,
 	.pdaf_violation_mask             = 0x2000000,
 	.diag_violation_mask             = 0x8000000,
+	.core_violation_mask             = 0x10000000,
 	.diag_sensor_sel_mask            = 0x6,
 	.diag_frm_count_mask_0           = 0xF000,
 	.enable_diagnostic_hw            = 0x1,
@@ -1014,6 +1061,123 @@ struct cam_vfe_ver4_path_hw_info
 	},
 };
 
+static struct cam_vfe_top_ver4_diag_reg_info tfe_common_reg_v1_diag_reg_info[] = {
+	{
+		.bitmask = 0x3FFF,
+		.name = "SENSOR_HBI",
+	},
+	{
+		.bitmask = 0x4000,
+		.name = "SENSOR_NEQ_HBI",
+	},
+	{
+		.bitmask = 0x8000,
+		.name = "SENSOR_HBI_MIN_ERROR",
+	},
+	{
+		.bitmask = 0xFFFFFF,
+		.name = "SENSOR_VBI",
+	},
+	{
+		.bitmask = 0xFFFF,
+		.name = "SENSOR_VBI_IPP_CONTEXT_0",
+	},
+	{
+		.bitmask = 0x10000000,
+		.name = "SENSOR_VBI_IPP_MIN_ERROR_CONTEXT_0",
+	},
+	{
+		.bitmask = 0x20000000,
+		.name = "SENSOR_VBI_IPP_MIN_ERROR_CONTEXT_1",
+	},
+	{
+		.bitmask = 0x40000000,
+		.name = "SENSOR_VBI_IPP_MIN_ERROR_CONTEXT_2",
+	},
+	{
+		.bitmask = 0xFFFF,
+		.name = "SENSOR_VBI_IPP_CONTEXT_1",
+	},
+	{
+		.bitmask = 0xFFFF0000,
+		.name = "SENSOR_VBI_IPP_CONTEXT_2",
+	},
+	{
+		.bitmask = 0xFF,
+		.name = "FRAME_CNT_PPP_PIPE",
+	},
+	{
+		.bitmask = 0xFF00,
+		.name = "FRAME_CNT_RDI_0_PIPE",
+	},
+	{
+		.bitmask = 0xFF0000,
+		.name = "FRAME_CNT_RDI_1_PIPE",
+	},
+	{
+		.bitmask = 0xFF000000,
+		.name = "FRAME_CNT_RDI_2_PIPE",
+	},
+	{
+		.bitmask = 0xFF,
+		.name = "FRAME_CNT_RDI_3_PIPE",
+	},
+	{
+		.bitmask = 0xFF00,
+		.name = "FRAME_CNT_RDI_4_PIPE",
+	},
+	{
+		.bitmask = 0xFF,
+		.name = "FRAME_CNT_IPP_CONTEXT0_PIPE",
+	},
+	{
+		.bitmask = 0xFF00,
+		.name = "FRAME_CNT_IPP_CONTEXT1_PIPE",
+	},
+	{
+		.bitmask = 0xFF0000,
+		.name = "FRAME_CNT_IPP_CONTEXT2_PIPE",
+	},
+	{
+		.bitmask = 0xFF000000,
+		.name = "FRAME_CNT_IPP_ALL_CONTEXT_PIPE",
+	},
+};
+
+static struct cam_vfe_top_ver4_diag_reg_fields tfe_common_reg_v1_diag_sensor_field[] = {
+	{
+		.num_fields = 3,
+		.field = &tfe_common_reg_v1_diag_reg_info[0],
+	},
+	{
+		.num_fields = 1,
+		.field = &tfe_common_reg_v1_diag_reg_info[3],
+	},
+	{
+		.num_fields = 4,
+		.field = &tfe_common_reg_v1_diag_reg_info[4],
+	},
+	{
+		.num_fields = 2,
+		.field = &tfe_common_reg_v1_diag_reg_info[8],
+	},
+};
+
+static struct cam_vfe_top_ver4_diag_reg_fields tfe_common_reg_v1_diag_frame_field[] = {
+	{
+		.num_fields = 4,
+		.field = &tfe_common_reg_v1_diag_reg_info[10],
+	},
+	{
+		.num_fields = 2,
+		.field = &tfe_common_reg_v1_diag_reg_info[14],
+	},
+	{
+		.num_fields = 4,
+		.field = &tfe_common_reg_v1_diag_reg_info[16],
+	},
+};
+
 /*
  * FCG CLC registers w.r.t fcg_clc_base. If the fcg_clc_base is 0,
  * offsets are relative to core start address.
@@ -1029,6 +1193,24 @@ static struct cam_vfe_ver4_fcg_module_info tfe_common_reg_v1_fcg_module_info = {
 	.fcg_reg_ctxt_shift                  = 0x0,
 	.fcg_reg_ctxt_sel                    = 0x1F4,
 	.fcg_reg_ctxt_mask                   = 0x7,
+};
+
+struct cam_vfe_top_ver4_query_dmi_reg_info tfe_common_reg_v1_top_query_reg = {
+		.dmi_cfg                     = 0x14,
+		.dmi_lut_cfg                 = 0x18,
+		.dmi_data                    = 0x1C,
+		.num_entries_per_hm          = 3,
+		.hm_start_id                 = 10,
+		.num_entries_per_clc         = 15,
+		.clc_start_id                = 34,
+		.reg_base_mask               = 0xFFFFF,
+		.valid_mask                  = 0x1,
+		.query_sel_val               = 1,
+		.hm_id_top                   = 0,
+		.hm_id_bayer                 = 1,
+		.clc_id_bus_wr               = 1,
+		.clc_id_haf                  = 2,
+		.clc_id_fcg                  = 11,
 };
 
 static struct cam_vfe_top_ver4_hw_info tfe_common_reg_v1_top_hw_info = {
@@ -1065,10 +1247,14 @@ static struct cam_vfe_top_ver4_hw_info tfe_common_reg_v1_top_hw_info = {
 	.top_err_desc                    = tfe_common_reg_v1_top_irq_err_desc,
 	.num_pdaf_violation_errors       = ARRAY_SIZE(tfe_common_reg_v1_haf_violation_desc),
 	.pdaf_violation_desc             = tfe_common_reg_v1_haf_violation_desc,
+	.core_violation_desc             = tfe_common_reg_v1_core_violation_desc,
 	.top_debug_reg_info              = &tfe_common_reg_v1_top_dbg_reg_info,
 	.bayer_debug_reg_info            = &tfe_common_reg_v1_bayer_dbg_reg_info,
 	.fcg_module_info                 = &tfe_common_reg_v1_fcg_module_info,
 	.fcg_mc_supported                = true,
+	.diag_sensor_info                = tfe_common_reg_v1_diag_sensor_field,
+	.diag_frame_info                 = tfe_common_reg_v1_diag_frame_field,
+	.query_reg                       = &tfe_common_reg_v1_top_query_reg,
 	.top_hm_base                     = 0x0,
 	.bayer_hm_base                   = 0x12800,
 	.fcg_clc_base                    = 0x14C80,
@@ -1159,6 +1345,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 		.debug_status_top_cfg             = 0x12C,
 		.debug_status_top                 = 0x130,
 		.ctxt_sel                         = 0x13C,
+		.rd_ctxt_sel                      = 0x140,
 		.test_bus_ctrl                    = 0x144,
 		.mc_read_sel_shift                = 0x0,
 		.mc_write_sel_shift               = 0x0,
@@ -1210,6 +1397,9 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 				.perf_cnt_val = 0x104,
 			},
 		},
+		/* HW capabilities*/
+		.capabilities =
+			CAM_VFE_COMMON_CAP_SPLIT_CTXT_RD_WR_SEL,
 	},
 	.bus_wr_base                              = 0x800,
 	.support_dyn_offset                       = true,

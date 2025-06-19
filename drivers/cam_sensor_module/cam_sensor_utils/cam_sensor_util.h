@@ -151,4 +151,9 @@ int cam_sensor_util_parse_and_request_resources(struct camera_io_master *io_mast
 void cam_sensor_util_release_resources(struct camera_io_master *io_master_info,
 	struct cam_hw_soc_info *soc_info);
 
+int cam_sensor_util_add_read_buf_to_list(struct list_head *read_buf_list,
+	int32_t read_buffer_handle);
+
+void cam_sensor_util_release_read_buf(struct list_head *read_buf_list);
+
 #endif /* _CAM_SENSOR_UTIL_H_ */

@@ -745,7 +745,7 @@ static int cam_jpeg_mgr_process_hw_update_entries(void *priv, void *data)
 	int                                                        rc;
 	int                                                        i = 0;
 	uintptr_t                                                  request_id = 0;
-	uint32_t                                                   dev_type;
+	uint32_t                                                   dev_type = 0;
 	struct cam_jpeg_hw_mgr                                    *hw_mgr = priv;
 	struct cam_hw_config_args                                 *config_args = NULL;
 	struct cam_jpeg_hw_ctx_data                               *ctx_data = NULL;
@@ -801,7 +801,6 @@ static int cam_jpeg_mgr_process_hw_update_entries(void *priv, void *data)
 
 	if (!config_args->num_hw_update_entries) {
 		CAM_ERR(CAM_JPEG, "No hw update enteries are available");
-		mutex_unlock(&hw_mgr->hw_mgr_mutex);
 		rc = -EINVAL;
 		goto end_unusedev;
 	}
@@ -809,7 +808,6 @@ static int cam_jpeg_mgr_process_hw_update_entries(void *priv, void *data)
 	ctx_data = (struct cam_jpeg_hw_ctx_data *)config_args->ctxt_to_hw_map;
 	if (!ctx_data->in_use) {
 		CAM_ERR(CAM_JPEG, "ctx is not in use");
-		mutex_unlock(&hw_mgr->hw_mgr_mutex);
 		rc = -EINVAL;
 		goto end_unusedev;
 	}
@@ -875,7 +873,6 @@ static int cam_jpeg_mgr_process_hw_update_entries(void *priv, void *data)
 	return rc;
 
 end_callcb:
-	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	if (p_cfg_req) {
 		buf_data.num_handles =
 			config_args->num_out_map_entries;
@@ -895,11 +892,16 @@ end_callcb:
 				CAM_JPEG_EVT_ID_BUF_DONE, &jpeg_done_evt);
 		}
 	}
+
+	if (hw_mgr->devices[dev_type][0]->hw_ops.deinit) {
+		rc = hw_mgr->devices[dev_type][0]->hw_ops.deinit(
+			hw_mgr->devices[dev_type][0]->hw_priv, NULL, 0);
+		if (rc)
+			CAM_ERR(CAM_JPEG, "Failed to Deinit %lu HW", dev_type);
+	}
 end_unusedev:
-	mutex_lock(&hw_mgr->hw_mgr_mutex);
 	hw_mgr->device_in_use[p_cfg_req->dev_type][0] = false;
 	hw_mgr->dev_hw_cfg_args[p_cfg_req->dev_type][0] = NULL;
-
 end:
 	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	return rc;

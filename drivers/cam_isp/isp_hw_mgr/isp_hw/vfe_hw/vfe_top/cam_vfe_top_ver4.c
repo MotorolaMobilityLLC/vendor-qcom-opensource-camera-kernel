@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/slab.h>
@@ -877,6 +877,36 @@ print_frame_stats:
 
 }
 
+static void cam_vfe_top_ver4_print_core_violation_info(
+	struct cam_vfe_top_ver4_priv *top_priv,
+	struct cam_vfe_top_irq_evt_payload *payload, uint32_t desc_idx)
+{
+	struct cam_hw_soc_info              *soc_info;
+	struct cam_vfe_top_ver4_common_data *common_data;
+	void __iomem                        *base;
+	uint32_t                             val = 0;
+
+	common_data = &top_priv->common_data;
+	soc_info = top_priv->top_common.soc_info;
+	base = soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
+	val = cam_io_r(base + top_priv->common_data.hw_info->top_hm_base +
+		common_data->common_reg->core_violation_status);
+
+	CAM_ERR(CAM_ISP, "VFE[%u] %s occurred at [%llu: %09llu]",
+		soc_info->index,
+		common_data->hw_info->top_err_desc[desc_idx].err_name,
+		payload->ts.mono_time.tv_sec,
+		payload->ts.mono_time.tv_nsec);
+	CAM_ERR(CAM_ISP, "%s", common_data->hw_info->top_err_desc[desc_idx].desc);
+
+	if (common_data->hw_info->core_violation_desc)
+		CAM_ERR(CAM_ISP, "Core Violation status %u, id: [%u %s]", val,
+			common_data->hw_info->core_violation_desc[val].id,
+			common_data->hw_info->core_violation_desc[val].desc);
+	else
+		CAM_ERR(CAM_ISP, "Core Violation status %u", val);
+}
+
 static void cam_vfe_top_ver4_print_top_irq_error(
 	struct cam_vfe_mux_ver4_data *vfe_priv,
 	struct cam_vfe_top_irq_evt_payload *payload,
@@ -913,6 +943,12 @@ static void cam_vfe_top_ver4_print_top_irq_error(
 					vfe_priv->reg_data->diag_violation_mask) {
 				cam_vfe_top_ver4_print_diag_sensor_frame_count_info(vfe_priv,
 					payload, i, res_id, true);
+				continue;
+			}
+
+			if (common_data->hw_info->top_err_desc[i].bitmask &
+				vfe_priv->reg_data->core_violation_mask) {
+				cam_vfe_top_ver4_print_core_violation_info(top_priv, payload, i);
 				continue;
 			}
 
@@ -2965,6 +3001,72 @@ int cam_vfe_res_mux_deinit(
 	for (i = 0; i < CAM_VFE_CAMIF_EVT_MAX; i++)
 		INIT_LIST_HEAD(&vfe_priv->evt_payload[i].list);
 	CAM_MEM_FREE(vfe_priv);
+
+	return 0;
+}
+
+static uint64_t cam_vfe_top_ver4_read_reg_base_query(void __iomem *base,
+	struct cam_vfe_top_ver4_query_dmi_reg_info *query_reg,
+	uint32_t id, uint32_t type)
+{
+	uint64_t reg_base = -1;
+	uint32_t lut_id;
+	uint32_t val = 0;
+
+	if (type == CAM_QUERY_TYPE_CLC) {
+		lut_id = query_reg->clc_start_id + (query_reg->num_entries_per_clc * id);
+	} else if (type == CAM_QUERY_TYPE_HM)  {
+		lut_id = query_reg->hm_start_id + (query_reg->num_entries_per_hm * id);
+	} else {
+		CAM_ERR(CAM_ISP, "Invalid type %d", type);
+		return reg_base;
+	}
+
+	cam_io_w(lut_id, base + query_reg->dmi_cfg);
+
+	val = cam_io_r(base + query_reg->dmi_data);
+	if (val & query_reg->valid_mask) {
+		val = cam_io_r(base + query_reg->dmi_data);
+		reg_base = val & query_reg->reg_base_mask;
+	}
+
+	return reg_base;
+}
+
+int cam_vfe_top_ver4_read_hw_query(struct cam_hw_soc_info *soc_info,
+	void *top_hw_info)
+{
+	void __iomem                               *base        =  NULL;
+	struct cam_vfe_top_ver4_query_dmi_reg_info *query_reg   = NULL;
+	struct cam_vfe_hw_info                 *vfe_hw_info = NULL;
+	struct cam_vfe_top_ver4_hw_info        *hw_info = top_hw_info;
+
+	vfe_hw_info = (struct cam_vfe_hw_info *)
+			container_of(top_hw_info, struct cam_vfe_hw_info, top_hw_info);
+
+	base = soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
+	query_reg = hw_info->query_reg;
+
+	/* Select common query LUT */
+	cam_io_w(query_reg->query_sel_val, base + query_reg->dmi_lut_cfg);
+
+	/*
+	 * Read reg bases
+	 */
+	hw_info->top_hm_base = cam_vfe_top_ver4_read_reg_base_query(base, query_reg,
+		query_reg->hm_id_top, CAM_QUERY_TYPE_HM);
+
+	hw_info->bayer_hm_base = cam_vfe_top_ver4_read_reg_base_query(base, query_reg,
+		query_reg->hm_id_bayer, CAM_QUERY_TYPE_HM);
+
+	hw_info->haf_clc_base = cam_vfe_top_ver4_read_reg_base_query(base, query_reg,
+		query_reg->clc_id_haf, CAM_QUERY_TYPE_CLC);
+
+	hw_info->fcg_clc_base = cam_vfe_top_ver4_read_reg_base_query(base, query_reg,
+		query_reg->clc_id_fcg, CAM_QUERY_TYPE_CLC);
+
+	hw_info->bus_wr_base = cam_vfe_top_ver4_read_reg_base_query(base, query_reg,
+		query_reg->clc_id_bus_wr, CAM_QUERY_TYPE_CLC);
 
 	return 0;
 }

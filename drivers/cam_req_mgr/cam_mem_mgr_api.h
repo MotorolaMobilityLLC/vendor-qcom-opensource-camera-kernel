@@ -37,8 +37,22 @@ extern bool mem_trace_en;
  */
 #define CAM_MEM_ZALLOC(size, flags) \
 	(mem_trace_en ? \
-	cam_mem_trace_alloc(size, flags, __func__, __LINE__) :\
+	cam_mem_trace_alloc(size, flags, false, __func__, __LINE__) :\
 	kvzalloc(size, flags))
+
+/**
+ * CAM_MEM_KZALLOC : Allocates memory with kzalloc.
+ *
+ * @size    : size of memory requested for allocation
+ * @flags   : GFP flags (GPF_KERNEL,  GFP_DMA, GPF_ATOMIC etc)
+ *
+ * NOTE: To be used with kfree which is safe to free memory with
+ * spinlock held.
+ */
+#define CAM_MEM_KZALLOC(size, flags) \
+	(mem_trace_en ? \
+	cam_mem_trace_alloc(size, flags, true, __func__, __LINE__) :\
+	kzalloc(size, flags))
 
 /**
  * CAM_MEM_ZALLOC_ARRAY : Allocates memory for array and zero initialises it.
@@ -63,8 +77,18 @@ extern bool mem_trace_en;
  */
 #define CAM_MEM_FREE(addr) \
 	(mem_trace_en ? \
-	cam_mem_trace_free(addr) :\
+	cam_mem_trace_free(addr, false) :\
 	kvfree(addr))
+
+/**
+ * CAM_MEM_KFREE : Frees memory without initializing it to zero.
+ *
+ * @addr    : address of data object to be freed
+ */
+#define CAM_MEM_KFREE(addr) \
+	(mem_trace_en ? \
+	cam_mem_trace_free(addr, true) :\
+	kfree(addr))
 
 /**
  * CAM_MEM_ZFREE : Frees memory and zero initialize it.
@@ -76,7 +100,7 @@ extern bool mem_trace_en;
 	if (likely(!ZERO_OR_NULL_PTR(addr))) { \
 		memset((void *)addr, 0x0,  size); \
 		mem_trace_en ? \
-		cam_mem_trace_free(addr) :\
+		cam_mem_trace_free(addr, false) :\
 		kvfree(addr); \
 	}
 
@@ -232,24 +256,26 @@ void cam_mem_trace_init(void);
 /**
  * @brief: Allocate a new memory and add it to trace list
  *
- * @size: Size of allocated memory
- * @flag: GFP flags (GFP_KERNEL, GFP_DMA, GFP_ATOMIC etc)
- * @owner: Owner to which allocated memory belongs
- * @line: Exact allocated line of the owner
+ * @size:         Size of allocated memory
+ * @flag:         GFP flags (GFP_KERNEL, GFP_DMA, GFP_ATOMIC etc)
+ * @force_kalloc: Force to use kzalloc to alloc memory
+ * @owner:        Owner to which allocated memory belongs
+ * @line:         Exact allocated line of the owner
  *
  * @return None
  */
 void *cam_mem_trace_alloc(size_t size, gfp_t flags,
-	const char *owner, int line);
+	bool force_kalloc, const char *owner, int line);
 
 /**
  * @brief: Free a allocated memory and delete it from trace list
  *
- * @vaddr_ptr: Kernel virtual address of allocated memory
+ * @vaddr_ptr:   Kernel virtual address of allocated memory
+ * @force_kfree: Force to use kfree to free memory
  *
  * @return None
  */
-void cam_mem_trace_free(const void *vaddr_ptr);
+void cam_mem_trace_free(const void *vaddr_ptr, bool force_kfree);
 
 /**
  * @brief: Traced version of memdup_user

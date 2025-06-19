@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "cam_vfe_top_common.h"
@@ -21,8 +21,8 @@ static const char *cam_vfe_top_clk_bw_state_to_string(uint32_t state)
 	}
 }
 static int cam_vfe_top_set_axi_bw_vote(struct cam_vfe_top_priv_common *top_common,
-	struct cam_axi_vote *final_bw_vote, uint64_t total_bw_new_vote, bool start_stop,
-	uint64_t request_id)
+	struct cam_axi_vote *final_bw_vote, uint64_t total_camnoc_bw_new_vote,
+	uint64_t total_mnoc_bw_new_vote, bool start_stop, uint64_t request_id)
 {
 	int rc = 0;
 	struct cam_hw_soc_info        *soc_info = NULL;
@@ -33,16 +33,14 @@ static int cam_vfe_top_set_axi_bw_vote(struct cam_vfe_top_priv_common *top_commo
 	soc_private = (struct cam_vfe_soc_private *)soc_info->soc_private;
 
 	CAM_DBG(CAM_PERF|CAM_ISP,
-		"VFE:%d Sending final BW to cpas bw_state:%s bw_vote:%llu req_id:%ld",
+		"VFE:%d Sending final BW to cpas bw_state:%s camnoc_bw:%llu mnoc_bw:%llu req_id:%ld",
 		top_common->hw_idx, cam_vfe_top_clk_bw_state_to_string(top_common->bw_state),
-		total_bw_new_vote, (start_stop ? -1 : request_id));
-	rc = cam_cpas_update_axi_vote(soc_private->cpas_handle,
-		final_bw_vote);
+		total_camnoc_bw_new_vote, total_mnoc_bw_new_vote, (start_stop ? -1 : request_id));
+	rc = cam_cpas_update_axi_vote(soc_private->cpas_handle, final_bw_vote);
 	if (!rc) {
-		memcpy(&top_common->applied_axi_vote,
-			final_bw_vote,
-			sizeof(struct cam_axi_vote));
-		top_common->total_bw_applied = total_bw_new_vote;
+		memcpy(&top_common->applied_axi_vote, final_bw_vote, sizeof(struct cam_axi_vote));
+		top_common->total_camnoc_bw_applied = total_camnoc_bw_new_vote;
+		top_common->total_mnoc_bw_applied = total_mnoc_bw_new_vote;
 	} else {
 		CAM_ERR(CAM_PERF,
 			"VFE:%d BW request failed, req_id: %ld, final num_paths: %d, rc=%d",
@@ -241,28 +239,31 @@ int cam_vfe_top_clock_update(struct cam_vfe_top_priv_common *top_common,
 
 static struct cam_axi_vote *cam_vfe_top_delay_bw_reduction(
 	struct cam_vfe_top_priv_common *top_common,
-	uint64_t *to_be_applied_bw)
+	uint64_t *to_be_applied_camnoc_bw, uint64_t *to_be_applied_mnoc_bw)
 {
 	uint32_t i;
 	int vote_idx = -1;
-	uint64_t max_bw = 0;
+	uint64_t max_camnoc_bw = 0, max_mnoc_bw = 0;
 
 	for (i = 0; i < CAM_DELAY_CLK_BW_REDUCTION_NUM_REQ; i++) {
-		if (top_common->last_total_bw_vote[i] >= max_bw) {
+		if ((top_common->last_total_camnoc_bw_vote[i] >= max_camnoc_bw) ||
+			(top_common->last_total_mnoc_bw_vote[i] >= max_mnoc_bw)) {
 			vote_idx = i;
-			max_bw = top_common->last_total_bw_vote[i];
+			max_camnoc_bw = top_common->last_total_camnoc_bw_vote[i];
+			max_mnoc_bw = top_common->last_total_mnoc_bw_vote[i];
 		}
 	}
 
-	*to_be_applied_bw = max_bw;
+	*to_be_applied_camnoc_bw = max_camnoc_bw;
+	*to_be_applied_mnoc_bw = max_mnoc_bw;
 
 	return &top_common->last_bw_vote[vote_idx];
 }
 
 static int cam_vfe_top_calc_axi_bw_vote(
 	struct cam_vfe_top_priv_common *top_common, bool start_stop,
-	struct cam_axi_vote **to_be_applied_axi_vote, uint64_t *total_bw_new_vote,
-	uint64_t request_id)
+	struct cam_axi_vote **to_be_applied_axi_vote, uint64_t *total_camnoc_bw_new_vote,
+	uint64_t *total_mnoc_bw_new_vote, uint64_t request_id)
 {
 	int rc = 0;
 	uint32_t i;
@@ -319,22 +320,27 @@ static int cam_vfe_top_calc_axi_bw_vote(
 			top_common->agg_incoming_vote.axi_path[i].mnoc_ab_bw,
 			top_common->agg_incoming_vote.axi_path[i].mnoc_ib_bw);
 
-		*total_bw_new_vote += top_common->agg_incoming_vote.axi_path[i].camnoc_bw;
+		*total_camnoc_bw_new_vote += top_common->agg_incoming_vote.axi_path[i].camnoc_bw;
+		*total_mnoc_bw_new_vote += top_common->agg_incoming_vote.axi_path[i].mnoc_ab_bw;
 	}
 
 	memcpy(&top_common->last_bw_vote[top_common->last_bw_counter],
 		&top_common->agg_incoming_vote, sizeof(struct cam_axi_vote));
-	top_common->last_total_bw_vote[top_common->last_bw_counter] = *total_bw_new_vote;
+	top_common->last_total_camnoc_bw_vote[top_common->last_bw_counter] =
+		*total_camnoc_bw_new_vote;
+	top_common->last_total_mnoc_bw_vote[top_common->last_bw_counter] = *total_mnoc_bw_new_vote;
 	top_common->last_bw_counter = (top_common->last_bw_counter + 1) %
 		CAM_DELAY_CLK_BW_REDUCTION_NUM_REQ;
 
-	if (*total_bw_new_vote != top_common->total_bw_applied)
+	if ((*total_camnoc_bw_new_vote != top_common->total_camnoc_bw_applied) ||
+		(*total_mnoc_bw_new_vote != top_common->total_mnoc_bw_applied))
 		bw_unchanged = false;
 
 	CAM_DBG(CAM_PERF|CAM_ISP,
-		"ife[%d] : applied_total=%lld, new_total=%lld unchanged=%d, start_stop=%d req_id=%ld",
-		top_common->hw_idx, top_common->total_bw_applied,
-		*total_bw_new_vote, bw_unchanged, start_stop, (start_stop ? -1 : request_id));
+		"ife[%d] : total applied_camnoc=%lld, new_camnoc=%lld applied_mnoc=%lld, new_mnoc=%lld unchanged=%d, start_stop=%d req_id=%ld",
+		top_common->hw_idx, top_common->total_camnoc_bw_applied,
+		*total_camnoc_bw_new_vote, top_common->total_mnoc_bw_applied,
+		*total_mnoc_bw_new_vote, bw_unchanged, start_stop, (start_stop ? -1 : request_id));
 
 	if (bw_unchanged) {
 		CAM_DBG(CAM_PERF|CAM_ISP, "BW config unchanged");
@@ -349,12 +355,17 @@ static int cam_vfe_top_calc_axi_bw_vote(
 		/* Reset everything, we can start afresh */
 		memset(top_common->last_bw_vote, 0, sizeof(struct cam_axi_vote) *
 			CAM_DELAY_CLK_BW_REDUCTION_NUM_REQ);
-		memset(top_common->last_total_bw_vote, 0, sizeof(uint64_t) *
+		memset(top_common->last_total_camnoc_bw_vote, 0, sizeof(uint64_t) *
+			CAM_DELAY_CLK_BW_REDUCTION_NUM_REQ);
+		memset(top_common->last_total_mnoc_bw_vote, 0, sizeof(uint64_t) *
 			CAM_DELAY_CLK_BW_REDUCTION_NUM_REQ);
 		top_common->last_bw_counter = 0;
 		top_common->last_bw_vote[top_common->last_bw_counter] =
 			top_common->agg_incoming_vote;
-		top_common->last_total_bw_vote[top_common->last_bw_counter] = *total_bw_new_vote;
+		top_common->last_total_camnoc_bw_vote[top_common->last_bw_counter] =
+			*total_camnoc_bw_new_vote;
+		top_common->last_total_mnoc_bw_vote[top_common->last_bw_counter] =
+			*total_mnoc_bw_new_vote;
 		top_common->last_bw_counter = (top_common->last_bw_counter + 1) %
 			CAM_DELAY_CLK_BW_REDUCTION_NUM_REQ;
 	} else {
@@ -362,8 +373,9 @@ static int cam_vfe_top_calc_axi_bw_vote(
 		 * Find max bw request in last few frames. This will be the bw
 		 * that we want to vote to CPAS now.
 		 */
-		final_bw_vote = cam_vfe_top_delay_bw_reduction(top_common, total_bw_new_vote);
-		if (*total_bw_new_vote == 0)
+		final_bw_vote = cam_vfe_top_delay_bw_reduction(top_common,
+			total_camnoc_bw_new_vote, total_mnoc_bw_new_vote);
+		if ((*total_camnoc_bw_new_vote == 0) && (*total_mnoc_bw_new_vote == 0))
 			CAM_WARN(CAM_PERF, "to_be_applied_axi_vote is 0, req_id:%llu", request_id);
 	}
 
@@ -382,22 +394,25 @@ static int cam_vfe_top_calc_axi_bw_vote(
 			final_bw_vote->axi_path[i].mnoc_ib_bw);
 	}
 
-	if (*total_bw_new_vote == top_common->total_bw_applied) {
+	if ((*total_camnoc_bw_new_vote == top_common->total_camnoc_bw_applied) &&
+		(*total_mnoc_bw_new_vote == top_common->total_mnoc_bw_applied)) {
 		CAM_DBG(CAM_PERF|CAM_ISP, "VFE:%d Final BW Unchanged after delay",
 			top_common->hw_idx);
 		top_common->bw_state = CAM_CLK_BW_STATE_UNCHANGED;
 		*to_be_applied_axi_vote = NULL;
 		goto end;
-	} else if (*total_bw_new_vote > top_common->total_bw_applied) {
+	} else if ((*total_camnoc_bw_new_vote > top_common->total_camnoc_bw_applied) ||
+		(*total_mnoc_bw_new_vote > top_common->total_mnoc_bw_applied)) {
 		top_common->bw_state = CAM_CLK_BW_STATE_INCREASE;
 	} else {
 		top_common->bw_state = CAM_CLK_BW_STATE_DECREASE;
 	}
 
 	CAM_DBG(CAM_PERF|CAM_ISP,
-		"ife[%d] : Delayed update: applied_total=%lld new_total=%lld start_stop=%d bw_state=%s req_id=%ld",
-		top_common->hw_idx, top_common->total_bw_applied,
-		*total_bw_new_vote, start_stop,
+		"ife[%d] : Delayed update: total applied_camnoc=%lld, new_camnoc=%lld applied_mnoc=%lld, new_mnoc=%lld start_stop=%d bw_state=%s req_id=%ld",
+		top_common->hw_idx, top_common->total_camnoc_bw_applied,
+		*total_camnoc_bw_new_vote, top_common->total_mnoc_bw_applied,
+		*total_mnoc_bw_new_vote, start_stop,
 		cam_vfe_top_clk_bw_state_to_string(top_common->bw_state),
 		(start_stop ? -1 : request_id));
 
@@ -556,9 +571,9 @@ int cam_vfe_top_apply_clk_bw_update(struct cam_vfe_top_priv_common *top_common,
 	struct cam_hw_intf                   *hw_intf = NULL;
 	struct cam_axi_vote *to_be_applied_axi_vote = NULL;
 	struct cam_isp_apply_clk_bw_args *clk_bw_args = NULL;
-	unsigned long                         final_clk_rate = 0;
-	uint64_t                              total_bw_new_vote = 0;
-	uint64_t                              request_id;
+	unsigned long                      final_clk_rate = 0;
+	uint64_t                           total_camnoc_bw_new_vote = 0, total_mnoc_bw_new_vote = 0;
+	uint64_t                           request_id;
 	int rc = 0;
 
 	if (arg_size != sizeof(struct cam_isp_apply_clk_bw_args)) {
@@ -597,7 +612,8 @@ int cam_vfe_top_apply_clk_bw_update(struct cam_vfe_top_priv_common *top_common,
 	}
 
 	rc = cam_vfe_top_calc_axi_bw_vote(top_common, false,
-		&to_be_applied_axi_vote, &total_bw_new_vote, request_id);
+		&to_be_applied_axi_vote, &total_camnoc_bw_new_vote, &total_mnoc_bw_new_vote,
+		request_id);
 	if (rc) {
 		CAM_ERR(CAM_ISP, "VFE:%d Failed in calculating bw vote rc=%d",
 			hw_intf->hw_idx, rc);
@@ -624,11 +640,11 @@ int cam_vfe_top_apply_clk_bw_update(struct cam_vfe_top_priv_common *top_common,
 		goto end;
 	} else if (top_common->clk_state == CAM_CLK_BW_STATE_UNCHANGED) {
 		rc = cam_vfe_top_set_axi_bw_vote(top_common, to_be_applied_axi_vote,
-			total_bw_new_vote, false, request_id);
+			total_camnoc_bw_new_vote, total_mnoc_bw_new_vote, false, request_id);
 		if (rc) {
 			CAM_ERR(CAM_ISP,
-				"VFE:%d Failed in voting final bw:%llu clk_state:%s bw_state:%s is_drv_config_en:%s",
-				hw_intf->hw_idx, total_bw_new_vote,
+				"VFE:%d Failed in voting final bw camnoc:%llu mnoc:%llu clk_state:%s bw_state:%s is_drv_config_en:%s",
+				hw_intf->hw_idx, total_camnoc_bw_new_vote, total_mnoc_bw_new_vote,
 				cam_vfe_top_clk_bw_state_to_string(top_common->clk_state),
 				cam_vfe_top_clk_bw_state_to_string(top_common->bw_state),
 				CAM_BOOL_TO_YESNO(clk_bw_args->is_drv_config_en));
@@ -649,11 +665,11 @@ int cam_vfe_top_apply_clk_bw_update(struct cam_vfe_top_priv_common *top_common,
 	} else if (top_common->clk_state == CAM_CLK_BW_STATE_INCREASE) {
 		/* Set BW first, followed by Clock */
 		rc = cam_vfe_top_set_axi_bw_vote(top_common, to_be_applied_axi_vote,
-			total_bw_new_vote, false, request_id);
+			total_camnoc_bw_new_vote, total_mnoc_bw_new_vote, false, request_id);
 		if (rc) {
 			CAM_ERR(CAM_ISP,
-				"VFE:%d Failed in voting final bw:%llu clk_state:%s bw_state:%s is_drv_config_en:%s",
-				hw_intf->hw_idx, total_bw_new_vote,
+				"VFE:%d Failed in voting final bw camnoc:%llu mnoc:%llu clk_state:%s bw_state:%s is_drv_config_en:%s",
+				hw_intf->hw_idx, total_camnoc_bw_new_vote, total_mnoc_bw_new_vote,
 				cam_vfe_top_clk_bw_state_to_string(top_common->clk_state),
 				cam_vfe_top_clk_bw_state_to_string(top_common->bw_state),
 				CAM_BOOL_TO_YESNO(clk_bw_args->is_drv_config_en));
@@ -686,11 +702,11 @@ int cam_vfe_top_apply_clk_bw_update(struct cam_vfe_top_priv_common *top_common,
 		}
 
 		rc = cam_vfe_top_set_axi_bw_vote(top_common, to_be_applied_axi_vote,
-			total_bw_new_vote, false, request_id);
+			total_camnoc_bw_new_vote, total_mnoc_bw_new_vote, false, request_id);
 		if (rc) {
 			CAM_ERR(CAM_ISP,
-				"VFE:%d Failed in voting final bw:%llu clk_state:%s bw_state:%s is_drv_config_en:%s",
-				hw_intf->hw_idx, total_bw_new_vote,
+				"VFE:%d Failed in voting final bw camnoc:%llu mnoc:%llu clk_state:%s bw_state:%s is_drv_config_en:%s",
+				hw_intf->hw_idx, total_camnoc_bw_new_vote, total_mnoc_bw_new_vote,
 				cam_vfe_top_clk_bw_state_to_string(top_common->clk_state),
 				cam_vfe_top_clk_bw_state_to_string(top_common->bw_state),
 				CAM_BOOL_TO_YESNO(clk_bw_args->is_drv_config_en));
@@ -748,11 +764,11 @@ end:
 int cam_vfe_top_apply_bw_start_stop(struct cam_vfe_top_priv_common *top_common)
 {
 	int rc = 0;
-	uint64_t total_bw_new_vote = 0;
+	uint64_t total_camnoc_bw_new_vote = 0, total_mnoc_bw_new_vote = 0;
 	struct cam_axi_vote *to_be_applied_axi_vote = NULL;
 
 	rc = cam_vfe_top_calc_axi_bw_vote(top_common, true, &to_be_applied_axi_vote,
-		&total_bw_new_vote, 0);
+		&total_camnoc_bw_new_vote, &total_mnoc_bw_new_vote, 0);
 	if (rc) {
 		CAM_ERR(CAM_ISP, "VFE:%d Failed in calculating bw vote rc=%d",
 			top_common->hw_idx, rc);
@@ -762,11 +778,12 @@ int cam_vfe_top_apply_bw_start_stop(struct cam_vfe_top_priv_common *top_common)
 	if (top_common->bw_state == CAM_CLK_BW_STATE_UNCHANGED)
 		goto end;
 
-	rc = cam_vfe_top_set_axi_bw_vote(top_common, to_be_applied_axi_vote, total_bw_new_vote,
-		true, 0);
+	rc = cam_vfe_top_set_axi_bw_vote(top_common, to_be_applied_axi_vote,
+		total_camnoc_bw_new_vote, total_mnoc_bw_new_vote, true, 0);
 	if (rc) {
-		CAM_ERR(CAM_ISP, "VFE:%d Failed in voting final bw:%llu bw_state:%s",
-			top_common->hw_idx, total_bw_new_vote,
+		CAM_ERR(CAM_ISP,
+			"VFE:%d Failed in voting final bw camnoc:%llu mnoc:%llu bw_state:%s",
+			top_common->hw_idx, total_camnoc_bw_new_vote, total_mnoc_bw_new_vote,
 			cam_vfe_top_clk_bw_state_to_string(top_common->bw_state));
 		goto end;
 	}

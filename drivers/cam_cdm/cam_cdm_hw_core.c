@@ -170,18 +170,17 @@ static int cam_hw_cdm_enable_bl_done_irq(struct cam_hw_info *cdm_hw,
 	return rc;
 }
 
-static int cam_hw_cdm_pause_core(struct cam_hw_info *cdm_hw, bool pause)
+int cam_hw_cdm_pause_core(struct cam_hw_info *cdm_hw, bool pause)
 {
 	int rc = 0;
 	struct cam_cdm *core = (struct cam_cdm *)cdm_hw->core_info;
 	uint32_t val = 0x1, core_en_reg, cdm_status_reg;
 	bool pause_core_supported;
 
-	if (pause)
-		val |= 0x2;
+	pause_core_supported = (core->offsets->reg_data->capabilities & CAM_CDM_CAP_PAUSE_CORE);
 
-	pause_core_supported = core->offsets->reg_data->capabilities &
-		CAM_CDM_CAP_PAUSE_CORE;
+	if (pause_core_supported && pause)
+		val |= core->offsets->cmn_reg->pause_core_enable_mask;
 
 	if (pause_core_supported) {
 		cam_cdm_read_hw_reg(cdm_hw,
@@ -192,9 +191,10 @@ static int cam_hw_cdm_pause_core(struct cam_hw_info *cdm_hw, bool pause)
 		/* In both pause or resume, further action need not/cannot be taken */
 		if ((core_en_reg & core->offsets->cmn_reg->pause_core_enable_mask) &&
 			!(cdm_status_reg & core->offsets->cmn_reg->pause_core_done_mask)) {
-			if (!pause)
+			if (!pause) {
 				CAM_ERR(CAM_CDM, "Pause core not done yet, can't resume core");
-			return -EAGAIN;
+				return -EAGAIN;
+			}
 		}
 	}
 

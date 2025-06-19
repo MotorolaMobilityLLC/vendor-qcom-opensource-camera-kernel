@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/uaccess.h>
@@ -9006,7 +9006,6 @@ static int cam_icp_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 
 	cam_icp_ctx_clk_info_init(ctx_data);
 	ctx_data->state = CAM_ICP_CTX_STATE_ACQUIRED;
-	mutex_unlock(&hw_mgr->ctx_mutex[ctx_id]);
 	CAM_DBG(CAM_ICP, "%s: scratch size = %x fw_handle = %x",
 		ctx_data->ctx_id_string,
 		(unsigned int)icp_dev_acquire_info->scratch_mem_size,
