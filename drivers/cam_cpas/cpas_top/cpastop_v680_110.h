@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CPASTOP_V680_110_H_
@@ -218,8 +218,8 @@ static struct cam_camnoc_irq_err
 	},
 };
 
-static struct cam_camnoc_specific
-	cam_cpas_v680_110_camnoc_specific[] = {
+static struct cam_camnoc_niu
+	cam_cpas_v680_110_camnoc_niu[] = {
 	{
 		.port_type = CAM_CAMNOC_IFE_UBWC,
 		.port_name = "IFE_UBWC",
@@ -1342,8 +1342,8 @@ static struct cam_cpas_hw_errata_wa_list cam680_cpas110_errata_wa_list = {
 };
 
 static struct cam_camnoc_info cam680_cpas110_camnoc_info = {
-	.specific = &cam_cpas_v680_110_camnoc_specific[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v680_110_camnoc_specific),
+	.niu = &cam_cpas_v680_110_camnoc_niu[0],
+	.num_nius = ARRAY_SIZE(cam_cpas_v680_110_camnoc_niu),
 	.irq_sbm = &cam_cpas_v680_110_irq_sbm,
 	.irq_err = &cam_cpas_v680_110_irq_err[0],
 	.irq_err_size = ARRAY_SIZE(cam_cpas_v680_110_irq_err),

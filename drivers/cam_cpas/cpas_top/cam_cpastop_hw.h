@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_CPASTOP_HW_H_
@@ -232,7 +232,7 @@ enum cam_camnoc_port_type {
 };
 
 /**
- * struct cam_camnoc_specific : CPAS camnoc specific settings
+ * struct cam_camnoc_niu : CPAS camnoc NIU settings
  *
  * @port_type: Port type
  * @port_name: Port name
@@ -252,7 +252,7 @@ enum cam_camnoc_port_type {
  * @dynattr_mainctl: Dynamic attribute main control register for this connection
  *
  */
-struct cam_camnoc_specific {
+struct cam_camnoc_niu {
 	enum cam_camnoc_port_type port_type;
 	const char *port_name;
 	bool enable;
@@ -508,8 +508,8 @@ struct cam_camnoc_addr_trans_info {
  * @camnoc_type: type of camnoc (RT/NRT/COMBINED)
  * @camnoc_name: name of camnoc (CAMNOC_RT/CAMNOC_NRT/CAMNOC_COMBINED)
  * @reg_base: register base for camnoc RT/NRT/COMBINED register space
- * @specific: Pointer to CAMNOC SPECIFICTONTTPTR settings
- * @specific_size: Array size of SPECIFICTONTTPTR settings
+ * @niu: Pointer to camnoc NIU settings
+ * @num_nius: Number of NIUs
  * @irq_sbm: Pointer to CAMNOC IRQ SBM settings
  * @irq_err: Pointer to CAMNOC IRQ Error settings
  * @irq_err_size: Array size of IRQ Error settings
@@ -527,8 +527,8 @@ struct cam_camnoc_info {
 	enum cam_cpas_reg_base reg_base;
 
 	/* Below fields populated from the cpas header */
-	struct cam_camnoc_specific *specific;
-	int specific_size;
+	struct cam_camnoc_niu *niu;
+	int num_nius;
 	struct cam_camnoc_irq_sbm *irq_sbm;
 	struct cam_camnoc_irq_err *irq_err;
 	int irq_err_size;

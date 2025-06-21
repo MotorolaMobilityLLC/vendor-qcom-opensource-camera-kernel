@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/delay.h>
@@ -1110,35 +1110,35 @@ static int cam_cpastop_print_poweron_settings(struct cam_hw_info *cpas_hw)
 	for (i = 0; i < cpas_core->num_valid_camnoc; i++) {
 		CAM_INFO(CAM_CPAS, "QOS settings for %s :",
 			camnoc_info[i]->camnoc_name);
-		for (j = 0; j < camnoc_info[i]->specific_size; j++) {
-			if (camnoc_info[i]->specific[j].enable) {
+		for (j = 0; j < camnoc_info[i]->num_nius; j++) {
+			if (camnoc_info[i]->niu[j].enable) {
 				CAM_INFO(CAM_CPAS,
 					"Reading QoS settings port: %d port name: %s",
-					camnoc_info[i]->specific[j].port_type,
-					camnoc_info[i]->specific[j].port_name);
+					camnoc_info[i]->niu[j].port_type,
+					camnoc_info[i]->niu[j].port_name);
 				reg_base = camnoc_info[i]->reg_base;
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].priority_lut_low);
+					&camnoc_info[i]->niu[j].priority_lut_low);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].priority_lut_high);
+					&camnoc_info[i]->niu[j].priority_lut_high);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].urgency);
+					&camnoc_info[i]->niu[j].urgency);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].danger_lut);
+					&camnoc_info[i]->niu[j].danger_lut);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].safe_lut);
+					&camnoc_info[i]->niu[j].safe_lut);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].ubwc_ctl);
+					&camnoc_info[i]->niu[j].ubwc_ctl);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].flag_out_set0_low);
+					&camnoc_info[i]->niu[j].flag_out_set0_low);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].dynattr_mainctl);
+					&camnoc_info[i]->niu[j].dynattr_mainctl);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].qosgen_mainctl);
+					&camnoc_info[i]->niu[j].qosgen_mainctl);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].qosgen_shaping_low);
+					&camnoc_info[i]->niu[j].qosgen_shaping_low);
 				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].qosgen_shaping_high);
+					&camnoc_info[i]->niu[j].qosgen_shaping_high);
 			}
 		}
 	}
@@ -1166,35 +1166,35 @@ static int cam_cpastop_poweron(struct cam_hw_info *cpas_hw)
 		for (i = 0; i < cpas_core->num_valid_camnoc; i++) {
 			CAM_DBG(CAM_CPAS, "QOS settings for %s :",
 				camnoc_info[i]->camnoc_name);
-			for (j = 0; j < camnoc_info[i]->specific_size; j++) {
-				if (camnoc_info[i]->specific[j].enable) {
+			for (j = 0; j < camnoc_info[i]->num_nius; j++) {
+				if (camnoc_info[i]->niu[j].enable) {
 					CAM_DBG(CAM_CPAS,
 						"Updating QoS settings port: %d prot name: %s",
-						camnoc_info[i]->specific[j].port_type,
-						camnoc_info[i]->specific[j].port_name);
+						camnoc_info[i]->niu[j].port_type,
+						camnoc_info[i]->niu[j].port_name);
 
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].priority_lut_low);
+						&camnoc_info[i]->niu[j].priority_lut_low);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].priority_lut_high);
+						&camnoc_info[i]->niu[j].priority_lut_high);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].urgency);
+						&camnoc_info[i]->niu[j].urgency);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].danger_lut);
+						&camnoc_info[i]->niu[j].danger_lut);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].safe_lut);
+						&camnoc_info[i]->niu[j].safe_lut);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].ubwc_ctl);
+						&camnoc_info[i]->niu[j].ubwc_ctl);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].flag_out_set0_low);
+						&camnoc_info[i]->niu[j].flag_out_set0_low);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].dynattr_mainctl);
+						&camnoc_info[i]->niu[j].dynattr_mainctl);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].qosgen_mainctl);
+						&camnoc_info[i]->niu[j].qosgen_mainctl);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].qosgen_shaping_low);
+						&camnoc_info[i]->niu[j].qosgen_shaping_low);
 					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].qosgen_shaping_high);
+						&camnoc_info[i]->niu[j].qosgen_shaping_high);
 				}
 			}
 

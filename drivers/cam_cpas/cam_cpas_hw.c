@@ -866,22 +866,22 @@ static int cam_cpas_hw_dump_camnoc_buff_fill_info(
 		camnoc_info = cpas_core->camnoc_info[camnoc_idx];
 		int reg_base_index = cpas_core->regbase_index[camnoc_info->reg_base];
 
-		for (i = 0; i < camnoc_info->specific_size; i++) {
-			if ((!camnoc_info->specific[i].enable) ||
-				(!camnoc_info->specific[i].maxwr_low.enable))
+		for (i = 0; i < camnoc_info->num_nius; i++) {
+			if ((!camnoc_info->niu[i].enable) ||
+				(!camnoc_info->niu[i].maxwr_low.enable))
 				continue;
 
 			val = cam_io_r_mb(cpas_hw->soc_info.reg_map[reg_base_index].mem_base +
-				camnoc_info->specific[i].maxwr_low.offset);
+				camnoc_info->niu[i].maxwr_low.offset);
 
 			len += scnprintf((log_buf + len), (CAM_CPAS_LOG_BUF_LEN - len),
-				" %s:[%d %d]", camnoc_info->specific[i].port_name,
+				" %s:[%d %d]", camnoc_info->niu[i].port_name,
 				(val & 0x7FF), (val & 0x7F0000) >> 16);
 
 			/* Clear the camnoc fill levels post read */
-			cam_io_w_mb(camnoc_info->specific[i].maxwrclr_low.value,
+			cam_io_w_mb(camnoc_info->niu[i].maxwrclr_low.value,
 				(cpas_hw->soc_info.reg_map[reg_base_index].mem_base +
-				camnoc_info->specific[i].maxwrclr_low.offset));
+				camnoc_info->niu[i].maxwrclr_low.offset));
 		}
 
 		CAM_INFO(CAM_CPAS, "%s Fill level [Queued Pending] %s",
@@ -3745,9 +3745,9 @@ static void cam_cpas_update_monitor_array(struct cam_hw_info *cpas_hw,
 		camnoc_info = cpas_core->camnoc_info[camnoc_idx];
 		camnoc_reg_idx = cpas_core->regbase_index[camnoc_info->reg_base];
 
-		for (i = 0, j = 0; i < camnoc_info->specific_size; i++) {
-			if ((!camnoc_info->specific[i].enable) ||
-				(!camnoc_info->specific[i].maxwr_low.enable))
+		for (i = 0, j = 0; i < camnoc_info->num_nius; i++) {
+			if ((!camnoc_info->niu[i].enable) ||
+				(!camnoc_info->niu[i].maxwr_low.enable))
 				continue;
 
 			if (j >= CAM_CAMNOC_FILL_LVL_REG_INFO_MAX) {
@@ -3758,9 +3758,9 @@ static void cam_cpas_update_monitor_array(struct cam_hw_info *cpas_hw,
 			}
 
 			entry->camnoc_port_name[camnoc_idx][j] =
-				camnoc_info->specific[i].port_name;
+				camnoc_info->niu[i].port_name;
 			val = cam_io_r_mb(soc_info->reg_map[camnoc_reg_idx].mem_base +
-				camnoc_info->specific[i].maxwr_low.offset);
+				camnoc_info->niu[i].maxwr_low.offset);
 			entry->camnoc_fill_level[camnoc_idx][j] = val;
 			j++;
 		}

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2024-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CPASTOP_V975_100_H_
@@ -309,8 +309,8 @@ static struct cam_camnoc_irq_err
 	},
 };
 
-static struct cam_camnoc_specific
-	cam_cpas_v975_100_camnoc_specific_rt[] = {
+static struct cam_camnoc_niu
+	cam_cpas_v975_100_camnoc_rt_niu[] = {
 	/* RT ports */
 	{
 		.port_name = "RT0-TFE0,1_FULL_DS2_PDAF1_TFE2_RDI_IR_DS4_DS16",
@@ -724,8 +724,8 @@ static struct cam_camnoc_specific
 	},
 };
 
-static struct cam_camnoc_specific
-	cam_cpas_v975_100_camnoc_specific_nrt[] = {
+static struct cam_camnoc_niu
+	cam_cpas_v975_100_camnoc_nrt_niu[] = {
 	/* NRT ports */
 	{
 		.port_name = "NRT0-IPE_WR_1",
@@ -1665,8 +1665,8 @@ static struct cam_camnoc_addr_trans_info cam975_cpas100_addr_trans_info = {
 };
 
 static struct cam_camnoc_info cam975_cpas100_camnoc_info_rt = {
-	.specific = &cam_cpas_v975_100_camnoc_specific_rt[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v975_100_camnoc_specific_rt),
+	.niu = &cam_cpas_v975_100_camnoc_rt_niu[0],
+	.num_nius = ARRAY_SIZE(cam_cpas_v975_100_camnoc_rt_niu),
 	.irq_sbm = &cam_cpas_v975_100_irq_sbm_rt,
 	.irq_err = &cam_cpas_v975_100_irq_err_rt[0],
 	.irq_err_size = ARRAY_SIZE(cam_cpas_v975_100_irq_err_rt),
@@ -1679,8 +1679,8 @@ static struct cam_camnoc_info cam975_cpas100_camnoc_info_rt = {
 };
 
 static struct cam_camnoc_info cam975_cpas100_camnoc_info_nrt = {
-	.specific = &cam_cpas_v975_100_camnoc_specific_nrt[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v975_100_camnoc_specific_nrt),
+	.niu = &cam_cpas_v975_100_camnoc_nrt_niu[0],
+	.num_nius = ARRAY_SIZE(cam_cpas_v975_100_camnoc_nrt_niu),
 	.irq_sbm = &cam_cpas_v975_100_irq_sbm_nrt,
 	.irq_err = &cam_cpas_v975_100_irq_err_nrt[0],
 	.irq_err_size = ARRAY_SIZE(cam_cpas_v975_100_irq_err_nrt),

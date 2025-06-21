@@ -317,8 +317,8 @@ static struct cam_camnoc_irq_err
 	},
 };
 
-static struct cam_camnoc_specific
-	cam_cpas_v1077_100_camnoc_specific_rt[] = {
+static struct cam_camnoc_niu
+	cam_cpas_v1077_100_camnoc_rt_niu[] = {
 	/* RT ports */
 	{
 		.port_name = "RT0-TFE_DS16_FULL_RDI_RAW_PDAF",
@@ -665,8 +665,8 @@ static struct cam_camnoc_specific
 	},
 };
 
-static struct cam_camnoc_specific
-	cam_cpas_v1077_100_camnoc_specific_nrt[] = {
+static struct cam_camnoc_niu
+	cam_cpas_v1077_100_camnoc_nrt_niu[] = {
 	/* NRT ports */
 	{
 		.port_name = "NRT0-IPE_WR_1",
@@ -1606,8 +1606,8 @@ static struct cam_camnoc_addr_trans_info cam1077_cpas100_addr_trans_info = {
 };
 
 static struct cam_camnoc_info cam1077_cpas100_camnoc_info_rt = {
-	.specific = &cam_cpas_v1077_100_camnoc_specific_rt[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v1077_100_camnoc_specific_rt),
+	.niu = &cam_cpas_v1077_100_camnoc_rt_niu[0],
+	.num_nius = ARRAY_SIZE(cam_cpas_v1077_100_camnoc_rt_niu),
 	.irq_sbm = &cam_cpas_v1077_100_irq_sbm_rt,
 	.irq_err = &cam_cpas_v1077_100_irq_err_rt[0],
 	.irq_err_size = ARRAY_SIZE(cam_cpas_v1077_100_irq_err_rt),
@@ -1620,8 +1620,8 @@ static struct cam_camnoc_info cam1077_cpas100_camnoc_info_rt = {
 };
 
 static struct cam_camnoc_info cam1077_cpas100_camnoc_info_nrt = {
-	.specific = &cam_cpas_v1077_100_camnoc_specific_nrt[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v1077_100_camnoc_specific_nrt),
+	.niu = &cam_cpas_v1077_100_camnoc_nrt_niu[0],
+	.num_nius = ARRAY_SIZE(cam_cpas_v1077_100_camnoc_nrt_niu),
 	.irq_sbm = &cam_cpas_v1077_100_irq_sbm_nrt,
 	.irq_err = &cam_cpas_v1077_100_irq_err_nrt[0],
 	.irq_err_size = ARRAY_SIZE(cam_cpas_v1077_100_irq_err_nrt),
