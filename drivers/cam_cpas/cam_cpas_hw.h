@@ -72,6 +72,8 @@
 /* MAX number of qchannel*/
 #define CAM_CAMNOC_QCHANNEL_MAX      3
 
+#define CAM_CPAS_LOG_BUF_LEN         512
+
 /**
  * enum cam_cpas_hw_info_version - CPAS HW info version
  * @CAM_CPAS_HW_INFO_VER1: CPAS HW Info version 1 - camnoc registers with combined register
@@ -198,39 +200,6 @@ struct cam_axi_consolidate_vote {
 struct cam_cpas_kobj_map {
 	struct kobject base_kobj;
 	struct cam_hw_info *cpas_hw;
-};
-
-/**
- * struct cam_cpas_internal_ops - CPAS Hardware layer internal ops
- *
- * @get_hw_info: Function pointer for get hw info
- * @init_hw_version: Function pointer for hw init based on version
- * @handle_irq: Function poniter for irq handling
- * @setup_regbase: Function pointer for setup rebase indices
- * @power_on: Function pointer for hw core specific power on settings
- * @power_off: Function pointer for hw core specific power off settings
- * @setup_qos_settings: Function pointer for hw to select a specific qos header
- * @print_poweron_settings: Function pointer for hw to print poweron settings
- * @qchannel_handshake: Function pointer for hw core specific qchannel
- *                      handshake settings
- * @set_tpg_mux_sel: Set tpg mux select on CPAS TOP register
- *
- */
-struct cam_cpas_internal_ops {
-	int (*get_hw_info)(struct cam_hw_info *cpas_hw,
-		struct cam_cpas_hw_caps *hw_caps);
-	int (*init_hw_version)(struct cam_hw_info *cpas_hw,
-		struct cam_cpas_hw_caps *hw_caps);
-	irqreturn_t (*handle_irq)(int irq_num, void *data);
-	int (*setup_regbase)(struct cam_hw_soc_info *soc_info,
-		int32_t regbase_index[], int32_t num_reg_map);
-	int (*power_on)(struct cam_hw_info *cpas_hw);
-	int (*power_off)(struct cam_hw_info *cpas_hw);
-	int (*setup_qos_settings)(struct cam_hw_info *cpas_hw,
-		uint32_t selection_mask);
-	int (*print_poweron_settings)(struct cam_hw_info *cpas_hw);
-	int (*qchannel_handshake)(struct cam_hw_info *cpas_hw, bool power_on, bool force_on);
-	int (*set_tpg_mux_sel)(struct cam_hw_info *cpas_hw, uint32_t tpg_num);
 };
 
 /**
@@ -412,6 +381,45 @@ struct cam_cpas_monitor {
 	uint32_t            rt_wr_niu_pri_lut_high[CAM_CPAS_MAX_RT_WR_NIU_NODES];
 	struct cam_cpas_cesta_vcd_reg_debug_info vcd_reg_debug_info;
 	struct cam_hw_info  *cpas_hw;
+};
+
+
+/**
+ * struct cam_cpas_internal_ops - CPAS Hardware layer internal ops
+ *
+ * @get_hw_info: Function pointer for get hw info
+ * @init_hw_version: Function pointer for hw init based on version
+ * @handle_irq: Function poniter for irq handling
+ * @setup_regbase: Function pointer for setup rebase indices
+ * @power_on: Function pointer for hw core specific power on settings
+ * @power_off: Function pointer for hw core specific power off settings
+ * @setup_qos_settings: Function pointer for hw to select a specific qos header
+ * @print_poweron_settings: Function pointer for hw to print poweron settings
+ * @qchannel_handshake: Function pointer for hw core specific qchannel
+ *                      handshake settings
+ * @set_tpg_mux_sel: Set tpg mux select on CPAS TOP register
+ * @dump_camnoc_buff_fill_info: Function to print camnoc buff fill levels
+ * @save_camnoc_buff_fill_info: Function to save camnoc buff fill levels into cpas monitor entry
+ *
+ */
+struct cam_cpas_internal_ops {
+	int (*get_hw_info)(struct cam_hw_info *cpas_hw,
+		struct cam_cpas_hw_caps *hw_caps);
+	int (*init_hw_version)(struct cam_hw_info *cpas_hw,
+		struct cam_cpas_hw_caps *hw_caps);
+	irqreturn_t (*handle_irq)(int irq_num, void *data);
+	int (*setup_regbase)(struct cam_hw_soc_info *soc_info,
+		int32_t regbase_index[], int32_t num_reg_map);
+	int (*power_on)(struct cam_hw_info *cpas_hw);
+	int (*power_off)(struct cam_hw_info *cpas_hw);
+	int (*setup_qos_settings)(struct cam_hw_info *cpas_hw,
+		uint32_t selection_mask);
+	int (*print_poweron_settings)(struct cam_hw_info *cpas_hw);
+	int (*qchannel_handshake)(struct cam_hw_info *cpas_hw, bool power_on, bool force_on);
+	int (*set_tpg_mux_sel)(struct cam_hw_info *cpas_hw, uint32_t tpg_num);
+	void (*dump_camnoc_buff_fill_info)(struct cam_hw_info *cpas_hw);
+	void (*save_camnoc_buff_fill_info)(struct cam_hw_info *cpas_hw,
+		struct cam_cpas_monitor *entry);
 };
 
 /**

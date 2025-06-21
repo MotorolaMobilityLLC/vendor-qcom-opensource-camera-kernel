@@ -1100,6 +1100,95 @@ done:
 	return IRQ_HANDLED;
 }
 
+static void cam_cpastop_dump_camnoc_buff_fill_info(
+	struct cam_hw_info *cpas_hw)
+{
+	int i, camnoc_type;
+	uint32_t val = 0;
+	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
+	struct cam_camnoc_info *camnoc_info;
+	char log_buf[CAM_CPAS_LOG_BUF_LEN];
+	size_t len;
+
+	/* log buffer fill level of both RT/NRT NIU */
+	for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+		if (cpas_core->hw_info->camnoc_info[camnoc_type]) {
+			log_buf[0] = '\0';
+			len = 0;
+			camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
+			int reg_base_index = cpas_core->regbase_index[camnoc_info->reg_base];
+
+			for (i = 0; i < camnoc_info->num_nius; i++) {
+				if ((!camnoc_info->niu[i].enable) ||
+					(!camnoc_info->niu[i].maxwr_low.enable))
+					continue;
+
+				val = cam_io_r_mb(
+					cpas_hw->soc_info.reg_map[reg_base_index].mem_base +
+					camnoc_info->niu[i].maxwr_low.offset);
+
+				len += scnprintf((log_buf + len), (CAM_CPAS_LOG_BUF_LEN - len),
+					" %s:[%d %d]", camnoc_info->niu[i].port_name,
+					(val & 0x7FF), (val & 0x7F0000) >> 16);
+
+				/* Clear the camnoc fill levels post read */
+				cam_io_w_mb(camnoc_info->niu[i].maxwrclr_low.value,
+					(cpas_hw->soc_info.reg_map[reg_base_index].mem_base +
+					camnoc_info->niu[i].maxwrclr_low.offset));
+			}
+
+			CAM_INFO(CAM_CPAS, "%s Fill level [Queued Pending] %s",
+				g_camnoc_names[camnoc_type], log_buf);
+		}
+	}
+
+}
+
+static void cam_cpastop_save_camnoc_buff_fill_info(
+	struct cam_hw_info *cpas_hw, struct cam_cpas_monitor *entry)
+{
+	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
+	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
+	int i, j, camnoc_type, camnoc_reg_idx;
+	struct cam_camnoc_info *camnoc_info;
+	uint32_t val;
+
+	for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+		if (cpas_core->hw_info->camnoc_info[camnoc_type]) {
+			camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
+			camnoc_reg_idx = cpas_core->regbase_index[camnoc_info->reg_base];
+
+			for (i = 0, j = 0; i < camnoc_info->num_nius; i++) {
+				if ((!camnoc_info->niu[i].enable) ||
+					(!camnoc_info->niu[i].maxwr_low.enable))
+					continue;
+
+				if (j >= CAM_CAMNOC_FILL_LVL_REG_INFO_MAX) {
+					CAM_WARN(CAM_CPAS,
+						"CPAS monitor reg info buffer full, max : %d",
+						j);
+					break;
+				}
+
+				entry->camnoc_port_name[camnoc_type][j] =
+					camnoc_info->niu[i].port_name;
+				val = cam_io_r_mb(soc_info->reg_map[camnoc_reg_idx].mem_base +
+					camnoc_info->niu[i].maxwr_low.offset);
+				entry->camnoc_fill_level[camnoc_type][j] = val;
+
+				/* Clear the camnoc fill levels post read */
+				cam_io_w_mb(camnoc_info->niu[i].maxwrclr_low.value,
+					(soc_info->reg_map[camnoc_reg_idx].mem_base +
+					camnoc_info->niu[i].maxwrclr_low.offset));
+
+				j++;
+			}
+
+			entry->num_camnoc_lvl_regs[camnoc_type] = j;
+		}
+	}
+}
+
 static int cam_cpastop_print_poweron_settings(struct cam_hw_info *cpas_hw)
 {
 	int i, j;
@@ -1758,6 +1847,8 @@ int cam_cpastop_get_internal_ops(struct cam_cpas_internal_ops *internal_ops)
 		cam_cpastop_print_poweron_settings;
 	internal_ops->qchannel_handshake = cam_cpastop_qchannel_handshake;
 	internal_ops->set_tpg_mux_sel = cam_cpastop_set_tpg_mux_sel;
+	internal_ops->dump_camnoc_buff_fill_info = cam_cpastop_dump_camnoc_buff_fill_info;
+	internal_ops->save_camnoc_buff_fill_info = cam_cpastop_save_camnoc_buff_fill_info;
 
 	return 0;
 }
