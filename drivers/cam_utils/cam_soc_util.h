@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_SOC_UTIL_H_
@@ -103,6 +103,7 @@
  *
  * @CAM_SUSPEND_VOTE   : Suspend vote
  * @CAM_MINSVS_VOTE    : Min SVS vote
+ * @CAM_LOWSVS_D2_VOTE : Low SVS D2 vote
  * @CAM_LOWSVS_D1_VOTE : Low SVS D1 vote
  * @CAM_LOWSVS_VOTE    : Low SVS vote
  * @CAM_SVS_VOTE       : SVS vote
@@ -115,6 +116,7 @@
 enum cam_vote_level {
 	CAM_SUSPEND_VOTE,
 	CAM_MINSVS_VOTE,
+	CAM_LOWSVS_D2_VOTE,
 	CAM_LOWSVS_D1_VOTE,
 	CAM_LOWSVS_VOTE,
 	CAM_SVS_VOTE,
@@ -124,6 +126,9 @@ enum cam_vote_level {
 	CAM_TURBO_VOTE,
 	CAM_MAX_VOTE,
 };
+
+/* Lowest AHB Clock Level */
+#define CAM_LOWEST_AHB_LEVEL (CAM_MINSVS_VOTE + 1)
 
 /* pinctrl states */
 #define CAM_SOC_PINCTRL_STATE_SLEEP "cam_suspend"

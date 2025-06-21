@@ -569,7 +569,7 @@ int cam_cpas_util_vote_default_ahb_axi(struct cam_hw_info *cpas_hw,
 	uint64_t ab_bw, ib_bw;
 
 	rc = cam_cpas_util_vote_bus_client_level(&cpas_core->ahb_bus_client,
-		(enable == true) ? CAM_LOWSVS_D1_VOTE : CAM_SUSPEND_VOTE);
+		(enable == true) ? CAM_LOWEST_AHB_LEVEL : CAM_SUSPEND_VOTE);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed in AHB vote, enable=%d, rc=%d",
 			enable, rc);
@@ -2637,7 +2637,7 @@ static int cam_cpas_util_get_ahb_level(struct cam_hw_info *cpas_hw,
 		(struct cam_cpas_private_soc *) cpas_hw->soc_info.soc_private;
 	struct dev_pm_opp *opp;
 	unsigned int corner;
-	enum cam_vote_level level = CAM_LOWSVS_D1_VOTE;
+	enum cam_vote_level level = CAM_LOWEST_AHB_LEVEL;
 	unsigned long corner_freq = freq;
 	int i;
 
@@ -2764,7 +2764,7 @@ static int cam_cpas_hw_update_ahb_vote(struct cam_hw_info *cpas_hw,
 		CAM_DBG(CAM_CPAS, "0 ahb vote from client %d",
 			client_handle);
 		ahb_vote.type = CAM_VOTE_ABSOLUTE;
-		ahb_vote.vote.level = CAM_LOWSVS_D1_VOTE;
+		ahb_vote.vote.level = CAM_LOWEST_AHB_LEVEL;
 	}
 
 	if (!CAM_CPAS_CLIENT_VALID(client_indx))
@@ -2851,7 +2851,7 @@ static int cam_cpas_hw_start(void *hw_priv, void *start_args,
 	struct cam_ahb_vote *ahb_vote;
 	struct cam_ahb_vote remove_ahb;
 	struct cam_axi_vote axi_vote = {0};
-	enum cam_vote_level applied_level = CAM_LOWSVS_D1_VOTE;
+	enum cam_vote_level applied_level = CAM_LOWEST_AHB_LEVEL;
 	int rc, i = 0, err_val = 0;
 	struct cam_cpas_private_soc *soc_private = NULL;
 	bool invalid_start = true;

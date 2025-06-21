@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/of.h>
@@ -1367,20 +1367,22 @@ const char *cam_soc_util_get_string_from_level(enum cam_vote_level level)
 		return "";
 	case CAM_MINSVS_VOTE:
 		return "MINSVS[1]";
+	case CAM_LOWSVS_D2_VOTE:
+		return "LOWSVSD2[2]";
 	case CAM_LOWSVS_D1_VOTE:
-		return "LOWSVSD1[2]";
+		return "LOWSVSD1[3]";
 	case CAM_LOWSVS_VOTE:
-		return "LOWSVS[3]";
+		return "LOWSVS[4]";
 	case CAM_SVS_VOTE:
-		return "SVS[4]";
+		return "SVS[5]";
 	case CAM_SVSL1_VOTE:
-		return "SVSL1[5]";
+		return "SVSL1[6]";
 	case CAM_NOMINAL_VOTE:
-		return "NOM[6]";
+		return "NOM[7]";
 	case CAM_NOMINALL1_VOTE:
-		return "NOML1[7]";
+		return "NOML1[8]";
 	case CAM_TURBO_VOTE:
-		return "TURBO[8]";
+		return "TURBO[9]";
 	default:
 		return "";
 	}
@@ -1561,6 +1563,8 @@ int cam_soc_util_get_level_from_string(const char *string,
 		*level = CAM_SUSPEND_VOTE;
 	} else if (!strcmp(string, "minsvs")) {
 		*level = CAM_MINSVS_VOTE;
+	} else if (!strcmp(string, "lowsvsd2")) {
+		*level = CAM_LOWSVS_D2_VOTE;
 	} else if (!strcmp(string, "lowsvsd1")) {
 		*level = CAM_LOWSVS_D1_VOTE;
 	} else if (!strcmp(string, "lowsvs")) {
