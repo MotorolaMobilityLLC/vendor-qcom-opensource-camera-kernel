@@ -277,7 +277,8 @@ static uint64_t __cam_ife_csid_ver2_get_time_stamp(void __iomem *mem_base,
 }
 
 static void cam_ife_csid_ver2_print_camif_timestamps(
-	struct cam_ife_csid_ver2_hw  *csid_hw)
+	struct cam_ife_csid_ver2_hw  *csid_hw,
+	bool is_ratelimited_log)
 {
 	struct   cam_ife_csid_ver2_path_data   *path_data;
 	struct   cam_isp_resource_node         *res;
@@ -340,12 +341,26 @@ static void cam_ife_csid_ver2_print_camif_timestamps(
 			csid_reg->cmn_reg->ts_comb_vcdt_mask);
 		curr_sof_boot_ts = curr_sof_ts_reg_val + g_ref_time.btime - g_ref_time.qtime;
 
-		CAM_INFO(CAM_ISP,
-			"CSID[%u] %s boot time current SOF[%lld:%09lld] EPOCH[%lld:%09lld] EOF[%lld:%09lld]",
-			csid_hw->hw_intf->hw_idx, res->res_name,
-			curr_sof_boot_ts/NSEC_PER_SEC, curr_sof_boot_ts%NSEC_PER_SEC,
-			path_data->path_cfg.epoch_ts.tv_sec, path_data->path_cfg.epoch_ts.tv_nsec,
-			path_data->path_cfg.eof_ts.tv_sec, path_data->path_cfg.eof_ts.tv_nsec);
+		if (is_ratelimited_log)
+			CAM_INFO_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 1,
+				"CSID[%u] %s boot time current SOF[%lld:%09lld] EPOCH[%lld:%09lld] EOF[%lld:%09lld]",
+				csid_hw->hw_intf->hw_idx, res->res_name,
+				curr_sof_boot_ts/NSEC_PER_SEC,
+				curr_sof_boot_ts%NSEC_PER_SEC,
+				path_data->path_cfg.epoch_ts.tv_sec,
+				path_data->path_cfg.epoch_ts.tv_nsec,
+				path_data->path_cfg.eof_ts.tv_sec,
+				path_data->path_cfg.eof_ts.tv_nsec);
+		else
+			CAM_INFO(CAM_ISP,
+				"CSID[%u] %s boot time current SOF[%lld:%09lld] EPOCH[%lld:%09lld] EOF[%lld:%09lld]",
+				csid_hw->hw_intf->hw_idx, res->res_name,
+				curr_sof_boot_ts/NSEC_PER_SEC,
+				curr_sof_boot_ts%NSEC_PER_SEC,
+				path_data->path_cfg.epoch_ts.tv_sec,
+				path_data->path_cfg.epoch_ts.tv_nsec,
+				path_data->path_cfg.eof_ts.tv_sec,
+				path_data->path_cfg.eof_ts.tv_nsec);
 
 		prev_sof_ts_reg_val = __cam_ife_csid_ver2_get_time_stamp(
 			soc_info->reg_map[0].mem_base,
@@ -362,11 +377,19 @@ static void cam_ife_csid_ver2_print_camif_timestamps(
 
 		prev_sof_boot_ts = prev_sof_ts_reg_val + g_ref_time.btime - g_ref_time.qtime;
 		prev_eof_boot_ts = prev_eof_ts_reg_val + g_ref_time.btime - g_ref_time.qtime;
-		CAM_INFO(CAM_ISP,
-			"CSID[%u] %s boot time previous SOF[%lld:%09lld] EOF[%lld:%09lld]",
-			csid_hw->hw_intf->hw_idx, res->res_name,
-			prev_sof_boot_ts/NSEC_PER_SEC, prev_sof_boot_ts%NSEC_PER_SEC,
-			prev_eof_boot_ts/NSEC_PER_SEC, prev_eof_boot_ts%NSEC_PER_SEC);
+
+		if (is_ratelimited_log)
+			CAM_INFO_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 1,
+				"CSID[%u] %s boot time previous SOF[%lld:%09lld] EOF[%lld:%09lld]",
+				csid_hw->hw_intf->hw_idx, res->res_name,
+				prev_sof_boot_ts/NSEC_PER_SEC, prev_sof_boot_ts%NSEC_PER_SEC,
+				prev_eof_boot_ts/NSEC_PER_SEC, prev_eof_boot_ts%NSEC_PER_SEC);
+		else
+			CAM_INFO(CAM_ISP,
+				"CSID[%u] %s boot time previous SOF[%lld:%09lld] EOF[%lld:%09lld]",
+				csid_hw->hw_intf->hw_idx, res->res_name,
+				prev_sof_boot_ts/NSEC_PER_SEC, prev_sof_boot_ts%NSEC_PER_SEC,
+				prev_eof_boot_ts/NSEC_PER_SEC, prev_eof_boot_ts%NSEC_PER_SEC);
 	}
 }
 
@@ -2056,7 +2079,7 @@ static int cam_ife_csid_ver2_handle_event_err(
 
 	cam_ife_csid_ver2_print_hbi_vbi(csid_hw);
 
-	cam_ife_csid_ver2_print_camif_timestamps(csid_hw);
+	cam_ife_csid_ver2_print_camif_timestamps(csid_hw, false);
 
 	cam_ife_csid_ver2_read_debug_err_vectors(csid_hw);
 
@@ -3312,7 +3335,7 @@ static int cam_ife_csid_ver2_rup_miss_handler (
 	csid_hw->event_cb(csid_hw->token, CAM_ISP_HW_EVENT_ERROR, (void *)&evt);
 
 	if (err_evt_info.print_hw_info) {
-		cam_ife_csid_ver2_print_camif_timestamps(csid_hw);
+		cam_ife_csid_ver2_print_camif_timestamps(csid_hw, true);
 
 		cam_ife_csid_ver2_read_debug_err_vectors(csid_hw);
 	}
