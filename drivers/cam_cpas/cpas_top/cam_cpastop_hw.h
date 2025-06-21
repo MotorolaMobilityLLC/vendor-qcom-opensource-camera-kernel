@@ -14,6 +14,8 @@
 #define CAM_CPAS_PART_MAX_FUSE_BITS 8
 #define CAM_CPAS_PART_MAX_FUSE_BIT_INFO 2
 
+extern const char * const g_camnoc_names[];
+
 /**
  * enum cam_camnoc_hw_irq_type - Enum for camnoc error types
  *
@@ -506,7 +508,6 @@ struct cam_camnoc_addr_trans_info {
  * struct cam_camnoc_info : Overall CAMNOC settings info
  *
  * @camnoc_type: type of camnoc (RT/NRT/COMBINED)
- * @camnoc_name: name of camnoc (CAMNOC_RT/CAMNOC_NRT/CAMNOC_COMBINED)
  * @reg_base: register base for camnoc RT/NRT/COMBINED register space
  * @niu: Pointer to camnoc NIU settings
  * @num_nius: Number of NIUs
@@ -516,17 +517,12 @@ struct cam_camnoc_addr_trans_info {
  * @err_logger: Pointer to CAMNOC IRQ Error logger read registers
  * @errata_wa_list: HW Errata workaround info
  * @test_irq_info: CAMNOC Test IRQ info
- * @cesta_info: cpas cesta reg info
  * @addr_trans_info: CAMNOC address translator info
  *
  */
 struct cam_camnoc_info {
-	/* Below fields populated at probe on camera version */
 	enum cam_camnoc_hw_type camnoc_type;
-	char *camnoc_name;
 	enum cam_cpas_reg_base reg_base;
-
-	/* Below fields populated from the cpas header */
 	struct cam_camnoc_niu *niu;
 	int num_nius;
 	struct cam_camnoc_irq_sbm *irq_sbm;
@@ -535,7 +531,6 @@ struct cam_camnoc_info {
 	struct cam_camnoc_err_logger_info *err_logger;
 	struct cam_cpas_hw_errata_wa_list *errata_wa_list;
 	struct cam_cpas_test_irq_info test_irq_info;
-	struct cam_cpas_cesta_info *cesta_info;
 	struct cam_camnoc_addr_trans_info *addr_trans_info;
 };
 

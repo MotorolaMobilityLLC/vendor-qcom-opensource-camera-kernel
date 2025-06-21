@@ -1481,6 +1481,8 @@ static struct cam_camnoc_addr_trans_info cam970_cpas110_addr_trans_info = {
 };
 
 static struct cam_camnoc_info cam970_cpas110_camnoc_info_rt = {
+	.camnoc_type = CAM_CAMNOC_HW_RT,
+	.reg_base = CAM_CPAS_REG_CAMNOC_RT,
 	.niu = &cam_cpas_v970_110_camnoc_rt_niu[0],
 	.num_nius = ARRAY_SIZE(cam_cpas_v970_110_camnoc_rt_niu),
 	.irq_sbm = &cam_cpas_v970_110_irq_sbm_rt,
@@ -1495,6 +1497,8 @@ static struct cam_camnoc_info cam970_cpas110_camnoc_info_rt = {
 };
 
 static struct cam_camnoc_info cam970_cpas110_camnoc_info_nrt = {
+	.camnoc_type = CAM_CAMNOC_HW_NRT,
+	.reg_base = CAM_CPAS_REG_CAMNOC_NRT,
 	.niu = &cam_cpas_v970_110_camnoc_nrt_niu[0],
 	.num_nius = ARRAY_SIZE(cam_cpas_v970_110_camnoc_nrt_niu),
 	.irq_sbm = &cam_cpas_v970_110_irq_sbm_nrt,

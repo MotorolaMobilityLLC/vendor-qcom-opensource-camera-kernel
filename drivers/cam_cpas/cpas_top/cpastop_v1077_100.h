@@ -1606,6 +1606,8 @@ static struct cam_camnoc_addr_trans_info cam1077_cpas100_addr_trans_info = {
 };
 
 static struct cam_camnoc_info cam1077_cpas100_camnoc_info_rt = {
+	.camnoc_type = CAM_CAMNOC_HW_RT,
+	.reg_base = CAM_CPAS_REG_CAMNOC_RT,
 	.niu = &cam_cpas_v1077_100_camnoc_rt_niu[0],
 	.num_nius = ARRAY_SIZE(cam_cpas_v1077_100_camnoc_rt_niu),
 	.irq_sbm = &cam_cpas_v1077_100_irq_sbm_rt,
@@ -1620,6 +1622,8 @@ static struct cam_camnoc_info cam1077_cpas100_camnoc_info_rt = {
 };
 
 static struct cam_camnoc_info cam1077_cpas100_camnoc_info_nrt = {
+	.camnoc_type = CAM_CAMNOC_HW_NRT,
+	.reg_base = CAM_CPAS_REG_CAMNOC_NRT,
 	.niu = &cam_cpas_v1077_100_camnoc_nrt_niu[0],
 	.num_nius = ARRAY_SIZE(cam_cpas_v1077_100_camnoc_nrt_niu),
 	.irq_sbm = &cam_cpas_v1077_100_irq_sbm_nrt,
@@ -1635,6 +1639,8 @@ static struct cam_camnoc_info cam1077_cpas100_camnoc_info_nrt = {
 };
 
 static struct cam_camnoc_info cam1077_cpas100_camnoc_info_pdx = {
+	.camnoc_type = CAM_CAMNOC_HW_PDX,
+	.reg_base = CAM_CPAS_REG_CAMNOC_PDX,
 	.test_irq_info = {
 		.sbm_enable_mask = 0x1,
 		.sbm_clear_mask = 0x1,

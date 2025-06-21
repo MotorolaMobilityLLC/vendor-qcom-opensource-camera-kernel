@@ -687,7 +687,7 @@ static int cam_cpas_hw_set_addr_trans(struct cam_hw_info *cpas_hw,
 	addr_trans_info = camnoc_info->addr_trans_info;
 	if (!addr_trans_info) {
 		CAM_ERR(CAM_CPAS, "Invalid address translator information, camnoc name: %s",
-			camnoc_info->camnoc_name);
+			g_camnoc_names[camnoc_info->camnoc_type]);
 		return -EINVAL;
 	}
 
@@ -885,7 +885,7 @@ static int cam_cpas_hw_dump_camnoc_buff_fill_info(
 		}
 
 		CAM_INFO(CAM_CPAS, "%s Fill level [Queued Pending] %s",
-			camnoc_info->camnoc_name, log_buf);
+			g_camnoc_names[camnoc_info->camnoc_type], log_buf);
 	}
 
 	return rc;
@@ -924,7 +924,8 @@ static void cam_cpas_print_smart_qos_priority(
 			val_high, val_low);
 	}
 
-	CAM_INFO(CAM_CPAS, "%s SmartQoS [Node Pri_lut] %s", camnoc_info->camnoc_name, log_buf);
+	CAM_INFO(CAM_CPAS, "%s SmartQoS [Node Pri_lut] %s",
+		g_camnoc_names[camnoc_info->camnoc_type], log_buf);
 }
 
 static bool cam_cpas_is_new_rt_bw_lower(
@@ -3921,7 +3922,7 @@ static void cam_cpas_dump_monitor_array(
 			}
 
 			CAM_INFO(CAM_CPAS, "%s REG[Queued Pending] %s",
-				camnoc_info->camnoc_name, log_buf);
+				g_camnoc_names[camnoc_info->camnoc_type], log_buf);
 		}
 
 		if (soc_private->enable_smart_qos) {

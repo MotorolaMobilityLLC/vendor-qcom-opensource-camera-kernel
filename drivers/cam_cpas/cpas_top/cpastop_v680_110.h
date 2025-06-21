@@ -1342,6 +1342,8 @@ static struct cam_cpas_hw_errata_wa_list cam680_cpas110_errata_wa_list = {
 };
 
 static struct cam_camnoc_info cam680_cpas110_camnoc_info = {
+	.camnoc_type = CAM_CAMNOC_HW_COMBINED,
+	.reg_base = CAM_CPAS_REG_CAMNOC,
 	.niu = &cam_cpas_v680_110_camnoc_niu[0],
 	.num_nius = ARRAY_SIZE(cam_cpas_v680_110_camnoc_niu),
 	.irq_sbm = &cam_cpas_v680_110_irq_sbm,
