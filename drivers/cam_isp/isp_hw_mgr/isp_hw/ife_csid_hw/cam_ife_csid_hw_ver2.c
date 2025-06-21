@@ -2427,7 +2427,7 @@ static int cam_ife_csid_ver2_rx_err_process_bottom_half(
 			csid_hw->hw_intf->hw_idx, log_buf);
 	}
 
-	CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID[%u] Rx Status 0x%x",
+	CAM_WARN_RATE_LIMIT(CAM_ISP, "CSID[%u] Rx Status 0x%x",
 		csid_hw->hw_intf->hw_idx,
 		irq_reg_val);
 
