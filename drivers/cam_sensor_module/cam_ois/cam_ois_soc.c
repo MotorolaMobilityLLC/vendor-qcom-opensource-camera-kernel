@@ -22,7 +22,7 @@
  */
 int cam_ois_driver_soc_init(struct cam_ois_ctrl_t *o_ctrl)
 {
-	int                             rc = 0, i = 0;
+	int                             rc = 0;
 	struct cam_hw_soc_info         *soc_info = &o_ctrl->soc_info;
 	struct cam_ois_soc_private     *soc_private =
 		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
@@ -71,15 +71,12 @@ release_resources:
 	cam_sensor_util_release_resources(&(o_ctrl->io_master_info), soc_info);
 
 end:
-	memset(&o_ctrl->fw_info, 0, sizeof(struct cam_cmd_ois_fw_info));
+	memset(&o_ctrl->fw_info, 0, sizeof(struct cam_ois_fw_info));
 
 	INIT_LIST_HEAD(&(o_ctrl->i2c_init_data.list_head));
 	INIT_LIST_HEAD(&(o_ctrl->i2c_calib_data.list_head));
 	INIT_LIST_HEAD(&(o_ctrl->i2c_fwinit_data.list_head));
-	for (i = 0; i < MAX_OIS_FW_COUNT; i++) {
-		INIT_LIST_HEAD(&(o_ctrl->i2c_fw_init_data[i].list_head));
-		INIT_LIST_HEAD(&(o_ctrl->i2c_fw_finalize_data[i].list_head));
-	}
+
 	INIT_LIST_HEAD(&(o_ctrl->i2c_fw_version_data.list_head));
 	INIT_LIST_HEAD(&(o_ctrl->i2c_mode_data.list_head));
 	INIT_LIST_HEAD(&(o_ctrl->i2c_time_data.list_head));

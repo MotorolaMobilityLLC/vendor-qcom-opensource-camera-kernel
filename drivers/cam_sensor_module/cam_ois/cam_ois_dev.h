@@ -76,6 +76,29 @@ struct cam_ois_intf_params {
 };
 
 /**
+ * struct cam_ois_intf_params - bridge interface params
+ * @version         :       version info
+ *                          NOTE: if struct cam_cmd_ois_fw_param is updated,
+ *                          version here needs to be updated too.
+ * @reserved        :       reserved
+ * @cmd_type        :       Explains type of command
+ * @fw_count        :       firmware count
+ * @endianness      :       endianness combo:
+ *                          bit[3:0] firmware data's endianness
+ *                          bit[7:4] endian type of input parameter to ois driver, say QTime
+ * @fw_param        :       includes firmware parameters
+ */
+struct cam_ois_fw_info {
+	__u32                           version;
+	__u8                            reserved;
+	__u8                            cmd_type;
+	__u8                            fw_count;
+	__u8                            endianness;
+	struct cam_cmd_ois_fw_param*    fw_param;
+} __attribute__((packed));
+
+
+/**
  * struct cam_ois_ctrl_t - OIS ctrl private data
  * @device_name     :   ois device_name
  * @pdev            :   platform device
@@ -116,9 +139,9 @@ struct cam_ois_ctrl_t {
 	uint8_t ois_fw_flag;
 	uint8_t is_ois_calib;
 	struct cam_ois_opcode opcode;
-	struct cam_cmd_ois_fw_info fw_info;
-	struct i2c_settings_array i2c_fw_init_data[MAX_OIS_FW_COUNT];
-	struct i2c_settings_array i2c_fw_finalize_data[MAX_OIS_FW_COUNT];
+	struct cam_ois_fw_info fw_info;
+	struct i2c_settings_array* i2c_fw_init_data;
+	struct i2c_settings_array* i2c_fw_finalize_data;
 	struct i2c_settings_array i2c_fw_version_data;
 	struct list_head read_buf_list;
 	struct mutex read_buf_lock;

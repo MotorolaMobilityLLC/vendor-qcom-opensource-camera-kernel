@@ -678,11 +678,21 @@ static int cam_ois_fw_info_pkt_parser(struct cam_ois_ctrl_t *o_ctrl,
 		ois_fw_info->endianness, ois_fw_count);
 
 	if (ois_fw_count <= MAX_OIS_FW_COUNT) {
-		memcpy(&o_ctrl->fw_info, ois_fw_info, sizeof(struct cam_cmd_ois_fw_info));
-		o_ctrl->fw_info.fw_count = ois_fw_count;
+		o_ctrl->fw_info.version     = ois_fw_info->version;
+		o_ctrl->fw_info.cmd_type    = ois_fw_info->cmd_type;
+		o_ctrl->fw_info.fw_count    = ois_fw_info->fw_count;
+		o_ctrl->fw_info.endianness  = ois_fw_info->endianness;
+		o_ctrl->fw_info.fw_param    = CAM_MEM_ZALLOC(sizeof(struct cam_cmd_ois_fw_param) * ois_fw_info->fw_count, GFP_KERNEL);
+		if (!o_ctrl->fw_info.fw_param) {
+			return -ENOMEM;
+		}
+
+		memcpy(o_ctrl->fw_info.fw_param, &ois_fw_info->fw_param[0], sizeof(struct cam_cmd_ois_fw_param) * ois_fw_info->fw_count);
+
 		pSettingData = (uint8_t *)cmd_buf + sizeof(struct cam_cmd_ois_fw_info);
-		if ((o_ctrl->fw_info.param_mask & CAM_OIS_FW_VERSION_CHECK_MASK) == 0x1) {
-			version_size = o_ctrl->fw_info.params[0];
+
+		if ((ois_fw_info->param_mask & CAM_OIS_FW_VERSION_CHECK_MASK) == 0x1) {
+			version_size = ois_fw_info->params[0];
 			CAM_DBG(CAM_OIS, "versionSize: %d", version_size);
 		}
 
@@ -692,13 +702,25 @@ static int cam_ois_fw_info_pkt_parser(struct cam_ois_ctrl_t *o_ctrl,
 			rc = cam_ois_parse_fw_setting(pSettingData, version_size, reg_settings);
 			if (rc) {
 				CAM_ERR(CAM_OIS, "Failed to parse fw version settings");
-				return rc;
+				goto release;
 			}
 
 			pSettingData += version_size;
 		}
 
-		for (count = 0; count <  o_ctrl->fw_info.fw_count*2; count++) {
+		o_ctrl->i2c_fw_init_data     = CAM_MEM_ZALLOC(sizeof(struct i2c_settings_array) * ois_fw_info->fw_count, GFP_KERNEL);
+		o_ctrl->i2c_fw_finalize_data = CAM_MEM_ZALLOC(sizeof(struct i2c_settings_array) * ois_fw_info->fw_count, GFP_KERNEL);
+		if (!o_ctrl->i2c_fw_init_data || !o_ctrl->i2c_fw_finalize_data){
+			rc= -ENOMEM;
+			goto release;
+		}
+
+		for (count = 0; count < o_ctrl->fw_info.fw_count; count++){
+			INIT_LIST_HEAD(&(o_ctrl->i2c_fw_init_data[count].list_head));
+			INIT_LIST_HEAD(&(o_ctrl->i2c_fw_finalize_data[count].list_head));
+		}
+
+		for (count = 0; count < o_ctrl->fw_info.fw_count*2; count++) {
 			idx = count / 2;
 			/* init settings */
 			if ((count & 0x1) == 0) {
@@ -713,7 +735,8 @@ static int cam_ois_fw_info_pkt_parser(struct cam_ois_ctrl_t *o_ctrl,
 			} else {
 				size = 0;
 				CAM_DBG(CAM_OIS, "Unsupported case");
-				return -EINVAL;
+				rc= -EINVAL;
+				goto release;
 			}
 
 			if (size != 0) {
@@ -723,7 +746,7 @@ static int cam_ois_fw_info_pkt_parser(struct cam_ois_ctrl_t *o_ctrl,
 
 			if (rc) {
 				CAM_ERR(CAM_OIS, "Failed to parse fw setting");
-				return rc;
+				goto release;
 			}
 
 			pSettingData += size;
@@ -733,6 +756,171 @@ static int cam_ois_fw_info_pkt_parser(struct cam_ois_ctrl_t *o_ctrl,
 		return -EINVAL;
 	}
 
+	return rc;
+
+release:
+	if (o_ctrl->fw_info.fw_param){
+		CAM_MEM_FREE(o_ctrl->fw_info.fw_param);
+		o_ctrl->fw_info.fw_param = NULL;
+	}
+	if (o_ctrl->i2c_fw_init_data){
+		CAM_MEM_FREE(o_ctrl->i2c_fw_init_data);
+		o_ctrl->i2c_fw_init_data = NULL;
+	}
+	if (o_ctrl->i2c_fw_finalize_data){
+		CAM_MEM_FREE(o_ctrl->i2c_fw_finalize_data);
+		o_ctrl->i2c_fw_finalize_data = NULL;
+	}
+	return rc;
+}
+
+
+int cam_ois_fw_info_input_check(uint32_t *cmd_buf, size_t len)
+{
+	int32_t     rc           = 0;
+	uint32_t    version_size = 0;
+	size_t      cmdsize      = 0;
+	uint8_t     count        = 0;
+	struct cam_cmd_ois_fw_info_v2  *ois_fw_info;
+
+	ois_fw_info  = (struct cam_cmd_ois_fw_info_v2 *)cmd_buf;
+	if ((ois_fw_info->param_mask & CAM_OIS_FW_VERSION_CHECK_MASK) == 0x1) {
+		version_size = ois_fw_info->params[0];
+		CAM_DBG(CAM_OIS, "versionSize: %d", version_size);
+	}
+
+	cmdsize += sizeof(struct cam_cmd_ois_fw_info_v2);
+	cmdsize += sizeof(struct cam_cmd_ois_fw_param) * ois_fw_info->fw_count;
+	cmdsize += version_size;
+	for (count = 0; count < ois_fw_info->fw_count; count++){
+		if (ois_fw_info->fw_param[count].fw_init_size > 0){
+			cmdsize += ois_fw_info->fw_param[count].fw_init_size;
+			CAM_DBG(CAM_OIS, "count:%d, fw init size:%d", count, ois_fw_info->fw_param[count].fw_init_size);
+		}
+		if (ois_fw_info->fw_param[count].fw_finalize_size > 0){
+			cmdsize += ois_fw_info->fw_param[count].fw_finalize_size;
+			CAM_DBG(CAM_OIS, "count:%d, fw finalize size:%d", count, ois_fw_info->fw_param[count].fw_finalize_size);
+		}
+	}
+	if (cmdsize != len){
+		CAM_ERR(CAM_OIS, "cmd size validate error! cmdsize:%d, expect:%d", cmdsize, len);
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
+static int cam_ois_fw_info_pkt_parser_v2(struct cam_ois_ctrl_t *o_ctrl,
+	uint32_t *cmd_buf, size_t len)
+{
+	int32_t                         rc = 0;
+	struct cam_cmd_ois_fw_info_v2  *ois_fw_info;
+	uint8_t                        *pSettingData = NULL;
+	uint32_t                        size = 0;
+	uint32_t                        version_size = 0;
+	struct i2c_settings_array      *reg_settings = NULL;
+	uint8_t                         count = 0;
+	uint8_t                        *ois_fw_param = NULL;
+
+	if (!o_ctrl || !cmd_buf || len < sizeof(struct cam_cmd_ois_fw_info_v2)) {
+		CAM_ERR(CAM_OIS, "Invalid Args,o_ctrl %p,cmd_buf %p,len %d",
+			o_ctrl, cmd_buf, len);
+		return -EINVAL;
+	}
+
+	if(cam_ois_fw_info_input_check(cmd_buf, len) < 0) {
+		return -EINVAL;
+	}
+
+	ois_fw_info  = (struct cam_cmd_ois_fw_info_v2 *)cmd_buf;
+	ois_fw_param = (uint8_t*)ois_fw_info->fw_param;
+
+	CAM_DBG(CAM_OIS, "endianness %d, fw_count %d",
+		ois_fw_info->endianness, ois_fw_info->fw_count);
+
+	if (ois_fw_info->fw_count > 0) {
+		o_ctrl->fw_info.version     = ois_fw_info->version;
+		o_ctrl->fw_info.cmd_type    = ois_fw_info->cmd_type;
+		o_ctrl->fw_info.fw_count    = ois_fw_info->fw_count;
+		o_ctrl->fw_info.endianness  = ois_fw_info->endianness;
+		o_ctrl->fw_info.fw_param    = CAM_MEM_ZALLOC(sizeof(struct cam_cmd_ois_fw_param) * ois_fw_info->fw_count, GFP_KERNEL);
+		if (!o_ctrl->fw_info.fw_param) {
+			return -ENOMEM;
+		}
+		memcpy(o_ctrl->fw_info.fw_param, ois_fw_param, sizeof(struct cam_cmd_ois_fw_param) * ois_fw_info->fw_count);
+
+		pSettingData = (uint8_t *)cmd_buf + sizeof(struct cam_cmd_ois_fw_info_v2) + sizeof(struct cam_cmd_ois_fw_param)*ois_fw_info->fw_count;
+
+		if ((ois_fw_info->param_mask & CAM_OIS_FW_VERSION_CHECK_MASK) == 0x1) {
+			version_size = ois_fw_info->params[0];
+			CAM_DBG(CAM_OIS, "versionSize: %d", version_size);
+		}
+		if ((version_size != 0) && (o_ctrl->i2c_fw_version_data.is_settings_valid == 0)) {
+			reg_settings = &o_ctrl->i2c_fw_version_data;
+			reg_settings->is_settings_valid = 1;
+			rc = cam_ois_parse_fw_setting(pSettingData, version_size, reg_settings);
+			if (rc) {
+				CAM_ERR(CAM_OIS, "Failed to parse fw version settings");
+				goto release;
+			}
+			pSettingData += version_size;
+		}
+
+		o_ctrl->i2c_fw_init_data     = CAM_MEM_ZALLOC(sizeof(struct i2c_settings_array) * ois_fw_info->fw_count, GFP_KERNEL);
+		o_ctrl->i2c_fw_finalize_data = CAM_MEM_ZALLOC(sizeof(struct i2c_settings_array) * ois_fw_info->fw_count, GFP_KERNEL);
+		if (!o_ctrl->i2c_fw_init_data || !o_ctrl->i2c_fw_finalize_data) {
+			goto release;
+		}
+
+		for (count = 0; count < ois_fw_info->fw_count; count++) {
+			INIT_LIST_HEAD(&(o_ctrl->i2c_fw_init_data[count].list_head));
+			INIT_LIST_HEAD(&(o_ctrl->i2c_fw_finalize_data[count].list_head));
+
+			if (o_ctrl->fw_info.fw_param[count].fw_init_size > 0)
+			{
+				reg_settings = &o_ctrl->i2c_fw_init_data[count];
+				reg_settings->is_settings_valid = 1;
+				size = o_ctrl->fw_info.fw_param[count].fw_init_size;
+				rc = cam_ois_parse_fw_setting(pSettingData, size, reg_settings);
+				if (rc) {
+					CAM_ERR(CAM_OIS, "Failed to parse fw setting");
+					goto release;
+				}
+				pSettingData += size;
+				CAM_DBG(CAM_OIS, "count:%d, init size %d", count, size);
+			}
+
+			if (o_ctrl->fw_info.fw_param[count].fw_finalize_size > 0)
+			{
+				reg_settings = &o_ctrl->i2c_fw_finalize_data[count];
+				reg_settings->is_settings_valid = 1;
+				size = o_ctrl->fw_info.fw_param[count].fw_finalize_size;
+				rc = cam_ois_parse_fw_setting(pSettingData, size, reg_settings);
+				if (rc) {
+					CAM_ERR(CAM_OIS, "Failed to parse fw setting");
+					goto release;
+				}
+				pSettingData += size;
+				CAM_DBG(CAM_OIS, "count:%d, finalize size %d", count, size);
+			}
+		}
+	}
+
+	return rc;
+
+release:
+	if (o_ctrl->fw_info.fw_param){
+		CAM_MEM_FREE(o_ctrl->fw_info.fw_param);
+		o_ctrl->fw_info.fw_param = NULL;
+	}
+	if (o_ctrl->i2c_fw_init_data){
+		CAM_MEM_FREE(o_ctrl->i2c_fw_init_data);
+		o_ctrl->i2c_fw_init_data = NULL;
+	}
+	if (o_ctrl->i2c_fw_finalize_data){
+		CAM_MEM_FREE(o_ctrl->i2c_fw_finalize_data);
+		o_ctrl->i2c_fw_finalize_data = NULL;
+	}
 	return rc;
 }
 
@@ -950,6 +1138,8 @@ static int cam_ois_fw_download_v2(struct cam_ois_ctrl_t *o_ctrl)
 	struct device                      *dev;
 	uint8_t                             count = 0;
 	uint8_t                             cont_wr_flag = 0;
+	uint8_t                             fwcnt = 0;
+	uint8_t                             endianness = 0;
 
 	if (!o_ctrl) {
 		CAM_ERR(CAM_OIS, "Invalid Args");
@@ -983,8 +1173,13 @@ static int cam_ois_fw_download_v2(struct cam_ois_ctrl_t *o_ctrl)
 		}
 	}
 
-	for (count = 0; count < o_ctrl->fw_info.fw_count; count++) {
-		fw_param      = &o_ctrl->fw_info.fw_param[count];
+	if (o_ctrl->fw_info.fw_count > 0) {
+		fwcnt      = o_ctrl->fw_info.fw_count;
+		fw_param   = &o_ctrl->fw_info.fw_param[0];
+		endianness = o_ctrl->fw_info.endianness;
+	}
+
+	for (count = 0; count < fwcnt; count++, fw_param++) {
 		fw_size       = fw_param->fw_size;
 		len_per_write = fw_param->fw_len_per_write / fw_param->fw_data_type;
 
@@ -1036,7 +1231,7 @@ static int cam_ois_fw_download_v2(struct cam_ois_ctrl_t *o_ctrl)
 			else if (fw_param->fw_operation == CAMERA_SENSOR_I2C_OP_CONT_WR_SEQN)
 				cont_wr_flag = CAM_SENSOR_I2C_WRITE_SEQ;
 
-			write_ois_fw(ptr, (o_ctrl->fw_info.endianness & OIS_ENDIANNESS_MASK_FW),
+			write_ois_fw(ptr, (endianness & OIS_ENDIANNESS_MASK_FW),
 					fw_param, o_ctrl->io_master_info, cont_wr_flag);
 
 			/* fw finalize */
@@ -1106,6 +1301,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 	struct cam_ois_soc_private     *soc_private =
 		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
 	struct cam_sensor_power_ctrl_t  *power_info = &soc_private->power_info;
+	uint32_t                        fwversion = 0;
 
 	ioctl_ctrl = (struct cam_control *)arg;
 	if (copy_from_user(&dev_config,
@@ -1216,15 +1412,27 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				}
 				break;
 			case CAMERA_SENSOR_OIS_CMD_TYPE_FW_INFO:
+				fwversion = *cmd_buf;
 				CAM_DBG(CAM_OIS,
-					"Received fwInfo buffer,total_cmd_buf_in_bytes: %d",
-					total_cmd_buf_in_bytes);
-				rc = cam_ois_fw_info_pkt_parser(
-					o_ctrl, cmd_buf, total_cmd_buf_in_bytes);
-				if (rc) {
-					CAM_ERR(CAM_OIS,
-					"Failed: parse fw info settings");
-					break;
+					"Received fwInfo buffer,total_cmd_buf_in_bytes: %d, fwversion: %d",
+					total_cmd_buf_in_bytes, fwversion);
+				if (fwversion == CAM_OIS_FWINFO_VERSION_2) {
+					rc = cam_ois_fw_info_pkt_parser_v2(
+						o_ctrl, cmd_buf, total_cmd_buf_in_bytes);
+					if (rc) {
+						CAM_ERR(CAM_OIS,
+						"Failed: parse fw info2 settings");
+						break;
+					}
+				}
+				else {
+					rc = cam_ois_fw_info_pkt_parser(
+						o_ctrl, cmd_buf, total_cmd_buf_in_bytes);
+					if (rc) {
+						CAM_ERR(CAM_OIS,
+						"Failed: parse fw info settings");
+						break;
+					}
 				}
 				break;
 			default:
@@ -1380,19 +1588,33 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			CAM_WARN(CAM_OIS,
 				"Fail deleting fwinit data: rc: %d", rc);
 
-		for (i = 0; i < MAX_OIS_FW_COUNT; i++) {
-			if (o_ctrl->i2c_fw_init_data[i].is_settings_valid == 1) {
+		for (i = 0; i < o_ctrl->fw_info.fw_count; i++) {
+			if (o_ctrl->i2c_fw_init_data &&
+				(o_ctrl->i2c_fw_init_data[i].is_settings_valid == 1)) {
 				rc = delete_request(&o_ctrl->i2c_fw_init_data[i]);
 				if (rc < 0)
 					CAM_WARN(CAM_OIS,
 						"Fail deleting i2c_fw_init_data: rc: %d", rc);
 			}
-			if (o_ctrl->i2c_fw_finalize_data[i].is_settings_valid == 1) {
+			if (o_ctrl->i2c_fw_finalize_data &&
+				(o_ctrl->i2c_fw_finalize_data[i].is_settings_valid == 1)) {
 				rc = delete_request(&o_ctrl->i2c_fw_finalize_data[i]);
 				if (rc < 0)
 					CAM_WARN(CAM_OIS,
 						"Fail deleting i2c_fw_finalize_data: rc: %d", rc);
 			}
+		}
+		if (o_ctrl->i2c_fw_init_data){
+			CAM_MEM_FREE(o_ctrl->i2c_fw_init_data);
+			o_ctrl->i2c_fw_init_data = NULL;
+		}
+		if (o_ctrl->i2c_fw_finalize_data){
+			CAM_MEM_FREE(o_ctrl->i2c_fw_finalize_data);
+			o_ctrl->i2c_fw_finalize_data = NULL;
+		}
+		if (o_ctrl->fw_info.fw_param) {
+			CAM_MEM_FREE(o_ctrl->fw_info.fw_param);
+			o_ctrl->fw_info.fw_param = NULL;
 		}
 
 		rc = delete_request(&o_ctrl->i2c_init_data);
@@ -1631,14 +1853,16 @@ void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 	if (o_ctrl->i2c_fwinit_data.is_settings_valid == 1)
 		delete_request(&o_ctrl->i2c_fwinit_data);
 
-	for (i = 0; i < MAX_OIS_FW_COUNT; i++) {
-		if (o_ctrl->i2c_fw_init_data[i].is_settings_valid == 1) {
+	for (i = 0; i < o_ctrl->fw_info.fw_count; i++) {
+		if (o_ctrl->i2c_fw_init_data &&
+			(o_ctrl->i2c_fw_init_data[i].is_settings_valid == 1)) {
 			rc = delete_request(&o_ctrl->i2c_fw_init_data[i]);
 			if (rc < 0)
 				CAM_WARN(CAM_OIS,
 					"Fail deleting i2c_fw_init_data: rc: %d", rc);
 		}
-		if (o_ctrl->i2c_fw_finalize_data[i].is_settings_valid == 1) {
+		if (o_ctrl->i2c_fw_finalize_data &&
+			(o_ctrl->i2c_fw_finalize_data[i].is_settings_valid == 1)) {
 			rc = delete_request(&o_ctrl->i2c_fw_finalize_data[i]);
 			if (rc < 0)
 				CAM_WARN(CAM_OIS,
@@ -1662,6 +1886,18 @@ void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 	if (o_ctrl->i2c_init_data.is_settings_valid == 1)
 		delete_request(&o_ctrl->i2c_init_data);
 
+	if (o_ctrl->i2c_fw_init_data){
+		CAM_MEM_FREE(o_ctrl->i2c_fw_init_data);
+		o_ctrl->i2c_fw_init_data = NULL;
+	}
+	if (o_ctrl->i2c_fw_finalize_data){
+		CAM_MEM_FREE(o_ctrl->i2c_fw_finalize_data);
+		o_ctrl->i2c_fw_finalize_data = NULL;
+	}
+	if (o_ctrl->fw_info.fw_param) {
+		CAM_MEM_FREE(o_ctrl->fw_info.fw_param);
+		o_ctrl->fw_info.fw_param = NULL;
+	}
 	CAM_MEM_FREE(power_info->power_setting);
 	CAM_MEM_FREE(power_info->power_down_setting);
 	power_info->power_setting = NULL;
@@ -1792,8 +2028,9 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		if (o_ctrl->i2c_fwinit_data.is_settings_valid == 1)
 			delete_request(&o_ctrl->i2c_fwinit_data);
 
-		for (i = 0; i < MAX_OIS_FW_COUNT; i++) {
-			if (o_ctrl->i2c_fw_init_data[i].is_settings_valid == 1) {
+		for (i = 0; i < o_ctrl->fw_info.fw_count; i++) {
+			if (o_ctrl->i2c_fw_init_data &&
+				(o_ctrl->i2c_fw_init_data[i].is_settings_valid == 1)) {
 				rc = delete_request(&o_ctrl->i2c_fw_init_data[i]);
 				if (rc < 0) {
 					CAM_WARN(CAM_OIS,
@@ -1801,7 +2038,8 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 					rc = 0;
 				}
 			}
-			if (o_ctrl->i2c_fw_finalize_data[i].is_settings_valid == 1) {
+			if (o_ctrl->i2c_fw_finalize_data &&
+				(o_ctrl->i2c_fw_finalize_data[i].is_settings_valid == 1)) {
 				rc = delete_request(&o_ctrl->i2c_fw_finalize_data[i]);
 				if (rc < 0) {
 					CAM_WARN(CAM_OIS,
@@ -1811,6 +2049,18 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			}
 		}
 
+		if (o_ctrl->i2c_fw_init_data){
+			CAM_MEM_FREE(o_ctrl->i2c_fw_init_data);
+			o_ctrl->i2c_fw_init_data = NULL;
+		}
+		if (o_ctrl->i2c_fw_finalize_data){
+			CAM_MEM_FREE(o_ctrl->i2c_fw_finalize_data);
+			o_ctrl->i2c_fw_finalize_data = NULL;
+		}
+		if (o_ctrl->fw_info.fw_param) {
+			CAM_MEM_FREE(o_ctrl->fw_info.fw_param);
+			o_ctrl->fw_info.fw_param = NULL;
+		}
 		break;
 	case CAM_STOP_DEV:
 		if (o_ctrl->cam_ois_state != CAM_OIS_START) {
