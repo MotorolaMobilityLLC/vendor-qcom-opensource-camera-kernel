@@ -353,7 +353,7 @@ bool cam_cpas_is_part_supported(uint32_t flag, uint32_t hw_map, uint32_t part_in
 
 	mutex_lock(&cpas_hw->hw_mutex);
 	cpas_core = cpas_hw->core_info;
-	cam_subpart_info = cpas_core->cpas_info->subpart_info;
+	cam_subpart_info = cpas_core->hw_info->cpas_info->subpart_info;
 
 	if (!cam_subpart_info || !cpas_core->subpart_info_valid) {
 		CAM_DBG(CAM_CPAS, "Invalid address of cam_subpart_info");

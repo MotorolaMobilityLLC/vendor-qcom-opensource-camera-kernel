@@ -626,5 +626,38 @@ struct cam_cpas_llcc_reg_info {
 	uint32_t status_offset;
 };
 
+/**
+ * struct cam_cpas_hw_info
+ *
+ * @hw_info_version : cpas hw info version
+ * @camnoc_info     : Array of camnoc info pointer.
+ *                    Particular NOC type's info is present at that type index.
+ *                    i.e CAM_CAMNOC_HW_RT type info is present at camnoc_info[CAM_CAMNOC_HW_RT]
+ *                    Array will have both NULLs, valid values in any order, valid camnocs info
+ *                    need not to be always in the first entries.
+ *                    Do not rely on num_valid_camnoc to iterate through the camnoc_info[] to find
+ *                    valid NOCs, instead iterate through all up to TYP_MAX and check of
+ *                    camnoc_info[i] NULL to find valid NOC types/information.
+ *                    Exa 1 : If RT, NRT, PDX exists on a chipset,
+ *                            [0] = NULL, [1] = RT info, [2] = NRT info, [3] = PDX info;
+ *                    Exa 2 : If RT, NRT exists on a chipset,
+ *                            [0] = NULL, [1] = RT info, [2] = NRT info, [3] = NULL;
+ *                    Exa 3 : If COMBINED NOC exists on a chipset,
+ *                       [0] = Combined NOC info, [1] = NULL, [2] = NULL, [3] = NULL;
+ *                    either camnoc_info[COMBINED] or camnoc_info[RT and NRT] - Mandatory
+ *                    camnoc_info[PDX] - Optional
+ * @cpas_info       : cpas top hw info. Manadatary information.
+ * @llcc_reg_info   : holding the llcc register information. Optional
+ * @cesta_info      : Pointer to cesta header info. Optional
+ *
+ */
+struct cam_cpas_hw_info {
+	enum cam_cpas_hw_info_version  hw_info_version;
+	struct cam_camnoc_info        *camnoc_info[CAM_CAMNOC_HW_TYPE_MAX];
+	struct cam_cpas_info          *cpas_info;
+	struct cam_cpas_llcc_reg_info *llcc_reg_info;
+	struct cam_cpas_cesta_info    *cesta_info;
+};
+
 
 #endif /* _CAM_CPASTOP_HW_H_ */

@@ -1297,4 +1297,10 @@ static struct cam_cpas_info cam780_cpas100_cpas_info = {
 	.subpart_info = &cam780_cpas_camera_subpart_info,
 };
 
+static struct cam_cpas_hw_info cam780_cpas100_hw_info = {
+	.hw_info_version                     = CAM_CPAS_HW_INFO_VER1,
+	.camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam780_cpas100_camnoc_info,
+	.cpas_info                           = &cam780_cpas100_cpas_info,
+};
+
 #endif /* _CPASTOP_V780_100_H_ */

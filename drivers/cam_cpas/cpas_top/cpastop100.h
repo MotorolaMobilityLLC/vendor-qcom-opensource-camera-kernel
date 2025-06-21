@@ -537,4 +537,10 @@ static struct cam_cpas_info cam170_cpas100_cpas_info = {
 	},
 };
 
+static struct cam_cpas_hw_info cam170_cpas100_hw_info = {
+	.hw_info_version                     = CAM_CPAS_HW_INFO_VER1,
+	.camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam170_cpas100_camnoc_info,
+	.cpas_info                           = &cam170_cpas100_cpas_info,
+};
+
 #endif /* _CPASTOP100_H_ */

@@ -73,6 +73,15 @@
 #define CAM_CAMNOC_QCHANNEL_MAX      3
 
 /**
+ * enum cam_cpas_hw_info_version - CPAS HW info version
+ * @CAM_CPAS_HW_INFO_VER1: CPAS HW Info version 1 - camnoc registers with combined register
+ *                         offsets, values.
+ */
+enum cam_cpas_hw_info_version {
+	CAM_CPAS_HW_INFO_VER1,
+};
+
+/**
  * enum cam_camnoc_domain_type - Enum for different camnoc domains
  * @CAM_CAMNOC_HW_COMBINED: refer to legacy camnoc info that combines RT/NRT HW
  * @CAM_CAMNOC_HW_RT: type for camnoc RT info
@@ -408,6 +417,7 @@ struct cam_cpas_monitor {
 /**
  * struct cam_cpas : CPAS core data structure info
  *
+ * @hw_info: CPAS hw register information
  * @hw_caps: CPAS hw capabilities
  * @cpas_client: Array of pointers to CPAS clients info
  * @client_mutex: Mutex for accessing client info
@@ -449,24 +459,9 @@ struct cam_cpas_monitor {
  * @hlos_full_tree_axi_clk_lvl: Determined/applied hlos full tree axi clk level
  * @hlos_rt_tree_axi_clk_lvl: Determined/applied hlos axi RT clk rate
  * @hlos_nrt_tree_axi_clk_lvl: Determined/applied hlos axi NRT / ICP clk level
- * @camnoc_info: array of camnoc info pointer.
- *               Particular NOC type's info is present at that type index. i.e CAM_CAMNOC_HW_RT type
- *               info is present at camnoc_info[CAM_CAMNOC_HW_RT]
- *               Array will have both NULLs, valid values in any order, valid camnocs info need not
- *               to be always in the first entries.
- *               Iterate through all up to TYP_MAX and check of camnoc_info[i] NULL
- *               to find valid NOC types/information.
- *               Exa 1 : If RT, NRT, PDX exists on a chipset,
- *                       [0] = NULL, [1] = RT info, [2] = NRT info, [3] = PDX info;
- *               Exa 2 : If RT, NRT exists on a chipset,
- *                       [0] = NULL, [1] = RT info, [2] = NRT info, [3] = NULL;
- *               Exa 3 : If COMBINED NOC exists on a chipset,
- *                       [0] = Combined NOC info, [1] = NULL, [2] = NULL, [3] = NULL;
- * @cpas_info: Pointer to cpas header info
- * @llcc_reg_info: holding the llcc register information
- * @cesta_info: Pointer to cesta header info
  */
 struct cam_cpas {
+	struct cam_cpas_hw_info *hw_info;
 	struct cam_cpas_hw_caps hw_caps;
 	struct cam_cpas_client *cpas_client[CAM_CPAS_MAX_CLIENTS];
 	struct mutex client_mutex[CAM_CPAS_MAX_CLIENTS];
@@ -504,11 +499,6 @@ struct cam_cpas {
 	enum cam_vote_level hlos_full_tree_axi_clk_lvl;
 	int64_t             hlos_rt_tree_axi_clk_rate;
 	enum cam_vote_level hlos_nrt_tree_axi_clk_lvl;
-
-	struct cam_camnoc_info *camnoc_info[CAM_CAMNOC_HW_TYPE_MAX];
-	struct cam_cpas_info *cpas_info;
-	struct cam_cpas_llcc_reg_info *llcc_reg_info;
-	struct cam_cpas_cesta_info *cesta_info;
 };
 
 int cam_camsstop_get_internal_ops(struct cam_cpas_internal_ops *internal_ops);

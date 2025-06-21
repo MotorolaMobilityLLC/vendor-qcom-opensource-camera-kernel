@@ -1710,4 +1710,14 @@ static struct cam_cpas_info cam1080_cpas100_cpas_info = {
 	.subpart_info = &cam1080_cpas_camera_subpart_info,
 };
 
+static struct cam_cpas_hw_info cam1080_cpas100_hw_info = {
+	.hw_info_version                = CAM_CPAS_HW_INFO_VER1,
+	.camnoc_info[CAM_CAMNOC_HW_RT]  = &cam1080_cpas100_camnoc_info_rt,
+	.camnoc_info[CAM_CAMNOC_HW_NRT] = &cam1080_cpas100_camnoc_info_nrt,
+	.camnoc_info[CAM_CAMNOC_HW_PDX] = &cam1080_cpas100_camnoc_info_pdx,
+	.cpas_info                      = &cam1080_cpas100_cpas_info,
+	.cesta_info                     = &cam_v1080_cesta_info,
+	.llcc_reg_info                  = &cam_v1080_100_llcc_reg_info,
+};
+
 #endif /* _CPASTOP_V1080_100_H_ */

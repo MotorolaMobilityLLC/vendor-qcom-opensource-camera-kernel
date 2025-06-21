@@ -285,4 +285,10 @@ static struct cam_cpas_info cam520_cpas100_cpas_info = {
 	.num_qchannel = 1,
 };
 
+static struct cam_cpas_hw_info cam520_cpas100_hw_info = {
+	.hw_info_version                     = CAM_CPAS_HW_INFO_VER1,
+	.camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam520_cpas100_camnoc_info,
+	.cpas_info                           = &cam520_cpas100_cpas_info,
+};
+
 #endif /* _CPASTOP_V520_100_H_ */
