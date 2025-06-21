@@ -1656,16 +1656,19 @@ static struct cam_camnoc_info cam1080_cpas100_camnoc_info_pdx = {
 
 
 static struct cam_cpas_camnoc_qchannel cam1080_cpas100_qchannel_info_rt = {
+	.camnoc_info = &cam1080_cpas100_camnoc_info_rt,
 	.qchannel_ctrl   = 0xEC,
 	.qchannel_status = 0xF0,
 };
 
 static struct cam_cpas_camnoc_qchannel cam1080_cpas100_qchannel_info_nrt = {
+	.camnoc_info = &cam1080_cpas100_camnoc_info_nrt,
 	.qchannel_ctrl   = 0xF4,
 	.qchannel_status = 0xF8,
 };
 
 static struct cam_cpas_camnoc_qchannel cam1080_cpas100_qchannel_info_pdx = {
+	.camnoc_info = &cam1080_cpas100_camnoc_info_pdx,
 	.qchannel_ctrl   = 0x130,
 	.qchannel_status = 0x12C,
 };

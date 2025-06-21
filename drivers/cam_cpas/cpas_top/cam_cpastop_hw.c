@@ -1329,8 +1329,8 @@ static int cam_cpastop_qchannel_handshake(struct cam_hw_info *cpas_hw,
 		return -EINVAL;
 
 	for (i = 0; i < cpas_core->cpas_info->num_qchannel; i++) {
-		curr_camnoc_info = cpas_core->camnoc_info[i];
 		qchannel_info = cpas_core->cpas_info->qchannel_info[i];
+		curr_camnoc_info = qchannel_info->camnoc_info;
 
 		if (!icp_clk_enabled) {
 			errata_wa_list = curr_camnoc_info->errata_wa_list;

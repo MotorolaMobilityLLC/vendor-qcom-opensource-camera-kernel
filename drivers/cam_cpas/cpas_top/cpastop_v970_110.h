@@ -1514,11 +1514,13 @@ static struct cam_camnoc_info cam970_cpas110_camnoc_info_nrt = {
 };
 
 static struct cam_cpas_camnoc_qchannel cam970_cpas110_qchannel_info_rt = {
+	.camnoc_info = &cam970_cpas110_camnoc_info_rt,
 	.qchannel_ctrl   = 0xEC,
 	.qchannel_status = 0xF0,
 };
 
 static struct cam_cpas_camnoc_qchannel cam970_cpas110_qchannel_info_nrt = {
+	.camnoc_info = &cam970_cpas110_camnoc_info_nrt,
 	.qchannel_ctrl   = 0xF4,
 	.qchannel_status = 0xF8,
 };

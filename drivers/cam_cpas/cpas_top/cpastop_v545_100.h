@@ -379,6 +379,7 @@ static struct cam_camnoc_info cam545_cpas100_camnoc_info = {
 };
 
 static struct cam_cpas_camnoc_qchannel cam545_cpas100_qchannel_info = {
+	.camnoc_info = &cam545_cpas100_camnoc_info,
 	.qchannel_ctrl   = 0x14,
 	.qchannel_status = 0x18,
 };
