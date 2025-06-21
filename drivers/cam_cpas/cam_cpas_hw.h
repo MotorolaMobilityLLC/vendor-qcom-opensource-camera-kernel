@@ -437,7 +437,6 @@ struct cam_cpas_monitor {
  * @monitor_head: Monitor array head
  * @monitor_entries: cpas monitor array
  * @camnoc_rt_idx: index to real time camnoc info array
- * @camnoc_info_idx: map camnoc hw type to index used for camnoc_info array indexing
  * @full_state_dump: Whether to enable full cpas state dump or not
  * @smart_qos_dump: Whether to dump smart qos information on update
  * @slave_err_irq_en: Whether slave error irq is enabled to detect memory
@@ -450,8 +449,19 @@ struct cam_cpas_monitor {
  * @hlos_full_tree_axi_clk_lvl: Determined/applied hlos full tree axi clk level
  * @hlos_rt_tree_axi_clk_lvl: Determined/applied hlos axi RT clk rate
  * @hlos_nrt_tree_axi_clk_lvl: Determined/applied hlos axi NRT / ICP clk level
- * @camnoc_info: array of camnoc info pointer
- * @num_valid_camnoc: number of valid camnoc info
+ * @camnoc_info: array of camnoc info pointer.
+ *               Particular NOC type's info is present at that type index. i.e CAM_CAMNOC_HW_RT type
+ *               info is present at camnoc_info[CAM_CAMNOC_HW_RT]
+ *               Array will have both NULLs, valid values in any order, valid camnocs info need not
+ *               to be always in the first entries.
+ *               Iterate through all up to TYP_MAX and check of camnoc_info[i] NULL
+ *               to find valid NOC types/information.
+ *               Exa 1 : If RT, NRT, PDX exists on a chipset,
+ *                       [0] = NULL, [1] = RT info, [2] = NRT info, [3] = PDX info;
+ *               Exa 2 : If RT, NRT exists on a chipset,
+ *                       [0] = NULL, [1] = RT info, [2] = NRT info, [3] = NULL;
+ *               Exa 3 : If COMBINED NOC exists on a chipset,
+ *                       [0] = Combined NOC info, [1] = NULL, [2] = NULL, [3] = NULL;
  * @cpas_info: Pointer to cpas header info
  * @cpas_top_info: Pointer to cpas top info
  * @llcc_reg_info: holding the llcc register information
@@ -484,7 +494,6 @@ struct cam_cpas {
 	atomic64_t  monitor_head;
 	struct cam_cpas_monitor monitor_entries[CAM_CPAS_MONITOR_MAX_ENTRIES];
 	int8_t camnoc_rt_idx;
-	int8_t camnoc_info_idx[CAM_CAMNOC_HW_TYPE_MAX];
 	bool full_state_dump;
 	bool smart_qos_dump;
 	bool slave_err_irq_en[CAM_CAMNOC_HW_TYPE_MAX];
@@ -498,7 +507,6 @@ struct cam_cpas {
 	enum cam_vote_level hlos_nrt_tree_axi_clk_lvl;
 
 	struct cam_camnoc_info *camnoc_info[CAM_CAMNOC_HW_TYPE_MAX];
-	uint8_t num_valid_camnoc;
 	struct cam_cpas_info *cpas_info;
 	struct cam_cpas_top_regs *cpas_top_info;
 	struct cam_cpas_llcc_reg_info *llcc_reg_info;

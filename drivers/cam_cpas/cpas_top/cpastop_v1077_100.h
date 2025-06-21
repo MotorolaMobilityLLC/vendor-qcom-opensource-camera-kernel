@@ -1641,6 +1641,7 @@ static struct cam_camnoc_info cam1077_cpas100_camnoc_info_nrt = {
 static struct cam_camnoc_info cam1077_cpas100_camnoc_info_pdx = {
 	.camnoc_type = CAM_CAMNOC_HW_PDX,
 	.reg_base = CAM_CPAS_REG_CAMNOC_PDX,
+	.errata_wa_list = &cam1077_cpas100_errata_wa_list,
 	.test_irq_info = {
 		.sbm_enable_mask = 0x1,
 		.sbm_clear_mask = 0x1,
