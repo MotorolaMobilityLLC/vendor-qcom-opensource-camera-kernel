@@ -1551,19 +1551,24 @@ static int cam_cpastop_set_tpg_mux_sel(struct cam_hw_info *cpas_hw,
 
 	reg_cpas_top = cpas_core->regbase_index[CAM_CPAS_REG_CPASTOP];
 
-	if (!cpas_core->cpas_top_info)
+	if (!cpas_core->cpas_info)
 		return 0;
 
-	if (!cpas_core->cpas_top_info->tpg_mux_sel_enabled)
+	if (!cpas_core->cpas_info->tpg_mux_info)
+		return 0;
+
+	if (!cpas_core->cpas_info->tpg_mux_info->tpg_mux_sel_enabled)
 		return 0;
 
 	curr_tpg_mux = cam_io_r_mb(soc_info->reg_map[reg_cpas_top].mem_base +
-		cpas_core->cpas_top_info->tpg_mux_sel);
+		cpas_core->cpas_info->tpg_mux_info->tpg_mux_sel);
 
 	curr_tpg_mux =
-		curr_tpg_mux | ((1 << tpg_mux) << cpas_core->cpas_top_info->tpg_mux_sel_shift);
+		curr_tpg_mux |
+		((1 << tpg_mux) << cpas_core->cpas_info->tpg_mux_info->tpg_mux_sel_shift);
+
 	cam_io_w_mb(curr_tpg_mux, soc_info->reg_map[reg_cpas_top].mem_base +
-		cpas_core->cpas_top_info->tpg_mux_sel);
+		cpas_core->cpas_info->tpg_mux_info->tpg_mux_sel);
 	CAM_DBG(CAM_CPAS, "SET TPG MUX to 0x%x", curr_tpg_mux);
 
 	return 0;
@@ -1666,7 +1671,6 @@ static int cam_cpastop_init_hw_version(struct cam_hw_info *cpas_hw,
 	case CAM_CPAS_TITAN_640_V200:
 		cpas_core->camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam640_cpas200_camnoc_info;
 		cpas_core->cpas_info = &cam640_cpas200_cpas_info;
-		cpas_core->cpas_top_info = &cam640_cpas200_cpas_top_info;
 		break;
 	case CAM_CPAS_TITAN_880_V100:
 		cpas_core->camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam880_cpas100_camnoc_info;

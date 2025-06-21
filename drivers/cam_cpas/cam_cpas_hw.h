@@ -463,7 +463,6 @@ struct cam_cpas_monitor {
  *               Exa 3 : If COMBINED NOC exists on a chipset,
  *                       [0] = Combined NOC info, [1] = NULL, [2] = NULL, [3] = NULL;
  * @cpas_info: Pointer to cpas header info
- * @cpas_top_info: Pointer to cpas top info
  * @llcc_reg_info: holding the llcc register information
  * @cesta_info: Pointer to cesta header info
  */
@@ -508,7 +507,6 @@ struct cam_cpas {
 
 	struct cam_camnoc_info *camnoc_info[CAM_CAMNOC_HW_TYPE_MAX];
 	struct cam_cpas_info *cpas_info;
-	struct cam_cpas_top_regs *cpas_top_info;
 	struct cam_cpas_llcc_reg_info *llcc_reg_info;
 	struct cam_cpas_cesta_info *cesta_info;
 };

@@ -581,6 +581,19 @@ struct cam_cpas_secure_info {
 };
 
 /**
+ * struct cam_tpg_mux_regs : CPAS TPG Mux registers
+ * @tpg_mux_sel_shift:     TPG mux select shift value
+ * @tpg_mux_sel:           For selecting TPG
+ * @tpg_mux_sel_enabled:   TPG mux select enabled or not
+ *
+ */
+struct cam_tpg_mux_regs {
+	uint32_t tpg_mux_sel_shift;
+	uint32_t tpg_mux_sel;
+	bool     tpg_mux_sel_enabled;
+};
+
+/**
  * struct cam_cpas_info: CPAS information
  *
  * @qchannel_info: CPAS qchannel info
@@ -588,6 +601,7 @@ struct cam_cpas_secure_info {
  * @hw_caps_secure_info: CPAS Hardware secure information
  * @num_qchannel: Number of qchannel
  * @subpart_info: Subpart info
+ * @tpg_mux_info: Top TPG Mux regs info
  */
 struct cam_cpas_info {
 	struct cam_cpas_camnoc_qchannel *qchannel_info[CAM_CAMNOC_QCHANNEL_MAX];
@@ -595,19 +609,7 @@ struct cam_cpas_info {
 	uint8_t num_qchannel;
 	struct cam_cpas_secure_info *hw_caps_secure_info;
 	struct cam_cpas_subpart_info *subpart_info;
-};
-
-/**
- * struct cam_cpas_top_regs : CPAS Top registers
- * @tpg_mux_sel_shift:     TPG mux select shift value
- * @tpg_mux_sel:           For selecting TPG
- * @tpg_mux_sel_enabled:   TPG mux select enabled or not
- *
- */
-struct cam_cpas_top_regs {
-	uint32_t tpg_mux_sel_shift;
-	uint32_t tpg_mux_sel;
-	bool     tpg_mux_sel_enabled;
+	struct cam_tpg_mux_regs *tpg_mux_info;
 };
 
 /**
