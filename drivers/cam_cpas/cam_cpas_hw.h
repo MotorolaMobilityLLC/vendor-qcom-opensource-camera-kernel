@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_CPAS_HW_H_
@@ -424,7 +424,7 @@ struct cam_cpas_monitor {
  * @ahb_bus_client: AHB Bus client info
  * @axi_port: AXI port info for a specific axi index
  * @camnoc_axi_port: CAMNOC AXI port info for a specific camnoc axi index
- * @cam_subpart_info: camera subparts fuse description
+ * @subpart_info_valid: Whether subpart info is valid or not
  * @internal_ops: CPAS HW internal ops
  * @work_queue: Work queue handle
  * @soc_access_count: atomic soc_access_count count
@@ -436,9 +436,6 @@ struct cam_cpas_monitor {
  * @applied_hlos_rt_camnoc_axi_rate: applied hlos RT camnoc axi clock rate
  * @monitor_head: Monitor array head
  * @monitor_entries: cpas monitor array
- * @camnoc_info: array of camnoc info pointer
- * @cesta_info: Pointer to cesta header info
- * @num_valid_camnoc: number of valid camnoc info
  * @camnoc_rt_idx: index to real time camnoc info array
  * @camnoc_info_idx: map camnoc hw type to index used for camnoc_info array indexing
  * @full_state_dump: Whether to enable full cpas state dump or not
@@ -453,7 +450,12 @@ struct cam_cpas_monitor {
  * @hlos_full_tree_axi_clk_lvl: Determined/applied hlos full tree axi clk level
  * @hlos_rt_tree_axi_clk_lvl: Determined/applied hlos axi RT clk rate
  * @hlos_nrt_tree_axi_clk_lvl: Determined/applied hlos axi NRT / ICP clk level
+ * @camnoc_info: array of camnoc info pointer
+ * @num_valid_camnoc: number of valid camnoc info
+ * @cpas_info: Pointer to cpas header info
+ * @cpas_top_info: Pointer to cpas top info
  * @llcc_reg_info: holding the llcc register information
+ * @cesta_info: Pointer to cesta header info
  */
 struct cam_cpas {
 	struct cam_cpas_hw_caps hw_caps;
@@ -470,7 +472,7 @@ struct cam_cpas {
 	struct cam_cpas_bus_client ahb_bus_client;
 	struct cam_cpas_axi_port axi_port[CAM_CPAS_MAX_AXI_PORTS];
 	struct cam_cpas_axi_port camnoc_axi_port[CAM_CPAS_MAX_AXI_PORTS];
-	struct cam_cpas_subpart_info *cam_subpart_info;
+	bool subpart_info_valid;
 	struct cam_cpas_internal_ops internal_ops;
 	struct workqueue_struct *work_queue;
 	atomic_t soc_access_count;
@@ -481,9 +483,6 @@ struct cam_cpas {
 	unsigned long applied_hlos_rt_camnoc_axi_rate;
 	atomic64_t  monitor_head;
 	struct cam_cpas_monitor monitor_entries[CAM_CPAS_MONITOR_MAX_ENTRIES];
-	void *camnoc_info[CAM_CAMNOC_HW_TYPE_MAX];
-	void *cesta_info;
-	uint8_t num_valid_camnoc;
 	int8_t camnoc_rt_idx;
 	int8_t camnoc_info_idx[CAM_CAMNOC_HW_TYPE_MAX];
 	bool full_state_dump;
@@ -497,7 +496,13 @@ struct cam_cpas {
 	enum cam_vote_level hlos_full_tree_axi_clk_lvl;
 	int64_t             hlos_rt_tree_axi_clk_rate;
 	enum cam_vote_level hlos_nrt_tree_axi_clk_lvl;
-	void *llcc_reg_info;
+
+	struct cam_camnoc_info *camnoc_info[CAM_CAMNOC_HW_TYPE_MAX];
+	uint8_t num_valid_camnoc;
+	struct cam_cpas_info *cpas_info;
+	struct cam_cpas_top_regs *cpas_top_info;
+	struct cam_cpas_llcc_reg_info *llcc_reg_info;
+	struct cam_cpas_cesta_info *cesta_info;
 };
 
 int cam_camsstop_get_internal_ops(struct cam_cpas_internal_ops *internal_ops);

@@ -5426,9 +5426,11 @@ int cam_cpas_hw_probe(struct platform_device *pdev,
 		goto disable_soc_res;
 #else
 		CAM_WARN(CAM_CPAS, "subparts info is not available");
-		cpas_core->cam_subpart_info = NULL;
+		cpas_core->subpart_info_valid = false;
 		rc = 0;
 #endif
+	} else {
+		cpas_core->subpart_info_valid = true;
 	}
 #endif
 
