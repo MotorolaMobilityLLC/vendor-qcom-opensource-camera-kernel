@@ -537,7 +537,7 @@ struct cam_camnoc_info {
 /**
  * struct cam_cpas_work_payload : Struct for cpas work payload data
  *
- * @camnoc_idx: index to camnoc info array
+ * @camnoc_type: camnoc type, same as index to camnoc info array
  * @hw: Pointer to HW info
  * @irq_status: IRQ status value
  * @irq_data: IRQ data
@@ -546,7 +546,7 @@ struct cam_camnoc_info {
  *
  */
 struct cam_cpas_work_payload {
-	int8_t camnoc_idx;
+	enum cam_camnoc_hw_type camnoc_type;
 	struct cam_hw_info *hw;
 	uint32_t irq_status;
 	uint32_t irq_data;

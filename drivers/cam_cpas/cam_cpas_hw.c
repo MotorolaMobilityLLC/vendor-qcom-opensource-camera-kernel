@@ -661,7 +661,7 @@ static int cam_cpas_hw_set_addr_trans(struct cam_hw_info *cpas_hw,
 	uint32_t client_indx = CAM_CPAS_GET_CLIENT_IDX(client_handle);
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	int reg_base_index = cpas_core->regbase_index[CAM_CPAS_REG_CAMNOC_NRT];
-	int camnoc_info_idx = CAM_CAMNOC_HW_NRT;
+	int camnoc_type = CAM_CAMNOC_HW_NRT;
 	struct cam_camnoc_info *camnoc_info;
 	struct cam_camnoc_addr_trans_info *addr_trans_info;
 	struct cam_cpas_client *cpas_client;
@@ -673,21 +673,16 @@ static int cam_cpas_hw_set_addr_trans(struct cam_hw_info *cpas_hw,
 	int rc = 0, i;
 	bool found = false;
 
-	if (camnoc_info_idx < 0) {
-		CAM_ERR(CAM_CPAS, "Setting address translator is only supported after CPAS v980");
-		return -EINVAL;
-	}
-
-	camnoc_info = cpas_core->camnoc_info[camnoc_info_idx];
+	camnoc_info = cpas_core->camnoc_info[camnoc_type];
 	if (!camnoc_info) {
-		CAM_ERR(CAM_CPAS, "Invalid cam noc info");
+		CAM_ERR(CAM_CPAS, "Invalid cam noc info for %s", g_camnoc_names[camnoc_type]);
 		return -EINVAL;
 	}
 
 	addr_trans_info = camnoc_info->addr_trans_info;
 	if (!addr_trans_info) {
 		CAM_ERR(CAM_CPAS, "Invalid address translator information, camnoc name: %s",
-			g_camnoc_names[camnoc_info->camnoc_type]);
+			g_camnoc_names[camnoc_type]);
 		return -EINVAL;
 	}
 
@@ -852,7 +847,7 @@ int cam_cpas_read_llcc_reg(void *hw_priv,
 static int cam_cpas_hw_dump_camnoc_buff_fill_info(
 	struct cam_hw_info *cpas_hw)
 {
-	int rc = 0, i, camnoc_idx;
+	int rc = 0, i, camnoc_type;
 	uint32_t val = 0;
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	struct cam_camnoc_info *camnoc_info;
@@ -860,11 +855,11 @@ static int cam_cpas_hw_dump_camnoc_buff_fill_info(
 	size_t len;
 
 	/* log buffer fill level of both RT/NRT NIU */
-	for (camnoc_idx = 0; camnoc_idx < CAM_CAMNOC_HW_TYPE_MAX; camnoc_idx++) {
-		if (cpas_core->camnoc_info[camnoc_idx]) {
+	for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+		if (cpas_core->camnoc_info[camnoc_type]) {
 			log_buf[0] = '\0';
 			len = 0;
-			camnoc_info = cpas_core->camnoc_info[camnoc_idx];
+			camnoc_info = cpas_core->camnoc_info[camnoc_type];
 			int reg_base_index = cpas_core->regbase_index[camnoc_info->reg_base];
 
 			for (i = 0; i < camnoc_info->num_nius; i++) {
@@ -887,7 +882,7 @@ static int cam_cpas_hw_dump_camnoc_buff_fill_info(
 			}
 
 			CAM_INFO(CAM_CPAS, "%s Fill level [Queued Pending] %s",
-				g_camnoc_names[camnoc_info->camnoc_type], log_buf);
+				g_camnoc_names[camnoc_type], log_buf);
 		}
 	}
 
@@ -928,7 +923,7 @@ static void cam_cpas_print_smart_qos_priority(
 	}
 
 	CAM_INFO(CAM_CPAS, "%s SmartQoS [Node Pri_lut] %s",
-		g_camnoc_names[camnoc_info->camnoc_type], log_buf);
+		g_camnoc_names[cpas_core->camnoc_rt_idx], log_buf);
 }
 
 static bool cam_cpas_is_new_rt_bw_lower(
@@ -3646,7 +3641,7 @@ static void cam_cpas_update_monitor_array(struct cam_hw_info *cpas_hw,
 		(struct cam_cpas_private_soc *) cpas_hw->soc_info.soc_private;
 	struct cam_cpas_monitor *entry;
 	int iterator, i, j = 0, vcd_idx, camnoc_reg_idx;
-	uint32_t val = 0, camnoc_idx;
+	uint32_t val = 0, camnoc_type;
 
 	CAM_CPAS_INC_MONITOR_HEAD(&cpas_core->monitor_head, &iterator);
 
@@ -3744,9 +3739,9 @@ static void cam_cpas_update_monitor_array(struct cam_hw_info *cpas_hw,
 		}
 	}
 
-	for (camnoc_idx = 0; camnoc_idx < CAM_CAMNOC_HW_TYPE_MAX; camnoc_idx++) {
-		if (cpas_core->camnoc_info[camnoc_idx]) {
-			camnoc_info = cpas_core->camnoc_info[camnoc_idx];
+	for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+		if (cpas_core->camnoc_info[camnoc_type]) {
+			camnoc_info = cpas_core->camnoc_info[camnoc_type];
 			camnoc_reg_idx = cpas_core->regbase_index[camnoc_info->reg_base];
 
 			for (i = 0, j = 0; i < camnoc_info->num_nius; i++) {
@@ -3761,15 +3756,15 @@ static void cam_cpas_update_monitor_array(struct cam_hw_info *cpas_hw,
 					break;
 				}
 
-				entry->camnoc_port_name[camnoc_idx][j] =
+				entry->camnoc_port_name[camnoc_type][j] =
 					camnoc_info->niu[i].port_name;
 				val = cam_io_r_mb(soc_info->reg_map[camnoc_reg_idx].mem_base +
 					camnoc_info->niu[i].maxwr_low.offset);
-				entry->camnoc_fill_level[camnoc_idx][j] = val;
+				entry->camnoc_fill_level[camnoc_type][j] = val;
 				j++;
 			}
 
-			entry->num_camnoc_lvl_regs[camnoc_idx] = j;
+			entry->num_camnoc_lvl_regs[camnoc_type] = j;
 		}
 	}
 
@@ -3801,7 +3796,7 @@ static void cam_cpas_dump_monitor_array(
 		(struct cam_cpas_private_soc *) cpas_hw->soc_info.soc_private;
 	int i = 0, k = 0;
 	int64_t state_head = 0;
-	uint32_t index, num_entries, oldest_entry, camnoc_idx, j;
+	uint32_t index, num_entries, oldest_entry, camnoc_type, j;
 	uint64_t ms, hrs, min, sec;
 	struct cam_cpas_monitor *entry;
 	struct timespec64 curr_timestamp;
@@ -3910,23 +3905,23 @@ static void cam_cpas_dump_monitor_array(
 			}
 		}
 
-		for (camnoc_idx = 0; camnoc_idx < CAM_CAMNOC_HW_TYPE_MAX; camnoc_idx++) {
-			if (cpas_core->camnoc_info[camnoc_idx]) {
-				camnoc_info = cpas_core->camnoc_info[camnoc_idx];
+		for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+			if (cpas_core->camnoc_info[camnoc_type]) {
+				camnoc_info = cpas_core->camnoc_info[camnoc_type];
 				log_buf[0] = '\0';
 				len = 0;
 
-				for (j = 0; j < entry->num_camnoc_lvl_regs[camnoc_idx]; j++) {
+				for (j = 0; j < entry->num_camnoc_lvl_regs[camnoc_type]; j++) {
 					len += scnprintf((log_buf + len),
 						(CAM_CPAS_LOG_BUF_LEN - len), " %s:[%d %d]",
-						entry->camnoc_port_name[camnoc_idx][j],
-						(entry->camnoc_fill_level[camnoc_idx][j] & 0x7FF),
-						(entry->camnoc_fill_level[camnoc_idx][j] & 0x7F0000)
-						>> 16);
+						entry->camnoc_port_name[camnoc_type][j],
+						(entry->camnoc_fill_level[camnoc_type][j] & 0x7FF),
+						(entry->camnoc_fill_level[camnoc_type][j] &
+						0x7F0000) >> 16);
 				}
 
 				CAM_INFO(CAM_CPAS, "%s REG[Queued Pending] %s",
-					g_camnoc_names[camnoc_info->camnoc_type], log_buf);
+					g_camnoc_names[camnoc_type], log_buf);
 			}
 		}
 
@@ -3963,11 +3958,11 @@ static void *cam_cpas_user_dump_state_monitor_array_info(
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	struct cam_cpas_tree_node *niu_node;
 	uint8_t *dst;
-	uint32_t num_vcds = CAM_CPAS_MAX_CESTA_VCD_NUM, camnoc_idx, i;
+	uint32_t num_vcds = CAM_CPAS_MAX_CESTA_VCD_NUM, camnoc_type, i;
 	uint8_t num_valid_camnoc = 0;
 
-	for (camnoc_idx = 0; camnoc_idx < CAM_CAMNOC_HW_TYPE_MAX; camnoc_idx++) {
-		if (cpas_core->camnoc_info[camnoc_idx])
+	for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+		if (cpas_core->camnoc_info[camnoc_type])
 			num_valid_camnoc++;
 	}
 
@@ -4020,16 +4015,16 @@ static void *cam_cpas_user_dump_state_monitor_array_info(
 		}
 	}
 
-	for (camnoc_idx = 0; camnoc_idx < CAM_CAMNOC_HW_TYPE_MAX; camnoc_idx++) {
-		if (cpas_core->camnoc_info[camnoc_idx]) {
-			*addr++ = monitor->num_camnoc_lvl_regs[camnoc_idx];
-			for (i = 0; i < monitor->num_camnoc_lvl_regs[camnoc_idx]; i++) {
+	for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+		if (cpas_core->camnoc_info[camnoc_type]) {
+			*addr++ = monitor->num_camnoc_lvl_regs[camnoc_type];
+			for (i = 0; i < monitor->num_camnoc_lvl_regs[camnoc_type]; i++) {
 				dst = (uint8_t *)addr;
 				hdr = (struct cam_common_hw_dump_header *)dst;
 				scnprintf(hdr->tag, CAM_COMMON_HW_DUMP_TAG_MAX_LEN, "%s:[%d %d].",
-					monitor->camnoc_port_name[camnoc_idx][i],
-					monitor->camnoc_fill_level[camnoc_idx][i] & 0x7FF,
-					(monitor->camnoc_fill_level[camnoc_idx][i] &
+					monitor->camnoc_port_name[camnoc_type][i],
+					monitor->camnoc_fill_level[camnoc_type][i] & 0x7FF,
+					(monitor->camnoc_fill_level[camnoc_type][i] &
 					0x7F0000) >> 16);
 				addr = (uint64_t *)(dst + sizeof(struct cam_common_hw_dump_header));
 			}
@@ -4073,7 +4068,7 @@ static int cam_cpas_dump_state_monitor_array_info(
 	struct cam_common_hw_dump_args  dump_args;
 	size_t                          buf_len;
 	size_t                          remain_len;
-	uint32_t                        min_len = 0, camnoc_idx;
+	uint32_t                        min_len = 0, camnoc_type;
 	uintptr_t                       cpu_addr;
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	int64_t                         state_head = 0;
@@ -4128,10 +4123,10 @@ static int cam_cpas_dump_state_monitor_array_info(
 			}
 		}
 
-		for (camnoc_idx = 0; camnoc_idx < CAM_CAMNOC_HW_TYPE_MAX; camnoc_idx++) {
-			if (cpas_core->camnoc_info[camnoc_idx]) {
+		for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+			if (cpas_core->camnoc_info[camnoc_type]) {
 				min_len += sizeof(uint64_t);
-				for (j = 0; j < entry->num_camnoc_lvl_regs[camnoc_idx]; j++)
+				for (j = 0; j < entry->num_camnoc_lvl_regs[camnoc_type]; j++)
 					min_len += sizeof(struct cam_common_hw_dump_header);
 			}
 		}
