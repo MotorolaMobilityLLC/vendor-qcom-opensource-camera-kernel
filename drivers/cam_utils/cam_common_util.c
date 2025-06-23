@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/string.h>
@@ -920,4 +920,102 @@ void inline cam_common_dec_idx(int32_t *val, int32_t step, int32_t max_val)
 	*val = *val - step;
 	if (*val < 0)
 		*val = max_val + (*val);
+}
+
+static void cam_common_read_lut_util(struct cam_common_lut_info *lut, void __iomem *base,
+	uint32_t *buff, uint32_t num_entries)
+{
+	uint32_t i;
+
+	for (i = 0; i < num_entries; i++) {
+		*buff = cam_io_r(base + lut->dmi_data);
+		buff++;
+	}
+}
+
+int cam_common_wr_bus_read_hw_query(void __iomem *base,
+	struct cam_common_lut_info *lut,
+	struct cam_wr_bus_hw_query_info_v1 *query_ptr)
+{
+	uint32_t *buff;
+	uint32_t num_entries;
+	uint32_t lut_entry_offset = 0;
+
+
+	if (!base || !lut || !query_ptr) {
+		CAM_ERR(CAM_ISP, "Invalid args, base:0x%lx lut:0x%lx query_ptr:0x%lx",
+			base, lut, query_ptr);
+		return -EINVAL;
+	}
+	/* This API is supposed to be common for different Bus drivers.
+	 * It considers the common layout for all client. Reads are in
+	 * sync with the struct cam_bus_hw_query_info_v1. Entry offset is
+	 * changed where the reads are not in sequence. If the reads are in
+	 * sequence as per the struct and the query table, there is no need to
+	 * update the dmi_cfg.
+	 * Since the reads are strictly as per the query table, order of reads
+	 * need to be taken care.
+	 *
+	 * Initial version: Reads tne entries used in drivers to limit the IO Read ops.
+	 */
+
+	cam_io_w(lut->type, base + lut->dmi_lut_cfg);
+	cam_io_w(0, base + lut->dmi_cfg);
+
+	/* Read client_present_0 */
+	buff = (uint32_t *)&query_ptr->client_present_0;
+	*buff = cam_io_r(base + lut->dmi_data);
+
+	/* Read client_present_1 */
+	buff = (uint32_t *)&query_ptr->client_present_1;
+	*buff = cam_io_r(base + lut->dmi_data);
+
+	/* Read sub_grp_present */
+	lut_entry_offset = offsetof(struct cam_wr_bus_hw_query_info_v1, sub_grp_present) / 4;
+	cam_io_w(lut_entry_offset, base + lut->dmi_cfg);
+	buff = (uint32_t *)&query_ptr->sub_grp_present;
+	*buff = cam_io_r(base + lut->dmi_data);
+
+	/* Read Valid SUB GRP entries */
+	lut_entry_offset = offsetof(struct cam_wr_bus_hw_query_info_v1, sub_grp_info) / 4;
+	cam_io_w(lut_entry_offset, base + lut->dmi_cfg);
+	num_entries = (fls(query_ptr->sub_grp_present)) *
+		(sizeof(struct cam_bus_wr_sub_grp_info) / 4);
+	buff = (uint32_t *)query_ptr->sub_grp_info;
+	cam_common_read_lut_util(lut, base, buff, num_entries);
+
+	/* Read NUM_MSF */
+	buff = (uint32_t *)&query_ptr->num_msf_ports;
+	*buff = cam_io_r(base + lut->dmi_data);
+
+	/* Read MSF port entries */
+	num_entries = query_ptr->num_msf_ports * (sizeof(struct cam_bus_wr_msf_info) / 4);
+	buff = (uint32_t *)query_ptr->msf_info;
+	cam_common_read_lut_util(lut, base, buff, num_entries);
+
+	/* Read ADDR width */
+	buff = (uint32_t *)&query_ptr->msf_cfg_addr_width;
+	*buff = cam_io_r(base + lut->dmi_data);
+
+	/* Read debug_feature */
+	lut_entry_offset = offsetof(struct cam_wr_bus_hw_query_info_v1, debug_feature) / 4;
+	cam_io_w(lut_entry_offset, base + lut->dmi_cfg);
+	buff = (uint32_t *)&query_ptr->debug_feature;
+	num_entries = (sizeof(union cam_bus_wr_debug_feature) / 4);
+	cam_common_read_lut_util(lut, base, buff, num_entries);
+
+	/* Read Wrapper_feature */
+	buff = (uint32_t *)&query_ptr->wrapper_feature;
+	num_entries = (sizeof(union cam_bus_wr_wrapper_feature) / 4);
+	cam_common_read_lut_util(lut, base, buff, num_entries);
+
+	/* Read Valid Client information */
+	lut_entry_offset = offsetof(struct cam_wr_bus_hw_query_info_v1, client)/4;
+	num_entries = (fls(query_ptr->client_present_0) + fls(query_ptr->client_present_1)) *
+		(sizeof(struct cam_bus_wr_client) / 4);
+	buff = (uint32_t *)query_ptr->client;
+	cam_io_w(lut_entry_offset, base + lut->dmi_cfg);
+	cam_common_read_lut_util(lut, base, buff, num_entries);
+
+	return 0;
 }
