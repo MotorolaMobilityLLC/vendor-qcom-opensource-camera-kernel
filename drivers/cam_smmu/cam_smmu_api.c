@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/module.h>
@@ -3905,16 +3905,22 @@ static int cam_smmu_map_iova_validate_params(int handle,
 	return rc;
 }
 
-bool cam_smmu_supports_shared_region(int handle)
+int cam_smmu_supports_shared_region(int handle, bool *is_shared)
 {
 	int idx = GET_SMMU_TABLE_IDX(handle);
-	bool is_shared;
+
+	if (idx < 0 || idx >= iommu_cb_set.cb_num) {
+		CAM_ERR(CAM_SMMU,
+			"Error: handle or index invalid. idx = %d hdl = 0x%x",
+			idx, handle);
+		return -EINVAL;
+	}
 
 	mutex_lock(&iommu_cb_set.cb_info[idx].lock);
-	is_shared = (iommu_cb_set.cb_info[idx].shared_support) ? true : false;
+	*is_shared = (iommu_cb_set.cb_info[idx].shared_support) ? true : false;
 	mutex_unlock(&iommu_cb_set.cb_info[idx].lock);
 
-	return is_shared;
+	return 0;
 }
 
 void cam_smmu_buffer_tracker_buffer_putref(struct cam_smmu_buffer_tracker *entry)

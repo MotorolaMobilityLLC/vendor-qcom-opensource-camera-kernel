@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/module.h>
@@ -2095,6 +2095,7 @@ static int cam_mem_util_map_hw_va(uint32_t flags,
 	dma_addr_t hw_vaddr;
 	struct kref *ref_count;
 	struct cam_mem_buf_hw_hdl_info *hdl_info = NULL;
+	bool is_shared = false;
 
 	if (dir < 0) {
 		CAM_ERR(CAM_MEM, "fail to map DMA direction, dir=%d", dir);
@@ -2113,11 +2114,19 @@ static int cam_mem_util_map_hw_va(uint32_t flags,
 			continue;
 
 		/* If 36-bit enabled, check for ICP cmd buffers and map them within the shared region */
-		if (cam_smmu_is_expanded_memory() &&
-			cam_smmu_supports_shared_region(mmu_hdls[i]) &&
-			((flags & CAM_MEM_FLAG_CMD_BUF_TYPE) ||
-			(flags & CAM_MEM_FLAG_HW_AND_CDM_OR_SHARED)))
-			region = CAM_SMMU_REGION_SHARED;
+		if (cam_smmu_is_expanded_memory()) {
+			rc = cam_smmu_supports_shared_region(mmu_hdls[i], &is_shared);
+			if (rc) {
+				CAM_ERR(CAM_MEM,
+					"Failed to check SMMU shared region support, mmu_hdl=%d",
+					mmu_hdls[i]);
+				goto multi_map_fail;
+			}
+
+			if (is_shared && ((flags & CAM_MEM_FLAG_CMD_BUF_TYPE) ||
+				(flags & CAM_MEM_FLAG_HW_AND_CDM_OR_SHARED)))
+				region = CAM_SMMU_REGION_SHARED;
+		}
 
 		if (flags & CAM_MEM_FLAG_PROTECTED_MODE)
 			rc = cam_smmu_map_stage2_iova(mmu_hdls[i], fd, dmabuf, dir, &hw_vaddr, len,
