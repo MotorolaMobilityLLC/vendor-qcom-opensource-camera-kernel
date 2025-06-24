@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_COMPAT_H_
@@ -166,6 +166,8 @@ int16_t cam_get_gpio_counts(struct cam_hw_soc_info *soc_info);
 
 uint16_t cam_get_named_gpio(struct cam_hw_soc_info *soc_info,
 	int index);
+
+void cam_compat_delete_timer_sync(struct timer_list *sync_timer);
 
 #if IS_REACHABLE(CONFIG_INTERCONNECT_QCOM)
 inline struct icc_path *cam_icc_get_path(struct device *dev,
