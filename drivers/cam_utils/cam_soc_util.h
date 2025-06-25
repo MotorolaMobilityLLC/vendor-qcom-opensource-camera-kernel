@@ -299,6 +299,8 @@ struct cam_soc_gpio_data {
  * @is_a_genpd_device:      Indicates whether the device is using power domains for GDSCs
  * @is_an_opp_device:       Whether it is an OPP device whose src clk is
  *                          managed by the OPP framework
+ * @aggregate_clk:          Aggregate clk group info
+ * @aggregate_clk_mask:     Mask indicating which of the clocks are aggregated
  */
 struct cam_hw_soc_info {
 	struct platform_device         *pdev;
@@ -377,6 +379,9 @@ struct cam_hw_soc_info {
 #endif
 	bool                            is_a_genpd_device;
 	bool                            is_an_opp_device;
+
+	int32_t                         aggregate_clk[CAM_SOC_MAX_CLK][2];
+	uint32_t                        aggregate_clk_mask;
 };
 
 /**
