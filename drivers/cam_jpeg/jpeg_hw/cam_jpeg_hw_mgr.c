@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/uaccess.h>
@@ -1412,8 +1412,6 @@ static int cam_jpeg_mgr_release_hw(void *hw_mgr_priv, void *release_hw_args)
 		cam_cdm_release(hw_mgr->cdm_info[dev_type][0].cdm_handle);
 	}
 
-	mutex_unlock(&hw_mgr->hw_mgr_mutex);
-
 	rc = cam_jpeg_mgr_release_ctx(hw_mgr, ctx_data);
 	if (rc) {
 		mutex_unlock(&hw_mgr->hw_mgr_mutex);
@@ -1429,6 +1427,7 @@ static int cam_jpeg_mgr_release_hw(void *hw_mgr_priv, void *release_hw_args)
 	cam_packet_util_put_unique_tbl(ctx_data->src_tbl, ctx_data->dst_tbl);
 	ctx_data->src_tbl = NULL;
 	ctx_data->dst_tbl = NULL;
+	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	CAM_DBG(CAM_JPEG, "handle %llu", ctx_data);
 
 	return rc;
