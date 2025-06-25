@@ -2351,7 +2351,7 @@ int cam_mem_mgr_alloc_presil_copy_buf(uint32_t presil_copy_buffer_len,
 	uintptr_t kvaddr = 0;
 	size_t klen;
 	unsigned long i_ino = 0;
-	enum cam_dma_heap_type heap_type;
+	enum cam_dma_heap_type heap_type = CAM_HEAP_MAX;
 
 	if (!p_buf_handle || !p_retrieve_buffer_dma_buf || !p_kvaddr) {
 		CAM_ERR(CAM_MEM, "Invalid argument %pK %pK %pK",
@@ -2418,7 +2418,7 @@ int cam_mem_mgr_map(struct cam_mem_mgr_map_cmd_v2 *cmd)
 	bool is_internal = false;
 	unsigned long i_ino;
 	uintptr_t kvaddr = 0;
-	size_t klen;
+	size_t klen = 0;
 
 	if (!atomic_read(&cam_mem_mgr_state)) {
 		CAM_ERR(CAM_MEM, "failed. mem_mgr not initialized");
