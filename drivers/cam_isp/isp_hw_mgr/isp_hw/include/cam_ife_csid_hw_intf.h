@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_CSID_HW_INTF_H_
@@ -248,7 +248,6 @@ struct cam_csid_secondary_evt_config {
  * @use_wm_pack:           [OUT]Flag to indicate if WM packing is to be used for packing
  * @handle_camif_irq:      Flag to indicate if CSID IRQ is enabled
  * @dynamic_drv_supported: Flag to indicate if dynamic drv is supported
- * @is_new_csid_acq:       Whether the reserve call is for a new csid core
  *
  */
 struct cam_csid_hw_reserve_resource_args {
@@ -277,7 +276,6 @@ struct cam_csid_hw_reserve_resource_args {
 	bool                                      use_wm_pack;
 	bool                                      handle_camif_irq;
 	bool                                      dynamic_drv_supported;
-	bool                                      is_new_csid_acq;
 };
 
 /**
