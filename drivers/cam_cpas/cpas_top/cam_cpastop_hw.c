@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -1157,7 +1157,6 @@ static int cam_cpastop_poweron(struct cam_hw_info *cpas_hw)
 	bool errata_enabled = false;
 	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
 	int index;
-	int camnoc_info_idx;
 
 	for (i = 0; i < cpas_core->num_valid_camnoc; i++)
 		if (camnoc_info[i]->reg_base != CAM_CPAS_REG_CAMNOC_PDX)
@@ -1240,20 +1239,6 @@ static int cam_cpastop_poweron(struct cam_hw_info *cpas_hw)
 		} else {
 			CAM_WARN(CAM_CPAS, "Invalid CPAS secure regbase index: %d",
 				index);
-		}
-	}
-
-	camnoc_info_idx = cpas_core->camnoc_info_idx[CAM_CAMNOC_HW_NRT];
-
-	if ((camnoc_info_idx >= 0) && (camnoc_info_idx < CAM_CAMNOC_HW_TYPE_MAX)) {
-		index = cpas_core->regbase_index[CAM_CPAS_REG_CAMNOC_NRT];
-
-		if (camnoc_info[camnoc_info_idx]->dcd_div_offset && (index != -1)) {
-			CAM_DBG(CAM_CPAS, "Writing DCD Div factor 0x4, offset 0x%x",
-				camnoc_info[camnoc_info_idx]->dcd_div_offset);
-			cam_io_w_mb(0x4,
-				soc_info->reg_map[index].mem_base +
-				camnoc_info[camnoc_info_idx]->dcd_div_offset);
 		}
 	}
 
