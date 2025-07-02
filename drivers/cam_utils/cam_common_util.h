@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_COMMON_UTIL_H_
@@ -12,6 +12,7 @@
 #include <linux/vmalloc.h>
 
 #include "cam_hw_mgr_intf.h"
+#include "cam_wr_bus_common_query_v1.h"
 
 #define CAM_BITS_MASK_SHIFT(x, mask, shift) (((x) & (mask)) >> shift)
 #define CAM_36BIT_INTF_GET_IOVA_BASE(iova) ((iova) >> 8)
@@ -438,6 +439,21 @@ int cam_common_user_dump_helper(
 	...);
 
 /**
+ * struct cam_common_lut_info - Place holder for reading LUT
+ *
+ * @type:            Query type: common, custom
+ * @dmi_cfg:         DMI CFG offset
+ * @dmi_data:        DMI data offset
+ * @dmi_lut_cfg:     DMI LUT CFG offset
+ */
+struct cam_common_lut_info {
+	uint32_t                type;
+	uint32_t                dmi_cfg;
+	uint32_t                dmi_data;
+	uint32_t                dmi_lut_cfg;
+};
+
+/**
  * cam_common_register_evt_inject_cb()
  *
  * @brief                  common interface to register evt inject cb
@@ -489,4 +505,15 @@ void inline cam_common_inc_idx(int32_t *val, int32_t step, int32_t max_val);
  */
 void inline cam_common_dec_idx(int32_t *val, int32_t step, int32_t max_val);
 
+/**
+ * cam_common_wr_bus_read_hw_query()
+ *
+ * @brief     : Read the Write Engine bus hw query capabilities
+ * @base      : IOMEM base address
+ * @lut       : LUT info
+ * @query_ptr : Query pointer, allocated by the caller
+ */
+int cam_common_wr_bus_read_hw_query(void __iomem *base,
+	struct cam_common_lut_info *lut,
+	struct cam_wr_bus_hw_query_info_v1 *query_ptr);
 #endif /* _CAM_COMMON_UTIL_H_ */

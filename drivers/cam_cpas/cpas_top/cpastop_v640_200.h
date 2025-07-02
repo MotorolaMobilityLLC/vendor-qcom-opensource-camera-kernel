@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CPASTOP_V640_200_H_
@@ -133,8 +133,8 @@ static struct cam_camnoc_irq_err
 	},
 };
 
-static struct cam_camnoc_specific
-	cam_cpas_v640_200_camnoc_specific[] = {
+static struct cam_camnoc_niu
+	cam_cpas_v640_200_camnoc_niu[] = {
 	{
 		.port_type = CAM_CAMNOC_TFE_BAYER_STATS,
 		.port_name = "TFE_BAYER",
@@ -578,8 +578,10 @@ static struct cam_cpas_hw_errata_wa_list cam640_cpas200_errata_wa_list = {
 };
 
 static struct cam_camnoc_info cam640_cpas200_camnoc_info = {
-	.specific = &cam_cpas_v640_200_camnoc_specific[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v640_200_camnoc_specific),
+	.camnoc_type = CAM_CAMNOC_HW_COMBINED,
+	.reg_base = CAM_CPAS_REG_CAMNOC,
+	.niu = &cam_cpas_v640_200_camnoc_niu[0],
+	.num_nius = ARRAY_SIZE(cam_cpas_v640_200_camnoc_niu),
 	.irq_sbm = &cam_cpas_v640_200_irq_sbm,
 	.irq_err = &cam_cpas_v640_200_irq_err[0],
 	.irq_err_size = ARRAY_SIZE(cam_cpas_v640_200_irq_err),
@@ -588,8 +590,15 @@ static struct cam_camnoc_info cam640_cpas200_camnoc_info = {
 };
 
 static struct cam_cpas_camnoc_qchannel cam640_cpas200_qchannel_info = {
+	.camnoc_info = &cam640_cpas200_camnoc_info,
 	.qchannel_ctrl   = 0x5C,
 	.qchannel_status = 0x60,
+};
+
+static struct cam_tpg_mux_regs cam640_cpas200_cpas_tpg_mux_info = {
+	.tpg_mux_sel_enabled = true,
+	.tpg_mux_sel_shift   = 0x0,
+	.tpg_mux_sel         = 0x1C,
 };
 
 static struct cam_cpas_info cam640_cpas200_cpas_info = {
@@ -599,12 +608,13 @@ static struct cam_cpas_info cam640_cpas200_cpas_info = {
 	},
 	.qchannel_info = {&cam640_cpas200_qchannel_info},
 	.num_qchannel = 1,
+	.tpg_mux_info = &cam640_cpas200_cpas_tpg_mux_info,
 };
 
-static struct cam_cpas_top_regs cam640_cpas200_cpas_top_info = {
-	.tpg_mux_sel_enabled = true,
-	.tpg_mux_sel_shift   = 0x0,
-	.tpg_mux_sel         = 0x1C,
+static struct cam_cpas_hw_info cam640_cpas200_hw_info = {
+	.hw_info_version                     = CAM_CPAS_HW_INFO_VER1,
+	.camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam640_cpas200_camnoc_info,
+	.cpas_info                           = &cam640_cpas200_cpas_info,
 };
 
 #endif /* _CPASTOP_V640_200_H_ */

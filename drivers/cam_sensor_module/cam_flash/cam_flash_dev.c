@@ -229,9 +229,13 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 		}
 		break;
 	}
+	case CAM_FLUSH_REQ: {
+		CAM_DBG(CAM_FLASH, "Flush recveived");
+		break;
+	}
 	default:
 		CAM_ERR(CAM_FLASH, "Invalid Opcode: %d", cmd->op_code);
-		rc = -EINVAL;
+		goto release_mutex;
 	}
 
 release_mutex:

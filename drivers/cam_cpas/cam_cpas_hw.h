@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_CPAS_HW_H_
@@ -71,6 +71,17 @@
 
 /* MAX number of qchannel*/
 #define CAM_CAMNOC_QCHANNEL_MAX      3
+
+#define CAM_CPAS_LOG_BUF_LEN         512
+
+/**
+ * enum cam_cpas_hw_info_version - CPAS HW info version
+ * @CAM_CPAS_HW_INFO_VER1: CPAS HW Info version 1 - camnoc registers with combined register
+ *                         offsets, values.
+ */
+enum cam_cpas_hw_info_version {
+	CAM_CPAS_HW_INFO_VER1,
+};
 
 /**
  * enum cam_camnoc_domain_type - Enum for different camnoc domains
@@ -189,39 +200,6 @@ struct cam_axi_consolidate_vote {
 struct cam_cpas_kobj_map {
 	struct kobject base_kobj;
 	struct cam_hw_info *cpas_hw;
-};
-
-/**
- * struct cam_cpas_internal_ops - CPAS Hardware layer internal ops
- *
- * @get_hw_info: Function pointer for get hw info
- * @init_hw_version: Function pointer for hw init based on version
- * @handle_irq: Function poniter for irq handling
- * @setup_regbase: Function pointer for setup rebase indices
- * @power_on: Function pointer for hw core specific power on settings
- * @power_off: Function pointer for hw core specific power off settings
- * @setup_qos_settings: Function pointer for hw to select a specific qos header
- * @print_poweron_settings: Function pointer for hw to print poweron settings
- * @qchannel_handshake: Function pointer for hw core specific qchannel
- *                      handshake settings
- * @set_tpg_mux_sel: Set tpg mux select on CPAS TOP register
- *
- */
-struct cam_cpas_internal_ops {
-	int (*get_hw_info)(struct cam_hw_info *cpas_hw,
-		struct cam_cpas_hw_caps *hw_caps);
-	int (*init_hw_version)(struct cam_hw_info *cpas_hw,
-		struct cam_cpas_hw_caps *hw_caps);
-	irqreturn_t (*handle_irq)(int irq_num, void *data);
-	int (*setup_regbase)(struct cam_hw_soc_info *soc_info,
-		int32_t regbase_index[], int32_t num_reg_map);
-	int (*power_on)(struct cam_hw_info *cpas_hw);
-	int (*power_off)(struct cam_hw_info *cpas_hw);
-	int (*setup_qos_settings)(struct cam_hw_info *cpas_hw,
-		uint32_t selection_mask);
-	int (*print_poweron_settings)(struct cam_hw_info *cpas_hw);
-	int (*qchannel_handshake)(struct cam_hw_info *cpas_hw, bool power_on, bool force_on);
-	int (*set_tpg_mux_sel)(struct cam_hw_info *cpas_hw, uint32_t tpg_num);
 };
 
 /**
@@ -405,9 +383,49 @@ struct cam_cpas_monitor {
 	struct cam_hw_info  *cpas_hw;
 };
 
+
+/**
+ * struct cam_cpas_internal_ops - CPAS Hardware layer internal ops
+ *
+ * @get_hw_info: Function pointer for get hw info
+ * @init_hw_version: Function pointer for hw init based on version
+ * @handle_irq: Function poniter for irq handling
+ * @setup_regbase: Function pointer for setup rebase indices
+ * @power_on: Function pointer for hw core specific power on settings
+ * @power_off: Function pointer for hw core specific power off settings
+ * @setup_qos_settings: Function pointer for hw to select a specific qos header
+ * @print_poweron_settings: Function pointer for hw to print poweron settings
+ * @qchannel_handshake: Function pointer for hw core specific qchannel
+ *                      handshake settings
+ * @set_tpg_mux_sel: Set tpg mux select on CPAS TOP register
+ * @dump_camnoc_buff_fill_info: Function to print camnoc buff fill levels
+ * @save_camnoc_buff_fill_info: Function to save camnoc buff fill levels into cpas monitor entry
+ *
+ */
+struct cam_cpas_internal_ops {
+	int (*get_hw_info)(struct cam_hw_info *cpas_hw,
+		struct cam_cpas_hw_caps *hw_caps);
+	int (*init_hw_version)(struct cam_hw_info *cpas_hw,
+		struct cam_cpas_hw_caps *hw_caps);
+	irqreturn_t (*handle_irq)(int irq_num, void *data);
+	int (*setup_regbase)(struct cam_hw_soc_info *soc_info,
+		int32_t regbase_index[], int32_t num_reg_map);
+	int (*power_on)(struct cam_hw_info *cpas_hw);
+	int (*power_off)(struct cam_hw_info *cpas_hw);
+	int (*setup_qos_settings)(struct cam_hw_info *cpas_hw,
+		uint32_t selection_mask);
+	int (*print_poweron_settings)(struct cam_hw_info *cpas_hw);
+	int (*qchannel_handshake)(struct cam_hw_info *cpas_hw, bool power_on, bool force_on);
+	int (*set_tpg_mux_sel)(struct cam_hw_info *cpas_hw, uint32_t tpg_num);
+	void (*dump_camnoc_buff_fill_info)(struct cam_hw_info *cpas_hw);
+	void (*save_camnoc_buff_fill_info)(struct cam_hw_info *cpas_hw,
+		struct cam_cpas_monitor *entry);
+};
+
 /**
  * struct cam_cpas : CPAS core data structure info
  *
+ * @hw_info: CPAS hw register information
  * @hw_caps: CPAS hw capabilities
  * @cpas_client: Array of pointers to CPAS clients info
  * @client_mutex: Mutex for accessing client info
@@ -424,7 +442,7 @@ struct cam_cpas_monitor {
  * @ahb_bus_client: AHB Bus client info
  * @axi_port: AXI port info for a specific axi index
  * @camnoc_axi_port: CAMNOC AXI port info for a specific camnoc axi index
- * @cam_subpart_info: camera subparts fuse description
+ * @subpart_info_valid: Whether subpart info is valid or not
  * @internal_ops: CPAS HW internal ops
  * @work_queue: Work queue handle
  * @soc_access_count: atomic soc_access_count count
@@ -436,11 +454,7 @@ struct cam_cpas_monitor {
  * @applied_hlos_rt_camnoc_axi_rate: applied hlos RT camnoc axi clock rate
  * @monitor_head: Monitor array head
  * @monitor_entries: cpas monitor array
- * @camnoc_info: array of camnoc info pointer
- * @cesta_info: Pointer to cesta header info
- * @num_valid_camnoc: number of valid camnoc info
  * @camnoc_rt_idx: index to real time camnoc info array
- * @camnoc_info_idx: map camnoc hw type to index used for camnoc_info array indexing
  * @full_state_dump: Whether to enable full cpas state dump or not
  * @smart_qos_dump: Whether to dump smart qos information on update
  * @slave_err_irq_en: Whether slave error irq is enabled to detect memory
@@ -453,9 +467,9 @@ struct cam_cpas_monitor {
  * @hlos_full_tree_axi_clk_lvl: Determined/applied hlos full tree axi clk level
  * @hlos_rt_tree_axi_clk_lvl: Determined/applied hlos axi RT clk rate
  * @hlos_nrt_tree_axi_clk_lvl: Determined/applied hlos axi NRT / ICP clk level
- * @llcc_reg_info: holding the llcc register information
  */
 struct cam_cpas {
+	struct cam_cpas_hw_info *hw_info;
 	struct cam_cpas_hw_caps hw_caps;
 	struct cam_cpas_client *cpas_client[CAM_CPAS_MAX_CLIENTS];
 	struct mutex client_mutex[CAM_CPAS_MAX_CLIENTS];
@@ -470,7 +484,7 @@ struct cam_cpas {
 	struct cam_cpas_bus_client ahb_bus_client;
 	struct cam_cpas_axi_port axi_port[CAM_CPAS_MAX_AXI_PORTS];
 	struct cam_cpas_axi_port camnoc_axi_port[CAM_CPAS_MAX_AXI_PORTS];
-	struct cam_cpas_subpart_info *cam_subpart_info;
+	bool subpart_info_valid;
 	struct cam_cpas_internal_ops internal_ops;
 	struct workqueue_struct *work_queue;
 	atomic_t soc_access_count;
@@ -481,11 +495,7 @@ struct cam_cpas {
 	unsigned long applied_hlos_rt_camnoc_axi_rate;
 	atomic64_t  monitor_head;
 	struct cam_cpas_monitor monitor_entries[CAM_CPAS_MONITOR_MAX_ENTRIES];
-	void *camnoc_info[CAM_CAMNOC_HW_TYPE_MAX];
-	void *cesta_info;
-	uint8_t num_valid_camnoc;
 	int8_t camnoc_rt_idx;
-	int8_t camnoc_info_idx[CAM_CAMNOC_HW_TYPE_MAX];
 	bool full_state_dump;
 	bool smart_qos_dump;
 	bool slave_err_irq_en[CAM_CAMNOC_HW_TYPE_MAX];
@@ -497,7 +507,6 @@ struct cam_cpas {
 	enum cam_vote_level hlos_full_tree_axi_clk_lvl;
 	int64_t             hlos_rt_tree_axi_clk_rate;
 	enum cam_vote_level hlos_nrt_tree_axi_clk_lvl;
-	void *llcc_reg_info;
 };
 
 int cam_camsstop_get_internal_ops(struct cam_cpas_internal_ops *internal_ops);

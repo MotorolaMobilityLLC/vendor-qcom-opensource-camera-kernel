@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_SOC_UTIL_H_
@@ -103,6 +103,7 @@
  *
  * @CAM_SUSPEND_VOTE   : Suspend vote
  * @CAM_MINSVS_VOTE    : Min SVS vote
+ * @CAM_LOWSVS_D2_VOTE : Low SVS D2 vote
  * @CAM_LOWSVS_D1_VOTE : Low SVS D1 vote
  * @CAM_LOWSVS_VOTE    : Low SVS vote
  * @CAM_SVS_VOTE       : SVS vote
@@ -115,6 +116,7 @@
 enum cam_vote_level {
 	CAM_SUSPEND_VOTE,
 	CAM_MINSVS_VOTE,
+	CAM_LOWSVS_D2_VOTE,
 	CAM_LOWSVS_D1_VOTE,
 	CAM_LOWSVS_VOTE,
 	CAM_SVS_VOTE,
@@ -124,6 +126,9 @@ enum cam_vote_level {
 	CAM_TURBO_VOTE,
 	CAM_MAX_VOTE,
 };
+
+/* Lowest AHB Clock Level */
+#define CAM_LOWEST_AHB_LEVEL (CAM_MINSVS_VOTE + 1)
 
 /* pinctrl states */
 #define CAM_SOC_PINCTRL_STATE_SLEEP "cam_suspend"
@@ -294,6 +299,8 @@ struct cam_soc_gpio_data {
  * @is_a_genpd_device:      Indicates whether the device is using power domains for GDSCs
  * @is_an_opp_device:       Whether it is an OPP device whose src clk is
  *                          managed by the OPP framework
+ * @aggregate_clk:          Aggregate clk group info
+ * @aggregate_clk_mask:     Mask indicating which of the clocks are aggregated
  */
 struct cam_hw_soc_info {
 	struct platform_device         *pdev;
@@ -372,6 +379,9 @@ struct cam_hw_soc_info {
 #endif
 	bool                            is_a_genpd_device;
 	bool                            is_an_opp_device;
+
+	int32_t                         aggregate_clk[CAM_SOC_MAX_CLK][2];
+	uint32_t                        aggregate_clk_mask;
 };
 
 /**

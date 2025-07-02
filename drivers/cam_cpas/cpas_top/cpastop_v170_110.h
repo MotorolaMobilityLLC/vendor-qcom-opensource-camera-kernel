@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CPASTOP_V170_110_H_
@@ -198,8 +198,8 @@ static struct cam_camnoc_irq_err
 	},
 };
 
-static struct cam_camnoc_specific
-	cam_cpas110_camnoc_specific[] = {
+static struct cam_camnoc_niu
+	cam_cpas110_camnoc_niu[] = {
 	{
 		.port_type = CAM_CAMNOC_CDM,
 		.enable = true,
@@ -525,9 +525,10 @@ static struct cam_cpas_hw_errata_wa_list cam170_cpas110_errata_wa_list = {
 };
 
 static struct cam_camnoc_info cam170_cpas110_camnoc_info = {
-	.specific = &cam_cpas110_camnoc_specific[0],
-	.specific_size = sizeof(cam_cpas110_camnoc_specific) /
-		sizeof(cam_cpas110_camnoc_specific[0]),
+	.camnoc_type = CAM_CAMNOC_HW_COMBINED,
+	.reg_base = CAM_CPAS_REG_CAMNOC,
+	.niu = &cam_cpas110_camnoc_niu[0],
+	.num_nius = ARRAY_SIZE(cam_cpas110_camnoc_niu),
 	.irq_sbm = &cam_cpas110_irq_sbm,
 	.irq_err = &cam_cpas110_irq_err[0],
 	.irq_err_size = sizeof(cam_cpas110_irq_err) /
@@ -541,6 +542,12 @@ static struct cam_cpas_info cam170_cpas110_cpas_info = {
 		.num_caps_registers = 1,
 		.hw_caps_offsets = {0x8},
 	},
+};
+
+static struct cam_cpas_hw_info cam170_cpas110_hw_info = {
+	.hw_info_version                     = CAM_CPAS_HW_INFO_VER1,
+	.camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam170_cpas110_camnoc_info,
+	.cpas_info                           = &cam170_cpas110_cpas_info,
 };
 
 #endif /* _CPASTOP_V170_110_H_ */

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_CPASTOP_HW_H_
@@ -13,6 +13,8 @@
 /* Camera Hw parts array indices */
 #define CAM_CPAS_PART_MAX_FUSE_BITS 8
 #define CAM_CPAS_PART_MAX_FUSE_BIT_INFO 2
+
+extern const char * const g_camnoc_names[];
 
 /**
  * enum cam_camnoc_hw_irq_type - Enum for camnoc error types
@@ -232,7 +234,7 @@ enum cam_camnoc_port_type {
 };
 
 /**
- * struct cam_camnoc_specific : CPAS camnoc specific settings
+ * struct cam_camnoc_niu : CPAS camnoc NIU settings
  *
  * @port_type: Port type
  * @port_name: Port name
@@ -252,7 +254,7 @@ enum cam_camnoc_port_type {
  * @dynattr_mainctl: Dynamic attribute main control register for this connection
  *
  */
-struct cam_camnoc_specific {
+struct cam_camnoc_niu {
 	enum cam_camnoc_port_type port_type;
 	const char *port_name;
 	bool enable;
@@ -506,43 +508,36 @@ struct cam_camnoc_addr_trans_info {
  * struct cam_camnoc_info : Overall CAMNOC settings info
  *
  * @camnoc_type: type of camnoc (RT/NRT/COMBINED)
- * @camnoc_name: name of camnoc (CAMNOC_RT/CAMNOC_NRT/CAMNOC_COMBINED)
  * @reg_base: register base for camnoc RT/NRT/COMBINED register space
- * @specific: Pointer to CAMNOC SPECIFICTONTTPTR settings
- * @specific_size: Array size of SPECIFICTONTTPTR settings
+ * @niu: Pointer to camnoc NIU settings
+ * @num_nius: Number of NIUs
  * @irq_sbm: Pointer to CAMNOC IRQ SBM settings
  * @irq_err: Pointer to CAMNOC IRQ Error settings
  * @irq_err_size: Array size of IRQ Error settings
  * @err_logger: Pointer to CAMNOC IRQ Error logger read registers
  * @errata_wa_list: HW Errata workaround info
  * @test_irq_info: CAMNOC Test IRQ info
- * @cesta_info: cpas cesta reg info
  * @addr_trans_info: CAMNOC address translator info
  *
  */
 struct cam_camnoc_info {
-	/* Below fields populated at probe on camera version */
 	enum cam_camnoc_hw_type camnoc_type;
-	char *camnoc_name;
 	enum cam_cpas_reg_base reg_base;
-
-	/* Below fields populated from the cpas header */
-	struct cam_camnoc_specific *specific;
-	int specific_size;
+	struct cam_camnoc_niu *niu;
+	int num_nius;
 	struct cam_camnoc_irq_sbm *irq_sbm;
 	struct cam_camnoc_irq_err *irq_err;
 	int irq_err_size;
 	struct cam_camnoc_err_logger_info *err_logger;
 	struct cam_cpas_hw_errata_wa_list *errata_wa_list;
 	struct cam_cpas_test_irq_info test_irq_info;
-	struct cam_cpas_cesta_info *cesta_info;
 	struct cam_camnoc_addr_trans_info *addr_trans_info;
 };
 
 /**
  * struct cam_cpas_work_payload : Struct for cpas work payload data
  *
- * @camnoc_idx: index to camnoc info array
+ * @camnoc_type: camnoc type, same as index to camnoc info array
  * @hw: Pointer to HW info
  * @irq_status: IRQ status value
  * @irq_data: IRQ data
@@ -551,7 +546,7 @@ struct cam_camnoc_info {
  *
  */
 struct cam_cpas_work_payload {
-	int8_t camnoc_idx;
+	enum cam_camnoc_hw_type camnoc_type;
 	struct cam_hw_info *hw;
 	uint32_t irq_status;
 	uint32_t irq_data;
@@ -562,11 +557,13 @@ struct cam_cpas_work_payload {
 /**
  * struct cam_cpas_camnoc_qchannel : Cpas camnoc qchannel info
  *
+ * @camnoc_info: camnoc information for this qchannel handshake
  * @qchannel_ctrl: offset to configure to control camnoc qchannel interface
  * @qchannel_status: offset to read camnoc qchannel interface status
  *
  */
 struct cam_cpas_camnoc_qchannel {
+	struct cam_camnoc_info *camnoc_info;
 	uint32_t qchannel_ctrl;
 	uint32_t qchannel_status;
 };
@@ -584,6 +581,19 @@ struct cam_cpas_secure_info {
 };
 
 /**
+ * struct cam_tpg_mux_regs : CPAS TPG Mux registers
+ * @tpg_mux_sel_shift:     TPG mux select shift value
+ * @tpg_mux_sel:           For selecting TPG
+ * @tpg_mux_sel_enabled:   TPG mux select enabled or not
+ *
+ */
+struct cam_tpg_mux_regs {
+	uint32_t tpg_mux_sel_shift;
+	uint32_t tpg_mux_sel;
+	bool     tpg_mux_sel_enabled;
+};
+
+/**
  * struct cam_cpas_info: CPAS information
  *
  * @qchannel_info: CPAS qchannel info
@@ -591,6 +601,7 @@ struct cam_cpas_secure_info {
  * @hw_caps_secure_info: CPAS Hardware secure information
  * @num_qchannel: Number of qchannel
  * @subpart_info: Subpart info
+ * @tpg_mux_info: Top TPG Mux regs info
  */
 struct cam_cpas_info {
 	struct cam_cpas_camnoc_qchannel *qchannel_info[CAM_CAMNOC_QCHANNEL_MAX];
@@ -598,19 +609,7 @@ struct cam_cpas_info {
 	uint8_t num_qchannel;
 	struct cam_cpas_secure_info *hw_caps_secure_info;
 	struct cam_cpas_subpart_info *subpart_info;
-};
-
-/**
- * struct cam_cpas_top_regs : CPAS Top registers
- * @tpg_mux_sel_shift:     TPG mux select shift value
- * @tpg_mux_sel:           For selecting TPG
- * @tpg_mux_sel_enabled:   TPG mux select enabled or not
- *
- */
-struct cam_cpas_top_regs {
-	uint32_t tpg_mux_sel_shift;
-	uint32_t tpg_mux_sel;
-	bool     tpg_mux_sel_enabled;
+	struct cam_tpg_mux_regs *tpg_mux_info;
 };
 
 /**
@@ -625,6 +624,39 @@ struct cam_cpas_llcc_reg_info {
 	uint32_t base_offset;
 	uint32_t config_offset;
 	uint32_t status_offset;
+};
+
+/**
+ * struct cam_cpas_hw_info
+ *
+ * @hw_info_version : cpas hw info version
+ * @camnoc_info     : Array of camnoc info pointer.
+ *                    Particular NOC type's info is present at that type index.
+ *                    i.e CAM_CAMNOC_HW_RT type info is present at camnoc_info[CAM_CAMNOC_HW_RT]
+ *                    Array will have both NULLs, valid values in any order, valid camnocs info
+ *                    need not to be always in the first entries.
+ *                    Do not rely on num_valid_camnoc to iterate through the camnoc_info[] to find
+ *                    valid NOCs, instead iterate through all up to TYP_MAX and check of
+ *                    camnoc_info[i] NULL to find valid NOC types/information.
+ *                    Exa 1 : If RT, NRT, PDX exists on a chipset,
+ *                            [0] = NULL, [1] = RT info, [2] = NRT info, [3] = PDX info;
+ *                    Exa 2 : If RT, NRT exists on a chipset,
+ *                            [0] = NULL, [1] = RT info, [2] = NRT info, [3] = NULL;
+ *                    Exa 3 : If COMBINED NOC exists on a chipset,
+ *                       [0] = Combined NOC info, [1] = NULL, [2] = NULL, [3] = NULL;
+ *                    either camnoc_info[COMBINED] or camnoc_info[RT and NRT] - Mandatory
+ *                    camnoc_info[PDX] - Optional
+ * @cpas_info       : cpas top hw info. Manadatary information.
+ * @llcc_reg_info   : holding the llcc register information. Optional
+ * @cesta_info      : Pointer to cesta header info. Optional
+ *
+ */
+struct cam_cpas_hw_info {
+	enum cam_cpas_hw_info_version  hw_info_version;
+	struct cam_camnoc_info        *camnoc_info[CAM_CAMNOC_HW_TYPE_MAX];
+	struct cam_cpas_info          *cpas_info;
+	struct cam_cpas_llcc_reg_info *llcc_reg_info;
+	struct cam_cpas_cesta_info    *cesta_info;
 };
 
 

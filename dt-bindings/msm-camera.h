@@ -175,4 +175,8 @@
 #define CAM_PVM    1
 #define CAM_SVM1   2
 #define CAM_VM_MAX 3
+
+/* Group name for common clock source*/
+#define CAM_COMMON_ICP_SRC_CLK       1
+
 #endif

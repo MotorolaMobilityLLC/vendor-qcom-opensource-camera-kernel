@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/delay.h>
@@ -308,6 +308,11 @@ int cam_virtual_cdm_probe(struct platform_device *pdev)
 	cdm_core->work_queue = alloc_workqueue(cdm_core->name,
 		WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_SYSFS,
 		CAM_CDM_INFLIGHT_WORKS);
+	if (!cdm_core->work_queue) {
+		CAM_ERR(CAM_CDM, "Workqueue allocation failed for cdm %s",
+			cdm_core->name);
+		goto failed_workq_create;
+	}
 	cdm_core->ops = NULL;
 
 	cpas_parms.cam_cpas_client_cb = cam_cdm_cpas_cb;
@@ -344,6 +349,10 @@ cpas_registration_failed:
 	CAM_MEM_FREE(cdm_hw->soc_info.soc_private);
 	flush_workqueue(cdm_core->work_queue);
 	destroy_workqueue(cdm_core->work_queue);
+	mutex_unlock(&cdm_hw->hw_mutex);
+	mutex_destroy(&cdm_hw->hw_mutex);
+failed_workq_create:
+	CAM_MEM_FREE(cdm_hw->soc_info.soc_private);
 	mutex_unlock(&cdm_hw->hw_mutex);
 	mutex_destroy(&cdm_hw->hw_mutex);
 soc_load_failed:

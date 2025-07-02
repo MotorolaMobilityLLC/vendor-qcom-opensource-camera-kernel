@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/delay.h>
@@ -47,17 +47,12 @@
 #include "cam_vmrm_interface.h"
 #include "cam_mem_mgr_api.h"
 
-struct cam_camnoc_info *camnoc_info[CAM_CAMNOC_HW_TYPE_MAX];
-struct cam_cpas_info *cpas_info;
-struct cam_cpas_camnoc_qchannel *qchannel_info;
-struct cam_cpas_top_regs *cpas_top_info;
-
 #if (defined(CONFIG_CAM_TEST_IRQ_LINE) && defined(CONFIG_CAM_TEST_IRQ_LINE_AT_PROBE))
 	struct completion test_irq_hw_complete[CAM_CAMNOC_HW_TYPE_MAX];
 #endif
 
 #define CAMNOC_SLAVE_MAX_ERR_CODE 7
-static const char * const camnoc_slave_err_code[] = {
+static const char * const g_camnoc_slave_err_code[] = {
 	"Target Error",              /* err code 0 */
 	"Address decode error",      /* err code 1 */
 	"Unsupported request",       /* err code 2 */
@@ -66,6 +61,15 @@ static const char * const camnoc_slave_err_code[] = {
 	"Hidden security violation", /* err code 5 */
 	"Timeout Error",             /* err code 6 */
 	"Unknown Error",             /* unknown err code */
+};
+
+/* names corresponds to enum cam_camnoc_hw_type */
+const char * const g_camnoc_names[] = {
+	"CAMNOC_COMBINED",     /* 0 : CAM_CAMNOC_HW_COMBINED */
+	"CAMNOC_RT",           /* 1 : CAM_CAMNOC_HW_RT       */
+	"CAMNOC_NRT",          /* 2 : CAM_CAMNOC_HW_NRT      */
+	"CAMNOC_PDX",          /* 3 : CAM_CAMNOC_HW_PDX      */
+	"NOC NOT DEFINED",     /* 4 : CAM_CAMNOC_HW_TYPE_MAX */
 };
 
 static const uint32_t cam_cpas_hw_version_map
@@ -243,22 +247,6 @@ static const uint32_t cam_cpas_hw_version_map
 		0,
 	},
 };
-
-static char *cam_cpastop_get_camnoc_name(enum cam_camnoc_hw_type type)
-{
-	switch (type) {
-	case CAM_CAMNOC_HW_COMBINED:
-		return "CAMNOC_COMBINED";
-	case CAM_CAMNOC_HW_RT:
-		return "CAMNOC_RT";
-	case CAM_CAMNOC_HW_NRT:
-		return "CAMNOC_NRT";
-	case CAM_CAMNOC_HW_PDX:
-		return "CAMNOC_PDX";
-	default:
-		return "Invalid CAMNOC";
-	}
-}
 
 static int cam_cpas_translate_camera_cpas_version_id(
 	uint32_t cam_version,
@@ -592,60 +580,61 @@ static int cam_cpastop_setup_regbase_indices(struct cam_hw_soc_info *soc_info,
 	return 0;
 }
 
-static int cam_cpastop_handle_errlogger(int camnoc_idx,
+static int cam_cpastop_handle_errlogger(enum cam_camnoc_hw_type camnoc_type,
 	struct cam_cpas *cpas_core,
 	struct cam_hw_soc_info *soc_info,
 	struct cam_camnoc_irq_slave_err_data *slave_err)
 {
 	uint8_t log_buffer[512];
 	size_t buf_len = 0;
-	int regbase_idx = cpas_core->regbase_index[camnoc_info[camnoc_idx]->reg_base];
+	struct cam_camnoc_info *curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
+	int regbase_idx = cpas_core->regbase_index[curr_camnoc_info->reg_base];
 	int err_code_index = 0;
 
-	if (!camnoc_info[camnoc_idx]->err_logger) {
+	if (!curr_camnoc_info->err_logger) {
 		CAM_ERR_RATE_LIMIT(CAM_CPAS, "Invalid err logger info");
 		return -EINVAL;
 	}
 
 	slave_err->mainctrl.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->mainctrl);
+		curr_camnoc_info->err_logger->mainctrl);
 
 	slave_err->errvld.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->errvld);
+		curr_camnoc_info->err_logger->errvld);
 
 	slave_err->errlog0_low.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->errlog0_low);
+		curr_camnoc_info->err_logger->errlog0_low);
 
 	slave_err->errlog0_high.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->errlog0_high);
+		curr_camnoc_info->err_logger->errlog0_high);
 
 	slave_err->errlog1_low.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->errlog1_low);
+		curr_camnoc_info->err_logger->errlog1_low);
 
 	slave_err->errlog1_high.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->errlog1_high);
+		curr_camnoc_info->err_logger->errlog1_high);
 
 	slave_err->errlog2_low.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->errlog2_low);
+		curr_camnoc_info->err_logger->errlog2_low);
 
 	slave_err->errlog2_high.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->errlog2_high);
+		curr_camnoc_info->err_logger->errlog2_high);
 
 	slave_err->errlog3_low.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->errlog3_low);
+		curr_camnoc_info->err_logger->errlog3_low);
 
 	slave_err->errlog3_high.value = cam_io_r_mb(
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->err_logger->errlog3_high);
+		curr_camnoc_info->err_logger->errlog3_high);
 
 	err_code_index = slave_err->errlog0_low.err_code;
 	if (err_code_index > CAMNOC_SLAVE_MAX_ERR_CODE)
@@ -653,8 +642,8 @@ static int cam_cpastop_handle_errlogger(int camnoc_idx,
 
 	CAM_ERR_BUF(CAM_CPAS, log_buffer, 512, &buf_len,
 		"%s NoC Error Info: %s, MAINCTL_LOW = 0x%x, ERRVLD_LOW = 0x%x",
-		camnoc_slave_err_code[err_code_index],
-		camnoc_info[camnoc_idx]->camnoc_name,  slave_err->mainctrl.value,
+		g_camnoc_slave_err_code[err_code_index],
+		g_camnoc_names[camnoc_type], slave_err->mainctrl.value,
 		slave_err->errvld.value, log_buffer);
 
 	CAM_ERR_BUF(CAM_CPAS, log_buffer, 512, &buf_len,
@@ -669,206 +658,217 @@ static int cam_cpastop_handle_errlogger(int camnoc_idx,
 	return 0;
 }
 
-static int cam_cpastop_handle_ubwc_enc_err(int camnoc_idx,
+static int cam_cpastop_handle_ubwc_enc_err(enum cam_camnoc_hw_type camnoc_type,
 	struct cam_cpas *cpas_core, struct cam_hw_soc_info *soc_info, int i,
 	struct cam_camnoc_irq_ubwc_enc_data *enc_err)
 {
-	int regbase_idx = cpas_core->regbase_index[camnoc_info[camnoc_idx]->reg_base];
+	struct cam_camnoc_info *curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
+	int regbase_idx = cpas_core->regbase_index[curr_camnoc_info->reg_base];
 
 	enc_err->encerr_status.value =
 		cam_io_r_mb(soc_info->reg_map[regbase_idx].mem_base +
-			camnoc_info[camnoc_idx]->irq_err[i].err_status.offset);
+			curr_camnoc_info->irq_err[i].err_status.offset);
 
 	/* Let clients handle the UBWC errors */
 	CAM_DBG(CAM_CPAS,
 		"[%s] ubwc enc err [%d]: offset[0x%x] value[0x%x]",
-		camnoc_info[camnoc_idx]->camnoc_name, i,
-		camnoc_info[camnoc_idx]->irq_err[i].err_status.offset,
+		g_camnoc_names[camnoc_type], i,
+		curr_camnoc_info->irq_err[i].err_status.offset,
 		enc_err->encerr_status.value);
 
 	return 0;
 }
 
-static int cam_cpastop_handle_ubwc_dec_err(int camnoc_idx,
+static int cam_cpastop_handle_ubwc_dec_err(enum cam_camnoc_hw_type camnoc_type,
 	struct cam_cpas *cpas_core, struct cam_hw_soc_info *soc_info, int i,
 	struct cam_camnoc_irq_ubwc_dec_data *dec_err)
 {
-	int regbase_idx = cpas_core->regbase_index[camnoc_info[camnoc_idx]->reg_base];
+	struct cam_camnoc_info *curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
+	int regbase_idx = cpas_core->regbase_index[curr_camnoc_info->reg_base];
 
 	dec_err->decerr_status.value =
 		cam_io_r_mb(soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->irq_err[i].err_status.offset);
+		curr_camnoc_info->irq_err[i].err_status.offset);
 
 	/* Let clients handle the UBWC errors */
 	CAM_DBG(CAM_CPAS,
 		"[%s] ubwc dec err status [%d]: offset[0x%x] value[0x%x] thr_err=%d, fcl_err=%d, len_md_err=%d, format_err=%d",
-		camnoc_info[camnoc_idx]->camnoc_name, i,
-		camnoc_info[camnoc_idx]->irq_err[i].err_status.offset, dec_err->decerr_status.value,
+		g_camnoc_names[camnoc_type], i,
+		curr_camnoc_info->irq_err[i].err_status.offset, dec_err->decerr_status.value,
 		dec_err->decerr_status.thr_err, dec_err->decerr_status.fcl_err,
 		dec_err->decerr_status.len_md_err, dec_err->decerr_status.format_err);
 
 	return 0;
 }
 
-static int cam_cpastop_handle_ahb_timeout_err(int camnoc_idx,
+static int cam_cpastop_handle_ahb_timeout_err(enum cam_camnoc_hw_type camnoc_type,
 	struct cam_hw_info *cpas_hw, struct cam_camnoc_irq_ahb_timeout_data *ahb_err)
 {
 	CAM_ERR_RATE_LIMIT(CAM_CPAS, "[%s] ahb timeout error",
-		camnoc_info[camnoc_idx]->camnoc_name);
+		g_camnoc_names[camnoc_type]);
 
 	return 0;
 }
 
 #if (defined(CONFIG_CAM_TEST_IRQ_LINE) && defined(CONFIG_CAM_TEST_IRQ_LINE_AT_PROBE))
-static int cam_cpastop_enable_test_irq(int camnoc_idx,
+static int cam_cpastop_enable_test_irq(enum cam_camnoc_hw_type camnoc_type,
 	struct cam_hw_info *cpas_hw)
 {
+	struct cam_cpas *cpas_core = cpas_hw->core_info;
+	struct cam_camnoc_info *curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
 	int i;
 
-	camnoc_info[camnoc_idx]->irq_sbm->sbm_enable.value |=
-		camnoc_info[camnoc_idx]->test_irq_info.sbm_enable_mask;
-	camnoc_info[camnoc_idx]->irq_sbm->sbm_clear.value |=
-		camnoc_info[camnoc_idx]->test_irq_info.sbm_clear_mask;
+	curr_camnoc_info->irq_sbm->sbm_enable.value |=
+		curr_camnoc_info->test_irq_info.sbm_enable_mask;
+	curr_camnoc_info->irq_sbm->sbm_clear.value |=
+		curr_camnoc_info->test_irq_info.sbm_clear_mask;
 
-	for (i = 0; i < camnoc_info[camnoc_idx]->irq_err_size; i++) {
-		if (camnoc_info[camnoc_idx]->irq_err[i].irq_type ==
+	for (i = 0; i < curr_camnoc_info->irq_err_size; i++) {
+		if (curr_camnoc_info->irq_err[i].irq_type ==
 			CAM_CAMNOC_HW_IRQ_CAMNOC_TEST)
-			camnoc_info[camnoc_idx]->irq_err[i].enable = true;
+			curr_camnoc_info->irq_err[i].enable = true;
 	}
 
 	return 0;
 }
 
-static int cam_cpastop_disable_test_irq(int camnoc_idx,
+static int cam_cpastop_disable_test_irq(enum cam_camnoc_hw_type camnoc_type,
 	struct cam_hw_info *cpas_hw)
 {
+	struct cam_cpas *cpas_core = cpas_hw->core_info;
+	struct cam_camnoc_info *curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
 	int i;
 
-	camnoc_info[camnoc_idx]->irq_sbm->sbm_enable.value &=
-		~camnoc_info[camnoc_idx]->test_irq_info.sbm_enable_mask;
-	camnoc_info[camnoc_idx]->irq_sbm->sbm_clear.value &=
-		~camnoc_info[camnoc_idx]->test_irq_info.sbm_clear_mask;
+	curr_camnoc_info->irq_sbm->sbm_enable.value &=
+		~curr_camnoc_info->test_irq_info.sbm_enable_mask;
+	curr_camnoc_info->irq_sbm->sbm_clear.value &=
+		~curr_camnoc_info->test_irq_info.sbm_clear_mask;
 
-	for (i = 0; i < camnoc_info[camnoc_idx]->irq_err_size; i++) {
-		if (camnoc_info[camnoc_idx]->irq_err[i].irq_type ==
+	for (i = 0; i < curr_camnoc_info->irq_err_size; i++) {
+		if (curr_camnoc_info->irq_err[i].irq_type ==
 			CAM_CAMNOC_HW_IRQ_CAMNOC_TEST)
-			camnoc_info[camnoc_idx]->irq_err[i].enable = false;
+			curr_camnoc_info->irq_err[i].enable = false;
 	}
 
 	return 0;
 }
 
-static void cam_cpastop_check_test_irq(int camnoc_idx,
+static void cam_cpastop_check_test_irq(enum cam_camnoc_hw_type camnoc_type,
 	struct cam_hw_info *cpas_hw, uint32_t irq_status)
 {
+	struct cam_cpas *cpas_core = cpas_hw->core_info;
+	struct cam_camnoc_info *curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
 	int i;
 
-	for (i = 0; i < camnoc_info[camnoc_idx]->irq_err_size; i++) {
-		if ((camnoc_info[camnoc_idx]->irq_err[i].irq_type ==
+	for (i = 0; i < curr_camnoc_info->irq_err_size; i++) {
+		if ((curr_camnoc_info->irq_err[i].irq_type ==
 			CAM_CAMNOC_HW_IRQ_CAMNOC_TEST) &&
-			(irq_status & camnoc_info[camnoc_idx]->irq_err[i].sbm_port) &&
-			(camnoc_info[camnoc_idx]->irq_err[i].enable)) {
-			complete(&test_irq_hw_complete[camnoc_idx]);
+			(irq_status & curr_camnoc_info->irq_err[i].sbm_port) &&
+			(curr_camnoc_info->irq_err[i].enable)) {
+			complete(&test_irq_hw_complete[camnoc_type]);
 			CAM_INFO(CAM_CPAS, "[%s] Test IRQ triggerred",
-				camnoc_info[camnoc_idx]->camnoc_name);
+				g_camnoc_names[camnoc_type]);
 		}
 	}
 }
 #endif
 
 static void cam_cpastop_enable_camnoc_irqs(
-	struct cam_hw_info *cpas_hw, int camnoc_idx)
+	struct cam_hw_info *cpas_hw, enum cam_camnoc_hw_type camnoc_type)
 {
 	int i;
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
+	struct cam_camnoc_info *curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
 
 	cpas_core->smmu_fault_handled = false;
 
 	/* clear and enable all irq errors */
-	for (i = 0; i < camnoc_info[camnoc_idx]->irq_err_size; i++) {
-		if (camnoc_info[camnoc_idx]->irq_err[i].enable) {
-			cam_cpas_util_reg_update(cpas_hw, camnoc_info[camnoc_idx]->reg_base,
-				&camnoc_info[camnoc_idx]->irq_err[i].err_clear);
-			cam_cpas_util_reg_update(cpas_hw, camnoc_info[camnoc_idx]->reg_base,
-				&camnoc_info[camnoc_idx]->irq_err[i].err_enable);
+	for (i = 0; i < curr_camnoc_info->irq_err_size; i++) {
+		if (curr_camnoc_info->irq_err[i].enable) {
+			cam_cpas_util_reg_update(cpas_hw, curr_camnoc_info->reg_base,
+				&curr_camnoc_info->irq_err[i].err_clear);
+			cam_cpas_util_reg_update(cpas_hw, curr_camnoc_info->reg_base,
+				&curr_camnoc_info->irq_err[i].err_enable);
 		}
 	}
 
 	/* On poweron reset enable all error irqs applicable for the target */
-	cam_cpas_util_reg_update(cpas_hw, camnoc_info[camnoc_idx]->reg_base,
-		&camnoc_info[camnoc_idx]->irq_sbm->sbm_enable);
+	cam_cpas_util_reg_update(cpas_hw, curr_camnoc_info->reg_base,
+		&curr_camnoc_info->irq_sbm->sbm_enable);
 }
 
 static void cam_cpastop_handle_camnoc_irqs(uint32_t irq_status,
-	struct cam_hw_info *cpas_hw, int camnoc_idx)
+	struct cam_hw_info *cpas_hw, enum cam_camnoc_hw_type camnoc_type)
 {
 	int i, regbase_idx;
 	struct cam_cpas *cpas_core = cpas_hw->core_info;
 	uint32_t updated_sbm_mask = 0;
 	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
 	enum cam_cpas_reg_base reg_base;
+	struct cam_camnoc_info *curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
 
-	reg_base = camnoc_info[camnoc_idx]->reg_base;
+	reg_base = curr_camnoc_info->reg_base;
 	regbase_idx = cpas_core->regbase_index[reg_base];
 
-	for (i = 0; i < camnoc_info[camnoc_idx]->irq_err_size; i++) {
-		if ((camnoc_info[camnoc_idx]->irq_err[i].enable) &&
-			(camnoc_info[camnoc_idx]->irq_err[i].sbm_port & irq_status)) {
+	for (i = 0; i < curr_camnoc_info->irq_err_size; i++) {
+		if ((curr_camnoc_info->irq_err[i].enable) &&
+			(curr_camnoc_info->irq_err[i].sbm_port & irq_status)) {
 			/* Clear the error status */
 			cam_cpas_util_reg_update(cpas_hw, reg_base,
-				&camnoc_info[camnoc_idx]->irq_err[i].err_clear);
-			updated_sbm_mask |= camnoc_info[camnoc_idx]->irq_err[i].sbm_port;
+				&curr_camnoc_info->irq_err[i].err_clear);
+			updated_sbm_mask |= curr_camnoc_info->irq_err[i].sbm_port;
 		}
 	}
 
 	/* Disable all serviced irqs, all disabled irqs are enabled only when CPAS restarts */
-	cam_io_w(((~updated_sbm_mask) & (camnoc_info[camnoc_idx]->irq_sbm->sbm_enable.value)),
+	cam_io_w(((~updated_sbm_mask) & (curr_camnoc_info->irq_sbm->sbm_enable.value)),
 		soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->irq_sbm->sbm_enable.offset);
+		curr_camnoc_info->irq_sbm->sbm_enable.offset);
 }
 
 static int cam_cpastop_reset_irq(uint32_t irq_status,
-	struct cam_hw_info *cpas_hw, int camnoc_idx)
+	struct cam_hw_info *cpas_hw, enum cam_camnoc_hw_type camnoc_type)
 {
+	struct cam_cpas *cpas_core = cpas_hw->core_info;
+	struct cam_camnoc_info *curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
+
 #if (defined(CONFIG_CAM_TEST_IRQ_LINE) && defined(CONFIG_CAM_TEST_IRQ_LINE_AT_PROBE))
 	static int counter[CAM_CAMNOC_HW_TYPE_MAX] = {0};
 	bool wait_for_irq = false;
 
-	if (counter[camnoc_idx] == 0)  {
-		CAM_INFO(CAM_CPAS, "Enabling %s test irq",
-			camnoc_info[camnoc_idx]->camnoc_name);
-		cam_cpastop_enable_test_irq(camnoc_idx, cpas_hw);
+	if (counter[camnoc_type] == 0)  {
+		CAM_INFO(CAM_CPAS, "Enabling %s test irq", g_camnoc_names[camnoc_type]);
+		cam_cpastop_enable_test_irq(camnoc_type, cpas_hw);
 		wait_for_irq = true;
-		init_completion(&test_irq_hw_complete[camnoc_idx]);
-		counter[camnoc_idx] = 1;
-	} else if (counter[camnoc_idx] == 1) {
-		CAM_INFO(CAM_CPAS, "Disabling %s test irq",
-			camnoc_info[camnoc_idx]->camnoc_name);
-		cam_cpastop_disable_test_irq(camnoc_idx, cpas_hw);
-		counter[camnoc_idx] = 2;
+		init_completion(&test_irq_hw_complete[camnoc_type]);
+		counter[camnoc_type] = 1;
+	} else if (counter[camnoc_type] == 1) {
+		CAM_INFO(CAM_CPAS, "Disabling %s test irq", g_camnoc_names[camnoc_type]);
+		cam_cpastop_disable_test_irq(camnoc_type, cpas_hw);
+		counter[camnoc_type] = 2;
 	}
 #endif
 
-	if (!camnoc_info[camnoc_idx]->irq_sbm->sbm_enable.enable)
+	if (!curr_camnoc_info->irq_sbm->sbm_enable.enable)
 		return 0;
 
-	cam_cpas_util_reg_update(cpas_hw, camnoc_info[camnoc_idx]->reg_base,
-		&camnoc_info[camnoc_idx]->irq_sbm->sbm_clear);
+	cam_cpas_util_reg_update(cpas_hw, curr_camnoc_info->reg_base,
+		&curr_camnoc_info->irq_sbm->sbm_clear);
 
 	if (irq_status)
-		cam_cpastop_handle_camnoc_irqs(irq_status, cpas_hw, camnoc_idx);
+		cam_cpastop_handle_camnoc_irqs(irq_status, cpas_hw, camnoc_type);
 	else
 		/* poweron reset */
-		cam_cpastop_enable_camnoc_irqs(cpas_hw, camnoc_idx);
+		cam_cpastop_enable_camnoc_irqs(cpas_hw, camnoc_type);
 
 #if (defined(CONFIG_CAM_TEST_IRQ_LINE) && defined(CONFIG_CAM_TEST_IRQ_LINE_AT_PROBE))
 	if (wait_for_irq) {
-		if (!cam_common_wait_for_completion_timeout(&test_irq_hw_complete[camnoc_idx],
+		if (!cam_common_wait_for_completion_timeout(&test_irq_hw_complete[camnoc_type],
 			msecs_to_jiffies(2000)))
 			CAM_ERR(CAM_CPAS, "[%s] CAMNOC Test IRQ line verification timed out",
-				camnoc_info[camnoc_idx]->camnoc_name);
-		CAM_INFO(CAM_CPAS, "[%s] IRQ test Success",
-			camnoc_info[camnoc_idx]->camnoc_name);
+				g_camnoc_names[camnoc_type]);
+
+		CAM_INFO(CAM_CPAS, "[%s] IRQ test Success", g_camnoc_names[camnoc_type]);
 	}
 #endif
 
@@ -915,7 +915,8 @@ static void cam_cpastop_work(struct work_struct *work)
 	int i;
 	enum cam_camnoc_hw_irq_type irq_type;
 	struct cam_cpas_irq_data irq_data;
-	int camnoc_idx;
+	enum cam_camnoc_hw_type camnoc_type;
+	struct cam_camnoc_info *curr_camnoc_info;
 
 	payload = container_of(work, struct cam_cpas_work_payload, work);
 	if (!payload) {
@@ -923,7 +924,7 @@ static void cam_cpastop_work(struct work_struct *work)
 		return;
 	}
 
-	camnoc_idx = payload->camnoc_idx;
+	camnoc_type = payload->camnoc_type;
 	cam_common_util_thread_switch_delay_detect(
 		"cam_cpas_workq", "schedule", cam_cpastop_work,
 		payload->workq_scheduled_ts,
@@ -932,16 +933,17 @@ static void cam_cpastop_work(struct work_struct *work)
 	cpas_hw = payload->hw;
 	cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	soc_info = &cpas_hw->soc_info;
+	curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
 
 	if (!atomic_inc_not_zero(&cpas_core->soc_access_count)) {
 		CAM_ERR(CAM_CPAS, "CPAS off");
 		return;
 	}
 
-	for (i = 0; i < camnoc_info[camnoc_idx]->irq_err_size; i++) {
-		if ((payload->irq_status & camnoc_info[camnoc_idx]->irq_err[i].sbm_port) &&
-			(camnoc_info[camnoc_idx]->irq_err[i].enable)) {
-			irq_type = camnoc_info[camnoc_idx]->irq_err[i].irq_type;
+	for (i = 0; i < curr_camnoc_info->irq_err_size; i++) {
+		if ((payload->irq_status & curr_camnoc_info->irq_err[i].sbm_port) &&
+			(curr_camnoc_info->irq_err[i].enable)) {
+			irq_type = curr_camnoc_info->irq_err[i].irq_type;
 			CAM_ERR_RATE_LIMIT(CAM_CPAS,
 				"Error occurred, irq type=%d", irq_type);
 			memset(&irq_data, 0x0, sizeof(irq_data));
@@ -949,7 +951,7 @@ static void cam_cpastop_work(struct work_struct *work)
 
 			switch (irq_type) {
 			case CAM_CAMNOC_HW_IRQ_SLAVE_ERROR:
-				cam_cpastop_handle_errlogger(camnoc_idx, cpas_core, soc_info,
+				cam_cpastop_handle_errlogger(camnoc_type, cpas_core, soc_info,
 					&irq_data.u.slave_err);
 				break;
 			case CAM_CAMNOC_HW_IRQ_IFE_UBWC_STATS_ENCODE_ERROR:
@@ -958,7 +960,7 @@ static void cam_cpastop_work(struct work_struct *work)
 			case CAM_CAMNOC_HW_IRQ_IPE_BPS_UBWC_ENCODE_ERROR:
 			case CAM_CAMNOC_HW_IRQ_OFE_UBWC_WRITE_ENCODE_ERROR:
 			case CAM_CAMNOC_HW_IRQ_TFE_UBWC_ENCODE_ERROR:
-				cam_cpastop_handle_ubwc_enc_err(camnoc_idx,
+				cam_cpastop_handle_ubwc_enc_err(camnoc_type,
 					cpas_core, soc_info, i,
 					&irq_data.u.enc_err);
 				break;
@@ -967,17 +969,17 @@ static void cam_cpastop_work(struct work_struct *work)
 			case CAM_CAMNOC_HW_IRQ_IPE1_UBWC_DECODE_ERROR:
 			case CAM_CAMNOC_HW_IRQ_IPE_BPS_UBWC_DECODE_ERROR:
 			case CAM_CAMNOC_HW_IRQ_OFE_UBWC_READ_DECODE_ERROR:
-				cam_cpastop_handle_ubwc_dec_err(camnoc_idx,
+				cam_cpastop_handle_ubwc_dec_err(camnoc_type,
 					cpas_core, soc_info, i,
 					&irq_data.u.dec_err);
 				break;
 			case CAM_CAMNOC_HW_IRQ_AHB_TIMEOUT:
-				cam_cpastop_handle_ahb_timeout_err(camnoc_idx,
+				cam_cpastop_handle_ahb_timeout_err(camnoc_type,
 					cpas_hw, &irq_data.u.ahb_err);
 				break;
 			case CAM_CAMNOC_HW_IRQ_CAMNOC_TEST:
 				CAM_INFO(CAM_CPAS, "TEST IRQ for %s",
-					camnoc_info[camnoc_idx]->camnoc_name);
+					g_camnoc_names[camnoc_type]);
 				break;
 			default:
 				CAM_ERR(CAM_CPAS, "Invalid IRQ type: %u", irq_type);
@@ -987,7 +989,7 @@ static void cam_cpastop_work(struct work_struct *work)
 			cam_cpastop_notify_clients(cpas_core, &irq_data, false);
 
 			payload->irq_status &=
-				~camnoc_info[camnoc_idx]->irq_err[i].sbm_port;
+				~curr_camnoc_info->irq_err[i].sbm_port;
 		}
 	}
 	atomic_dec(&cpas_core->soc_access_count);
@@ -996,7 +998,7 @@ static void cam_cpastop_work(struct work_struct *work)
 
 	if (payload->irq_status)
 		CAM_ERR(CAM_CPAS, "%s IRQ not handled irq_status=0x%x",
-			camnoc_info[camnoc_idx]->camnoc_name, payload->irq_status);
+			g_camnoc_names[camnoc_type], payload->irq_status);
 
 	CAM_MEM_FREE(payload);
 }
@@ -1007,10 +1009,11 @@ static irqreturn_t cam_cpastop_handle_irq(int irq_num, void *data)
 	struct cam_hw_info *cpas_hw = soc_irq_data->cpas_hw;
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
-	int regbase_idx, slave_err_irq_idx, camnoc_idx;
+	int regbase_idx, slave_err_irq_idx;
 	struct cam_cpas_work_payload *payload;
 	struct cam_cpas_irq_data irq_data;
 	enum cam_camnoc_hw_type camnoc_type;
+	struct cam_camnoc_info *curr_camnoc_info;
 
 	if (!atomic_inc_not_zero(&cpas_core->soc_access_count)) {
 		CAM_ERR(CAM_CPAS, "CPAS off");
@@ -1023,13 +1026,9 @@ static irqreturn_t cam_cpastop_handle_irq(int irq_num, void *data)
 		goto done;
 	}
 
-	camnoc_idx = cpas_core->camnoc_info_idx[camnoc_type];
-	if ((camnoc_idx < 0) || (camnoc_idx >= cpas_core->num_valid_camnoc)) {
-		CAM_ERR(CAM_CPAS, "Invalid camnoc idx: %d", camnoc_idx);
-		goto done;
-	}
+	curr_camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
 
-	if (camnoc_info[camnoc_idx]->reg_base == CAM_CPAS_REG_CAMNOC_PDX) {
+	if (curr_camnoc_info->reg_base == CAM_CPAS_REG_CAMNOC_PDX) {
 		CAM_INFO(CAM_CPAS, "Unexpected IRQ from Noc = %d", camnoc_type);
 		goto done;
 	}
@@ -1038,41 +1037,41 @@ static irqreturn_t cam_cpastop_handle_irq(int irq_num, void *data)
 	if (!payload)
 		goto done;
 
-	regbase_idx = cpas_core->regbase_index[camnoc_info[camnoc_idx]->reg_base];
+	regbase_idx = cpas_core->regbase_index[curr_camnoc_info->reg_base];
 
 	payload->irq_status = cam_io_r_mb(soc_info->reg_map[regbase_idx].mem_base +
-		camnoc_info[camnoc_idx]->irq_sbm->sbm_status.offset);
-	payload->camnoc_idx = camnoc_idx;
+		curr_camnoc_info->irq_sbm->sbm_status.offset);
+	payload->camnoc_type = camnoc_type;
 
 	CAM_DBG(CAM_CPAS, "IRQ callback of %s irq_status=0x%x",
-		camnoc_info[camnoc_idx]->camnoc_name, payload->irq_status);
+		g_camnoc_names[camnoc_type], payload->irq_status);
 
 #if (defined(CONFIG_CAM_TEST_IRQ_LINE) && defined(CONFIG_CAM_TEST_IRQ_LINE_AT_PROBE))
-	cam_cpastop_check_test_irq(camnoc_idx, cpas_hw, payload->irq_status);
+	cam_cpastop_check_test_irq(camnoc_type, cpas_hw, payload->irq_status);
 #endif
 
 	/* Clear irq */
-	cam_cpastop_reset_irq(payload->irq_status, cpas_hw, camnoc_idx);
+	cam_cpastop_reset_irq(payload->irq_status, cpas_hw, camnoc_type);
 
-	slave_err_irq_idx = cpas_core->slave_err_irq_idx[camnoc_idx];
+	slave_err_irq_idx = cpas_core->slave_err_irq_idx[camnoc_type];
 
 	/* Check for slave error irq */
-	if ((cpas_core->slave_err_irq_en[camnoc_idx]) && (payload->irq_status &
-		camnoc_info[camnoc_idx]->irq_err[slave_err_irq_idx].sbm_port)) {
+	if ((cpas_core->slave_err_irq_en[camnoc_type]) && (payload->irq_status &
+		curr_camnoc_info->irq_err[slave_err_irq_idx].sbm_port)) {
 		struct cam_camnoc_irq_slave_err_data *slave_err = &irq_data.u.slave_err;
 
 		irq_data.irq_type = (enum cam_camnoc_irq_type)
-			camnoc_info[camnoc_idx]->irq_err[slave_err_irq_idx].irq_type;
+			curr_camnoc_info->irq_err[slave_err_irq_idx].irq_type;
 		slave_err->errlog0_low.value = cam_io_r_mb(
 			soc_info->reg_map[regbase_idx].mem_base +
-			camnoc_info[camnoc_idx]->err_logger->errlog0_low);
+			curr_camnoc_info->err_logger->errlog0_low);
 
 		/* Validate address decode error */
 		if (slave_err->errlog0_low.err_code == CAM_CAMNOC_ADDRESS_DECODE_ERROR) {
 			/* Notify clients about potential page fault */
 			if (!cpas_core->smmu_fault_handled) {
 				/* Dump error logger */
-				cam_cpastop_handle_errlogger(camnoc_idx, cpas_core, soc_info,
+				cam_cpastop_handle_errlogger(camnoc_type, cpas_core, soc_info,
 					&irq_data.u.slave_err);
 				cam_cpastop_notify_clients(cpas_core, &irq_data, true);
 			}
@@ -1080,7 +1079,7 @@ static irqreturn_t cam_cpastop_handle_irq(int irq_num, void *data)
 
 			/* Skip bh if no other irq is set */
 			payload->irq_status &=
-				~camnoc_info[camnoc_idx]->irq_err[slave_err_irq_idx].sbm_port;
+				~curr_camnoc_info->irq_err[slave_err_irq_idx].sbm_port;
 			if (!payload->irq_status) {
 				CAM_MEM_FREE(payload);
 				goto done;
@@ -1101,44 +1100,136 @@ done:
 	return IRQ_HANDLED;
 }
 
+static void cam_cpastop_dump_camnoc_buff_fill_info(
+	struct cam_hw_info *cpas_hw)
+{
+	int i, camnoc_type;
+	uint32_t val = 0;
+	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
+	struct cam_camnoc_info *camnoc_info;
+	char log_buf[CAM_CPAS_LOG_BUF_LEN];
+	size_t len;
+
+	/* log buffer fill level of both RT/NRT NIU */
+	for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+		if (cpas_core->hw_info->camnoc_info[camnoc_type]) {
+			log_buf[0] = '\0';
+			len = 0;
+			camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
+			int reg_base_index = cpas_core->regbase_index[camnoc_info->reg_base];
+
+			for (i = 0; i < camnoc_info->num_nius; i++) {
+				if ((!camnoc_info->niu[i].enable) ||
+					(!camnoc_info->niu[i].maxwr_low.enable))
+					continue;
+
+				val = cam_io_r_mb(
+					cpas_hw->soc_info.reg_map[reg_base_index].mem_base +
+					camnoc_info->niu[i].maxwr_low.offset);
+
+				len += scnprintf((log_buf + len), (CAM_CPAS_LOG_BUF_LEN - len),
+					" %s:[%d %d]", camnoc_info->niu[i].port_name,
+					(val & 0x7FF), (val & 0x7F0000) >> 16);
+
+				/* Clear the camnoc fill levels post read */
+				cam_io_w_mb(camnoc_info->niu[i].maxwrclr_low.value,
+					(cpas_hw->soc_info.reg_map[reg_base_index].mem_base +
+					camnoc_info->niu[i].maxwrclr_low.offset));
+			}
+
+			CAM_INFO(CAM_CPAS, "%s Fill level [Queued Pending] %s",
+				g_camnoc_names[camnoc_type], log_buf);
+		}
+	}
+
+}
+
+static void cam_cpastop_save_camnoc_buff_fill_info(
+	struct cam_hw_info *cpas_hw, struct cam_cpas_monitor *entry)
+{
+	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
+	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
+	int i, j, camnoc_type, camnoc_reg_idx;
+	struct cam_camnoc_info *camnoc_info;
+	uint32_t val;
+
+	for (camnoc_type = 0; camnoc_type < CAM_CAMNOC_HW_TYPE_MAX; camnoc_type++) {
+		if (cpas_core->hw_info->camnoc_info[camnoc_type]) {
+			camnoc_info = cpas_core->hw_info->camnoc_info[camnoc_type];
+			camnoc_reg_idx = cpas_core->regbase_index[camnoc_info->reg_base];
+
+			for (i = 0, j = 0; i < camnoc_info->num_nius; i++) {
+				if ((!camnoc_info->niu[i].enable) ||
+					(!camnoc_info->niu[i].maxwr_low.enable))
+					continue;
+
+				if (j >= CAM_CAMNOC_FILL_LVL_REG_INFO_MAX) {
+					CAM_WARN(CAM_CPAS,
+						"CPAS monitor reg info buffer full, max : %d",
+						j);
+					break;
+				}
+
+				entry->camnoc_port_name[camnoc_type][j] =
+					camnoc_info->niu[i].port_name;
+				val = cam_io_r_mb(soc_info->reg_map[camnoc_reg_idx].mem_base +
+					camnoc_info->niu[i].maxwr_low.offset);
+				entry->camnoc_fill_level[camnoc_type][j] = val;
+
+				/* Clear the camnoc fill levels post read */
+				cam_io_w_mb(camnoc_info->niu[i].maxwrclr_low.value,
+					(soc_info->reg_map[camnoc_reg_idx].mem_base +
+					camnoc_info->niu[i].maxwrclr_low.offset));
+
+				j++;
+			}
+
+			entry->num_camnoc_lvl_regs[camnoc_type] = j;
+		}
+	}
+}
+
 static int cam_cpastop_print_poweron_settings(struct cam_hw_info *cpas_hw)
 {
 	int i, j;
 	enum cam_cpas_reg_base reg_base;
 	struct cam_cpas *cpas_core = cpas_hw->core_info;
+	struct cam_camnoc_info *curr_camnoc_info;
 
-	for (i = 0; i < cpas_core->num_valid_camnoc; i++) {
-		CAM_INFO(CAM_CPAS, "QOS settings for %s :",
-			camnoc_info[i]->camnoc_name);
-		for (j = 0; j < camnoc_info[i]->specific_size; j++) {
-			if (camnoc_info[i]->specific[j].enable) {
-				CAM_INFO(CAM_CPAS,
-					"Reading QoS settings port: %d port name: %s",
-					camnoc_info[i]->specific[j].port_type,
-					camnoc_info[i]->specific[j].port_name);
-				reg_base = camnoc_info[i]->reg_base;
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].priority_lut_low);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].priority_lut_high);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].urgency);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].danger_lut);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].safe_lut);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].ubwc_ctl);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].flag_out_set0_low);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].dynattr_mainctl);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].qosgen_mainctl);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].qosgen_shaping_low);
-				cam_cpas_util_reg_read(cpas_hw, reg_base,
-					&camnoc_info[i]->specific[j].qosgen_shaping_high);
+	for (i = 0; i < CAM_CAMNOC_HW_TYPE_MAX; i++) {
+		curr_camnoc_info = cpas_core->hw_info->camnoc_info[i];
+		if (curr_camnoc_info) {
+			CAM_INFO(CAM_CPAS, "QOS settings for %s :", g_camnoc_names[i]);
+			for (j = 0; j < curr_camnoc_info->num_nius; j++) {
+				if (curr_camnoc_info->niu[j].enable) {
+					CAM_INFO(CAM_CPAS,
+						"Reading QoS settings port: %d port name: %s",
+						curr_camnoc_info->niu[j].port_type,
+						curr_camnoc_info->niu[j].port_name);
+					reg_base = curr_camnoc_info->reg_base;
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].priority_lut_low);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].priority_lut_high);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].urgency);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].danger_lut);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].safe_lut);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].ubwc_ctl);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].flag_out_set0_low);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].dynattr_mainctl);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].qosgen_mainctl);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].qosgen_shaping_low);
+					cam_cpas_util_reg_read(cpas_hw, reg_base,
+						&curr_camnoc_info->niu[j].qosgen_shaping_high);
+				}
 			}
 		}
 	}
@@ -1146,67 +1237,95 @@ static int cam_cpastop_print_poweron_settings(struct cam_hw_info *cpas_hw)
 	return 0;
 }
 
-static int cam_cpastop_poweron(struct cam_hw_info *cpas_hw)
+static void cam_cpastop_curr_camnoc_poweron(struct cam_hw_info *cpas_hw,
+	struct cam_camnoc_info *curr_camnoc_info, bool *errata_enabled)
 {
-	int i, j, rc = 0;
+	int j;
 	struct cam_cpas_hw_errata_wa_list *errata_wa_list;
 	struct cam_cpas_hw_errata_wa *errata_wa;
+
+	CAM_DBG(CAM_CPAS, "QOS settings for %s :",
+		g_camnoc_names[curr_camnoc_info->camnoc_type]);
+
+	for (j = 0; j < curr_camnoc_info->num_nius; j++) {
+		if (curr_camnoc_info->niu[j].enable) {
+			CAM_DBG(CAM_CPAS,
+				"Updating QoS settings port: %d prot name: %s",
+				curr_camnoc_info->niu[j].port_type,
+				curr_camnoc_info->niu[j].port_name);
+
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].priority_lut_low);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].priority_lut_high);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].urgency);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].danger_lut);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].safe_lut);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].ubwc_ctl);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].flag_out_set0_low);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].dynattr_mainctl);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].qosgen_mainctl);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].qosgen_shaping_low);
+			cam_cpas_util_reg_update(cpas_hw,
+				curr_camnoc_info->reg_base,
+				&curr_camnoc_info->niu[j].qosgen_shaping_high);
+		}
+	}
+
+	if (!(*errata_enabled)) {
+		errata_wa_list = curr_camnoc_info->errata_wa_list;
+		if (errata_wa_list) {
+			errata_wa = &errata_wa_list->tcsr_camera_hf_sf_ares_glitch;
+			if (errata_wa->enable) {
+				cam_cpastop_scm_write(errata_wa);
+				*errata_enabled = true;
+			}
+		}
+	}
+}
+
+static int cam_cpastop_poweron(struct cam_hw_info *cpas_hw)
+{
+	int i, rc = 0;
 	struct cam_cpas *cpas_core = cpas_hw->core_info;
 	struct cam_cpas_private_soc *soc_private =
 		(struct cam_cpas_private_soc *) cpas_hw->soc_info.soc_private;
 	bool errata_enabled = false;
 	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
 	int index;
+	struct cam_camnoc_info *curr_camnoc_info;
+	struct cam_cpas_secure_info *hw_caps_secure_info;
 
-	for (i = 0; i < cpas_core->num_valid_camnoc; i++)
-		if (camnoc_info[i]->reg_base != CAM_CPAS_REG_CAMNOC_PDX)
+	for (i = 0; i < CAM_CAMNOC_HW_TYPE_MAX; i++) {
+		curr_camnoc_info = cpas_core->hw_info->camnoc_info[i];
+		if (curr_camnoc_info && (curr_camnoc_info->reg_base != CAM_CPAS_REG_CAMNOC_PDX))
 			cam_cpastop_reset_irq(0x0, cpas_hw, i);
+	}
 
 	if (!soc_private->enable_secure_qos_update) {
-		for (i = 0; i < cpas_core->num_valid_camnoc; i++) {
-			CAM_DBG(CAM_CPAS, "QOS settings for %s :",
-				camnoc_info[i]->camnoc_name);
-			for (j = 0; j < camnoc_info[i]->specific_size; j++) {
-				if (camnoc_info[i]->specific[j].enable) {
-					CAM_DBG(CAM_CPAS,
-						"Updating QoS settings port: %d prot name: %s",
-						camnoc_info[i]->specific[j].port_type,
-						camnoc_info[i]->specific[j].port_name);
-
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].priority_lut_low);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].priority_lut_high);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].urgency);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].danger_lut);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].safe_lut);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].ubwc_ctl);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].flag_out_set0_low);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].dynattr_mainctl);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].qosgen_mainctl);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].qosgen_shaping_low);
-					cam_cpas_util_reg_update(cpas_hw, camnoc_info[i]->reg_base,
-						&camnoc_info[i]->specific[j].qosgen_shaping_high);
-				}
-			}
-
-			if (!errata_enabled) {
-				errata_wa_list = camnoc_info[i]->errata_wa_list;
-				if (errata_wa_list) {
-					errata_wa = &errata_wa_list->tcsr_camera_hf_sf_ares_glitch;
-					if (errata_wa->enable) {
-						cam_cpastop_scm_write(errata_wa);
-						errata_enabled = true;
-					}
-				}
+		for (i = 0; i < CAM_CAMNOC_HW_TYPE_MAX; i++) {
+			curr_camnoc_info = cpas_core->hw_info->camnoc_info[i];
+			if (curr_camnoc_info) {
+				cam_cpastop_curr_camnoc_poweron(cpas_hw, curr_camnoc_info,
+					&errata_enabled);
 			}
 		}
 	} else {
@@ -1227,15 +1346,16 @@ static int cam_cpastop_poweron(struct cam_hw_info *cpas_hw)
 		index = cpas_core->regbase_index[CAM_CPAS_REG_SECURE];
 
 		if (index != -1) {
+			hw_caps_secure_info = cpas_core->hw_info->cpas_info->hw_caps_secure_info;
 			CAM_DBG(CAM_CPAS,
 				"Set reg offset: 0x%x value: 0x%x with regbase index: %d for secure",
-				cpas_info->hw_caps_secure_info->secure_access_ctrl_offset,
-				cpas_info->hw_caps_secure_info->secure_access_ctrl_value,
+				hw_caps_secure_info->secure_access_ctrl_offset,
+				hw_caps_secure_info->secure_access_ctrl_value,
 				index);
 
-			cam_io_w_mb(cpas_info->hw_caps_secure_info->secure_access_ctrl_value,
+			cam_io_w_mb(hw_caps_secure_info->secure_access_ctrl_value,
 				soc_info->reg_map[index].mem_base +
-				cpas_info->hw_caps_secure_info->secure_access_ctrl_offset);
+				hw_caps_secure_info->secure_access_ctrl_offset);
 		} else {
 			CAM_WARN(CAM_CPAS, "Invalid CPAS secure regbase index: %d",
 				index);
@@ -1249,17 +1369,30 @@ static int cam_cpastop_poweroff(struct cam_hw_info *cpas_hw)
 {
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
 	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
-	int camnoc_index, rc = 0;
-	struct cam_cpas_hw_errata_wa_list *errata_wa_list;
+	int i, camnoc_index = -1, rc = 0;
+	struct cam_cpas_hw_errata_wa_list *errata_wa_list = NULL;
 	struct cam_cpas_hw_errata_wa *errata_wa;
+	struct cam_camnoc_info *curr_camnoc_info;
 
-	errata_wa_list = camnoc_info[0]->errata_wa_list;
+	/*
+	 * Based on the assumption that - Errata list is same in all camnoc instance information,
+	 * so get one valid camnoc info handle and process workaround list
+	 */
+	for (i = 0; i < CAM_CAMNOC_HW_TYPE_MAX; i++) {
+		if (cpas_core->hw_info->camnoc_info[i]) {
+			curr_camnoc_info = cpas_core->hw_info->camnoc_info[i];
+
+			errata_wa_list = curr_camnoc_info->errata_wa_list;
+			camnoc_index = cpas_core->regbase_index[curr_camnoc_info->reg_base];
+			break;
+		}
+	}
+
 	if (!errata_wa_list)
 		return 0;
 
 	if (errata_wa_list->camnoc_flush_slave_pending_trans.enable) {
 		errata_wa = &errata_wa_list->camnoc_flush_slave_pending_trans;
-		camnoc_index = cpas_core->regbase_index[camnoc_info[0]->reg_base];
 
 		rc = cam_io_poll_value_wmask(
 			soc_info->reg_map[camnoc_index].mem_base +
@@ -1294,15 +1427,17 @@ static int cam_cpastop_qchannel_handshake(struct cam_hw_info *cpas_hw,
 	bool icp_clk_enabled = false;
 	struct cam_cpas_camnoc_qchannel *qchannel_info;
 	uint32_t busy_mask;
+	struct cam_camnoc_info *curr_camnoc_info;
 
 	if (reg_indx == -1)
 		return -EINVAL;
 
-	for (i = 0; i < cpas_info->num_qchannel; i++) {
-		qchannel_info = cpas_info->qchannel_info[i];
+	for (i = 0; i < cpas_core->hw_info->cpas_info->num_qchannel; i++) {
+		qchannel_info = cpas_core->hw_info->cpas_info->qchannel_info[i];
+		curr_camnoc_info = qchannel_info->camnoc_info;
 
 		if (!icp_clk_enabled) {
-			errata_wa_list = camnoc_info[i]->errata_wa_list;
+			errata_wa_list = curr_camnoc_info->errata_wa_list;
 			if (errata_wa_list && errata_wa_list->enable_icp_clk_for_qchannel.enable) {
 				CAM_DBG(CAM_CPAS, "Enabling ICP clk for qchannel handshake");
 
@@ -1328,7 +1463,7 @@ static int cam_cpastop_qchannel_handshake(struct cam_hw_info *cpas_hw,
 					soc_info->reg_map[reg_indx].mem_base +
 					qchannel_info->qchannel_ctrl);
 				CAM_DBG(CAM_CPAS, "Force qchannel on for %s",
-						camnoc_info[i]->camnoc_name);
+						g_camnoc_names[curr_camnoc_info->camnoc_type]);
 			}
 			/* wait for QACCEPTN in QCHANNEL status*/
 			mask = BIT(0);
@@ -1339,7 +1474,7 @@ static int cam_cpastop_qchannel_handshake(struct cam_hw_info *cpas_hw,
 					soc_info->reg_map[reg_indx].mem_base +
 					qchannel_info->qchannel_ctrl);
 				CAM_DBG(CAM_CPAS, "Force qchannel on for %s now sleep for 1us",
-						camnoc_info[i]->camnoc_name);
+						g_camnoc_names[curr_camnoc_info->camnoc_type]);
 				usleep_range(1, 2);
 			}
 			/* Clear the quiecience request in QCHANNEL ctrl*/
@@ -1358,7 +1493,7 @@ static int cam_cpastop_qchannel_handshake(struct cam_hw_info *cpas_hw,
 		if (rc) {
 			CAM_ERR(CAM_CPAS,
 			"CPAS_%s %s idle sequence failed, qstat 0x%x",
-			power_on ? "START" : "STOP", camnoc_info[i]->camnoc_name,
+			power_on ? "START" : "STOP", g_camnoc_names[curr_camnoc_info->camnoc_type],
 			cam_io_r(soc_info->reg_map[reg_indx].mem_base +
 				qchannel_info->qchannel_status));
 			ret = rc;
@@ -1370,7 +1505,7 @@ static int cam_cpastop_qchannel_handshake(struct cam_hw_info *cpas_hw,
 			qchannel_info->qchannel_status);
 		CAM_DBG(CAM_CPAS,
 			"CPAS_%s %s : qchannel status 0x%x", power_on ? "START" : "STOP",
-			camnoc_info[i]->camnoc_name, qchannel_status);
+			g_camnoc_names[curr_camnoc_info->camnoc_type], qchannel_status);
 
 		qbusy = (qchannel_status & busy_mask);
 		if (!power_on && qbusy)
@@ -1389,45 +1524,21 @@ static int cam_cpastop_qchannel_handshake(struct cam_hw_info *cpas_hw,
 	return ret;
 }
 
-static int cam_cpastop_set_up_camnoc_info(struct cam_cpas *cpas_core,
-	struct cam_camnoc_info **alloc_camnoc)
+static int cam_cpastop_setup_camnoc_info(struct cam_cpas *cpas_core)
 {
 	int i, j, camnoc_cnt = 0;
+	struct cam_camnoc_info *curr_camnoc_info;
 
 	for (i = 0; i < CAM_CAMNOC_HW_TYPE_MAX; i++) {
-		if (alloc_camnoc[i]) {
-			alloc_camnoc[i]->camnoc_name = cam_cpastop_get_camnoc_name(i);
-			camnoc_info[camnoc_cnt] = alloc_camnoc[i];
-			cpas_core->camnoc_info[camnoc_cnt] = alloc_camnoc[i];
-			cpas_core->camnoc_info_idx[i] = camnoc_cnt;
+		if (cpas_core->hw_info->camnoc_info[i]) {
+			curr_camnoc_info = cpas_core->hw_info->camnoc_info[i];
 
-			switch (i) {
-			case CAM_CAMNOC_HW_COMBINED:
-				camnoc_info[camnoc_cnt]->reg_base = CAM_CPAS_REG_CAMNOC;
-				break;
-			case CAM_CAMNOC_HW_RT:
-				camnoc_info[camnoc_cnt]->reg_base = CAM_CPAS_REG_CAMNOC_RT;
-				break;
-			case CAM_CAMNOC_HW_NRT:
-				camnoc_info[camnoc_cnt]->reg_base = CAM_CPAS_REG_CAMNOC_NRT;
-				break;
-			case CAM_CAMNOC_HW_PDX:
-				camnoc_info[camnoc_cnt]->reg_base = CAM_CPAS_REG_CAMNOC_PDX;
-				break;
-			default:
-				CAM_ERR(CAM_CPAS, "Invalid camnoc type %u", i);
-				return -EINVAL;
-			}
-
-
-			if (cpas_core->regbase_index[camnoc_info[camnoc_cnt]->reg_base] == -1) {
+			if (cpas_core->regbase_index[curr_camnoc_info->reg_base] == -1) {
 				CAM_ERR(CAM_CPAS, "Regbase not set up for %s",
-					camnoc_info[i]->camnoc_name);
+					g_camnoc_names[i]);
 				return -EINVAL;
 			}
 			camnoc_cnt++;
-		} else {
-			cpas_core->camnoc_info_idx[i] = -1;
 		}
 	}
 
@@ -1436,18 +1547,17 @@ static int cam_cpastop_set_up_camnoc_info(struct cam_cpas *cpas_core,
 		return -EINVAL;
 	}
 
-	if (cpas_info->num_qchannel && cpas_info->num_qchannel != camnoc_cnt) {
+	if (cpas_core->hw_info->cpas_info->num_qchannel &&
+		cpas_core->hw_info->cpas_info->num_qchannel != camnoc_cnt) {
 		CAM_ERR(CAM_CPAS, "Invalid number of qchannel: %u number of camnoc: %u",
-			cpas_info->num_qchannel, camnoc_cnt);
+			cpas_core->hw_info->cpas_info->num_qchannel, camnoc_cnt);
 		return -EINVAL;
 	}
 
-	cpas_core->num_valid_camnoc = camnoc_cnt;
-
-	if (cpas_core->camnoc_info_idx[CAM_CAMNOC_HW_COMBINED] >= 0)
-		cpas_core->camnoc_rt_idx = cpas_core->camnoc_info_idx[CAM_CAMNOC_HW_COMBINED];
-	else if (cpas_core->camnoc_info_idx[CAM_CAMNOC_HW_RT] >= 0)
-		cpas_core->camnoc_rt_idx = cpas_core->camnoc_info_idx[CAM_CAMNOC_HW_RT];
+	if (cpas_core->hw_info->camnoc_info[CAM_CAMNOC_HW_COMBINED])
+		cpas_core->camnoc_rt_idx = CAM_CAMNOC_HW_COMBINED;
+	else if (cpas_core->hw_info->camnoc_info[CAM_CAMNOC_HW_RT])
+		cpas_core->camnoc_rt_idx = CAM_CAMNOC_HW_RT;
 	else {
 		cpas_core->camnoc_rt_idx = -1;
 		CAM_ERR(CAM_CPAS, "No CAMNOC RT idx found");
@@ -1455,14 +1565,18 @@ static int cam_cpastop_set_up_camnoc_info(struct cam_cpas *cpas_core,
 	}
 
 	/* Check if slave error irq is enabled */
-	for (i = 0; i < cpas_core->num_valid_camnoc; i++) {
-		for (j = 0; j < camnoc_info[i]->irq_err_size; j++) {
-			if (camnoc_info[i]->irq_err[j].irq_type ==
-				CAM_CAMNOC_HW_IRQ_SLAVE_ERROR) {
-				if (camnoc_info[i]->irq_err[j].enable) {
-					cpas_core->slave_err_irq_en[i] = true;
-					cpas_core->slave_err_irq_idx[i] = j;
-					break;
+	for (i = 0; i < CAM_CAMNOC_HW_TYPE_MAX; i++) {
+		if (cpas_core->hw_info->camnoc_info[i]) {
+			curr_camnoc_info = cpas_core->hw_info->camnoc_info[i];
+
+			for (j = 0; j < curr_camnoc_info->irq_err_size; j++) {
+				if (curr_camnoc_info->irq_err[j].irq_type ==
+					CAM_CAMNOC_HW_IRQ_SLAVE_ERROR) {
+					if (curr_camnoc_info->irq_err[j].enable) {
+						cpas_core->slave_err_irq_en[i] = true;
+						cpas_core->slave_err_irq_idx[i] = j;
+						break;
+					}
 				}
 			}
 		}
@@ -1479,7 +1593,7 @@ static int cam_cpastop_get_hw_capability(struct cam_hw_info *cpas_hw)
 	struct cam_cpas_hw_cap_info *hw_caps_info;
 	struct cam_cpas_hw_caps *hw_caps = &cpas_core->hw_caps;
 
-	hw_caps_info = &cpas_info->hw_caps_info;
+	hw_caps_info = &cpas_core->hw_info->cpas_info->hw_caps_info;
 	reg_idx = cpas_core->regbase_index[CAM_CPAS_REG_CPASTOP];
 
 	/* At least one hw caps register must be present */
@@ -1530,18 +1644,25 @@ static int cam_cpastop_set_tpg_mux_sel(struct cam_hw_info *cpas_hw,
 
 	reg_cpas_top = cpas_core->regbase_index[CAM_CPAS_REG_CPASTOP];
 
-	if (cpas_top_info == NULL)
+	if (!cpas_core->hw_info->cpas_info)
 		return 0;
 
-	if (!cpas_top_info->tpg_mux_sel_enabled)
+	if (!cpas_core->hw_info->cpas_info->tpg_mux_info)
+		return 0;
+
+	if (!cpas_core->hw_info->cpas_info->tpg_mux_info->tpg_mux_sel_enabled)
 		return 0;
 
 	curr_tpg_mux = cam_io_r_mb(soc_info->reg_map[reg_cpas_top].mem_base +
-		cpas_top_info->tpg_mux_sel);
+		cpas_core->hw_info->cpas_info->tpg_mux_info->tpg_mux_sel);
 
-	curr_tpg_mux = curr_tpg_mux | ((1 << tpg_mux) << cpas_top_info->tpg_mux_sel_shift);
+	curr_tpg_mux =
+		curr_tpg_mux |
+		((1 << tpg_mux) << cpas_core->hw_info->cpas_info->tpg_mux_info->tpg_mux_sel_shift);
+
 	cam_io_w_mb(curr_tpg_mux, soc_info->reg_map[reg_cpas_top].mem_base +
-		cpas_top_info->tpg_mux_sel);
+		cpas_core->hw_info->cpas_info->tpg_mux_info->tpg_mux_sel);
+
 	CAM_DBG(CAM_CPAS, "SET TPG MUX to 0x%x", curr_tpg_mux);
 
 	return 0;
@@ -1553,12 +1674,6 @@ static int cam_cpastop_init_hw_version(struct cam_hw_info *cpas_hw,
 	int rc = 0;
 	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
 	struct cam_cpas *cpas_core = (struct cam_cpas *) cpas_hw->core_info;
-	struct cam_cpas_cesta_info *cesta_info = NULL;
-	struct cam_cpas_llcc_reg_info *llcc_reg_info = NULL;
-	struct cam_camnoc_info *alloc_camnoc_info[CAM_CAMNOC_HW_TYPE_MAX] = {0};
-
-	qchannel_info = NULL;
-	cpas_top_info = NULL;
 
 	CAM_DBG(CAM_CPAS,
 		"hw_version=0x%x Camera Version %d.%d.%d, cpas version %d.%d.%d",
@@ -1572,122 +1687,82 @@ static int cam_cpastop_init_hw_version(struct cam_hw_info *cpas_hw,
 
 	switch (soc_info->hw_version) {
 	case CAM_CPAS_TITAN_170_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam170_cpas100_camnoc_info;
-		cpas_info = &cam170_cpas100_cpas_info;
+		cpas_core->hw_info = &cam170_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_170_V110:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam170_cpas110_camnoc_info;
-		cpas_info = &cam170_cpas110_cpas_info;
+		cpas_core->hw_info = &cam170_cpas110_hw_info;
 		break;
 	case CAM_CPAS_TITAN_170_V200:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam170_cpas200_camnoc_info;
-		cpas_info = &cam170_cpas200_cpas_info;
+		cpas_core->hw_info = &cam170_cpas200_hw_info;
 		break;
 	case CAM_CPAS_TITAN_175_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam175_cpas100_camnoc_info;
-		cpas_info = &cam175_cpas100_cpas_info;
+		cpas_core->hw_info = &cam175_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_175_V101:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam175_cpas101_camnoc_info;
-		cpas_info = &cam175_cpas101_cpas_info;
+		cpas_core->hw_info = &cam175_cpas101_hw_info;
 		break;
 	case CAM_CPAS_TITAN_175_V120:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam175_cpas120_camnoc_info;
-		cpas_info = &cam175_cpas120_cpas_info;
+		cpas_core->hw_info = &cam175_cpas120_hw_info;
 		break;
 	case CAM_CPAS_TITAN_175_V130:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam175_cpas130_camnoc_info;
-		cpas_info = &cam175_cpas130_cpas_info;
+		cpas_core->hw_info = &cam175_cpas130_hw_info;
 		break;
 	case CAM_CPAS_TITAN_150_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam150_cpas100_camnoc_info;
-		cpas_info = &cam150_cpas100_cpas_info;
+		cpas_core->hw_info = &cam150_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_480_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam480_cpas100_camnoc_info;
-		cpas_info = &cam480_cpas100_cpas_info;
+		cpas_core->hw_info = &cam480_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_580_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam580_cpas100_camnoc_info;
-		cpas_info = &cam580_cpas100_cpas_info;
+		cpas_core->hw_info = &cam580_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_540_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam540_cpas100_camnoc_info;
-		cpas_info = &cam540_cpas100_cpas_info;
+		cpas_core->hw_info = &cam540_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_520_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam520_cpas100_camnoc_info;
-		cpas_info = &cam520_cpas100_cpas_info;
+		cpas_core->hw_info = &cam520_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_545_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam545_cpas100_camnoc_info;
-		cpas_info = &cam545_cpas100_cpas_info;
+		cpas_core->hw_info = &cam545_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_570_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam570_cpas100_camnoc_info;
-		cpas_info = &cam570_cpas100_cpas_info;
+		cpas_core->hw_info = &cam570_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_570_V200:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam570_cpas200_camnoc_info;
-		cpas_info = &cam570_cpas200_cpas_info;
+		cpas_core->hw_info = &cam570_cpas200_hw_info;
 		break;
 	case CAM_CPAS_TITAN_680_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam680_cpas100_camnoc_info;
-		cpas_info = &cam680_cpas100_cpas_info;
+		cpas_core->hw_info = &cam680_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_680_V110:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam680_cpas110_camnoc_info;
-		cpas_info = &cam680_cpas110_cpas_info;
+		cpas_core->hw_info = &cam680_cpas110_hw_info;
 		break;
 	case CAM_CPAS_TITAN_165_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam165_cpas100_camnoc_info;
-		cpas_info = &cam165_cpas100_cpas_info;
+		cpas_core->hw_info = &cam165_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_780_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam780_cpas100_camnoc_info;
-		cpas_info = &cam780_cpas100_cpas_info;
+		cpas_core->hw_info = &cam780_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_640_V200:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam640_cpas200_camnoc_info;
-		cpas_info = &cam640_cpas200_cpas_info;
-		cpas_top_info = &cam640_cpas200_cpas_top_info;
+		cpas_core->hw_info = &cam640_cpas200_hw_info;
 		break;
 	case CAM_CPAS_TITAN_880_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam880_cpas100_camnoc_info;
-		cpas_info = &cam880_cpas100_cpas_info;
-		cesta_info = &cam_v880_cesta_info;
+		cpas_core->hw_info = &cam880_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_975_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_RT] = &cam975_cpas100_camnoc_info_rt;
-		alloc_camnoc_info[CAM_CAMNOC_HW_NRT] = &cam975_cpas100_camnoc_info_nrt;
-		cpas_info = &cam975_cpas100_cpas_info;
-		cesta_info = &cam_v975_cesta_info;
+		cpas_core->hw_info = &cam975_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_970_V110:
-		alloc_camnoc_info[CAM_CAMNOC_HW_RT] = &cam970_cpas110_camnoc_info_rt;
-		alloc_camnoc_info[CAM_CAMNOC_HW_NRT] = &cam970_cpas110_camnoc_info_nrt;
-		cpas_info = &cam970_cpas110_cpas_info;
+		cpas_core->hw_info = &cam970_cpas110_hw_info;
 		break;
 	case CAM_CPAS_TITAN_980_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_RT] = &cam980_cpas100_camnoc_info_rt;
-		alloc_camnoc_info[CAM_CAMNOC_HW_NRT] = &cam980_cpas100_camnoc_info_nrt;
-		cpas_info = &cam980_cpas100_cpas_info;
-		cesta_info = &cam_v980_cesta_info;
+		cpas_core->hw_info = &cam980_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_1080_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_RT] = &cam1080_cpas100_camnoc_info_rt;
-		alloc_camnoc_info[CAM_CAMNOC_HW_NRT] = &cam1080_cpas100_camnoc_info_nrt;
-		alloc_camnoc_info[CAM_CAMNOC_HW_PDX] = &cam1080_cpas100_camnoc_info_pdx;
-		cpas_info = &cam1080_cpas100_cpas_info;
-		cesta_info = &cam_v1080_cesta_info;
-		llcc_reg_info = &cam_v1080_100_llcc_reg_info;
+		cpas_core->hw_info = &cam1080_cpas100_hw_info;
 		break;
 	case CAM_CPAS_TITAN_1077_V100:
-		alloc_camnoc_info[CAM_CAMNOC_HW_RT] = &cam1077_cpas100_camnoc_info_rt;
-		alloc_camnoc_info[CAM_CAMNOC_HW_NRT] = &cam1077_cpas100_camnoc_info_nrt;
-		alloc_camnoc_info[CAM_CAMNOC_HW_PDX] = &cam1077_cpas100_camnoc_info_pdx;
-		cpas_info = &cam1077_cpas100_cpas_info;
-		cesta_info = &cam_v1077_cesta_info;
+		cpas_core->hw_info = &cam1077_cpas100_hw_info;
 		break;
 	default:
 		CAM_ERR(CAM_CPAS, "Camera Version not supported %d.%d.%d",
@@ -1697,11 +1772,7 @@ static int cam_cpastop_init_hw_version(struct cam_hw_info *cpas_hw,
 		return -EINVAL;
 	}
 
-	cpas_core->cesta_info = cesta_info;
-	cpas_core->cam_subpart_info =  cpas_info->subpart_info;
-	cpas_core->llcc_reg_info = llcc_reg_info;
-
-	rc = cam_cpastop_set_up_camnoc_info(cpas_core, alloc_camnoc_info);
+	rc = cam_cpastop_setup_camnoc_info(cpas_core);
 	if (rc) {
 		CAM_ERR(CAM_CPAS, "Failed to set up camnoc info rc=%d", rc);
 		return rc;
@@ -1721,6 +1792,7 @@ static int cam_cpastop_setup_qos_settings(struct cam_hw_info *cpas_hw,
 {
 	int rc = 0;
 	struct cam_hw_soc_info *soc_info = &cpas_hw->soc_info;
+	struct cam_cpas *cpas_core = cpas_hw->core_info;
 
 	CAM_DBG(CAM_CPAS,
 		"QoS selection : hw_version=0x%x selection_mask 0x%x",
@@ -1730,18 +1802,18 @@ static int cam_cpastop_setup_qos_settings(struct cam_hw_info *cpas_hw,
 	switch (soc_info->hw_version) {
 	case CAM_CPAS_TITAN_480_V100:
 		if (selection_mask & CAM_CPAS_QOS_CUSTOM_SETTINGS_MASK)
-			camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam480_custom_camnoc_info;
+			cpas_core->hw_info = &cam480_custom_hw_info;
 		else if (selection_mask & CAM_CPAS_QOS_DEFAULT_SETTINGS_MASK)
-			camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam480_cpas100_camnoc_info;
+			cpas_core->hw_info = &cam480_cpas100_hw_info;
 		else
 			CAM_ERR(CAM_CPAS, "Invalid selection mask 0x%x",
 				selection_mask);
 		break;
 	case CAM_CPAS_TITAN_580_V100:
 		if (selection_mask & CAM_CPAS_QOS_CUSTOM_SETTINGS_MASK)
-			camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam580_custom_camnoc_info;
+			cpas_core->hw_info = &cam580_custom_hw_info;
 		else if (selection_mask & CAM_CPAS_QOS_DEFAULT_SETTINGS_MASK)
-			camnoc_info[CAM_CAMNOC_HW_COMBINED] = &cam580_cpas100_camnoc_info;
+			cpas_core->hw_info = &cam580_cpas100_hw_info;
 		else
 			CAM_ERR(CAM_CPAS,
 				"Invalid selection mask 0x%x for hw 0x%x",
@@ -1775,6 +1847,8 @@ int cam_cpastop_get_internal_ops(struct cam_cpas_internal_ops *internal_ops)
 		cam_cpastop_print_poweron_settings;
 	internal_ops->qchannel_handshake = cam_cpastop_qchannel_handshake;
 	internal_ops->set_tpg_mux_sel = cam_cpastop_set_tpg_mux_sel;
+	internal_ops->dump_camnoc_buff_fill_info = cam_cpastop_dump_camnoc_buff_fill_info;
+	internal_ops->save_camnoc_buff_fill_info = cam_cpastop_save_camnoc_buff_fill_info;
 
 	return 0;
 }

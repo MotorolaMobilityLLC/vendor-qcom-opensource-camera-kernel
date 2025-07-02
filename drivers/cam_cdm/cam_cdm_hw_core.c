@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/delay.h>
@@ -1551,7 +1551,7 @@ irqreturn_t cam_hw_cdm_irq(int irq_num, void *data)
 	struct cam_cdm *cdm_core = cdm_hw->core_info;
 	struct cam_cdm_work_payload *payload[CAM_CDM_BL_FIFO_MAX] = {0};
 	uint8_t rst_done_cnt = 0;
-	uint32_t user_data = 0, inline_irq_data;
+	uint32_t user_data = 0, inline_irq_data = 0;
 	uint32_t irq_status[CAM_CDM_BL_FIFO_MAX] = {0};
 	uint32_t irq_context_summary = 0xF;
 	bool work_status;
@@ -1626,14 +1626,19 @@ irqreturn_t cam_hw_cdm_irq(int irq_num, void *data)
 
 			atomic_inc(&cdm_core->bl_fifo[i].work_record);
 
-			spin_lock(&cdm_core->bl_fifo[i].fast_complete_lock);
-			fast_complete = cdm_core->bl_fifo[i].fast_complete[inline_irq_data];
-			if (fast_complete) {
-				complete_all(fast_complete);
-				cdm_core->bl_fifo[i].fast_complete[inline_irq_data] = NULL;
-			}
+			if (inline_irq_data < CAM_CDM_BL_FIFO_LENGTH_MAX_DEFAULT) {
+				spin_lock(&cdm_core->bl_fifo[i].fast_complete_lock);
+				fast_complete = cdm_core->bl_fifo[i].fast_complete[inline_irq_data];
+				if (fast_complete) {
+					complete_all(fast_complete);
+					cdm_core->bl_fifo[i].fast_complete[inline_irq_data] = NULL;
+				}
 
-			spin_unlock(&cdm_core->bl_fifo[i].fast_complete_lock);
+				spin_unlock(&cdm_core->bl_fifo[i].fast_complete_lock);
+			} else if (inline_irq_data != CAM_CDM_DBG_GEN_IRQ_USR_DATA)
+				CAM_WARN(CAM_CDM,
+					"Not expected: exceeding fast complete array, inline_irq_data: %u, array length: %u",
+					inline_irq_data, CAM_CDM_BL_FIFO_LENGTH_MAX_DEFAULT);
 		}
 
 		CAM_DBG(CAM_CDM,

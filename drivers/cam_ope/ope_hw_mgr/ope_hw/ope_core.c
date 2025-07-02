@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
- * Copyright (c) 2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/of.h>
@@ -204,7 +203,7 @@ int cam_ope_init_hw(void *device_priv,
 	}
 
 	cpas_vote->ahb_vote.type = CAM_VOTE_ABSOLUTE;
-	cpas_vote->ahb_vote.vote.level = CAM_LOWSVS_D1_VOTE;
+	cpas_vote->ahb_vote.vote.level = CAM_LOWEST_AHB_LEVEL;
 	cpas_vote->axi_vote.num_paths = 1;
 	cpas_vote->axi_vote.axi_path[0].path_data_type =
 		CAM_AXI_PATH_DATA_ALL;

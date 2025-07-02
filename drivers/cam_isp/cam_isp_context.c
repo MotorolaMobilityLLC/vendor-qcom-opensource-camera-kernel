@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/debugfs.h>
@@ -4754,19 +4754,14 @@ static int cam_isp_ctx_rup_miss_handler(struct cam_context *ctx,
 	if (!list_empty(&ctx->active_req_list))
 		active_req = list_first_entry(&ctx->active_req_list, struct cam_ctx_request, list);
 
-	if (wait_req || active_req) {
-		CAM_WARN(CAM_ISP, "RUP miss recived for ctx:%u, link:0x%x, wait_req:%llu active_req:%llu substate:%u frame_id:%u",
-			ctx->ctx_id, ctx->link_hdl, (wait_req) ? wait_req->request_id : -1,
-			(active_req) ? active_req->request_id : -1,
-			ctx_isp->substate_activated, ctx_isp->frame_id);
+	if (wait_req || active_req)
 		error_event_data->print_hw_info = true;
-	} else {
-		CAM_WARN_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 1,
-			"RUP miss recived for ctx:%u, link:0x%x, wait_req:%llu active_req:%llu substate:%u frame_id:%u",
-			ctx->ctx_id, ctx->link_hdl, (wait_req) ? wait_req->request_id : -1,
-			(active_req) ? active_req->request_id : -1,
-			ctx_isp->substate_activated, ctx_isp->frame_id);
-	}
+
+	CAM_WARN_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 1,
+		"RUP miss recived for ctx:%u, link:0x%x, wait_req:%llu active_req:%llu substate:%u frame_id:%u",
+		ctx->ctx_id, ctx->link_hdl, (wait_req) ? wait_req->request_id : -1,
+		(active_req) ? active_req->request_id : -1,
+		ctx_isp->substate_activated, ctx_isp->frame_id);
 
 	return 0;
 }

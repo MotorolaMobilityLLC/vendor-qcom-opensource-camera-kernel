@@ -740,7 +740,7 @@ static int cam_icp_remove_ctx_bw(struct cam_icp_hw_mgr *hw_mgr,
 	if (total_ab_bw == 0) {
 		/* If no more contexts are active, reduce AHB vote to minimum */
 		clk_update.ahb_vote.type = CAM_VOTE_ABSOLUTE;
-		clk_update.ahb_vote.vote.level = CAM_LOWSVS_D1_VOTE;
+		clk_update.ahb_vote.vote.level = CAM_LOWEST_AHB_LEVEL;
 		clk_update.ahb_vote_valid = true;
 	} else {
 		clk_update.ahb_vote_valid = false;
@@ -6529,7 +6529,7 @@ static int cam_icp_mgr_process_io_cfg(struct cam_icp_hw_mgr *hw_mgr,
 {
 	int i, j, k, rc = 0;
 	struct cam_buf_io_cfg *io_cfg_ptr = NULL;
-	int32_t sync_in_obj[CAM_MAX_IN_RES];
+	int32_t sync_in_obj[CAM_MAX_IN_RES] = {0};
 	int32_t merged_sync_in_obj;
 
 	io_cfg_ptr = (struct cam_buf_io_cfg *) ((uint32_t *) &packet->payload_flex +
@@ -6637,6 +6637,17 @@ static int cam_icp_process_stream_settings(
 				"%s: Failed to get cmd region iova for handle %u",
 				ctx_data->ctx_id_string,
 				cmd_mem_regions->map_info_array_flex[i].mem_handle);
+			CAM_MEM_FREE(map_cmd);
+			return -EINVAL;
+		}
+
+		if (cmd_mem_regions->map_info_array_flex[i].offset >= len) {
+			CAM_ERR(CAM_ICP,
+				"%s: Mem region offset exceeds length of the buffer, mem handle: 0x%x, iova: %pK, len: %u, offset: 0x%x",
+				ctx_data->ctx_id_string,
+				cmd_mem_regions->map_info_array_flex[i].mem_handle,
+				(uint32_t)iova, (uint32_t)len,
+				cmd_mem_regions->map_info_array_flex[i].offset);
 			CAM_MEM_FREE(map_cmd);
 			return -EINVAL;
 		}

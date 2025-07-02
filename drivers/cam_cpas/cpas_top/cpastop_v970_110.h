@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2024-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CPASTOP_V970_110_H_
@@ -286,8 +286,8 @@ static struct cam_camnoc_irq_err
 	},
 };
 
-static struct cam_camnoc_specific
-	cam_cpas_v970_110_camnoc_specific_rt[] = {
+static struct cam_camnoc_niu
+	cam_cpas_v970_110_camnoc_rt_niu[] = {
 	/* RT ports */
 	{
 		.port_name = "RT0-TFE0,1_FULL_DS2_PDAF1_TFE2_RDI_IR_DS4_DS16",
@@ -673,8 +673,8 @@ static struct cam_camnoc_specific
 	},
 };
 
-static struct cam_camnoc_specific
-	cam_cpas_v970_110_camnoc_specific_nrt[] = {
+static struct cam_camnoc_niu
+	cam_cpas_v970_110_camnoc_nrt_niu[] = {
 	/* NRT ports */
 	{
 		.port_name = "NRT0-IPE_WR_1",
@@ -1481,8 +1481,10 @@ static struct cam_camnoc_addr_trans_info cam970_cpas110_addr_trans_info = {
 };
 
 static struct cam_camnoc_info cam970_cpas110_camnoc_info_rt = {
-	.specific = &cam_cpas_v970_110_camnoc_specific_rt[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v970_110_camnoc_specific_rt),
+	.camnoc_type = CAM_CAMNOC_HW_RT,
+	.reg_base = CAM_CPAS_REG_CAMNOC_RT,
+	.niu = &cam_cpas_v970_110_camnoc_rt_niu[0],
+	.num_nius = ARRAY_SIZE(cam_cpas_v970_110_camnoc_rt_niu),
 	.irq_sbm = &cam_cpas_v970_110_irq_sbm_rt,
 	.irq_err = &cam_cpas_v970_110_irq_err_rt[0],
 	.irq_err_size = ARRAY_SIZE(cam_cpas_v970_110_irq_err_rt),
@@ -1495,8 +1497,10 @@ static struct cam_camnoc_info cam970_cpas110_camnoc_info_rt = {
 };
 
 static struct cam_camnoc_info cam970_cpas110_camnoc_info_nrt = {
-	.specific = &cam_cpas_v970_110_camnoc_specific_nrt[0],
-	.specific_size = ARRAY_SIZE(cam_cpas_v970_110_camnoc_specific_nrt),
+	.camnoc_type = CAM_CAMNOC_HW_NRT,
+	.reg_base = CAM_CPAS_REG_CAMNOC_NRT,
+	.niu = &cam_cpas_v970_110_camnoc_nrt_niu[0],
+	.num_nius = ARRAY_SIZE(cam_cpas_v970_110_camnoc_nrt_niu),
 	.irq_sbm = &cam_cpas_v970_110_irq_sbm_nrt,
 	.irq_err = &cam_cpas_v970_110_irq_err_nrt[0],
 	.irq_err_size = ARRAY_SIZE(cam_cpas_v970_110_irq_err_nrt),
@@ -1510,11 +1514,13 @@ static struct cam_camnoc_info cam970_cpas110_camnoc_info_nrt = {
 };
 
 static struct cam_cpas_camnoc_qchannel cam970_cpas110_qchannel_info_rt = {
+	.camnoc_info = &cam970_cpas110_camnoc_info_rt,
 	.qchannel_ctrl   = 0xEC,
 	.qchannel_status = 0xF0,
 };
 
 static struct cam_cpas_camnoc_qchannel cam970_cpas110_qchannel_info_nrt = {
+	.camnoc_info = &cam970_cpas110_camnoc_info_nrt,
 	.qchannel_ctrl   = 0xF4,
 	.qchannel_status = 0xF8,
 };
@@ -1552,6 +1558,13 @@ static struct cam_cpas_info cam970_cpas110_cpas_info = {
 	.num_qchannel = 2,
 	.hw_caps_secure_info = &cam970_cpas110_secure_info,
 	.subpart_info = &cam970_cpas_camera_subpart_info,
+};
+
+static struct cam_cpas_hw_info cam970_cpas110_hw_info = {
+	.hw_info_version                = CAM_CPAS_HW_INFO_VER1,
+	.camnoc_info[CAM_CAMNOC_HW_RT]  = &cam970_cpas110_camnoc_info_rt,
+	.camnoc_info[CAM_CAMNOC_HW_NRT] = &cam970_cpas110_camnoc_info_nrt,
+	.cpas_info                      = &cam970_cpas110_cpas_info,
 };
 
 #endif /* _CPASTOP_V970_110_H_ */

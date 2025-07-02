@@ -48,6 +48,9 @@
 #define CAM_SENSOR_GENERIC_BLOB_RES_INFO           0
 #define CAM_SENSOR_GENERIC_BLOB_FRAME_INFO         1
 
+#define CAM_OIS_FWINFO_VERSION_1  1
+#define CAM_OIS_FWINFO_VERSION_2  2
+
 enum camera_sensor_cmd_type {
 	CAMERA_SENSOR_CMD_TYPE_INVALID,
 	CAMERA_SENSOR_CMD_TYPE_PROBE,
@@ -523,6 +526,36 @@ struct cam_cmd_ois_fw_info {
 	__u32                           param_mask;
 	__u32                           params[4];
 } __attribute__((packed));
+
+/**
+ * struct cam_cmd_ois_fw_info_v2 - Contains OIS firmware info
+ *
+ * @version         :       version info
+ *                          NOTE: if struct cam_cmd_ois_fw_param is updated,
+ *                          version here needs to be updated too.
+ * @reserved        :       reserved
+ * @cmd_type        :       Explains type of command
+ * @fw_count        :       firmware count
+ * @endianness      :       endianness combo:
+ *                          bit[3:0] firmware data's endianness
+ *                          bit[7:4] endian type of input parameter to ois driver, say QTime
+ * @num_valid_params:       Number of valid params
+ * @param_mask      :       Mask to indicate fields in params
+ * @params          :       Additional Params
+ * @fw_param        :       includes firmware parameters
+ */
+struct cam_cmd_ois_fw_info_v2 {
+	__u32                           version;
+	__u8                            reserved;
+	__u8                            cmd_type;
+	__u8                            fw_count;
+	__u8                            endianness;
+	__u32                           num_valid_params;
+	__u32                           param_mask;
+	__u32                           params[4];
+	struct cam_cmd_ois_fw_param     fw_param[];
+} __attribute__((packed));
+
 
 /**
  * struct cam_cmd_probe - Contains sensor slave info

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "cam_cci_dev.h"
@@ -173,7 +173,7 @@ int cam_cci_init(struct v4l2_subdev *sd,
 	}
 
 	ahb_vote.type = CAM_VOTE_ABSOLUTE;
-	ahb_vote.vote.level = CAM_LOWSVS_D1_VOTE;
+	ahb_vote.vote.level = CAM_LOWEST_AHB_LEVEL;
 	axi_vote.num_paths = 1;
 	axi_vote.axi_path[0].path_data_type = CAM_AXI_PATH_DATA_ALL;
 	axi_vote.axi_path[0].transac_type = CAM_AXI_TRANSACTION_WRITE;

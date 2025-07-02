@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_SMMU_API_H_
@@ -328,13 +328,15 @@ int cam_smmu_put_scratch_iova(int handle,
 int cam_smmu_destroy_handle(int handle);
 
 /**
- * @brief       : Returns if context bank identified by handle has a shared region
+ * @brief Checks if context bank identified by handle has a shared region
  *
  * @param handle: Handle to identify the context bank
- * @return      : True if context banks supports shared region, false otherwise
- * @note        : Currently, only ICP context banks support shared regions.
+ * @param is_shared: Output param to indicate if the context bank supports shared region
+ *
+ * @return Status of operation. Negative in case of error. Zero otherwise.
+ * @note Currently, only ICP context banks support shared regions.
  */
-bool cam_smmu_supports_shared_region(int handle);
+int cam_smmu_supports_shared_region(int handle, bool *is_shared);
 
 /**
  * @brief       : Registers smmu fault handler for client

@@ -147,7 +147,6 @@ struct cam_vfe_bus_ver3_wm_resource_data {
 	enum cam_vfe_bus_wr_wm_mode                     wm_mode;
 	uint32_t             burst_len;
 	uint32_t             index;
-	uint32_t             packer_cfg;
 	uint32_t             irq_subsample_period;
 	uint32_t             irq_subsample_pattern;
 	uint32_t             framedrop_period;
@@ -1384,7 +1383,6 @@ static int cam_vfe_bus_ver3_release_wm(void   *bus_priv,
 	rsrc_data->irq_subsample_pattern = 0;
 	rsrc_data->framedrop_period = 0;
 	rsrc_data->framedrop_pattern = 0;
-	rsrc_data->packer_cfg = 0;
 	rsrc_data->cfg.h_init = 0;
 	rsrc_data->init_cfg_done = false;
 	rsrc_data->hfr_cfg_done = false;
@@ -3745,12 +3743,6 @@ static int cam_vfe_bus_ver3_update_ubwc_regs(
 
 	CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair,
 		MAX_REG_VAL_PAIR_SIZE, *j,
-		wm_data->client_base + wm_data->hw_regs->packer_cfg, wm_data->packer_cfg);
-	CAM_DBG(CAM_ISP, "VFE:%u WM:%d packer cfg 0x%X",
-		wm_data->common_data->core_index, wm_data->index, reg_val_pair[*j-1]);
-
-	CAM_ISP_ADD_REG_VAL_PAIR(reg_val_pair,
-		MAX_REG_VAL_PAIR_SIZE, *j,
 		wm_data->client_base + ubwc_regs->meta_cfg, ubwc_cfg_data->ubwc_meta_cfg);
 	CAM_DBG(CAM_ISP, "VFE:%u WM:%d meta stride 0x%X",
 		wm_data->common_data->core_index, wm_data->index, reg_val_pair[*j-1]);
@@ -3828,10 +3820,6 @@ static int cam_vfe_bus_ver3_config_ubwc_regs(
 
 	ubwc_regs = (struct cam_vfe_bus_ver3_reg_offset_ubwc_client *)wm_data->hw_regs->ubwc_regs;
 	reg_base = wm_data->common_data->mem_base + wm_data->client_base;
-
-	cam_io_w_mb(wm_data->packer_cfg, reg_base + wm_data->hw_regs->packer_cfg);
-	CAM_DBG(CAM_ISP, "VFE:%u WM:%d packer cfg:0x%x",
-		wm_data->common_data->core_index, wm_data->index, wm_data->packer_cfg);
 
 	cam_io_w_mb(ubwc_cfg_data->ubwc_meta_cfg, reg_base + ubwc_regs->meta_cfg);
 	CAM_DBG(CAM_ISP, "VFE:%u WM:%d meta stride:0x%x",
@@ -4433,14 +4421,6 @@ static void cam_vfe_bus_ver3_update_wm_ubwc_data(
 	struct cam_vfe_generic_ubwc_plane_config *ubwc_generic_plane_cfg,
 	bool init_cfg_done)
 {
-	if (wm_data->packer_cfg !=
-		ubwc_generic_plane_cfg->packer_config ||
-		!init_cfg_done) {
-		wm_data->packer_cfg =
-			ubwc_generic_plane_cfg->packer_config;
-		ubwc_cfg_data->ubwc_updated = true;
-	}
-
 	if ((!wm_data->is_dual) && ((wm_data->cfg.h_init !=
 		ubwc_generic_plane_cfg->h_init) ||
 		!init_cfg_done)) {
