@@ -1409,7 +1409,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 	 */
 	.client_base                              = 0x1000,
 	.client_reg_size                          = 0x200,
-	.ubwc_clients_mask                        = 0x1F,
+	.ubwc_clients_mask                        = 0x3F,
 	.client_offsets = {
 			.cfg                      = 0x0,
 			.image_addr               = 0x4,
