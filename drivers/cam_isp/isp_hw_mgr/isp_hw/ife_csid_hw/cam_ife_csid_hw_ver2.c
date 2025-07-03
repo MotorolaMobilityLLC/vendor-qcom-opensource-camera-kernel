@@ -7587,14 +7587,15 @@ int cam_ife_csid_ver2_stop(void *hw_priv,
 		cam_ife_csid_ver2_reset(hw_priv, &reset,
 			sizeof(struct cam_csid_reset_cfg_args));
 
-		reset.reset_type = CAM_IFE_CSID_RESET_GLOBAL_IRQ_CNTRL;
-		cam_ife_csid_ver2_reset(hw_priv, &reset,
-			sizeof(struct cam_csid_reset_cfg_args));
-
 		CAM_DBG(CAM_ISP,
 			"CSID:%u global HW and irq reset issued at stop for standby",
 			csid_hw->hw_intf->hw_idx);
 	}
+
+	/* Issue IRQ cotronller reset */
+	reset.reset_type = CAM_IFE_CSID_RESET_GLOBAL_IRQ_CNTRL;
+	cam_ife_csid_ver2_reset(hw_priv, &reset,
+		sizeof(struct cam_csid_reset_cfg_args));
 
 	halt_resume_info.reset_resume_phy = csid_hw->standby_asserted;
 	halt_resume_info.do_drv_ops = false;
