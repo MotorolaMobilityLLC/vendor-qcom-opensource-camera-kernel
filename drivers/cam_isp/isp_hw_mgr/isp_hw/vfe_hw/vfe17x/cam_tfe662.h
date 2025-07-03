@@ -723,7 +723,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 			.line_based               = 1,
 			.mid                      = {19},
 			.num_mid                  = 1,
-			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RAW_DUMP,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_IDEAL_RAW,
 			.mc_based                 = false,
 			.pid_mask                 = BIT_ULL(4) | BIT_ULL(5),
 		},
@@ -863,7 +863,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 			.mc_based                 = false,
 			.pid_mask                 = BIT_ULL(6) | BIT_ULL(7),
 		},
-		/* BUS Client 13 AI-Y */
+		/* BUS Client 13 AI-Y = FD_Y */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_9,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10) |
@@ -876,15 +876,15 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
-			.name                     = "AI-Y",
+			.name                     = "FD_Y",
 			.line_based               = 1,
 			.mid                      = {24},
 			.num_mid                  = 1,
-			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_AI_Y,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD,
 			.mc_based                 = false,
 			.pid_mask                 = BIT_ULL(6) | BIT_ULL(7),
 		},
-		/* BUS Client 14 AI-C */
+		/* BUS Client 14 AI-C = FD_C */
 		{
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_9,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10) |
@@ -897,11 +897,11 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_12BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_14BPP) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_16_16BPP),
-			.name                     = "AI-C",
+			.name                     = "FD_C",
 			.line_based               = 1,
 			.mid                      = {25},
 			.num_mid                  = 1,
-			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_AI_C,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD,
 			.mc_based                 = false,
 			.pid_mask                 = BIT_ULL(6) | BIT_ULL(7),
 		},
@@ -1034,7 +1034,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 			BIT(14), BIT(15), BIT(16), BIT(17), BIT(18),
 	},
 	.top_irq_shift         = 1,
-	.max_out_res           = CAM_ISP_IFE_OUT_RES_BASE + 45,
+	.max_out_res           = CAM_ISP_IFE_OUT_RES_IDEAL_RAW + 1,
 	.pack_align_shift      = 4,
 	.max_bw_counter_limit  = 0xFF,
 	.skip_regdump          = false,
