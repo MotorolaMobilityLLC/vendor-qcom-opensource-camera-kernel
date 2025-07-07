@@ -62,7 +62,14 @@ static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 			i2c_reg_settings.size = 1;
 			i2c_reg_array.reg_addr = emap[j].page.addr;
 			i2c_reg_array.reg_data = emap[j].page.data;
+#ifdef CONFIG_CAM_OTP_TIMEDELAY_SOUTION
+			if (emap[j].page.is_delay_hw)
+				i2c_reg_array.delay = emap[j].page.delay;
+			else
+				i2c_reg_settings.delay = emap[j].page.delay;
+#else
 			i2c_reg_array.delay = emap[j].page.delay;
+#endif
 			i2c_reg_settings.reg_setting = &i2c_reg_array;
 			rc = camera_io_dev_write(&e_ctrl->io_master_info,
 				&i2c_reg_settings);
@@ -79,7 +86,14 @@ static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 			i2c_reg_settings.size = 1;
 			i2c_reg_array.reg_addr = emap[j].pageen.addr;
 			i2c_reg_array.reg_data = emap[j].pageen.data;
+#ifdef CONFIG_CAM_OTP_TIMEDELAY_SOUTION
+			if (emap[j].pageen.is_delay_hw)
+				i2c_reg_array.delay = emap[j].pageen.delay;
+			else
+				i2c_reg_settings.delay = emap[j].pageen.delay;
+#else
 			i2c_reg_array.delay = emap[j].pageen.delay;
+#endif
 			i2c_reg_settings.reg_setting = &i2c_reg_array;
 			rc = camera_io_dev_write(&e_ctrl->io_master_info,
 				&i2c_reg_settings);
@@ -123,7 +137,14 @@ static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 			i2c_reg_settings.size = 1;
 			i2c_reg_array.reg_addr = emap[j].pageen.addr;
 			i2c_reg_array.reg_data = 0;
+#ifdef CONFIG_CAM_OTP_TIMEDELAY_SOUTION
+			if (emap[j].pageen.is_delay_hw)
+				i2c_reg_array.delay = emap[j].pageen.delay;
+			else
+				i2c_reg_settings.delay = emap[j].pageen.delay;
+#else
 			i2c_reg_array.delay = emap[j].pageen.delay;
+#endif
 			i2c_reg_settings.reg_setting = &i2c_reg_array;
 			rc = camera_io_dev_write(&e_ctrl->io_master_info,
 				&i2c_reg_settings);
@@ -535,6 +556,16 @@ static int32_t cam_eeprom_parse_memory_map(
 			map[*num_map - 1].mem.delay = i2c_uncond_wait->delay;
 			map[*num_map - 1].page.delay = i2c_uncond_wait->delay;
 			map[*num_map - 1].pageen.delay = i2c_uncond_wait->delay;
+#ifdef CONFIG_CAM_OTP_TIMEDELAY_SOUTION
+			map[*num_map - 1].mem.is_delay_hw = 0;
+			map[*num_map - 1].page.is_delay_hw = 0;
+			map[*num_map - 1].pageen.is_delay_hw = 0;
+			if (generic_op_code == CAMERA_SENSOR_WAIT_OP_HW_UCND) {
+				map[*num_map - 1].mem.is_delay_hw = 1;
+				map[*num_map - 1].page.is_delay_hw = 1;
+				map[*num_map - 1].pageen.is_delay_hw = 1;
+			}
+#endif
 		} else if (generic_op_code ==
 			CAMERA_SENSOR_WAIT_OP_COND) {
 			i2c_poll = (struct cam_cmd_conditional_wait *)cmd_buf;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2017-2019, 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019, 2021, 2025, The Linux Foundation. All rights reserved.
  */
 #ifndef _CAM_EEPROM_DEV_H_
 #define _CAM_EEPROM_DEV_H_
@@ -41,6 +41,27 @@ enum cam_eeprom_state {
 	CAM_EEPROM_CONFIG,
 };
 
+#ifdef CONFIG_CAM_OTP_TIMEDELAY_SOUTION
+/**
+ * struct cam_eeprom_map_t - eeprom map
+ * @data_type       :   Data type
+ * @addr_type       :   Address type
+ * @addr            :   Address
+ * @data            :   data
+ * @delay           :   Delay
+ * @is_delay_hw     :   HW/SW Delay
+ *
+ */
+struct cam_eeprom_map_t {
+	uint32_t valid_size;
+	uint32_t addr;
+	uint32_t addr_type;
+	uint32_t data;
+	uint32_t data_type;
+	uint32_t delay;
+	bool is_delay_hw;
+};
+#else
 /**
  * struct cam_eeprom_map_t - eeprom map
  * @data_type       :   Data type
@@ -58,7 +79,7 @@ struct cam_eeprom_map_t {
 	uint32_t data_type;
 	uint32_t delay;
 };
-
+#endif
 /**
  * struct cam_eeprom_memory_map_t - eeprom memory map types
  * @page            :   page memory
