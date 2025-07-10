@@ -12,6 +12,7 @@
 #include "cam_vfe480.h"
 #include "cam_vfe570.h"
 #include "cam_vfe580.h"
+#include "cam_tfe662.h"
 #include "cam_vfe680.h"
 #include "cam_vfe680_110.h"
 #include "cam_vfe780.h"
@@ -63,6 +64,10 @@ static const struct of_device_id cam_vfe_dt_match[] = {
 	{
 		.compatible = "qcom,vfe580",
 		.data = &cam_vfe580_hw_info,
+	},
+	{
+		.compatible = "qcom,tfe662",
+		.data  = &cam_tfe662_hw_info,
 	},
 	{
 		.compatible = "qcom,vfe680",
