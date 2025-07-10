@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_VFE880_H_
@@ -2694,6 +2694,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe880_bus_hw_info = {
 			.error_description = "Meta Stride unalign"
 		},
 	},
+	.bus_err_irq_mask      = { 0xD0000000, 0x0},
 	.num_bus_errors        = 1,
 	.bus_err_desc          = &vfe880_bus_irq_err_desc,
 	.num_comp_grp          = 16,

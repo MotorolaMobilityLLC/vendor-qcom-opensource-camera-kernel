@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2023-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 
@@ -394,6 +394,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite98x_bus_hw_info = {
 			.pid_mask                 = BIT_ULL(19) | BIT_ULL(20),
 		},
 	},
+	.bus_err_irq_mask      = { 0xD0000000, 0x0},
 	.valid_wm_mask   = 0x1F,
 	.num_comp_grp    = 5,
 	.support_consumed_addr = true,

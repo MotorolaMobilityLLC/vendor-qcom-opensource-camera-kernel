@@ -17,6 +17,10 @@
 #define CAM_VFE_BUS_VER3_CONS_ERR_MAX        32
 #define CAM_VFE_BUS_VER3_MAX_CLIENTS         32
 
+#define CAM_VFE_BUS_VER3_IRQ_REG0                0
+#define CAM_VFE_BUS_VER3_IRQ_REG1                1
+#define CAM_VFE_BUS_VER3_IRQ_MAX                 2
+
 /*
  * Max number of MIDs that a client can support.
  * Max value is determined considering the ports supporting
@@ -351,6 +355,7 @@ struct cam_vfe_bus_ver3_hw_info {
 	struct cam_vfe_constraint_error_info
 		constraint_error_list[CAM_VFE_BUS_VER3_CONS_ERR_MAX];
 	uint32_t num_bus_errors;
+	uint32_t bus_err_irq_mask[CAM_VFE_BUS_VER3_IRQ_MAX];
 	struct cam_vfe_bus_ver3_err_irq_desc (*bus_err_desc)[][32];
 	uint32_t num_comp_grp;
 	uint32_t comp_done_mask[CAM_VFE_BUS_VER3_COMP_GRP_MAX];

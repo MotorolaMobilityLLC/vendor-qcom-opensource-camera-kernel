@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_TFE1080_H_
@@ -1808,6 +1808,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 			.error_description = "Meta Stride unalign",
 		},
 	},
+	.bus_err_irq_mask      = { 0xD0000000, 0x0},
 	.num_bus_errors        = 1,
 	.bus_err_desc          = &tfe1080_bus_irq_err_desc,
 	.num_comp_grp          = 10,

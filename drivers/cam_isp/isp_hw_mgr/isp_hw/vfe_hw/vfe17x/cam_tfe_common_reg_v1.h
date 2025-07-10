@@ -2002,6 +2002,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 		},
 	},
 	.query_reg             = &tfe_common_reg_v1_bus_query_reg,
+	.bus_err_irq_mask      = { 0xD0000000, 0x0},
 	.num_bus_errors        = 1,
 	.bus_err_desc          = &tfe_common_reg_v1_bus_irq_err_desc,
 	.num_comp_grp          = 10,
