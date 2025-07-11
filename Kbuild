@@ -324,7 +324,7 @@ camera-$(CONFIG_SPECTRA_SENSOR) += \
 	drivers/cam_sensor_module/cam_flash/cam_flash_soc.o \
 	drivers/cam_sensor_module/cam_sensor_module_debug.o
 
-ifneq (,$(filter $(CONFIG_AF_NOISE_ELIMINATION), y m))
+ifneq (,$(filter $(CONFIG_MOT_DRV_AF_NOISE_ELIMINATION), y m))
 camera-$(CONFIG_SPECTRA_SENSOR) += \
 	drivers/cam_sensor_module/cam_actuator/mot_actuator.o \
 	drivers/cam_sensor_module/cam_actuator/mot_actuator_policy.o \

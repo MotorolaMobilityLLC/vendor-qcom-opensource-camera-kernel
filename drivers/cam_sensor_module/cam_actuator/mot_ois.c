@@ -34,16 +34,21 @@ typedef enum {
 	MOT_OIS_BU63169 = MOT_OIS_FIRST,
 	MOT_OIS_DW9781,
 	MOT_OIS_DW9784,
+	MOT_OIS_SEM1218S,
 	MOT_ACTUATOR_NUM,
 } mot_ois_type;
 
 typedef enum {
 	MOT_DEVICE_EQS,
+	MOT_DEVICE_VANTG,
 	MOT_DEVICE_NUM,
 } mot_dev_type;
 
 typedef enum {
 	REGULATOR_IOVDD,
+#ifdef CONFIG_MOT_DRV_OIS_SEM1218S_DRIVER
+	REGULATOR_LDO_CUSTOM,
+#endif
 	REGULATOR_VCMVDD,
 	REGULATOR_OISVDD,
 	REGULATOR_NUM,
@@ -142,7 +147,9 @@ typedef struct {
 } mot_ois_runtime_type;
 
 static int32_t mot_ois_bu63169_start(struct device *device, uint32_t index);
-static int32_t mot_ois_bu63169_stop(struct device *device, uint32_t index);
+static int32_t mot_ois_stop(struct device *device, uint32_t index);
+
+static int32_t mot_ois_sem1218s_start(struct device *device, uint32_t index);
 
 static int32_t mot_device_index = 0;
 static const mot_dev_ois_info mot_ois_dev_list[] = {
@@ -169,7 +176,30 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 				.af_safe_dac = 0x08F0,//Please conver to 12Bit DAC
 				.is_af_drift_supported = true,
 				.start_func = mot_ois_bu63169_start,
-				.stop_func = mot_ois_bu63169_stop,
+				.stop_func = mot_ois_stop,
+			},
+		},
+	},
+	//VANTG
+	{
+		.dev_type = MOT_DEVICE_VANTG,
+		.ois_num = 1,
+		.dev_name = "vantg",
+		.ois_info = {
+			{
+				.ois_name = "mot_sem1218s",
+				.ois_type = MOT_OIS_SEM1218S,
+				.cci_addr = 0x61,
+				.cci_dev = 0x0,
+				.cci_master = 0x0,
+				.regulator_list = { "cam_iovdd_main", "pm8010_n_l4", "cam_oisavdd_main", "cam_oisvdd_main"},
+				.regulator_min_volt_uv = {1200000, 1800000, 2900000, 3200000},
+				.regulator_max_volt_uv = {1200000, 1800000, 2900000, 3200000},
+				.eeprom_cci_addr = 0x55,
+				.af_safe_dac = 0x8000,//Please conver to 12Bit DAC
+				.is_af_drift_supported = false,
+				.start_func = mot_ois_sem1218s_start,
+				.stop_func = mot_ois_stop,
 			},
 		},
 	},
@@ -242,6 +272,33 @@ static struct cam_sensor_i2c_reg_setting mot_eqs_ois_af_drift_setting[] = {
 		.size = ARRAY_SIZE(mot_ois_af_drift_serial),
 		.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
 		.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+	}
+};
+
+/*----------------------For VANTG SEM1218S------------------------------*/
+static struct cam_sensor_i2c_reg_array mot_ois_init_sem1218s[] = {
+	{0x0002, 0x00, 1},
+};
+
+static struct cam_sensor_i2c_reg_setting mot_vantg_ois_init_setting[] = {
+	{
+		.reg_setting = mot_ois_init_sem1218s,
+		.size = ARRAY_SIZE(mot_ois_init_sem1218s),
+		.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+		.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
+	},
+};
+static struct cam_sensor_i2c_reg_array mot_ois_lock_center_sem1218s[] = {
+	{0x0002, 0x03, 1},
+	{0x0000, 0x01, 1},
+};
+
+static struct cam_sensor_i2c_reg_setting mot_vantg_ois_lock_center_setting[] = {
+	{
+		.reg_setting = mot_ois_lock_center_sem1218s,
+		.size = ARRAY_SIZE(mot_ois_lock_center_sem1218s),
+		.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+		.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
 	}
 };
 
@@ -799,7 +856,55 @@ error_exit:
 	return -1;
 }
 
-static int32_t mot_ois_bu63169_stop(struct device *dev, uint32_t index)
+static int32_t mot_ois_sem1218s_start(struct device *device, uint32_t index)
+{
+	/*
+	  Key flow:
+	  Power ON -> oisinitSettings -> OIS mode setting(Lock center)
+	*/
+	//Power ON
+	CAM_DBG(CAM_OIS, "OIS protection power on OIS...");
+	if (mot_ois_power_on(device, index) < 0) {
+		CAM_ERR(CAM_OIS, "Power ON OIS failed.");
+		goto error_exit;
+	}
+
+	//CCI init
+	CAM_DBG(CAM_OIS, "OIS protection init CCI...");
+	if (mot_ois_init_cci(index) < 0) {
+		CAM_ERR(CAM_OIS, "Init OIS failed.");
+		goto error_exit;
+	}
+	usleep_range(10000,10010);
+
+	//oisinitSettings
+	CAM_DBG(CAM_OIS, "OIS protection preparing for init OIS...");
+	if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_vantg_ois_init_setting, ARRAY_SIZE(mot_vantg_ois_init_setting)) < 0) {
+		CAM_ERR(CAM_OIS, "FW download failed.");
+		goto error_exit;
+	}
+
+	// OIS mode setting(Lock center)
+	if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_vantg_ois_lock_center_setting, ARRAY_SIZE(mot_vantg_ois_lock_center_setting)) < 0) {
+		CAM_ERR(CAM_OIS, "FW download failed.");
+		goto error_exit;
+	}
+	CAM_DBG(CAM_OIS, "OIS protection is ready.");
+
+	if (mot_ois_dev_list[mot_device_index].ois_info[index].is_af_drift_supported == true) {
+		if (mot_ois_bu63169_apply_af_drift(index) < 0) {
+			CAM_ERR(CAM_OIS, "FW download failed.");
+			goto error_exit;
+		}
+		CAM_DBG(CAM_OIS, "AF drift is ready.");
+	}
+
+	return 0;
+error_exit:
+	return -1;
+}
+
+static int32_t mot_ois_stop(struct device *dev, uint32_t index)
 {
 	//CCI release
 	CAM_DBG(CAM_OIS, "OIS protection release CCI...");

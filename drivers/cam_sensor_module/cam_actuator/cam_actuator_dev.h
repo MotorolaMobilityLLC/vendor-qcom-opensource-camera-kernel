@@ -134,7 +134,7 @@ struct cam_actuator_ctrl_t {
 #ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
 	bool af_drift_supported;
 #endif
-#ifdef CONFIG_AF_NOISE_ELIMINATION
+#ifdef CONFIG_MOT_DRV_AF_NOISE_ELIMINATION
 	bool is_multi_user_supported;
 #endif
 };

@@ -12,7 +12,7 @@
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
 #include "cam_mem_mgr_api.h"
-#ifdef CONFIG_AF_NOISE_ELIMINATION
+#ifdef CONFIG_MOT_DRV_AF_NOISE_ELIMINATION
 #include "mot_actuator_policy.h"
 #include "mot_actuator.h"
 #endif
@@ -289,7 +289,7 @@ int32_t cam_actuator_apply_settings(struct cam_actuator_ctrl_t *a_ctrl,
 		CAM_ERR(CAM_ACTUATOR, " Invalid settings");
 		return -EINVAL;
 	}
-#ifdef CONFIG_AF_NOISE_ELIMINATION
+#ifdef CONFIG_MOT_DRV_AF_NOISE_ELIMINATION
 	/*Usually actuator initial setting will execute power down reset(PD), actuator can't respond
 	  CCI access for a while after PD. Add lock to avoid access actuator while PD operation.*/
 	if (a_ctrl->is_multi_user_supported) {
@@ -343,7 +343,7 @@ int32_t cam_actuator_apply_settings(struct cam_actuator_ctrl_t *a_ctrl,
 #endif
 		}
 	}
-#ifdef CONFIG_AF_NOISE_ELIMINATION
+#ifdef CONFIG_MOT_DRV_AF_NOISE_ELIMINATION
 	/*Usually actuator initial setting will execute power down reset(PD), actuator can't respond
 	CCI access for a while after PD. Add lock to avoid access actuator while PD operation.*/
 	if (a_ctrl->is_multi_user_supported) {
@@ -782,7 +782,7 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 			}
 			cam_mem_put_cpu_buf(cmd_desc[i].mem_handle);
 		}
-#ifdef CONFIG_AF_NOISE_ELIMINATION
+#ifdef CONFIG_MOT_DRV_AF_NOISE_ELIMINATION
 		if (a_ctrl->cam_act_state == CAM_ACTUATOR_ACQUIRE &&
 			a_ctrl->is_multi_user_supported == true) {
 			/*exile vibrator when camera want to take control of actuator*/
@@ -1211,7 +1211,7 @@ int32_t cam_actuator_driver_cmd(struct cam_actuator_ctrl_t *a_ctrl,
 		}
 
 		if (a_ctrl->cam_act_state == CAM_ACTUATOR_CONFIG) {
-#ifdef CONFIG_AF_NOISE_ELIMINATION
+#ifdef CONFIG_MOT_DRV_AF_NOISE_ELIMINATION
 			if (a_ctrl->is_multi_user_supported == true) {
 				mot_actuator_put(ACTUATOR_CLIENT_CAMERA);
 			}

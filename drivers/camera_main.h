@@ -51,7 +51,7 @@ extern struct i2c_driver cam_sensor_i2c_driver;
 	IS_REACHABLE(CONFIG_LEDS_QCOM_FLASH)
 extern struct platform_driver cam_flash_platform_driver;
 #endif
-#ifdef CONFIG_AF_NOISE_ELIMINATION
+#ifdef CONFIG_MOT_DRV_AF_NOISE_ELIMINATION
 extern struct platform_driver mot_actuator_platform_driver;
 extern int mot_actuator_driver_init(void);
 extern void mot_actuator_driver_exit(void);
@@ -132,7 +132,7 @@ static struct platform_driver *const cam_component_platform_drivers[] = {
 	IS_REACHABLE(CONFIG_LEDS_QCOM_FLASH)
 	&cam_flash_platform_driver,
 #endif
-#ifdef CONFIG_AF_NOISE_ELIMINATION
+#ifdef CONFIG_MOT_DRV_AF_NOISE_ELIMINATION
 	&mot_actuator_platform_driver,
 #endif
 #endif
