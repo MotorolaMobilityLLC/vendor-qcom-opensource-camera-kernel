@@ -192,9 +192,15 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 				.cci_addr = 0x61,
 				.cci_dev = 0x0,
 				.cci_master = 0x0,
+#ifdef CONFIG_MOT_DRV_OIS_SEM1218S_DRIVER
 				.regulator_list = { "cam_iovdd_main", "pm8010_n_l4", "cam_oisavdd_main", "cam_oisvdd_main"},
 				.regulator_min_volt_uv = {1200000, 1800000, 2900000, 3200000},
 				.regulator_max_volt_uv = {1200000, 1800000, 2900000, 3200000},
+#else
+				.regulator_list = { "cam_iovdd_main", "cam_oisavdd_main", "cam_oisvdd_main"},
+				.regulator_min_volt_uv = {1200000, 2900000, 3200000},
+				.regulator_max_volt_uv = {1200000, 2900000, 3200000},
+#endif
 				.eeprom_cci_addr = 0x55,
 				.af_safe_dac = 0x8000,//Please conver to 12Bit DAC
 				.is_af_drift_supported = false,
