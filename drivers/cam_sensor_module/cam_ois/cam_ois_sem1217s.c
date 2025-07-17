@@ -293,3 +293,4 @@ int32_t sem1217s_fw_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware 
 	CAM_INFO(CAM_OIS, "OIS FW download Success done");
 	return 0;
 }
+EXPORT_SYMBOL(sem1217s_fw_update);

@@ -503,4 +503,5 @@ release_firmware:
 
 	return rc;
 }
+EXPORT_SYMBOL(dw9784_fw_update);
 
