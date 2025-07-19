@@ -518,7 +518,6 @@ struct cam_camnoc_addr_trans_info {
  * @errata_wa_list: HW Errata workaround info
  * @test_irq_info: CAMNOC Test IRQ info
  * @addr_trans_info: CAMNOC address translator info
- * @dcd_div_offset: Clk DCD div register offset
  *
  */
 struct cam_camnoc_info {
@@ -533,7 +532,6 @@ struct cam_camnoc_info {
 	struct cam_cpas_hw_errata_wa_list *errata_wa_list;
 	struct cam_cpas_test_irq_info test_irq_info;
 	struct cam_camnoc_addr_trans_info *addr_trans_info;
-	uint32_t dcd_div_offset;
 };
 
 /**
