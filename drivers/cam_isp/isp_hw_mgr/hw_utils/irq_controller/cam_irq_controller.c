@@ -693,7 +693,7 @@ int cam_irq_controller_enable_irq(void *irq_controller, uint32_t handle)
 
 	rc = cam_irq_controller_find_event_handle(controller, handle,
 		&evt_handler);
-	if (rc)
+	if (rc || !evt_handler)
 		goto end;
 
 	CAM_DBG(CAM_IRQ_CTRL, "enable event %d", handle);
@@ -711,17 +711,20 @@ int cam_irq_controller_disable_irq(void *irq_controller, uint32_t handle)
 	struct cam_irq_evt_handler  *evt_handler = NULL;
 	unsigned long               flags = 0;
 	int                         rc = 0;
+	bool                        need_unlock = false;
 
 	if (!controller)
 		return rc;
 
 	/* Since disable irq comes from error top half with lock already */
-	if (!cam_presil_mode_enabled())
+	if (!cam_presil_mode_enabled()) {
 		flags = cam_irq_controller_lock_irqsave(controller);
+		need_unlock = true;
+	}
 
 	rc = cam_irq_controller_find_event_handle(controller, handle,
 		&evt_handler);
-	if (rc)
+	if (rc || !evt_handler)
 		goto end;
 
 	CAM_DBG(CAM_IRQ_CTRL, "disable event %d", handle);
@@ -729,7 +732,7 @@ int cam_irq_controller_disable_irq(void *irq_controller, uint32_t handle)
 	cam_irq_controller_clear_irq(controller, evt_handler);
 
 end:
-	if (!cam_presil_mode_enabled())
+	if (need_unlock)
 		cam_irq_controller_unlock_irqrestore(controller, flags);
 	return rc;
 }
@@ -747,7 +750,7 @@ int cam_irq_controller_unsubscribe_irq(void *irq_controller,
 
 	rc = cam_irq_controller_find_event_handle(controller, handle,
 		&evt_handler);
-	if (rc)
+	if (rc || !evt_handler)
 		goto end;
 
 	list_del_init(&evt_handler->list_node);
@@ -778,7 +781,7 @@ int cam_irq_controller_unsubscribe_irq_evt(void *irq_controller,
 
 	rc = cam_irq_controller_find_event_handle(controller, handle,
 		&evt_handler);
-	if (rc)
+	if (rc || !evt_handler)
 		goto end;
 
 	list_del_init(&evt_handler->list_node);
@@ -1164,7 +1167,7 @@ int cam_irq_controller_update_irq(void *irq_controller, uint32_t handle,
 
 	rc = cam_irq_controller_find_event_handle(controller, handle,
 		&evt_handler);
-	if (rc)
+	if (rc || !evt_handler)
 		goto end;
 
 	__cam_irq_controller_disable_irq(controller, evt_handler);

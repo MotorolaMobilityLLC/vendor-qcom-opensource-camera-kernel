@@ -204,7 +204,7 @@ static int __cam_isp_ctx_print_event_record(struct cam_isp_context *ctx_isp)
 	for (i = 0; i < CAM_ISP_CTX_EVENT_MAX; i++) {
 		state_head = atomic64_read(&ctx_isp->dbg_monitors.event_record_head[i]);
 
-		if (state_head == -1) {
+		if (state_head < 0) {
 			continue;
 		} else if (state_head < CAM_ISP_CTX_EVENT_RECORD_MAX_ENTRIES) {
 			num_entries = state_head + 1;
@@ -274,7 +274,7 @@ static int __cam_isp_ctx_dump_event_record(
 	for (i = 0; i < CAM_ISP_CTX_EVENT_MAX; i++) {
 		state_head = atomic64_read(&ctx_isp->dbg_monitors.event_record_head[i]);
 
-		if (state_head == -1)
+		if (state_head < 0)
 			return 0;
 		else if (state_head < CAM_ISP_CTX_EVENT_RECORD_MAX_ENTRIES) {
 			num_entries = state_head + 1;
@@ -586,7 +586,7 @@ static void __cam_isp_ctx_dump_frame_timing_record(
 
 	state_head = atomic64_read(&ctx_isp->dbg_monitors.frame_monitor_head);
 
-	if (state_head == -1)
+	if (state_head < 0)
 		return;
 
 	if (state_head < CAM_ISP_CTX_MAX_FRAME_RECORDS) {
@@ -684,7 +684,7 @@ static void __cam_isp_ctx_dump_state_monitor_array(
 
 	state_head = atomic64_read(&ctx_isp->dbg_monitors.state_monitor_head);
 
-	if (state_head == -1)
+	if (state_head < 0)
 		return;
 
 	if (state_head < CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES) {
@@ -753,7 +753,7 @@ static int __cam_isp_ctx_user_dump_state_monitor_array(
 
 	state_head = atomic64_read(&ctx_isp->dbg_monitors.state_monitor_head);
 
-	if (state_head == -1) {
+	if (state_head < 0) {
 		return 0;
 	} else if (state_head < CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES) {
 		num_entries = state_head;
@@ -3350,7 +3350,7 @@ static int __cam_isp_ctx_handle_buf_done_verify_addr(
 	 * since the reported buf done event may belong to current
 	 * req, then we can't signal this event for next req.
 	 */
-	if (!rc && irq_delay_detected)
+	if (!rc && irq_delay_detected && next_req)
 		rc = __cam_isp_ctx_handle_buf_done_for_request_verify_addr(ctx_isp, next_req, done,
 			bubble_state, true, false);
 

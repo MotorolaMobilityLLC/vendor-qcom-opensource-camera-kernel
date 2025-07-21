@@ -1556,6 +1556,7 @@ static struct cam_ife_csid_ver2_reg_info cam_ife_csid_common_reg_v1_reg_info = {
 	.ipp_mc_reg                           = &cam_ife_csid_common_reg_v1_ipp_mc_reg_info,
 	.need_top_cfg = 0x0,
 	.support_dyn_offset  = true,
+	.dynamic_drv_supported = true,
 	.top_irq_desc        = &cam_ife_csid_common_reg_v1_top_irq_desc,
 	.rx_irq_desc         = &cam_ife_csid_common_reg_v1_rx_irq_desc,
 	.debug_vec_desc      = &cam_ife_csid_common_reg_v1_debug_vec_desc,

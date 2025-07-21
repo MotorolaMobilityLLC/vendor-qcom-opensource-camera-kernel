@@ -1362,6 +1362,16 @@ static int cam_cpastop_poweron(struct cam_hw_info *cpas_hw)
 		}
 	}
 
+	curr_camnoc_info = cpas_core->hw_info->camnoc_info[CAM_CAMNOC_HW_NRT];
+	if (curr_camnoc_info && curr_camnoc_info->dcd_div_offset) {
+		index = cpas_core->regbase_index[CAM_CPAS_REG_CAMNOC_NRT];
+
+		CAM_DBG(CAM_CPAS, "Writing DCD Div factor 0x4, offset 0x%x",
+			curr_camnoc_info->dcd_div_offset);
+		cam_io_w_mb(0x4,
+			soc_info->reg_map[index].mem_base + curr_camnoc_info->dcd_div_offset);
+	}
+
 	return 0;
 }
 
