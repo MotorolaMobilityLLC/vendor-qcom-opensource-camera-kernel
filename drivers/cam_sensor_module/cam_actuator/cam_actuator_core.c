@@ -333,6 +333,10 @@ int32_t cam_actuator_apply_settings(struct cam_actuator_ctrl_t *a_ctrl,
 				{
 					dac = i2c_reg->reg_setting[0].reg_data >> DATA_SHIFT;
 
+#if defined(CONFIG_MOT_DRV_OIS_SEM1218S_DRIVER)
+					//sem1218s's regsiter is little-endian, dongwoon's register is big-endian
+					dac = ((dac & 0xff00) >> 8) | ((dac & 0x00ff) << 8);
+#endif
 					rc = cam_ois_write_af_drift(dac);
 					if (rc < 0) {
 						CAM_ERR(CAM_ACTUATOR, "Failed to apply af drift settings: %d", rc);

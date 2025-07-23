@@ -30,7 +30,11 @@ int cam_ois_write_af_drift(uint32_t dac)
 {
 	struct cam_ois_ctrl_t *o_ctrl = g_o_ctrl;
 	struct cam_sensor_i2c_reg_setting i2c_reg_setting = {NULL, 1, CAMERA_SENSOR_I2C_TYPE_WORD, CAMERA_SENSOR_I2C_TYPE_WORD, 0};
+#if defined(CONFIG_MOT_DRV_OIS_SEM1218S_DRIVER)
+	struct cam_sensor_i2c_reg_array i2c_write_settings = {0x0204, dac, 0, 0};
+#else
 	struct cam_sensor_i2c_reg_array i2c_write_settings = {0x7070, dac, 0, 0};
+#endif
 	int rc = 0;
 
 	if (!o_ctrl) {
