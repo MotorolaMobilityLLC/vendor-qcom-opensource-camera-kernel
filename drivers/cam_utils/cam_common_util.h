@@ -84,7 +84,7 @@ void cam_common_util_thread_switch_delay_detect(const char *token,
  * @src:                   Source address of memory
  * @size:                  Length of memory
  *
- * @return                 0 if success in register non-zero if failes
+ * @return                 0 if success in register non-zero if fails
  */
 int cam_common_mem_kdup(void **dst, void *src, size_t size);
 
