@@ -6554,6 +6554,12 @@ static int cam_icp_mgr_process_io_cfg(struct cam_icp_hw_mgr *hw_mgr,
 
 	for (i = 0, j = 0, k = 0; i < packet->num_io_configs; i++) {
 		if (io_cfg_ptr[i].direction == CAM_BUF_INPUT) {
+			if (j >= CAM_MAX_IN_RES) {
+				CAM_ERR(CAM_ICP, "%s: too many input resources: %u, max allowed: %d",
+					ctx_data->ctx_id_string, j, CAM_MAX_IN_RES);
+				return -EINVAL;
+			}
+
 			sync_in_obj[j++] = io_cfg_ptr[i].fence;
 			prepare_args->num_in_map_entries++;
 		} else if ((io_cfg_ptr[i].direction == CAM_BUF_OUTPUT) ||
