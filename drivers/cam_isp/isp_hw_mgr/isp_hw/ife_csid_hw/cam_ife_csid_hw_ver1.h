@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_IFE_CSID_HW_VER1_H_
@@ -119,6 +119,8 @@ struct cam_ife_csid_ver1_common_reg_info {
 	uint32_t early_eof_supported;
 	uint32_t global_reset;
 	uint32_t aup_rup_supported;
+	uint32_t num_perf_cntrs;
+	uint32_t num_dt_supported;
 
 	/* Masks */
 	uint32_t ipp_irq_mask_all;
