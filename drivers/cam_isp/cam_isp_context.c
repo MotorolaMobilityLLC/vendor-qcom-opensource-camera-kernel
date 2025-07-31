@@ -4760,7 +4760,7 @@ static int cam_isp_ctx_rup_miss_handler(struct cam_context *ctx,
 		error_event_data->print_hw_info = true;
 
 	CAM_WARN_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 1,
-		"RUP miss recived for ctx:%u, link:0x%x, wait_req:%llu active_req:%llu substate:%u frame_id:%u",
+		"RUP miss recived for ctx:%u, link:0x%x, wait_req:%lld active_req:%lld substate:%u frame_id:%u",
 		ctx->ctx_id, ctx->link_hdl, (wait_req) ? wait_req->request_id : -1,
 		(active_req) ? active_req->request_id : -1,
 		ctx_isp->substate_activated, ctx_isp->frame_id);
