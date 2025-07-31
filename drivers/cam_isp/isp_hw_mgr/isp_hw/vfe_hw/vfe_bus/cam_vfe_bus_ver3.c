@@ -409,6 +409,7 @@ static bool cam_vfe_bus_ver3_can_be_secure(uint32_t out_type)
 	case CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PARSED:
 	case CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_RAW:
 	case CAM_VFE_BUS_VER3_VFE_OUT_IR:
+	case CAM_VFE_BUS_VER3_VFE_OUT_FD2:
 		return true;
 
 	case CAM_VFE_BUS_VER3_VFE_OUT_FD:
@@ -569,6 +570,9 @@ static enum cam_vfe_bus_ver3_vfe_out_type
 		break;
 	case CAM_ISP_IFE_OUT_RES_STATS_AEC_BHIST:
 		vfe_out_type = CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BHIST;
+		break;
+	case CAM_ISP_IFE_OUT_RES_FD2:
+		vfe_out_type = CAM_VFE_BUS_VER3_VFE_OUT_FD2;
 		break;
 	default:
 		CAM_WARN(CAM_ISP, "VFE:%u Invalid isp res id: %d , assigning max",
@@ -1140,6 +1144,7 @@ static int cam_vfe_bus_ver3_config_port(
 	case CAM_VFE_BUS_VER3_VFE_OUT_DS16:
 	case CAM_VFE_BUS_VER3_VFE_OUT_FD:
 	case CAM_VFE_BUS_VER3_VFE_OUT_FULL_DISP:
+	case CAM_VFE_BUS_VER3_VFE_OUT_FD2:
 		rc = cam_vfe_bus_ver3_config_ports_with_ubwc(rsrc_data, vfe_out_res_id, plane);
 		if (rc)
 			return rc;
@@ -2185,7 +2190,8 @@ static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 	rsrc_data->common_data->cdm_util_ops = out_acquire_args->cdm_ops;
 	rsrc_data->format = out_acquire_args->out_port_info->format;
 
-	if ((rsrc_data->out_type == CAM_VFE_BUS_VER3_VFE_OUT_FD) &&
+	if (((rsrc_data->out_type == CAM_VFE_BUS_VER3_VFE_OUT_FD) ||
+		(rsrc_data->out_type == CAM_VFE_BUS_VER3_VFE_OUT_FD2)) &&
 		(rsrc_data->format == CAM_FORMAT_Y_ONLY))
 		rsrc_data->num_wm = 1;
 
@@ -2296,7 +2302,8 @@ static int cam_vfe_bus_ver3_release_vfe_out(void *bus_priv, void *release_args,
 	for (i = 0; i < rsrc_data->num_wm; i++)
 		cam_vfe_bus_ver3_release_wm(bus_priv, rsrc_data->wm_res[i]);
 
-	if ((rsrc_data->out_type == CAM_VFE_BUS_VER3_VFE_OUT_FD) &&
+	if (((rsrc_data->out_type == CAM_VFE_BUS_VER3_VFE_OUT_FD) ||
+		(rsrc_data->out_type == CAM_VFE_BUS_VER3_VFE_OUT_FD2)) &&
 		(rsrc_data->format == CAM_FORMAT_Y_ONLY))
 		rsrc_data->num_wm = 2;
 

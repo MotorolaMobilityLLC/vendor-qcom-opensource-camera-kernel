@@ -1458,6 +1458,7 @@ static char *__cam_isp_ife_sfe_resource_handle_id_to_type(
 	case CAM_ISP_IFE_OUT_RES_STATS_TMC_BHIST:       return "IFE_STATS_TMC_BHIST";
 	case CAM_ISP_IFE_OUT_RES_STATS_AF_BHIST:        return "IFE_STATS_AF_BHIST";
 	case CAM_ISP_IFE_OUT_RES_STATS_AEC_BHIST:       return "IFE_STATS_AEC_BHIST";
+	case CAM_ISP_IFE_OUT_RES_FD2:                   return "IFE_FD2";
 	/* SFE output ports */
 	case CAM_ISP_SFE_OUT_RES_RDI_0:                 return "SFE_RDI_0";
 	case CAM_ISP_SFE_OUT_RES_RDI_1:                 return "SFE_RDI_1";
