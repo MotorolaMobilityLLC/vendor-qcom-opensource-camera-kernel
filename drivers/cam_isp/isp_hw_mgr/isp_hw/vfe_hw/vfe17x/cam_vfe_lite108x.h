@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 
@@ -408,7 +408,6 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite108x_bus_hw_info = {
 			.name                     = "LITE_RDI_2",
 			.line_based               = 1,
 			.mid                      = {34},
-			.num_mid                  = 1,
 			.num_mid                  = 1,
 			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
 			.pid_mask                 = BIT_ULL(19) | BIT_ULL(20),

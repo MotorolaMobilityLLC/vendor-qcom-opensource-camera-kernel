@@ -419,7 +419,6 @@ static struct cam_vfe_bus_ver3_hw_info vfe_lite_common_reg_v1_bus_hw_info = {
 			.line_based               = 1,
 			.mid                      = {34},
 			.num_mid                  = 1,
-			.num_mid                  = 1,
 			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_RDI2,
 			.pid_mask                 = BIT_ULL(17) | BIT_ULL(18),
 		},
