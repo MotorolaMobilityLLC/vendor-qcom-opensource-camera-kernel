@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only
  *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #ifndef __CAM_SYNC_SYNX_H__
 #define __CAM_SYNC_SYNX_H__
@@ -14,7 +14,7 @@
 #include "cam_sync.h"
 #include "cam_debug_util.h"
 
-#define CAM_SYNX_MAX_OBJS 256
+#define CAM_SYNX_MAX_OBJS 512
 #define CAM_SYNX_OBJ_NAME_LEN 64
 #define CAM_SYNX_TABLE_SZ (CAM_SYNX_MAX_OBJS / CAM_GENERIC_MONITOR_TABLE_ENTRY_SZ)
 
