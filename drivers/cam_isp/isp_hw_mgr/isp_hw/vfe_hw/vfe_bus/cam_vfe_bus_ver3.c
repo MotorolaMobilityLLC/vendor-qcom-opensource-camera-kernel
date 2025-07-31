@@ -435,6 +435,7 @@ static bool cam_vfe_bus_ver3_can_be_secure(uint32_t out_type)
 	case CAM_VFE_BUS_VER3_VFE_OUT_STATS_TMC_BHIST:
 	case CAM_VFE_BUS_VER3_VFE_OUT_STATS_AF_BHIST:
 	case CAM_VFE_BUS_VER3_VFE_OUT_STATS_AEC_BHIST:
+	case CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PREPROCESSED2:
 	default:
 		return false;
 	}
@@ -573,6 +574,9 @@ static enum cam_vfe_bus_ver3_vfe_out_type
 		break;
 	case CAM_ISP_IFE_OUT_RES_FD2:
 		vfe_out_type = CAM_VFE_BUS_VER3_VFE_OUT_FD2;
+		break;
+	case CAM_ISP_IFE_OUT_PDAF_PREPROCESSED2:
+		vfe_out_type = CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PREPROCESSED2;
 		break;
 	default:
 		CAM_WARN(CAM_ISP, "VFE:%u Invalid isp res id: %d , assigning max",
@@ -1236,6 +1240,11 @@ static int cam_vfe_bus_ver3_config_port(
 			common_reg->wm_mode_shift) | (1 << common_reg->wm_en_shift);
 		/* LSB aligned */
 		rsrc_data->cfg.pack_fmt |= (1 << ver3_bus_priv->common_data.pack_align_shift);
+		break;
+	case CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PREPROCESSED2:
+		rsrc_data->cfg.stride = ALIGNUP(rsrc_data->cfg.width * 2, 8);
+		rsrc_data->cfg.en_cfg = (common_reg->wm_mode_val[CAM_VFE_WM_LINE_BASED_MODE] <<
+			common_reg->wm_mode_shift) | (1 << common_reg->wm_en_shift);
 		break;
 	default:
 		CAM_ERR(CAM_ISP, "Invalid out_type:%d requested", vfe_out_res_id);
