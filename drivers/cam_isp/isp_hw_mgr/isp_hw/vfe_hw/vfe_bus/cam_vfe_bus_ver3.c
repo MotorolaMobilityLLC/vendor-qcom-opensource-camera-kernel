@@ -28,6 +28,8 @@
 #include "cam_compat.h"
 #include "cam_vmrm_interface.h"
 #include "cam_mem_mgr_api.h"
+#include "cam_wr_bus_common_query_v1.h"
+#include "cam_vfe_top_ver4.h"
 
 static const char drv_name[] = "vfe_bus";
 
@@ -5714,7 +5716,6 @@ static int cam_vfe_bus_ver3_process_cmd(
 	case CAM_ISP_HW_CMD_MC_CTXT_SEL:
 		rc = cam_vfe_bus_ver3_mc_ctxt_sel(priv, cmd_args, arg_size);
 		break;
-
 	case CAM_ISP_HW_CMD_IRQ_INJECTION:
 		rc = cam_vfe_bus_ver3_irq_inject(priv, cmd_args, arg_size);
 		break;
@@ -5731,6 +5732,170 @@ static int cam_vfe_bus_ver3_process_cmd(
 			priv->hw_intf->hw_idx, cmd_type);
 		break;
 	}
+
+	return rc;
+}
+
+static void cam_vfe_ver3_get_comp_id_util(struct cam_vfe_bus_ver3_hw_info *hw_info, uint32_t wm_id)
+{
+	struct cam_vfe_bus_ver3_reg_offset_bus_client *c_reg;
+	uint32_t sub_grp_0 = 0;
+	uint32_t sub_grp_1 = 0;
+	uint32_t valid_comp_grp_id_mask = 0;
+	int i = 0;
+	struct cam_wr_bus_hw_query_info_v1 *query_info;
+
+	query_info = (struct cam_wr_bus_hw_query_info_v1 *)hw_info->query_info;
+
+	valid_comp_grp_id_mask = query_info->sub_grp_present;
+
+	while (valid_comp_grp_id_mask) {
+
+		if ((valid_comp_grp_id_mask & 0x1)) {
+			sub_grp_0 = query_info->sub_grp_info[i].sub_grp_client_present_0;
+			sub_grp_1 = query_info->sub_grp_info[i].sub_grp_client_present_1;
+			c_reg = &hw_info->bus_client_reg[wm_id];
+
+			if ((sub_grp_0 & BIT_ULL(wm_id))  || (sub_grp_1 & BIT_ULL(wm_id))) {
+				c_reg->comp_group = i;
+				CAM_DBG(CAM_ISP, "Comp Grp %u wm_id %u", i, wm_id);
+				return;
+			}
+		}
+
+		valid_comp_grp_id_mask >>= 1;
+		i++;
+	}
+
+	CAM_WARN(CAM_ISP, "Failed to get Comp Grp for wm_id %u, Valid_comp_grp %u",
+		wm_id, valid_comp_grp_id_mask);
+}
+
+static int cam_vfe_ver3_populate_wm_info(struct cam_vfe_bus_ver3_hw_info *hw_info,
+	uint64_t valid_wm_mask, uint32_t start_idx)
+{
+	struct cam_vfe_bus_ver3_reg_offset_bus_client *c_reg;
+	uint32_t i = 0;
+	struct cam_wr_bus_hw_query_info_v1 *query_info;
+	uint32_t client_idx = 0;
+	uint32_t max_valid_client_idx = 0;
+	struct cam_bus_wr_client *client;
+
+	max_valid_client_idx = fls(valid_wm_mask) + start_idx;
+
+	if (max_valid_client_idx > CAM_VFE_BUS_VER3_MAX_CLIENTS) {
+		CAM_ERR(CAM_ISP,
+			"Clients not supported, start_idx:%d, valid_wm_mask:%llx max_valid_client_idx:%u",
+			start_idx, valid_wm_mask, max_valid_client_idx);
+		return -EINVAL;
+	}
+
+	query_info = (struct cam_wr_bus_hw_query_info_v1 *)hw_info->query_info;
+
+	while (valid_wm_mask) {
+
+		if ((valid_wm_mask & 0x1)) {
+			client_idx = start_idx + i;
+			c_reg = &hw_info->bus_client_reg[client_idx];
+			client = &query_info->client[client_idx];
+
+			if (client->info.bits.ubwc_en)
+				hw_info->ubwc_clients_mask |= BIT_ULL(client_idx);
+
+			if (client->info.bits.early_done_irq_en)
+				c_reg->early_done_mask |= BIT_ULL(client_idx);
+
+			c_reg->mc_based = (bool)client->info.bits.client_cfg_num_context;
+			c_reg->supported_pack_formats = client->linear_format.dword;
+			cam_vfe_ver3_get_comp_id_util(hw_info, client_idx);
+		}
+		i++;
+		valid_wm_mask >>= 1;
+	}
+
+	return 0;
+}
+
+static int cam_vfe_ver3_update_hw_info_from_query(struct cam_vfe_bus_ver3_hw_info *hw_info)
+{
+	uint64_t client_present_0 = 0;
+	uint64_t client_present_1 = 0;
+	struct cam_wr_bus_hw_query_info_v1 *query_info;
+	int rc = 0;
+
+	query_info = (struct cam_wr_bus_hw_query_info_v1 *)hw_info->query_info;
+	client_present_0 = query_info->client_present_0;
+	client_present_1 = query_info->client_present_1;
+	/*
+	 * Read clients info for 0-31 WMs
+	 */
+	if (client_present_0) {
+		rc = cam_vfe_ver3_populate_wm_info(hw_info, client_present_0, 0);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "Populate client_present_0:%llx failed", client_present_0);
+			return rc;
+		}
+	}
+	/*
+	 * Read clients info for 32-63 WMs
+	 */
+	if (client_present_1) {
+		rc = cam_vfe_ver3_populate_wm_info(hw_info, client_present_1, 32);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "Populate client_present_1:%llx failed", client_present_1);
+			return rc;
+		}
+	}
+
+
+	hw_info->num_comp_grp = fls(query_info->sub_grp_present);
+	hw_info->valid_wm_mask = (client_present_0) | (client_present_1 << 32);
+
+	return 0;
+}
+
+int cam_vfe_bus_ver3_read_hw_query(struct cam_hw_soc_info *soc_info,
+	void *bus_hw_info)
+{
+	struct cam_vfe_bus_ver3_query_dmi_reg_info *query_reg;
+	struct cam_vfe_bus_ver3_hw_info            *hw_info = bus_hw_info;
+	void __iomem                               *base =  NULL;
+	struct cam_vfe_hw_info                     *vfe_hw_info = NULL;
+	struct cam_common_lut_info                  lut = {0};
+	struct cam_vfe_top_ver4_hw_info            *top_hw_info;
+	struct cam_wr_bus_hw_query_info_v1            *query_ptr;
+	int                                         rc = 0;
+
+	hw_info = (struct cam_vfe_bus_ver3_hw_info  *)bus_hw_info;
+	vfe_hw_info = (struct cam_vfe_hw_info *)
+			container_of(bus_hw_info, struct cam_vfe_hw_info, bus_hw_info);
+	top_hw_info = (struct cam_vfe_top_ver4_hw_info *)(vfe_hw_info->top_hw_info);
+	hw_info->bus_wr_base = top_hw_info->bus_wr_base;
+	base = soc_info->reg_map[VFE_CORE_BASE_IDX].mem_base;
+
+	query_ptr = CAM_MEM_ZALLOC(sizeof(struct cam_wr_bus_hw_query_info_v1), GFP_KERNEL);
+
+	if (!query_ptr) {
+		CAM_ERR(CAM_ISP, "Memory allocation failed");
+		return -ENOMEM;
+	}
+
+	query_reg = hw_info->query_reg;
+	lut.type = query_reg->query_sel_val;
+	lut.dmi_cfg = query_reg->dmi_cfg;
+	lut.dmi_data = query_reg->dmi_data;
+	lut.dmi_lut_cfg = query_reg->dmi_lut_cfg;
+	rc = cam_common_wr_bus_read_hw_query(base + hw_info->bus_wr_base, &lut, query_ptr);
+	if (rc) {
+		CAM_ERR(CAM_ISP, "Read LUT failed");
+		goto free_mem;
+	}
+
+	hw_info->query_info = query_ptr;
+	return 0;
+
+free_mem:
+	CAM_MEM_FREE(query_ptr);
 
 	return rc;
 }
@@ -5757,6 +5922,16 @@ int cam_vfe_bus_ver3_init(
 		CAM_ERR(CAM_ISP, "controller: %pK", vfe_irq_controller);
 		rc = -EINVAL;
 		goto end;
+	}
+
+	if (ver3_hw_info->query_info) {
+		rc = cam_vfe_ver3_update_hw_info_from_query(ver3_hw_info);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "Populate hw entry from query failed");
+			CAM_MEM_FREE(ver3_hw_info->query_info);
+			ver3_hw_info->query_info = NULL;
+			return rc;
+		}
 	}
 
 	soc_private = soc_info->soc_private;
@@ -5983,6 +6158,7 @@ int cam_vfe_bus_ver3_deinit(
 
 	CAM_MEM_FREE(bus_priv->comp_grp);
 	CAM_MEM_FREE(bus_priv->vfe_out);
+	CAM_MEM_FREE(bus_priv->bus_hw_info->query_info);
 
 	mutex_destroy(&bus_priv->common_data.bus_mutex);
 	CAM_MEM_FREE(vfe_bus_local->bus_priv);
