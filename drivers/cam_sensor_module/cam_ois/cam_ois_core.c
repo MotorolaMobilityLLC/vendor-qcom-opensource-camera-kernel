@@ -2132,6 +2132,10 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			goto end;
 		}
 
+#ifdef CONFIG_MOT_DRV_OIS_DW9784_DRIVER
+		mdelay(1);
+#endif
+
 		rc = delete_request(i2c_reg_settings);
 		if (rc < 0) {
 			CAM_ERR(CAM_OIS,
