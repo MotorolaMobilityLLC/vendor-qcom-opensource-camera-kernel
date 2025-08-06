@@ -5100,7 +5100,8 @@ static int cam_soc_util_dump_dmi_ctxt_reg_range_user_buf(
 		goto end;
 	}
 	remain_len = buf_len - dump_args->offset;
-	min_len = (reg_read->num_pre_writes * 2 * sizeof(uint32_t)) +
+	min_len =  sizeof(struct cam_hw_soc_dump_header) +
+		(reg_read->num_pre_writes * 2 * sizeof(uint32_t)) +
 		(reg_read->dmi_data_read.num_values * 2 * sizeof(uint32_t)) +
 		sizeof(uint32_t);
 	if (remain_len < min_len) {
