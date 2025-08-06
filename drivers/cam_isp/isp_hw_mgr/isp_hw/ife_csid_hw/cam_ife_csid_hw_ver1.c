@@ -1777,6 +1777,7 @@ int cam_ife_csid_ver1_reserve(void *hw_priv,
 	rc = cam_ife_csid_hw_ver1_hw_cfg(csid_hw, path_cfg,
 		reserve, cid);
 	res->res_state = CAM_ISP_RESOURCE_STATE_RESERVED;
+	res->cdm_ops = reserve->cdm_ops;
 	reserve->node_res = res;
 	csid_hw->event_cb = reserve->event_cb;
 	csid_hw->token = reserve->cb_priv;
@@ -3913,6 +3914,11 @@ static int cam_ife_csid_ver1_process_cmd(void *hw_priv,
 			rc = cam_ife_csid_ver1_get_primary_sof_timer_reg_addr(csid_hw,
 				sof_addr_args);
 	}
+		break;
+	case CAM_ISP_HW_CMD_GET_CHANGE_BASE:
+		rc = cam_ife_csid_get_base(&hw_info->soc_info,
+			CAM_IFE_CSID_CLC_MEM_BASE_ID,
+			cmd_args, arg_size);
 		break;
 	default:
 		CAM_ERR(CAM_ISP, "CSID:%d unsupported cmd:%d",
