@@ -1213,6 +1213,13 @@ struct cam_vfe_top_ver4_query_dmi_reg_info tfe_common_reg_v1_top_query_reg = {
 		.clc_id_fcg                  = 11,
 };
 
+struct cam_vfe_bus_ver3_query_dmi_reg_info tfe_common_reg_v1_bus_query_reg = {
+	    .dmi_cfg                     = 0x14,
+	    .dmi_lut_cfg                 = 0x18,
+	    .dmi_data                    = 0x1C,
+	    .query_sel_val               = 1,
+};
+
 static struct cam_vfe_top_ver4_hw_info tfe_common_reg_v1_top_hw_info = {
 	.common_reg = &tfe_common_reg_v1_common_reg,
 	.vfe_full_hw_info = {
@@ -1409,7 +1416,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 	 */
 	.client_base                              = 0x1000,
 	.client_reg_size                          = 0x200,
-	.ubwc_clients_mask                        = 0x1F,
+	.ubwc_clients_mask                        = 0x3F,
 	.client_offsets = {
 			.cfg                      = 0x0,
 			.image_addr               = 0x4,
@@ -1847,7 +1854,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 			.line_based               = 1,
 			.mid                      = {59, 60},
 			.num_mid                  = 2,
-			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD_SECURE,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD2,
 			.pid_mask                 = BIT_ULL(14) | BIT_ULL(15) | BIT_ULL(16),
 		},
 		/* BUS Client 29 FD_SECURE_C */
@@ -1858,7 +1865,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 			.line_based               = 1,
 			.mid                      = {61},
 			.num_mid                  = 1,
-			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD_SECURE,
+			.out_type                 = CAM_VFE_BUS_VER3_VFE_OUT_FD2,
 			.pid_mask                 = BIT_ULL(14) | BIT_ULL(15) | BIT_ULL(16),
 		},
 	},
@@ -1994,6 +2001,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe_common_reg_v1_bus_hw_info = {
 			.error_description = "Meta Stride unalign",
 		},
 	},
+	.query_reg             = &tfe_common_reg_v1_bus_query_reg,
 	.num_bus_errors        = 1,
 	.bus_err_desc          = &tfe_common_reg_v1_bus_irq_err_desc,
 	.num_comp_grp          = 10,

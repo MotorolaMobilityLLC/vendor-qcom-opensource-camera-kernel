@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/ratelimit.h>
@@ -2462,10 +2462,15 @@ static int cam_sfe_bus_wr_update_wm(void *priv, void *cmd_args,
 	}
 
 	reg_val_pair = &sfe_out_data->common_data->io_buf_update[0];
-	if (update_buf->use_scratch_cfg)
+	if (update_buf->use_scratch_cfg) {
 		CAM_DBG(CAM_SFE, "Using scratch buf config");
-	else
+	} else {
 		io_cfg = update_buf->wm_update->io_cfg;
+		if (!io_cfg) {
+			CAM_ERR(CAM_SFE, "Invalid IO_CFG");
+			return -EINVAL;
+		}
+	}
 
 	for (i = 0, j = 0; i < sfe_out_data->num_wm; i++) {
 		if (j >= (MAX_REG_VAL_PAIR_SIZE - MAX_BUF_UPDATE_REG_NUM * 2)) {

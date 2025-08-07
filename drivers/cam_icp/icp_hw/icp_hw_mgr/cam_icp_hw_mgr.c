@@ -4407,8 +4407,12 @@ static int cam_icp_mgr_send_pc_prep(struct cam_icp_hw_mgr *hw_mgr)
 		&hw_mgr->icp_complete,
 		msecs_to_jiffies((timeout)), CAM_ICP,
 		"[%s] FW response timeout for PC PREP handle command", hw_mgr->hw_mgr_name);
-	if (!rem_jiffies)
+	if (!rem_jiffies) {
 		rc = -ETIMEDOUT;
+		cam_icp_dump_debug_info(hw_mgr, false);
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] PC Prep Timeout......", hw_mgr->hw_mgr_name);
+	}
 	CAM_DBG(CAM_ICP, "[%s] Done Waiting for PC_PREP Message\n", hw_mgr->hw_mgr_name);
 
 	return rc;
@@ -5576,6 +5580,8 @@ static int cam_icp_mgr_send_fw_init(struct cam_icp_hw_mgr *hw_mgr)
 	if (!rem_jiffies) {
 		rc = -ETIMEDOUT;
 		cam_icp_dump_debug_info(hw_mgr, false);
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] FW INIT Timeout......", hw_mgr->hw_mgr_name);
 	}
 	CAM_DBG(CAM_ICP, "[%s] Done Waiting for INIT DONE Message",
 		hw_mgr->hw_mgr_name);
@@ -6165,6 +6171,8 @@ static int cam_icp_mgr_send_config_io(struct cam_icp_hw_ctx_data *ctx_data,
 		/* send specific error for io config failure */
 		rc = -EREMOTEIO;
 		cam_icp_dump_debug_info(hw_mgr, false);
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] Config IO Timeout......", hw_mgr->hw_mgr_name);
 	}
 
 	return rc;
@@ -6717,6 +6725,8 @@ static int cam_icp_process_stream_settings(
 	if (!rem_jiffies) {
 		rc = -ETIMEDOUT;
 		cam_icp_dump_debug_info(ctx_data->hw_mgr_priv, false);
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] Stream Process Timeout......", hw_mgr->hw_mgr_name);
 	}
 
 end:
@@ -8020,6 +8030,9 @@ static int cam_icp_mgr_synx_send_test_cmd(
 			"FW response timeout for synx test cmd");
 	if (!rem_jiffies) {
 		rc = -ETIMEDOUT;
+		cam_icp_dump_debug_info(hw_mgr, false);
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] Synx Test CMD Timeout......", hw_mgr->hw_mgr_name);
 		goto end;
 	}
 
@@ -8288,6 +8301,8 @@ static int cam_icp_mgr_create_handle(struct cam_icp_hw_mgr *hw_mgr,
 	if (!rem_jiffies) {
 		rc = -ETIMEDOUT;
 		cam_icp_dump_debug_info(hw_mgr, false);
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] Handle Creation Timeout.....", hw_mgr->hw_mgr_name);
 	}
 
 	if (ctx_data->fw_handle == 0) {
@@ -8350,6 +8365,8 @@ static int cam_icp_mgr_send_ping(struct cam_icp_hw_mgr *hw_mgr,
 	if (!rem_jiffies) {
 		rc = -ETIMEDOUT;
 		cam_icp_dump_debug_info(hw_mgr, false);
+		if (hw_mgr->enable_panic)
+			CAM_TRIGGER_PANIC("[%s] Ping Timeout......", hw_mgr->hw_mgr_name);
 	}
 
 	return rc;

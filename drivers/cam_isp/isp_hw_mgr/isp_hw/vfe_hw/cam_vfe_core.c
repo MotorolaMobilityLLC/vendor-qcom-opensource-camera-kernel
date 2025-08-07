@@ -672,6 +672,10 @@ int cam_vfe_core_read_hw_query(struct cam_hw_soc_info *soc_info,
 	if (rc)
 		CAM_ERR(CAM_ISP, "Read  top query failed rc %d", rc);
 
+	rc = cam_vfe_bus_read_hw_query(soc_info, (void *)hw_info);
+	if (rc)
+		CAM_ERR(CAM_ISP, "Read bus query failed rc %d", rc);
+
 	cam_vfe_disable_soc_resources(soc_info);
 
 	return rc;

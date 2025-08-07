@@ -1458,6 +1458,8 @@ static char *__cam_isp_ife_sfe_resource_handle_id_to_type(
 	case CAM_ISP_IFE_OUT_RES_STATS_TMC_BHIST:       return "IFE_STATS_TMC_BHIST";
 	case CAM_ISP_IFE_OUT_RES_STATS_AF_BHIST:        return "IFE_STATS_AF_BHIST";
 	case CAM_ISP_IFE_OUT_RES_STATS_AEC_BHIST:       return "IFE_STATS_AEC_BHIST";
+	case CAM_ISP_IFE_OUT_RES_FD2:                   return "IFE_FD2";
+	case CAM_ISP_IFE_OUT_PDAF_PREPROCESSED2:        return "IFE_PDAF_PREPROCESSED2";
 	/* SFE output ports */
 	case CAM_ISP_SFE_OUT_RES_RDI_0:                 return "SFE_RDI_0";
 	case CAM_ISP_SFE_OUT_RES_RDI_1:                 return "SFE_RDI_1";
@@ -4758,7 +4760,7 @@ static int cam_isp_ctx_rup_miss_handler(struct cam_context *ctx,
 		error_event_data->print_hw_info = true;
 
 	CAM_WARN_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 1,
-		"RUP miss recived for ctx:%u, link:0x%x, wait_req:%llu active_req:%llu substate:%u frame_id:%u",
+		"RUP miss recived for ctx:%u, link:0x%x, wait_req:%lld active_req:%lld substate:%u frame_id:%u",
 		ctx->ctx_id, ctx->link_hdl, (wait_req) ? wait_req->request_id : -1,
 		(active_req) ? active_req->request_id : -1,
 		ctx_isp->substate_activated, ctx_isp->frame_id);

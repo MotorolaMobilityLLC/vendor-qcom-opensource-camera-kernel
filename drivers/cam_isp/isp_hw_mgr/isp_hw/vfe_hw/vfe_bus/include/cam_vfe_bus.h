@@ -105,4 +105,18 @@ int cam_vfe_bus_deinit(uint32_t        bus_version,
 void cam_vfe_bus_debug_handler(
 	void *priv, int bus_version, void *data);
 
+/*
+ * cam_vfe_bus_read_hw_query()
+ *
+ * @Brief:                   Read HW query for VFE bus
+ *
+ * @soc_info:                SOC Info pointer
+ * @vfe_hw_info:             Pointer to VFE hw info
+ *
+ * @Return:                  0: Success
+ *                           Non-zero: Failure
+ *
+ */
+int cam_vfe_bus_read_hw_query(struct cam_hw_soc_info *soc_info,
+	 void *vfe_hw_info);
 #endif /* _CAM_VFE_BUS_ */

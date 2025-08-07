@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/slab.h>
@@ -1125,7 +1125,7 @@ static int cam_sfe_top_apply_bw_start_stop(struct cam_sfe_top_priv *top_priv)
 
 	rc = cam_sfe_top_calc_axi_bw_vote(top_priv, true,
 		&to_be_applied_axi_vote, &total_bw_new_vote, 0);
-	if (rc) {
+	if (rc || !to_be_applied_axi_vote) {
 		CAM_ERR(CAM_SFE, "SFE:%d Failed in calculating bw vote rc=%d",
 			top_priv->common_data.hw_intf->hw_idx, rc);
 		goto end;
