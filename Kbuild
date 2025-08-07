@@ -60,6 +60,8 @@ else ifneq (,$(filter eqs eqs_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/eqs.mk
 else ifneq (,$(filter rtwo rtwo_factory, $(TARGET_PRODUCT)))
 include $(CAMERA_KERNEL_ROOT)/config/rtwo.mk
+else ifneq (,$(filter marvel marvel_factory, $(TARGET_PRODUCT)))
+include $(CAMERA_KERNEL_ROOT)/config/marvel.mk
 endif
 
 # For some targets which have binary compatible gki kernel with another one,
