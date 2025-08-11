@@ -176,12 +176,15 @@ struct cam_sensor_ctrl_t {
 #ifdef CONFIG_MOT_SENSOR_PRE_POWERUP
 	bool                           sensor_power_up_done;
 #endif
+#ifdef CONFIG_MOT_DRV_PROBE_SUB_DEVICE
 	uint8_t                        probe_sub_device;
 	uint16_t                       sub_device_addr;
 	uint8_t                        sub_device_data_type;
 	uint8_t                        sub_device_addr_type;
 	uint16_t                       sub_device_id_addr;
 	uint16_t                       expected_sub_device_id;
+	uint16_t                       subDevicIdMask;
+#endif
 };
 
 /**

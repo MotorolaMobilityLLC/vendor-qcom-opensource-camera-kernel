@@ -632,12 +632,15 @@ struct cam_cmd_probe_v2 {
 	__u32    i2c_switch_reg_data;
 	__u32    i2c_switch_reg_delayMs;
 #endif
+#ifdef CONFIG_MOT_DRV_PROBE_SUB_DEVICE
 	__u8     probe_sub_device;
 	__u32    sub_device_addr;
 	__u8     sub_device_data_type;
 	__u8     sub_device_addr_type;
 	__u32    sub_device_id_addr;
 	__u32    expected_sub_device_id;
+	__u32    subDevicIdMask;
+#endif
 } __attribute__((packed));
 
 /**
