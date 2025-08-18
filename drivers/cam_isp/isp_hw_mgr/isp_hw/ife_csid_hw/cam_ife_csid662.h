@@ -319,6 +319,8 @@ static struct cam_ife_csid_ver1_common_reg_info
 		.timestamp_strobe_val                    = 0x2,
 		.global_reset                            = 0,
 		.aup_rup_supported                       = 0,
+		.num_perf_cntrs                          = 0,
+		.num_dt_supported                        = 1,
 		.format_measure_height_mask_val          = 0xFFFF,
 		.format_measure_height_shift_val         = 0x10,
 		.format_measure_width_mask_val           = 0xFFFF,

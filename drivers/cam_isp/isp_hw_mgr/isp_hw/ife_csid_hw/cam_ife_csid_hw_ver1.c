@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/iopoll.h>
@@ -3742,6 +3742,30 @@ static int cam_ife_csid_ver1_dump_csid_clock(
 	return 0;
 }
 
+static int cam_ife_csid_ver1_get_num_dt_supported(
+	struct cam_ife_csid_ver1_hw *csid_hw)
+{
+	struct cam_ife_csid_ver1_reg_info *csid_reg;
+	int num_dt;
+
+	if (unlikely(!csid_hw || !csid_hw->core_info))
+		return 0;
+
+	csid_reg = (struct cam_ife_csid_ver1_reg_info *)
+			csid_hw->core_info->csid_reg;
+
+	if (!csid_reg || !csid_reg->cmn_reg)
+		return 0;
+
+	if (!csid_reg->cmn_reg->multi_vcdt_supported)
+		return 1;
+
+	num_dt = csid_reg->cmn_reg->num_dt_supported ?
+		csid_reg->cmn_reg->num_dt_supported : CAM_IFE_CSID_DEFAULT_NUM_DT;
+
+	return num_dt;
+}
+
 static int cam_ife_csid_ver1_process_cmd(void *hw_priv,
 	uint32_t cmd_type, void *cmd_args, uint32_t arg_size)
 {
@@ -3749,6 +3773,7 @@ static int cam_ife_csid_ver1_process_cmd(void *hw_priv,
 	struct cam_ife_csid_ver1_hw          *csid_hw;
 	struct cam_hw_info                   *hw_info;
 	struct cam_isp_resource_node         *res = NULL;
+	struct cam_ife_csid_ver1_reg_info    *csid_reg;
 
 	if (!hw_priv || !cmd_args) {
 		CAM_ERR(CAM_ISP, "CSID: Invalid arguments");
@@ -3814,6 +3839,18 @@ static int cam_ife_csid_ver1_process_cmd(void *hw_priv,
 		break;
 	case CAM_ISP_HW_CMD_CSID_DUMP_CROP_REG:
 		/* Not supported in V1*/
+		break;
+	case CAM_ISP_HW_CMD_QUERY_CAP: {
+		struct cam_isp_hw_cap *csid_cap = (struct cam_isp_hw_cap *) cmd_args;
+
+		csid_cap->max_dt_supported = cam_ife_csid_ver1_get_num_dt_supported(csid_hw);
+
+		if (!csid_cap->max_dt_supported)
+			rc = -EINVAL;
+
+		csid_reg = (struct cam_ife_csid_ver1_reg_info *) csid_hw->core_info->csid_reg;
+		csid_cap->num_csid_perf_counters = csid_reg->cmn_reg->num_perf_cntrs;
+	}
 		break;
 	default:
 		CAM_ERR(CAM_ISP, "CSID:%d unsupported cmd:%d",
