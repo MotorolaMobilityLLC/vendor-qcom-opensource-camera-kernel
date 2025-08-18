@@ -33,10 +33,6 @@
 
 static const char drv_name[] = "vfe_bus";
 
-#define CAM_VFE_BUS_VER3_IRQ_REG0                0
-#define CAM_VFE_BUS_VER3_IRQ_REG1                1
-#define CAM_VFE_BUS_VER3_IRQ_MAX                 2
-
 #define CAM_VFE_BUS_VER3_PAYLOAD_MAX             256
 
 #define CAM_VFE_RDI_BUS_DEFAULT_WIDTH               0xFFFF
@@ -47,12 +43,6 @@ static const char drv_name[] = "vfe_bus";
 	sizeof(struct cam_vfe_bus_ver3_reg_offset_ubwc_client))/4)
 #define MAX_REG_VAL_PAIR_SIZE    \
 	(MAX_BUF_UPDATE_REG_NUM * 2 * CAM_PACKET_MAX_PLANES)
-
-static uint32_t bus_error_irq_mask[2] = {
-	0xD0000000,
-	0x00000000,
-};
-
 
 struct cam_vfe_bus_irq_violation_type {
 	bool hwpd_violation;
@@ -3651,7 +3641,8 @@ static void cam_vfe_bus_ver3_unsubscribe_init_irq(
 static int cam_vfe_bus_ver3_subscribe_init_irq(
 	struct cam_vfe_bus_ver3_priv          *bus_priv)
 {
-	uint32_t top_irq_reg_mask[3] = {0};
+	struct cam_vfe_bus_ver3_hw_info *bus_hw_info = bus_priv->bus_hw_info;
+	uint32_t top_irq_reg_mask[CAM_IFE_IRQ_REGISTERS_MAX] = {0};
 
 	/* Subscribe top IRQ */
 	top_irq_reg_mask[0] = (1 << bus_priv->top_irq_shift);
@@ -3683,7 +3674,7 @@ static int cam_vfe_bus_ver3_subscribe_init_irq(
 		bus_priv->error_irq_handle = cam_irq_controller_subscribe_irq(
 			bus_priv->common_data.bus_irq_controller,
 			CAM_IRQ_PRIORITY_0,
-			bus_error_irq_mask,
+			bus_hw_info->bus_err_irq_mask,
 			bus_priv,
 			cam_vfe_bus_ver3_handle_err_irq_top_half,
 			cam_vfe_bus_ver3_handle_err_irq_bottom_half,

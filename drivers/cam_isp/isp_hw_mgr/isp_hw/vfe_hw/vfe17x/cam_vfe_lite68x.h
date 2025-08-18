@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 
@@ -692,6 +692,7 @@ static struct cam_vfe_bus_ver3_hw_info vfe680x_bus_hw_info = {
 			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN64),
 		},
 	},
+	.bus_err_irq_mask      = { 0xD0000000, 0x0},
 	.num_out = ARRAY_SIZE(vfe68x_out_hw_hw_info),
 	.vfe_out_hw_info = vfe68x_out_hw_hw_info,
 	.num_comp_grp    = 5,
