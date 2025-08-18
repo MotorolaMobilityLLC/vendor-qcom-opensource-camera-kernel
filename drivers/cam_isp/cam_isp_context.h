@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _CAM_ISP_CONTEXT_H_
@@ -437,6 +437,7 @@ struct cam_isp_fcg_prediction_tracker {
  * @frmhdr_verify_buf_done:    Indicates if frameheader is used to verify buf done
  * @init_pending_req_cnt:      Count of the init pending reqs received before stream on
  * @max_delay:                 The max pipeline delay
+ * @last_sent_sof_timestamp:   SOF timestamp of the last sent SOF timestamp frame
  *
  */
 struct cam_isp_context {
@@ -510,6 +511,7 @@ struct cam_isp_context {
 	bool                                  frmhdr_verify_buf_done;
 	uint32_t                              init_pending_req_cnt;
 	enum cam_pipeline_delay               max_delay;
+	uint64_t                              last_sent_sof_timestamp;
 };
 
 /**
@@ -603,6 +605,7 @@ struct cam_isp_ctx_req_mini_dump {
  * @use_frame_header_ts:       Use frame header for qtimer ts
  * @support_consumed_addr:     Indicate whether HW has last consumed addr reg
  * @use_default_apply:         Use default settings in case of frame skip
+ * @last_sent_sof_timestamp:   SOF timestamp of the last sent SOF timestamp frame
  *
  */
 struct cam_isp_ctx_mini_dump_info {
@@ -642,6 +645,7 @@ struct cam_isp_ctx_mini_dump_info {
 	bool                                   use_frame_header_ts;
 	bool                                   support_consumed_addr;
 	bool                                   use_default_apply;
+	uint64_t                               last_sent_sof_timestamp;
 };
 
 /**
