@@ -413,6 +413,7 @@ static bool cam_vfe_bus_ver3_can_be_secure(uint32_t out_type)
 	case CAM_VFE_BUS_VER3_VFE_OUT_PREPROCESS_RAW:
 	case CAM_VFE_BUS_VER3_VFE_OUT_IR:
 	case CAM_VFE_BUS_VER3_VFE_OUT_FD2:
+	case CAM_VFE_BUS_VER3_VFE_OUT_IDEAL_RAW:
 		return true;
 
 	case CAM_VFE_BUS_VER3_VFE_OUT_FD:
@@ -580,6 +581,12 @@ static enum cam_vfe_bus_ver3_vfe_out_type
 		break;
 	case CAM_ISP_IFE_OUT_PDAF_PREPROCESSED2:
 		vfe_out_type = CAM_VFE_BUS_VER3_VFE_OUT_PDAF_PREPROCESSED2;
+		break;
+	case CAM_ISP_IFE_OUT_RES_IDEAL_RAW:
+		vfe_out_type = CAM_VFE_BUS_VER3_VFE_OUT_IDEAL_RAW;
+		break;
+	case CAM_ISP_IFE_OUT_RES_PDAF:
+		vfe_out_type = CAM_VFE_BUS_VER3_VFE_OUT_PDAF;
 		break;
 	default:
 		CAM_WARN(CAM_ISP, "VFE:%u Invalid isp res id: %d , assigning max",
@@ -1152,6 +1159,8 @@ static int cam_vfe_bus_ver3_config_port(
 	case CAM_VFE_BUS_VER3_VFE_OUT_FD:
 	case CAM_VFE_BUS_VER3_VFE_OUT_FULL_DISP:
 	case CAM_VFE_BUS_VER3_VFE_OUT_FD2:
+	case CAM_VFE_BUS_VER3_VFE_OUT_IDEAL_RAW:
+	case CAM_VFE_BUS_VER3_VFE_OUT_PDAF:
 		rc = cam_vfe_bus_ver3_config_ports_with_ubwc(rsrc_data, vfe_out_res_id, plane);
 		if (rc)
 			return rc;
