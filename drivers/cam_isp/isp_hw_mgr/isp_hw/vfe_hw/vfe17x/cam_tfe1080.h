@@ -1168,11 +1168,11 @@ static struct cam_vfe_bus_ver3_err_irq_desc tfe1080_bus_irq_err_desc[][32] = {
 
 static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 	.common_reg = {
-	    /*
-	     * if bus_wr_base is defined in cam_vfe_bus_ver3_hw_info, offsets are w.r.t
-	     * bus start address, else these are defined w.r.t base of the core
-	     *
-	     */
+	/*
+	 * if bus_wr_base is defined in cam_vfe_bus_ver3_hw_info, offsets are w.r.t
+	 * bus start address, else these are defined w.r.t base of the core
+	 *
+	 */
 		.hw_version                       = 0x00000000,
 		.cgc_ovd                          = 0x00000008,
 		.ctxt_sel                         = 0x00000124,
@@ -1193,11 +1193,15 @@ static struct cam_vfe_bus_ver3_hw_info tfe1080_bus_hw_info = {
 		.wm_en_shift                      = 0,
 		.frmheader_en_shift               = 2,
 		.virtual_frm_en_shift             = 1,
+		/* CCIF violation is selected as candidate bit for irq set on no-fault TFE HW */
+		.no_fault_irq_set_reg_idx = 0,
+		.no_fault_irq_set_mask = 0x40000000,
 		.irq_reg_info = {
 			.num_registers            = 2,
 			.irq_reg_set              = tfe1080_bus_irq_reg,
 			.global_irq_cmd_offset    = 0x00000030,
 			.global_clear_bitmask     = 0x00000001,
+			.global_set_bitmask       = 0x00000010,
 		},
 		.num_perf_counters                = 8,
 		.perf_cnt_status                  = 0x000000B4,

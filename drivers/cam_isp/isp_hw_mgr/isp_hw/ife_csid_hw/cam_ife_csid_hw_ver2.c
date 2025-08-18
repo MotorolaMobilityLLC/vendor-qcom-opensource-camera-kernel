@@ -2039,11 +2039,19 @@ static int cam_ife_csid_ver2_handle_event_err(
 		return 0;
 
 	evt.hw_idx   = csid_hw->hw_intf->hw_idx;
+	evt.reg_idx = 0;
 	evt.reg_val  = irq_status;
 	evt.hw_type  = CAM_ISP_HW_TYPE_CSID;
 	evt.is_secondary_evt = is_secondary;
 	err_evt_info.err_type = err_type;
 	evt.event_data = (void *)&err_evt_info;
+
+	if (((res->res_id == CAM_IFE_PIX_PATH_RES_IPP) ||
+		(res->res_id == CAM_IFE_PIX_PATH_RES_IPP_1) ||
+		(res->res_id == CAM_IFE_PIX_PATH_RES_IPP_2)) &&
+		((err_type & CAM_ISP_HW_ERROR_RECOVERY_OVERFLOW) ||
+		(err_type & CAM_ISP_HW_ERROR_CSID_CAMIF_FRAME_DROP)))
+		evt.trigger_no_fault_stream_err = true;
 
 	if (!is_secondary) {
 		if (res) {
@@ -2074,8 +2082,7 @@ static int cam_ife_csid_ver2_handle_event_err(
 		}
 	}
 
-	evt.in_core_idx =
-		cam_ife_csid_ver2_input_core_to_hw_idx(csid_hw->top_cfg.input_core_type);
+	evt.in_core_idx = cam_ife_csid_ver2_input_core_to_hw_idx(csid_hw->top_cfg.input_core_type);
 
 	cam_ife_csid_ver2_print_hbi_vbi(csid_hw);
 
@@ -7505,8 +7512,7 @@ disable_top_irq_status_reg0:
 		mem_base + csid_reg->cmn_reg->top_irq_mask_addr[CAM_IFE_CSID_TOP_IRQ_STATUS_REG0]);
 }
 
-int cam_ife_csid_ver2_stop(void *hw_priv,
-	void *stop_args, uint32_t arg_size)
+int cam_ife_csid_ver2_stop(void *hw_priv, void *stop_args, uint32_t arg_size)
 {
 	struct cam_ife_csid_ver2_hw                     *csid_hw  = NULL;
 	struct cam_isp_resource_node                    *res;
@@ -9136,6 +9142,47 @@ static int cam_ife_csid_ver2_path_exp_info_update(
 	return 0;
 }
 
+
+static int cam_ife_csid_ver2_trigger_err_irq(struct cam_ife_csid_ver2_hw *csid_hw,
+	void *cmd_args, uint32_t arg_size)
+{
+	int rc = 0;
+	struct cam_ife_csid_ver2_reg_info *csid_reg = NULL;
+	struct cam_isp_hw_trigger_err_info *err_args = cmd_args;
+
+	if (arg_size != sizeof(struct cam_isp_hw_trigger_err_info)) {
+		CAM_ERR(CAM_ISP, "Invalid arg size expected: %zu actual: %zu",
+			sizeof(struct cam_isp_hw_trigger_err_info), arg_size);
+		return -EINVAL;
+	}
+
+	/*
+	 * Restrict trigger error to IPP paths only, with the assumption that any
+	 * would have IPP0 path active at least.
+	 */
+	err_args->res_id = CAM_IFE_PIX_PATH_RES_IPP;
+	if (csid_hw->path_res[err_args->res_id].res_state != CAM_ISP_RESOURCE_STATE_STREAMING) {
+		CAM_WARN(CAM_ISP, "CSID: %u Cannot set err irq for IPP res_state: %u",
+			csid_hw->hw_intf->hw_idx, csid_hw->path_res[err_args->res_id].res_state);
+		return -EPERM;
+	}
+
+	csid_reg = (struct cam_ife_csid_ver2_reg_info *) csid_hw->core_info->csid_reg;
+
+	CAM_DBG(CAM_ISP, "CSID:%u Err irq set res %s irq_mask 0x%x", csid_hw->hw_intf->hw_idx,
+		csid_hw->path_res[err_args->res_id].res_name, err_args->irq_mask);
+
+	rc = cam_irq_controller_set_irq(csid_hw->path_irq_controller[err_args->res_id],
+		err_args->irq_reg_idx, csid_reg->cmn_reg->no_fault_irq_set_mask);
+	if (rc) {
+		CAM_ERR(CAM_ISP, "CSID:%u Failed to set irq for res: %s ", csid_hw->hw_intf->hw_idx,
+			csid_hw->path_res[err_args->res_id].res_name);
+		return rc;
+	}
+
+	return 0;
+}
+
 static int cam_ife_csid_ver2_process_cmd(void *hw_priv,
 	uint32_t cmd_type, void *cmd_args, uint32_t arg_size)
 {
@@ -9269,10 +9316,14 @@ static int cam_ife_csid_ver2_process_cmd(void *hw_priv,
 
 		csid_reg = (struct cam_ife_csid_ver2_reg_info *) csid_hw->core_info->csid_reg;
 		csid_cap->num_csid_perf_counters = csid_reg->cmn_reg->num_perf_cntrs;
+		csid_cap->no_fault_stream_err_en = csid_reg->cmn_reg->no_fault_stream_err_en;
 	}
 		break;
 	case CAM_ISP_HW_CMD_EXP_INFO_UPDATE:
 		rc = cam_ife_csid_ver2_path_exp_info_update(csid_hw, cmd_args);
+		break;
+	case CAM_ISP_HW_CMD_TRIGGER_ERR_NO_FAULT_STREAM:
+		rc = cam_ife_csid_ver2_trigger_err_irq(csid_hw, cmd_args, arg_size);
 		break;
 	default:
 		CAM_ERR(CAM_ISP, "CSID:%u unsupported cmd:%d",
