@@ -2863,6 +2863,7 @@ static int cam_vfe_bus_ver3_init_vfe_out_res_dyn(struct cam_vfe_bus_ver3_priv *b
 			out_rsrc_data->secure_mode  = CAM_SECURE_MODE_NON_SECURE;
 			out_rsrc_data->mc_comp_irq_handle = 0;
 			out_rsrc_data->early_done_mask = c_reg->early_done_mask;
+			out_rsrc_data->source_group = c_reg->source_group;
 		} else {
 			vfe_out =
 				&bus_priv->vfe_out[bus_priv->vfe_out_map_outtype[c_reg->out_type]];

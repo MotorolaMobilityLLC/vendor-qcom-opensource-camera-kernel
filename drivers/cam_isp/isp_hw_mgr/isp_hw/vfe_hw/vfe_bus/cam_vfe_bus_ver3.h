@@ -273,6 +273,7 @@ struct cam_vfe_bus_ver3_reg_offset_bus_client {
 	uint64_t  pid_mask;
 	uint32_t  early_done_mask;
 	uint32_t  mid[CAM_VFE_BUS_VER3_NUM_MID_MAX];
+	uint32_t  source_group;
 	uint8_t  *name;
 	bool      mc_based;
 	bool      cntxt_cfg_except;

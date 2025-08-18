@@ -686,6 +686,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		 */
 		/* BUS Client 0 BAYER */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10) |
 				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
@@ -708,6 +709,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 1 IDEAL_RAW */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_1,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10) |
 				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
@@ -729,6 +731,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 2 STATS BE TINTLESS */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
@@ -741,6 +744,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 3 STATS BHIST */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_2,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
@@ -753,6 +757,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 4 STATS AWB BG */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
@@ -765,6 +770,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 5 STATS AEC BG */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
@@ -778,6 +784,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 6 STATS BAF */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_4,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_64),
@@ -792,6 +799,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 7 RDI0 */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_1,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_5,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 			.name                     = "RDI0",
@@ -804,6 +812,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 8 RDI1 */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_2,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_6,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 			.name                     = "RDI1",
@@ -816,6 +825,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 9 RDI2 */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_3,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_7,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 			.name                     = "RDI2",
@@ -828,6 +838,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 10 PDAF */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_8,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_8) |
 				BIT_ULL(PACKER_FMT_VER3_PLAIN_128) |
@@ -841,6 +852,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 11 DS4 */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 			.name                     = "DS4",
@@ -853,6 +865,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 12 DS16 */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_0,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_128),
 			.name                     = "DS16",
@@ -865,6 +878,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 13 AI-Y */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_9,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10) |
 				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
@@ -886,6 +900,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 14 AI-C */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_9,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_TP_10) |
 				BIT_ULL(PACKER_FMT_VER3_MIPI10) |
@@ -907,6 +922,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe662_bus_hw_info = {
 		},
 		/* BUS Client 15 STATS RS */
 		{
+			.source_group             = CAM_VFE_BUS_VER3_SRC_GRP_0,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_10,
 			.supported_pack_formats   = BIT_ULL(PACKER_FMT_VER3_PLAIN_32),
 			.name                     = "STATS RS",
