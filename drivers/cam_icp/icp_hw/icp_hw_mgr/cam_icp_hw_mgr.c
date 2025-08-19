@@ -3440,8 +3440,14 @@ static void cam_icp_mgr_process_dbg_buf(struct cam_icp_hw_mgr *hw_mgr)
 		while (remain_len) {
 			pkt_ptr = msg_ptr;
 
+			if (pkt_ptr >= hw_mgr->dbg_buf + ICP_DBG_BUF_SIZE_IN_WORDS) {
+				CAM_WARN(CAM_ICP,
+					"Error message: pkt_ptr:%p overflows assigned memory for dbg_buf: %p",
+					pkt_ptr, hw_mgr->dbg_buf);
+				return;
+			}
+
 			if (remain_len >= (ICP_DBG_BUF_SIZE_IN_WORDS << BYTE_WORD_SHIFT) ||
-				(pkt_ptr >= hw_mgr->dbg_buf + ICP_DBG_BUF_SIZE_IN_WORDS) ||
 				(pkt_ptr[ICP_PACKET_TYPE] != HFI_MSG_SYS_DEBUG)) {
 				CAM_WARN(CAM_ICP,
 					"Error message: remain_len:%u, dbg_buf:%p pkt_ptr:%p pkt_size:%u pkt_type:0x%x read_in_words:%d",
@@ -8687,7 +8693,7 @@ static int cam_icp_put_acquire_info_v2(
 	uintptr_t user_acquire_info,
 	struct cam_icp_acquire_dev_info_unified *acquire_info_unified)
 {
-	struct cam_icp_acquire_dev_info_v2 acquire_info;
+	struct cam_icp_acquire_dev_info_v2 acquire_info = {0};
 
 	acquire_info.scratch_mem_size =  acquire_info_unified->scratch_mem_size;
 	acquire_info.dev_type = acquire_info_unified->dev_type;
