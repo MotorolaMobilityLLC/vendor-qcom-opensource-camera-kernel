@@ -1327,10 +1327,18 @@ static int mot_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 	fw  = NULL;
 	dev = &(o_ctrl->pdev->dev);
 
+#if defined(CONFIG_VANTG_DTB)
+	snprintf(name_prog, 32, "%s_vantg.prog", o_ctrl->ois_name);
+	fw_name_prog = name_prog;
+#elif defined(CONFIG_BLANC_DTB)
+	snprintf(name_prog, 32, "%s_blanc.prog", o_ctrl->ois_name);
+	fw_name_prog = name_prog;
+#else
 	snprintf(name_prog, 32, "%s.prog", o_ctrl->ois_name);
 
 	/* cast pointer as const pointer*/
 	fw_name_prog = name_prog;
+#endif
 
 	if (strstr(o_ctrl->ois_name, "sem1217")) {
 		rc = request_firmware(&fw, fw_name_prog, dev);
@@ -1385,13 +1393,6 @@ static int mot_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 	}
 
 	if (strstr(o_ctrl->ois_name, "sem1218")) {
-#if defined(CONFIG_VANTG_DTB)
-		snprintf(name_prog, 32, "%s_vantg.prog", o_ctrl->ois_name);
-		fw_name_prog = name_prog;
-#elif defined(CONFIG_BLANC_DTB)
-		snprintf(name_prog, 32, "%s_blanc.prog", o_ctrl->ois_name);
-		fw_name_prog = name_prog;
-#endif
 		rc = request_firmware(&fw, fw_name_prog, dev);
 		if (rc) {
 			CAM_ERR(CAM_OIS, "Failed to locate %s", fw_name_prog);
