@@ -5691,7 +5691,7 @@ int cam_req_mgr_sync_config(
 	}
 
 	if (sync_info->sync_mode == CAM_REQ_MGR_SYNC_MODE_SYNC) {
-		for (i = 0; i < sync_info->num_links; i++) {
+		for (i = 0; i < sync_info->num_links && link[i]; i++) {
 			j = 0;
 			sync_idx = 0;
 			CAM_DBG(CAM_REQ|CAM_CRM, "link %x adds sync link:",
@@ -5710,7 +5710,7 @@ int cam_req_mgr_sync_config(
 			link[i]->sof_timestamp = 0;
 		}
 	} else {
-		for (j = 0; j < sync_info->num_links; j++) {
+		for (j = 0; j < sync_info->num_links && link[j]; j++) {
 			link[j]->initial_skip = true;
 			link[j]->sof_timestamp = 0;
 		}
