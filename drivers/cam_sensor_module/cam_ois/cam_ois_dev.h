@@ -139,6 +139,9 @@ struct cam_ois_ctrl_t {
 #ifdef CONFIG_MOT_DRV_OIS_AFTER_SALES_SERVICE
 	struct i2c_settings_array i2c_gyro_data;
 #endif
+#ifdef CONFIG_MOT_DRV_OIS_DEINIT
+	struct i2c_settings_array i2c_deinit_data;
+#endif
 	struct i2c_settings_array i2c_time_data;
 	enum cam_ois_state cam_ois_state;
 	char ois_name[32];
