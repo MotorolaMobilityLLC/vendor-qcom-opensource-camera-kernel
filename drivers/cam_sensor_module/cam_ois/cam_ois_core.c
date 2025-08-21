@@ -1327,7 +1327,7 @@ static int mot_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 	fw  = NULL;
 	dev = &(o_ctrl->pdev->dev);
 
-#if defined(CONFIG_VANTG_DTB)
+#if defined(CONFIG_VANTG_DTB) || defined(CONFIG_VANTAGE_DTB)
 	snprintf(name_prog, 32, "%s_vantg.prog", o_ctrl->ois_name);
 	fw_name_prog = name_prog;
 #elif defined(CONFIG_BLANC_DTB)
