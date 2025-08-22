@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/slab.h>
@@ -110,6 +110,7 @@ struct cam_irq_register_obj {
  * @clear_all_bitmask:      Bitmask that specifies which bits should be written to clear register
  *                          when it is to be cleared forcefully
  * @dependent_bitmap:       Bitmap to keep track of all the dependent controllers
+ * @skip_global_clear:      Flag to indicate if global clear needs to be skipped
  * @parent_bitmap_idx:      Index of this controller in parent controller's bitmap
  * @evt_handler_list_head:  List of all event handlers
  * @th_list_head:           List of handlers sorted by priority
@@ -134,6 +135,7 @@ struct cam_irq_controller {
 	uint32_t                        global_set_bitmask;
 	uint32_t                        clear_all_bitmask;
 	uint32_t                        dependent_bitmap;
+	bool                            skip_global_clear;
 	int                             parent_bitmap_idx;
 	struct list_head                evt_handler_list_head;
 	struct list_head                th_list_head[CAM_IRQ_PRIORITY_MAX];
@@ -299,7 +301,7 @@ int cam_irq_controller_register_dependent(void *primary_controller, void *second
 	 * NOTE: For dependent controllers that should not issue global clear command,
 	 * set their global_irq_cmd_offset to 0
 	 */
-	if (!ctrl_secondary->global_irq_cmd_offset)
+	if (!ctrl_secondary->global_irq_cmd_offset || ctrl_secondary->skip_global_clear)
 		ctrl_primary->delayed_global_clear = true;
 
 	CAM_DBG(CAM_IRQ_CTRL, "successfully registered %s as dependent of %s", ctrl_secondary->name,
@@ -327,7 +329,7 @@ static inline void cam_irq_controller_clear_irq(
 				irq_register->clear_reg_offset);
 	}
 
-	if (controller->global_irq_cmd_offset)
+	if (controller->global_irq_cmd_offset && !controller->skip_global_clear)
 		cam_io_w_mb(controller->global_clear_bitmask,
 				controller->mem_base +
 				controller->global_irq_cmd_offset);
@@ -436,29 +438,28 @@ int cam_irq_controller_init(const char       *name,
 		controller->irq_register_arr[i].force_rd_mask =
 			register_info->irq_reg_set[i].force_rd_mask;
 		controller->irq_register_arr[i].dirty_clear = true;
-		CAM_DBG(CAM_IRQ_CTRL, "i %d mask_reg_offset: 0x%x", i,
-			controller->irq_register_arr[i].mask_reg_offset);
-		CAM_DBG(CAM_IRQ_CTRL, "i %d clear_reg_offset: 0x%x", i,
-			controller->irq_register_arr[i].clear_reg_offset);
-		CAM_DBG(CAM_IRQ_CTRL, "i %d status_reg_offset: 0x%x", i,
-			controller->irq_register_arr[i].status_reg_offset);
-		CAM_DBG(CAM_IRQ_CTRL, "i %d set_reg_offset: 0x%x", i,
+		CAM_DBG(CAM_IRQ_CTRL,
+			"i %d mask_reg_offset: 0x%x clear_reg_offset: 0x%x status_reg_offset: 0x%x set_reg_offset: 0x%x",
+			i, controller->irq_register_arr[i].mask_reg_offset,
+			controller->irq_register_arr[i].clear_reg_offset,
+			controller->irq_register_arr[i].status_reg_offset,
 			controller->irq_register_arr[i].set_reg_offset);
 	}
+
 	controller->num_registers        = register_info->num_registers;
 	controller->global_clear_bitmask = register_info->global_clear_bitmask;
 	controller->global_irq_cmd_offset  = register_info->global_irq_cmd_offset;
+	controller->skip_global_clear    = register_info->skip_global_clear;
 	controller->global_set_bitmask   = register_info->global_set_bitmask;
 	controller->clear_all_bitmask    = register_info->clear_all_bitmask;
 	controller->mem_base             = mem_base;
 	controller->is_dependent         = false;
 	controller->parent_bitmap_idx = -1;
 
-	CAM_DBG(CAM_IRQ_CTRL, "global_clear_bitmask: 0x%x",
-		controller->global_clear_bitmask);
-	CAM_DBG(CAM_IRQ_CTRL, "global_irq_cmd_offset: 0x%x",
-		controller->global_irq_cmd_offset);
-	CAM_DBG(CAM_IRQ_CTRL, "mem_base: %pK",
+	CAM_DBG(CAM_IRQ_CTRL,
+		"global_clear_bitmask: 0x%x global_irq_cmd_offset: 0x%x skip_global_clear: %s mem_base: %pK",
+		controller->global_clear_bitmask, controller->global_irq_cmd_offset,
+		CAM_BOOL_TO_YESNO(controller->skip_global_clear),
 		(void __iomem *)controller->mem_base);
 
 	INIT_LIST_HEAD(&controller->evt_handler_list_head);
@@ -932,11 +933,11 @@ void cam_irq_controller_disable_all(void *priv)
 			irq_register->clear_reg_offset);
 	}
 
-	if (controller->global_irq_cmd_offset && !controller->delayed_global_clear) {
+	if (controller->global_irq_cmd_offset && !controller->skip_global_clear &&
+		!controller->delayed_global_clear) {
 		cam_io_w_mb(controller->global_clear_bitmask,
 			controller->mem_base + controller->global_irq_cmd_offset);
-		CAM_DBG(CAM_IRQ_CTRL, "Global Clear done from %s",
-			controller->name);
+		CAM_DBG(CAM_IRQ_CTRL, "Global Clear done from %s", controller->name);
 	}
 }
 
@@ -991,7 +992,8 @@ static void __cam_irq_controller_read_registers(struct cam_irq_controller *contr
 			controller->mem_base + irq_register->clear_reg_offset);
 	}
 
-	if (controller->global_irq_cmd_offset && !controller->delayed_global_clear) {
+	if (controller->global_irq_cmd_offset && !controller->skip_global_clear &&
+		!controller->delayed_global_clear) {
 		cam_io_w_mb(controller->global_clear_bitmask,
 			controller->mem_base + controller->global_irq_cmd_offset);
 		CAM_DBG(CAM_IRQ_CTRL, "Global Clear done from %s", controller->name);
@@ -1088,11 +1090,11 @@ static void cam_irq_controller_read_registers(struct cam_irq_controller *control
 		cam_irq_controller_dep_reg_read(controller, need_reg_read);
 	}
 
-	if (controller->global_irq_cmd_offset && controller->delayed_global_clear) {
+	if (controller->global_irq_cmd_offset && !controller->skip_global_clear &&
+		controller->delayed_global_clear) {
 		cam_io_w_mb(controller->global_clear_bitmask,
 			controller->mem_base + controller->global_irq_cmd_offset);
-		CAM_DBG(CAM_IRQ_CTRL, "Delayed Global Clear done from %s",
-			controller->name);
+		CAM_DBG(CAM_IRQ_CTRL, "Delayed Global Clear done from %s", controller->name);
 	}
 }
 
@@ -1187,6 +1189,54 @@ end:
 	return rc;
 }
 
+int cam_irq_controller_set_irq(void *irq_controller, uint32_t reg_index, uint32_t set_mask)
+{
+	struct cam_irq_controller *controller  = irq_controller;
+	struct cam_irq_register_obj *irq_reg;
+	int rc = 0;
+
+	if (unlikely(!controller))
+		return -EINVAL;
+
+	if (set_mask == 0) {
+		CAM_ERR(CAM_IRQ_CTRL, "%s Invalid set_mask value:0x%08x for set irq",
+			controller->name, set_mask);
+		return -EINVAL;
+	}
+
+	CAM_DBG(CAM_IRQ_CTRL, "Locking: %s IRQ Controller: [%pK], lock handle: %pK",
+		controller->name, controller, &controller->lock);
+	cam_irq_controller_lock(controller);
+
+	irq_reg = &controller->irq_register_arr[reg_index];
+
+	if ((reg_index >= controller->num_registers) || !irq_reg) {
+		CAM_ERR(CAM_IRQ_CTRL, "Invalid reg_idex: %u to set irq for controller: %s",
+			reg_index, controller->name);
+		cam_irq_controller_unlock(controller);
+		return -EINVAL;
+	}
+
+	if (set_mask && irq_reg->set_reg_offset) {
+		cam_io_w_mb(set_mask, controller->mem_base + irq_reg->set_reg_offset);
+		CAM_DBG(CAM_IRQ_CTRL, "%s[%d] offset:0x%08x val:0x%08x", controller->name,
+			reg_index, irq_reg->set_reg_offset, set_mask);
+	}
+
+	cam_io_w_mb(controller->global_set_bitmask,
+		controller->mem_base + controller->global_irq_cmd_offset);
+	CAM_DBG(CAM_IRQ_CTRL, "%s[SET-CMD] addr:0x%08x value:0x%08x", controller->name,
+		controller->mem_base + controller->global_irq_cmd_offset,
+		controller->global_set_bitmask);
+
+
+	cam_irq_controller_unlock(controller);
+	CAM_DBG(CAM_IRQ_CTRL, "Unlocked: %s IRQ Controller: %pK, lock handle: %pK",
+		controller->name, controller, &controller->lock);
+
+	return rc;
+}
+
 #ifdef CONFIG_CAM_TEST_IRQ_LINE
 
 struct cam_irq_line_test_priv {
@@ -1237,12 +1287,12 @@ int cam_irq_controller_test_irq_line(void *irq_controller, const char *fmt, ...)
 			CAM_BOOL_TO_YESNO(can_test));
 	}
 
-	if (controller->global_irq_cmd_offset == 0 || controller->global_set_bitmask == 0)
+	if (controller->skip_global_clear || (controller->global_irq_cmd_offset == 0) ||
+		(controller->global_set_bitmask == 0))
 		can_test = false;
 
-	CAM_DBG(CAM_IRQ_CTRL, "global offset:0x%x mask:0x%x",
-			controller->global_irq_cmd_offset,
-			controller->global_set_bitmask);
+	CAM_DBG(CAM_IRQ_CTRL, "global offset:0x%x mask:0x%x", controller->global_irq_cmd_offset,
+		controller->global_set_bitmask);
 
 	if (!can_test) {
 		CAM_ERR(CAM_IRQ_CTRL, "%s not configured properly for testing",

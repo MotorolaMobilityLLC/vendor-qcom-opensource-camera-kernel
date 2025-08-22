@@ -2207,6 +2207,7 @@ static struct cam_vfe_bus_ver3_hw_info tfe970_bus_hw_info = {
 			.error_description = "Meta Stride unalign",
 		},
 	},
+	.bus_err_irq_mask      = { 0xD0000000, 0x0},
 	.num_comp_grp          = 9,
 	.support_consumed_addr = true,
 	.mc_comp_done_mask = {
