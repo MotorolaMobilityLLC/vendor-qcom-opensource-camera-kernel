@@ -55,6 +55,13 @@ static int cam_sfe_request_platform_resource(
 	int rc = 0, i;
 	void *irq_data[CAM_SOC_MAX_IRQ_LINES_PER_DEV] = {0};
 
+	if (soc_info->irq_count > CAM_SOC_MAX_IRQ_LINES_PER_DEV) {
+		CAM_ERR(CAM_SFE, "irq_count (%d) exceeds max allowed (%d)",
+			soc_info->irq_count,
+			CAM_SOC_MAX_IRQ_LINES_PER_DEV);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < soc_info->irq_count; i++)
 		irq_data[i] = data;
 

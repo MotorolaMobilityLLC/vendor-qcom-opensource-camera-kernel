@@ -2067,7 +2067,7 @@ static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 	uint32_t args_size)
 {
 	int                                     rc = -ENODEV;
-	int                                     i;
+	int                                     i = 0;
 	enum cam_vfe_bus_ver3_vfe_out_type      vfe_out_res_id;
 	struct cam_vfe_bus_ver3_priv           *ver3_bus_priv = bus_priv;
 	struct cam_vfe_acquire_args            *acq_args = acquire_args;
@@ -2221,6 +2221,13 @@ static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 		default:
 			break;
 		}
+	}
+
+	if (rsrc_data->num_wm > PLANE_MAX) {
+		CAM_ERR(CAM_ISP, "num_wm (%u) exceeds wm_res size (%u)",
+			rsrc_data->num_wm, PLANE_MAX);
+		rc = -EINVAL;
+		goto release_wm;
 	}
 
 	/* Acquire WM and retrieve COMP GRP ID */

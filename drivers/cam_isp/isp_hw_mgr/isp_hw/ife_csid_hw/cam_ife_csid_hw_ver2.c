@@ -3612,7 +3612,7 @@ static int cam_ife_csid_ver2_rdi_bottom_half(
 	struct cam_hw_info                           *hw_info;
 	uint32_t                                      irq_status_rdi;
 	uint32_t                                      err_type = 0;
-	struct cam_isp_hw_event_info                  evt_info;
+	struct cam_isp_hw_event_info                  evt_info = {0};
 	struct cam_isp_sof_ts_data                    sof_and_boot_time;
 	int                                           rc = 0;
 
