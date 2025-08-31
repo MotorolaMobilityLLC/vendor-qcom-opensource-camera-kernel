@@ -2046,7 +2046,7 @@ static int cam_ife_csid_ver2_handle_event_err(
 	err_evt_info.err_type = err_type;
 	evt.event_data = (void *)&err_evt_info;
 
-	if (((res->res_id == CAM_IFE_PIX_PATH_RES_IPP) ||
+	if (res && ((res->res_id == CAM_IFE_PIX_PATH_RES_IPP) ||
 		(res->res_id == CAM_IFE_PIX_PATH_RES_IPP_1) ||
 		(res->res_id == CAM_IFE_PIX_PATH_RES_IPP_2)) &&
 		((err_type & CAM_ISP_HW_ERROR_RECOVERY_OVERFLOW) ||
