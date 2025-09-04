@@ -92,6 +92,13 @@ static int cam_icp_dump_io_cfg(struct cam_icp_hw_ctx_data *ctx_data,
 		return rc;
 	}
 
+	if (size > len) {
+		CAM_ERR(CAM_ICP, "Not enough buffer, handle: 0x%x, length: %u, size: %u",
+			buf_handle, len, size);
+		cam_mem_put_cpu_buf(buf_handle);
+		return -EINVAL;
+	}
+
 	io_size = size / sizeof(uint32_t);
 	ptr = (uint32_t *)vaddr_ptr;
 	for (i = 0; i < io_size; i++) {

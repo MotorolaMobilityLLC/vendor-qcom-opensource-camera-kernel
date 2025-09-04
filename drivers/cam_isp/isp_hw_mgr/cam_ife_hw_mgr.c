@@ -5988,7 +5988,8 @@ void cam_ife_cam_cdm_callback(uint32_t handle, void *userdata,
 static int cam_ife_mgr_acquire_get_unified_structure_v0(
 	struct cam_isp_acquire_hw_info *acquire_hw_info,
 	uint32_t offset, uint32_t *input_size,
-	struct cam_isp_in_port_generic_info *in_port)
+	struct cam_isp_in_port_generic_info *in_port,
+	uint32_t acquire_info_size)
 {
 	struct cam_isp_in_port_info *in = NULL;
 	uint32_t in_port_length = 0;
@@ -5997,6 +5998,12 @@ static int cam_ife_mgr_acquire_get_unified_structure_v0(
 	in = (struct cam_isp_in_port_info *)
 		((uint8_t *)&acquire_hw_info->data +
 		 acquire_hw_info->input_info_offset + *input_size);
+
+	if (((uint8_t *)in + sizeof(struct cam_isp_in_port_info)) >
+		((uint8_t *)acquire_hw_info + acquire_info_size)) {
+		CAM_ERR(CAM_ISP, "Invalid size, input_size: %u", (*input_size));
+		return -EINVAL;
+	}
 
 	in_port_length = sizeof(struct cam_isp_in_port_info) +
 		(in->num_out_res - 1) *
@@ -6109,7 +6116,8 @@ static inline void cam_ife_mgr_acquire_get_feature_flag_params(
 static int cam_ife_mgr_acquire_get_unified_structure_v3(
 	struct cam_isp_acquire_hw_info *acquire_hw_info,
 	uint32_t offset, uint32_t *input_size,
-	struct cam_isp_in_port_generic_info *in_port)
+	struct cam_isp_in_port_generic_info *in_port,
+	uint32_t acquire_info_size)
 {
 	struct cam_isp_in_port_info_v3 *in = NULL;
 	uint32_t in_port_length = 0, num_valid_vc = 0, num_valid_dt = 0;
@@ -6120,6 +6128,12 @@ static int cam_ife_mgr_acquire_get_unified_structure_v3(
 	in = (struct cam_isp_in_port_info_v3 *)
 		((uint8_t *)&acquire_hw_info->data +
 		 acquire_hw_info->input_info_offset + *input_size);
+
+	if (((uint8_t *)in + sizeof(struct cam_isp_in_port_info_v3)) >
+		((uint8_t *)acquire_hw_info + acquire_info_size)) {
+		CAM_ERR(CAM_ISP, "Invalid size, input_size: %u", (*input_size));
+		return -EINVAL;
+	}
 
 	in_port_length = sizeof(struct cam_isp_in_port_info_v3) +
 		(in->num_out_res - 1) *
@@ -6234,7 +6248,8 @@ err:
 static int cam_ife_mgr_acquire_get_unified_structure_v2(
 	struct cam_isp_acquire_hw_info *acquire_hw_info,
 	uint32_t offset, uint32_t *input_size,
-	struct cam_isp_in_port_generic_info *in_port)
+	struct cam_isp_in_port_generic_info *in_port,
+	uint32_t acquire_info_size)
 {
 	struct cam_isp_in_port_info_v2 *in = NULL;
 	uint32_t in_port_length = 0, num_valid_vc = 0, num_valid_dt = 0;
@@ -6245,6 +6260,12 @@ static int cam_ife_mgr_acquire_get_unified_structure_v2(
 	in = (struct cam_isp_in_port_info_v2 *)
 		((uint8_t *)&acquire_hw_info->data +
 		 acquire_hw_info->input_info_offset + *input_size);
+
+	if (((uint8_t *)in + sizeof(struct cam_isp_in_port_info_v2)) >
+		((uint8_t *)acquire_hw_info + acquire_info_size)) {
+		CAM_ERR(CAM_ISP, "Invalid size, input_size: %u", (*input_size));
+		return -EINVAL;
+	}
 
 	in_port_length = sizeof(struct cam_isp_in_port_info_v2) +
 		(in->num_out_res - 1) *
@@ -6372,7 +6393,8 @@ err:
 static int cam_ife_mgr_acquire_get_unified_structure(
 	struct cam_isp_acquire_hw_info *acquire_hw_info,
 	uint32_t offset, uint32_t *input_size,
-	struct cam_isp_in_port_generic_info *in_port)
+	struct cam_isp_in_port_generic_info *in_port,
+	uint32_t acquire_info_size)
 {
 	uint32_t major_ver = 0, minor_ver = 0;
 
@@ -6385,13 +6407,13 @@ static int cam_ife_mgr_acquire_get_unified_structure(
 	switch (major_ver) {
 	case 1:
 		return cam_ife_mgr_acquire_get_unified_structure_v0(
-			acquire_hw_info, offset, input_size, in_port);
+			acquire_hw_info, offset, input_size, in_port, acquire_info_size);
 	case 2:
 		return cam_ife_mgr_acquire_get_unified_structure_v2(
-			acquire_hw_info, offset, input_size, in_port);
+			acquire_hw_info, offset, input_size, in_port, acquire_info_size);
 	case 3:
 		return cam_ife_mgr_acquire_get_unified_structure_v3(
-			acquire_hw_info, offset, input_size, in_port);
+			acquire_hw_info, offset, input_size, in_port, acquire_info_size);
 	default:
 		CAM_ERR(CAM_ISP, "Invalid ver of i/p port info from user. minor %u, major %u",
 			minor_ver, major_ver);
@@ -6531,7 +6553,7 @@ static int cam_ife_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	/* Update in_port structure */
 	for (i = 0; i < acquire_hw_info->num_inputs; i++) {
 		rc = cam_ife_mgr_acquire_get_unified_structure(acquire_hw_info,
-			i, &input_size, &in_port[i]);
+			i, &input_size, &in_port[i], acquire_args->acquire_info_size);
 
 		if (rc < 0) {
 			CAM_ERR(CAM_ISP, "Failed in parsing: %d, ctx_idx: %u",
