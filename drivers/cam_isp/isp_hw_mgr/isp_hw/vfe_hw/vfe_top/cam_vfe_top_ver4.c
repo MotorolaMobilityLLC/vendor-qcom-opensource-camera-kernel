@@ -1240,7 +1240,7 @@ int cam_vfe_top_ver4_init_hw(void *device_priv,
 
 	top_priv->top_common.hw_version = cam_io_r_mb(
 		top_priv->top_common.soc_info->reg_map[0].mem_base +
-		common_data.common_reg->hw_version);
+		common_data.hw_info->top_hm_base + common_data.common_reg->hw_version);
 	CAM_DBG(CAM_ISP, "VFE:%u hw-version:0x%x",
 		top_priv->top_common.hw_idx,
 		top_priv->top_common.hw_version);
