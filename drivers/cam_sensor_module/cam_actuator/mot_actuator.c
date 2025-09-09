@@ -788,7 +788,11 @@ static int32_t mot_actuator_park_lens(uint32_t index)
 			}
 		}
 
+#ifdef CONFIG_MOT_STABILITY_FIXES
+		if (stageIndex < PARK_LENS_MAX_STAGES && lens_park_table[stageIndex].step <= 0 && cur_len_pos > lens_park_pos) {
+#else
 		if (lens_park_table[stageIndex].step <= 0 && cur_len_pos > lens_park_pos) {
+#endif
 			cur_len_pos -= 10;
 		}
 
@@ -1048,7 +1052,11 @@ static int32_t mot_actuator_reset_lens(uint32_t index)
 			}
 		}
 
+#ifdef CONFIG_MOT_STABILITY_FIXES
+		if (stageIndex < RESET_LENS_MAX_STAGES && lens_reset_table[stageIndex].step <= 0 && cur_len_pos > lens_park_pos) {
+#else
 		if (lens_reset_table[stageIndex].step <= 0 && cur_len_pos > lens_park_pos) {
+#endif
 			cur_len_pos -= 10;
 		}
 

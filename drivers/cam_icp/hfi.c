@@ -85,8 +85,12 @@ static inline int hfi_get_client_info(int client_handle, struct hfi_info **hfi)
 
 	*hfi = g_hfi.hfi[idx];
 	if (!g_hfi.hfi[idx]) {
+#ifdef CONFIG_MOT_STABILITY_FIXES
+		CAM_ERR(CAM_HFI, "HFI interface not setup for client hdl: %d", client_handle);
+#else
 		CAM_ERR(CAM_HFI, "[%s] HFI interface not setup for client hdl: %d",
 			g_hfi.hfi[idx]->client_name, client_handle);
+#endif
 		return -ENODEV;
 	}
 
@@ -1355,7 +1359,11 @@ void cam_hfi_deinit(int client_handle)
 	memset(&hfi->ops, 0, sizeof(struct hfi_ops));
 	hfi->smem_size = 0;
 	hfi->uncachedheap_size = 0;
+#ifdef CONFIG_MOT_STABILITY_FIXES
+	memset(hfi->msgpacket_buf, 0, ICP_HFI_MAX_MSG_SIZE_IN_WORDS * sizeof(uint32_t));
+#else
 	memset(hfi->msgpacket_buf, 0, sizeof(ICP_HFI_MAX_MSG_SIZE_IN_WORDS));
+#endif
 	hfi->priv = NULL;
 	hfi->dbg_lvl = 0;
 }

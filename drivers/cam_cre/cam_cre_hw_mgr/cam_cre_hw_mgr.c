@@ -896,8 +896,16 @@ static int32_t cam_cre_mgr_process_msg(void *priv, void *data)
 		active_req_idx, ctx->last_done_req_idx);
 
 	active_req = ctx->req_list[active_req_idx];
+#ifdef CONFIG_MOT_STABILITY_FIXES
+	if (!active_req) {
+		CAM_ERR(CAM_CRE, "Active req cannot be null");
+		mutex_unlock(&ctx->ctx_mutex);
+		return -EINVAL;
+	}
+#else
 	if (!active_req)
 		CAM_ERR(CAM_CRE, "Active req cannot be null");
+#endif
 
 	if (irq_data.error) {
 		evt_id = CAM_CTX_EVT_ID_ERROR;

@@ -2048,9 +2048,19 @@ static int cam_tfe_bus_update_wm(void *priv, void *cmd_args,
 	tfe_out_data = (struct cam_tfe_bus_tfe_out_data *)
 		update_buf->res->res_priv;
 
+#ifdef CONFIG_MOT_STABILITY_FIXES
+	if (!tfe_out_data) {
+		 CAM_ERR(CAM_ISP, "Failed! Invalid data");
+		 return -EINVAL;
+	}
+#endif
 	cdm_util_ops = tfe_out_data->cdm_util_ops;
 
+#ifdef CONFIG_MOT_STABILITY_FIXES
+	if (!cdm_util_ops) {
+#else
 	if (!tfe_out_data || !cdm_util_ops) {
+#endif
 		CAM_ERR(CAM_ISP, "Failed! Invalid data");
 		return -EINVAL;
 	}
@@ -2169,9 +2179,19 @@ static int cam_tfe_bus_update_hfr(void *priv, void *cmd_args,
 	tfe_out_data = (struct cam_tfe_bus_tfe_out_data *)
 		update_hfr->res->res_priv;
 
+#ifdef CONFIG_MOT_STABILITY_FIXES
+	if (!tfe_out_data) {
+		CAM_ERR(CAM_ISP, "Failed! Invalid data");
+		return -EINVAL;
+	}
+#endif
 	cdm_util_ops = tfe_out_data->cdm_util_ops;
 
+#ifdef CONFIG_MOT_STABILITY_FIXES
+	if (!cdm_util_ops) {
+#else
 	if (!tfe_out_data || !cdm_util_ops) {
+#endif
 		CAM_ERR(CAM_ISP, "Failed! Invalid data");
 		return -EINVAL;
 	}
