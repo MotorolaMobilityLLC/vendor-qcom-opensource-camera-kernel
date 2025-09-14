@@ -25,6 +25,7 @@
 #include "cam_common_util.h"
 #include "cam_subdev.h"
 #include "cam_mem_mgr_api.h"
+#include "cam_cpas_hw_intf.h"
 
 #define IFE_CSID_TIMEOUT                               1000
 
@@ -1447,6 +1448,7 @@ static int cam_ife_csid_hw_ver1_rx_cfg(
 	struct cam_ife_csid_ver1_hw *csid_hw,
 	struct cam_csid_hw_reserve_resource_args  *reserve)
 {
+	struct cam_ife_csid_ver1_reg_info *csid_reg;
 
 	if (csid_hw->counters.csi2_reserve_cnt) {
 		csid_hw->counters.csi2_reserve_cnt++;
@@ -1471,17 +1473,17 @@ static int cam_ife_csid_hw_ver1_rx_cfg(
 		csid_hw->rx_cfg.phy_sel = 0;
 		break;
 	case CAM_ISP_IFE_IN_RES_CPHY_TPG_0:
-		csid_hw->rx_cfg.phy_sel = 0;
-		break;
 	case CAM_ISP_IFE_IN_RES_CPHY_TPG_1:
-		csid_hw->rx_cfg.phy_sel = 1;
-		break;
 	case CAM_ISP_IFE_IN_RES_CPHY_TPG_2:
-		csid_hw->rx_cfg.phy_sel = 2;
+		csid_reg = csid_hw->core_info->csid_reg;
+		csid_hw->rx_cfg.phy_sel =
+			((reserve->in_port->res_type & 0xFF) -
+			CAM_ISP_IFE_IN_RES_CPHY_TPG_0) +
+			csid_reg->csi2_reg->phy_tpg_base_id;
 		break;
 	default:
 		csid_hw->rx_cfg.phy_sel =
-			(reserve->in_port->res_type & 0xFF) - 1;
+			(reserve->in_port->res_type & 0xFF);
 		break;
 	}
 
@@ -2117,6 +2119,13 @@ static int cam_ife_csid_ver1_enable_csi2(struct cam_ife_csid_ver1_hw *csid_hw)
 	/*Configure Rx cfg1*/
 	val = 1 << csi2_reg->misr_enable_shift_val;
 	val |= 1 << csi2_reg->ecc_correction_shift_en;
+
+	if (csid_hw->res_type >= CAM_ISP_IFE_IN_RES_CPHY_TPG_0 &&
+		csid_hw->res_type <= CAM_ISP_IFE_IN_RES_CPHY_TPG_2 &&
+		csid_reg->csi2_reg->need_to_sel_tpg_mux) {
+		cam_cpas_enable_tpg_mux_sel(csid_hw->res_type -
+			CAM_ISP_IFE_IN_RES_CPHY_TPG_0);
+	}
 
 	vc_full_width = cam_ife_csid_is_vc_full_width(csid_hw->cid_data);
 
@@ -3333,10 +3342,12 @@ static int cam_ife_csid_ver1_sof_irq_debug(
 		return 0;
 	}
 
-	data_idx = csid_hw->rx_cfg.phy_sel;
 	soc_info = &csid_hw->hw_info->soc_info;
 	csid_reg = (struct cam_ife_csid_ver1_reg_info *)
 			csid_hw->core_info->csid_reg;
+
+	data_idx = csid_hw->rx_cfg.phy_sel -
+		csid_reg->csi2_reg->phy_tpg_base_id;
 
 	for (i = 0; i < csid_reg->cmn_reg->num_pix; i++) {
 
@@ -4099,11 +4110,12 @@ static int cam_ife_csid_ver1_rx_bottom_half_handler(
 		return -EINVAL;
 	}
 
-	data_idx = csid_hw->rx_cfg.phy_sel;
 	soc_info = &csid_hw->hw_info->soc_info;
 	csid_reg = (struct cam_ife_csid_ver1_reg_info *)
 			csid_hw->core_info->csid_reg;
 	csi2_reg = csid_reg->csi2_reg;
+	data_idx = csid_hw->rx_cfg.phy_sel -
+		csid_reg->csi2_reg->phy_tpg_base_id;
 
 	irq_status = evt_payload->irq_status[CAM_IFE_CSID_IRQ_REG_RX]
 			& csi2_reg->fatal_err_mask;
