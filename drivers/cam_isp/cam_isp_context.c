@@ -7633,7 +7633,7 @@ static int __cam_isp_ctx_flush_dev_in_top_state(struct cam_context *ctx,
 	struct cam_flush_dev_cmd *cmd)
 {
 	struct cam_isp_context *ctx_isp = ctx->ctx_priv;
-	struct cam_req_mgr_flush_request flush_req;
+	struct cam_req_mgr_flush_request flush_req = {0};
 
 	if (!ctx_isp->offline_context) {
 		CAM_ERR(CAM_ISP, "flush dev only supported in offline context,ctx: %u, link:0x%x",
