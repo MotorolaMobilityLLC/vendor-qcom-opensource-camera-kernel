@@ -8693,7 +8693,7 @@ static int cam_icp_put_acquire_info_v2(
 	uintptr_t user_acquire_info,
 	struct cam_icp_acquire_dev_info_unified *acquire_info_unified)
 {
-	struct cam_icp_acquire_dev_info_v2 acquire_info;
+	struct cam_icp_acquire_dev_info_v2 acquire_info = {0};
 
 	acquire_info.scratch_mem_size =  acquire_info_unified->scratch_mem_size;
 	acquire_info.dev_type = acquire_info_unified->dev_type;

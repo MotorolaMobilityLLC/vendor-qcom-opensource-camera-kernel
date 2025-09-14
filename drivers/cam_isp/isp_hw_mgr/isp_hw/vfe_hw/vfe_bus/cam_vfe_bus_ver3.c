@@ -5296,7 +5296,7 @@ static int cam_vfe_bus_ver3_deinit_hw(void *hw_priv,
 {
 	struct cam_vfe_bus_ver3_priv    *bus_priv = hw_priv;
 	int                              rc = 0, i;
-	unsigned long                    flags;
+	unsigned long                    flags = 0;
 
 	if (!bus_priv) {
 		CAM_ERR(CAM_ISP, "Error: Invalid args");

@@ -8893,12 +8893,12 @@ static int cam_ife_csid_ver2_irq_inject(
 	case CAM_IFE_CSID_IRQ_REG_IPP_2:
 		for (i = CAM_IFE_PIX_PATH_RES_RDI_0;
 			i < CAM_IFE_PIX_PATH_RES_MAX; i++) {
-			if (reg_idx == cam_ife_csid_convert_res_to_irq_reg(i))
+			if ((reg_idx == cam_ife_csid_convert_res_to_irq_reg(i)) &&
+				csid_reg->path_reg[i]) {
+				irq_set_addr = csid_reg->path_reg[i]->irq_set_addr;
 				break;
+			}
 		}
-
-		if (csid_reg->path_reg[i])
-			irq_set_addr = csid_reg->path_reg[i]->irq_set_addr;
 		break;
 	default:
 		CAM_WARN(CAM_ISP, "Invalid reg_unit %d", inject_params->reg_unit);

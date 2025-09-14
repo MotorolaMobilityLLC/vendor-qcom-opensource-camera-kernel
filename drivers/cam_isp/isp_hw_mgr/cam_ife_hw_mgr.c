@@ -2159,7 +2159,7 @@ static void cam_ife_hw_mgr_dump_acquire_resources(
 	struct cam_isp_hw_mgr_res    *hw_mgr_res = NULL;
 	struct cam_isp_hw_mgr_res    *hw_mgr_res_temp = NULL;
 	struct cam_isp_resource_node *hw_res = NULL;
-	uint64_t ms, hrs, min, sec;
+	uint64_t ms = 0, hrs = 0, min = 0, sec = 0;
 	int i = 0, j = 0;
 
 	CAM_CONVERT_TIMESTAMP_FORMAT(hwr_mgr_ctx->ts, hrs, min, sec, ms);
@@ -2175,6 +2175,9 @@ static void cam_ife_hw_mgr_dump_acquire_resources(
 	list_for_each_entry_safe(hw_mgr_res, hw_mgr_res_temp,
 		&hwr_mgr_ctx->res_list_ife_csid, list) {
 		for (i = 0; i < CAM_ISP_HW_SPLIT_MAX; i++) {
+			if (!hw_mgr_res || !hw_mgr_res->hw_res[i])
+				continue;
+
 			hw_res = hw_mgr_res->hw_res[i];
 			if (hw_res && hw_res->hw_intf)
 				CAM_INFO(CAM_ISP,
@@ -2193,6 +2196,9 @@ static void cam_ife_hw_mgr_dump_acquire_resources(
 	list_for_each_entry_safe(hw_mgr_res, hw_mgr_res_temp,
 		&hwr_mgr_ctx->res_list_ife_src, list) {
 		for (i = 0; i < CAM_ISP_HW_SPLIT_MAX; i++) {
+			if (!hw_mgr_res->hw_res[i])
+				continue;
+
 			hw_res = hw_mgr_res->hw_res[i];
 			if (hw_res && hw_res->hw_intf)
 				CAM_INFO(CAM_ISP,
@@ -2211,6 +2217,9 @@ static void cam_ife_hw_mgr_dump_acquire_resources(
 	list_for_each_entry_safe(hw_mgr_res, hw_mgr_res_temp,
 		&hwr_mgr_ctx->res_list_sfe_src, list) {
 		for (i = 0; i < CAM_ISP_HW_SPLIT_MAX; i++) {
+			if (!hw_mgr_res->hw_res[i])
+				continue;
+
 			hw_res = hw_mgr_res->hw_res[i];
 			if (hw_res && hw_res->hw_intf)
 				CAM_INFO(CAM_ISP,
@@ -2229,6 +2238,9 @@ static void cam_ife_hw_mgr_dump_acquire_resources(
 	list_for_each_entry_safe(hw_mgr_res, hw_mgr_res_temp,
 		&hwr_mgr_ctx->res_list_ife_in_rd, list) {
 		for (i = 0; i < CAM_ISP_HW_SPLIT_MAX; i++) {
+			if (!hw_mgr_res->hw_res[i])
+				continue;
+
 			hw_res = hw_mgr_res->hw_res[i];
 			if (hw_res && hw_res->hw_intf)
 				CAM_INFO(CAM_ISP,
@@ -2247,6 +2259,9 @@ static void cam_ife_hw_mgr_dump_acquire_resources(
 	for (i = 0; i < hwr_mgr_ctx->num_acq_vfe_out; i++) {
 		for (j = 0; j < CAM_ISP_HW_SPLIT_MAX; j++) {
 			hw_mgr_res = &hwr_mgr_ctx->res_list_ife_out[i];
+			if (!hw_mgr_res->hw_res[j])
+				continue;
+
 			hw_res = hw_mgr_res->hw_res[j];
 			if (hw_res && hw_res->hw_intf)
 				CAM_INFO(CAM_ISP,
@@ -2265,6 +2280,9 @@ static void cam_ife_hw_mgr_dump_acquire_resources(
 	for (i = 0; i < hwr_mgr_ctx->num_acq_sfe_out; i++) {
 		for (j = 0; j < CAM_ISP_HW_SPLIT_MAX; j++) {
 			hw_mgr_res = &hwr_mgr_ctx->res_list_sfe_out[i];
+			if (!hw_mgr_res->hw_res[j])
+				continue;
+
 			hw_res = hw_mgr_res->hw_res[j];
 			if (hw_res && hw_res->hw_intf)
 				CAM_INFO(CAM_ISP,
@@ -17761,7 +17779,7 @@ static int cam_ife_hw_mgr_handle_sfe_hw_dump_info(
 	list_for_each_entry(hw_mgr_res,
 		&ife_hw_mgr_ctx->res_list_ife_in_rd, list) {
 		for (i = 0; i < CAM_ISP_HW_SPLIT_MAX; i++) {
-			if (!hw_mgr_res->hw_res[i])
+			if (!hw_mgr_res || !hw_mgr_res->hw_res[i])
 				continue;
 			rsrc_node = hw_mgr_res->hw_res[i];
 			if ((event_info->res_type == CAM_ISP_RESOURCE_SFE_RD) &&
@@ -19289,10 +19307,10 @@ static inline int cam_ife_hw_mgr_dump_irq_desc(
 static void cam_ife_hw_mgr_dump_active_hw(char *buffer, int *offset)
 {
 	uint32_t i;
-	struct cam_ife_hw_mgr_ctx       *ctx;
-	struct cam_isp_hw_mgr_res       *hw_mgr_res;
-	struct cam_isp_hw_mgr_res       *hw_mgr_res_temp;
-	struct cam_ife_hw_mgr_ctx       *ctx_temp;
+	struct cam_ife_hw_mgr_ctx       *ctx = NULL;
+	struct cam_isp_hw_mgr_res       *hw_mgr_res = NULL;
+	struct cam_isp_hw_mgr_res       *hw_mgr_res_temp = NULL;
+	struct cam_ife_hw_mgr_ctx       *ctx_temp = NULL;
 
 	mutex_lock(&g_ife_hw_mgr.ctx_mutex);
 	if (list_empty(&g_ife_hw_mgr.used_ctx_list)) {
@@ -19647,11 +19665,11 @@ static int cam_isp_irq_inject_command_parser(
 		goto end;
 	}
 
+	rc = param_index;
+end:
 	if ((offset <= LINE_BUFFER_LEN) && irq_inject_display_buf)
 		strlcat(irq_inject_display_buf, line_buf, IRQ_INJECT_DISPLAY_BUF_LEN);
 
-	rc = param_index;
-end:
 	CAM_MEM_FREE(line_buf);
 	return rc;
 }

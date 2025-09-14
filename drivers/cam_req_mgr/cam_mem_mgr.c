@@ -254,8 +254,8 @@ inline void cam_mem_trace_init(void)
 
 static void cam_mem_trace_reset(void)
 {
-	struct cam_mem_trace_header *trace_header, *trace_header_tmp;
-	struct cam_mem_trace_record_page *page_header, *page_header_tmp;
+	struct cam_mem_trace_header *trace_header = NULL, *trace_header_tmp = NULL;
+	struct cam_mem_trace_record_page *page_header = NULL, *page_header_tmp = NULL;
 
 	list_for_each_entry_safe(page_header, page_header_tmp,
 		&g_trace.record_page_list, list) {
@@ -280,7 +280,7 @@ void *cam_mem_trace_alloc(size_t size, gfp_t gfp_flags,
 	bool force_kalloc, const char *owner, int line)
 {
 	size_t alloc_sz;
-	unsigned long flags;
+	unsigned long flags = 0;
 	void *header_kva, *mem_kva;
 	struct cam_mem_trace_header *trace_header;
 	struct cam_mem_trace_footer *trace_footer;
@@ -341,7 +341,7 @@ static inline char *cam_mem_trace_get_gfp_type(gfp_t flags)
 
 static int cam_mem_trace_new_record_page(void)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 	struct cam_mem_trace_record_page *old_page, *new_page;
 
 	/*
@@ -380,8 +380,8 @@ void cam_mem_trace_record_mass_mem(
 	bool need_new_page = false;
 	size_t remain_sz, line_len;
 	uint64_t kept_time_ms;
-	unsigned long flags;
-	struct cam_mem_trace_record_page *page_header;
+	unsigned long flags = 0;
+	struct cam_mem_trace_record_page *page_header = NULL;
 	char line_buf[256];
 	char kept_time_str[8];
 
@@ -394,10 +394,8 @@ void cam_mem_trace_record_mass_mem(
 		scnprintf(kept_time_str, 8, "%lldms", kept_time_ms);
 
 again:
-	if (list_empty(&g_trace.record_page_list) || need_new_page) {
+	if (list_empty(&g_trace.record_page_list) || need_new_page)
 		cam_mem_trace_new_record_page();
-		need_new_page = false;
-	}
 
 	spin_lock_irqsave(&g_trace.lock, flags);
 
@@ -435,7 +433,7 @@ again:
 void cam_mem_trace_free(const void *vaddr_ptr, bool force_kfree)
 {
 	int header_magic, footer_magic;
-	unsigned long flags;
+	unsigned long flags = 0;
 	void *header_kva, *footer_kva;
 	struct cam_mem_trace_header *trace_header;
 
@@ -511,7 +509,7 @@ EXPORT_SYMBOL(memdup_user_trace);
 static void cam_mem_trace_overview(void)
 {
 	int i;
-	unsigned long flags;
+	unsigned long flags = 0;
 	size_t total_dma_mem = 0;
 
 	for (i = 1; i < CAM_MEM_BUFQ_MAX; i++) {
@@ -533,8 +531,8 @@ static void cam_mem_trace_query(uint64_t threshold)
 	ktime_t now;
 	uint64_t kept_time_ms;
 	size_t len = 0, remain_len, line_len;
-	unsigned long flags;
-	struct cam_mem_trace_header *trace_header;
+	unsigned long flags = 0;
+	struct cam_mem_trace_header *trace_header = NULL;
 	char kept_time_str[8];
 	char line_buf[256];
 	char log_buf[512] = {'\0'};
@@ -587,9 +585,9 @@ static void cam_mem_trace_query_mass_mem(void)
 	ktime_t now;
 	char *page, *token = NULL;
 	uint64_t kept_time_sec;
-	unsigned long flags;
-	struct cam_mem_trace_header *trace_header;
-	struct cam_mem_trace_record_page *page_header;
+	unsigned long flags = 0;
+	struct cam_mem_trace_header *trace_header = NULL;
+	struct cam_mem_trace_record_page *page_header = NULL;
 	char *buf, *buf_ptr;
 
 	now = ktime_get_boottime();
