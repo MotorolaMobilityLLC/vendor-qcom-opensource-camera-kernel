@@ -2078,8 +2078,14 @@ int32_t cam_csiphy_config_dev(struct csiphy_device *csiphy_dev,
 	lane_assign = csiphy_dev->csiphy_info[index].lane_assign;
 
 	while (lane_cnt--) {
-		cam_csiphy_get_lane_enable(csiphy_dev, index, lane_assign & 0xF,
+		rc = cam_csiphy_get_lane_enable(csiphy_dev, index, lane_assign & 0xF,
 			&lane_idx, NULL);
+		if (rc) {
+			CAM_ERR(CAM_CSIPHY,
+				"Failed to get lane_idx: 0x%x, lane_assign: 0x%x, rc: %d",
+				lane_idx, lane_assign, rc);
+			return rc;
+		}
 
 		lane_idx = ffs(lane_idx) - 1;
 
