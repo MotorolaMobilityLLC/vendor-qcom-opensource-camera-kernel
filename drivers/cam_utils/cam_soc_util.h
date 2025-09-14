@@ -235,6 +235,7 @@ struct cam_soc_gpio_data {
  * @compatible:             Compatible string associated with the device
  * @num_mem_block:          Number of entry in the "reg-names"
  * @mem_block_name:         Array of the reg block name
+ * @mem_block_rw_prop:      Array of the reg block property
  * @mem_block_cam_base:     Array of offset of this register space compared
  *                          to ENTIRE Camera register space
  * @mem_block:              Associated resource structs
@@ -319,6 +320,7 @@ struct cam_hw_soc_info {
 
 	uint32_t                        num_mem_block;
 	const char                     *mem_block_name[CAM_SOC_MAX_BLOCK];
+	bool                            mem_block_rw_prop[CAM_SOC_MAX_BLOCK];
 	uint32_t                        mem_block_cam_base[CAM_SOC_MAX_BLOCK];
 	struct resource                *mem_block[CAM_SOC_MAX_BLOCK];
 	struct cam_soc_reg_map          reg_map[CAM_SOC_MAX_BASE];
