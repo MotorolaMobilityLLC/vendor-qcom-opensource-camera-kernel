@@ -3704,9 +3704,11 @@ int cam_soc_util_get_dt_properties(struct cam_hw_soc_info *soc_info)
 {
 	struct device_node *of_node = NULL;
 	int count = 0, i = 0, rc = 0;
+	int reg_prop_cnt = 0;
 #ifdef CONFIG_SPECTRA_VMRM
 	int num_vmrm_resource_ids = 0;
 #endif
+	const char *mem_block_rw_prop;
 
 	if (!soc_info || !soc_info->dev)
 		return -EINVAL;
@@ -3726,6 +3728,18 @@ int cam_soc_util_get_dt_properties(struct cam_hw_soc_info *soc_info)
 			soc_info->dev_name);
 		count = 0;
 	}
+
+	reg_prop_cnt = of_property_count_strings(of_node, "reg-prop");
+	if (reg_prop_cnt <= 0) {
+		CAM_DBG(CAM_UTIL, "no reg-prop found for: %s",
+			soc_info->dev_name);
+		reg_prop_cnt = 0;
+	} else if (reg_prop_cnt != count) {
+		CAM_ERR(CAM_UTIL, "re name count:%d and prop-count:%d not matched",
+			count, reg_prop_cnt);
+		return -EINVAL;
+	}
+
 	soc_info->num_mem_block = count;
 
 	for (i = 0; i < soc_info->num_mem_block; i++) {
@@ -3734,6 +3748,21 @@ int cam_soc_util_get_dt_properties(struct cam_hw_soc_info *soc_info)
 		if (rc) {
 			CAM_ERR(CAM_UTIL, "failed to read reg-names at %d", i);
 			return rc;
+		}
+
+		if (reg_prop_cnt) {
+			rc = of_property_read_string_index(of_node, "reg-prop", i,
+				&mem_block_rw_prop);
+			if (rc) {
+				CAM_ERR(CAM_UTIL, "failed to read reg-prop at %d", i);
+				return rc;
+			}
+			if (strcmp(mem_block_rw_prop, "rw") == 0)
+				soc_info->mem_block_rw_prop[i] = true;
+			else
+				soc_info->mem_block_rw_prop[i] = false;
+		} else {
+			soc_info->mem_block_rw_prop[i] = true;
 		}
 		soc_info->mem_block[i] =
 			platform_get_resource_byname(soc_info->pdev,
@@ -4220,6 +4249,7 @@ void __iomem * cam_soc_util_get_mem_base(
 	unsigned long mem_block_start,
 	unsigned long mem_block_size,
 	const char *mem_block_name,
+	bool mem_block_rw_prop,
 	uint32_t reserve_mem)
 {
 	void __iomem * mem_base;
@@ -4235,7 +4265,11 @@ void __iomem * cam_soc_util_get_mem_base(
 		}
 	}
 
-	mem_base = ioremap(mem_block_start, mem_block_size);
+	if (mem_block_rw_prop)
+		mem_base = ioremap(mem_block_start, mem_block_size);
+	else
+		mem_base = ioremap_prot(mem_block_start, mem_block_size,
+			(_PAGE_IOREMAP & ~PTE_WRITE) | PTE_RDONLY);
 
 	if (!mem_base) {
 		CAM_ERR(CAM_UTIL, "get mem base failed");
@@ -4275,6 +4309,7 @@ void __iomem * cam_soc_util_get_mem_base(
 	unsigned long mem_block_start,
 	unsigned long mem_block_size,
 	const char *mem_block_name,
+	bool mem_block_rw_prop,
 	uint32_t reserve_mem)
 {
 	void __iomem * mem_base;
@@ -4405,6 +4440,7 @@ int cam_soc_util_request_platform_resource(
 			soc_info->mem_block[i]->start,
 			resource_size(soc_info->mem_block[i]),
 			soc_info->mem_block_name[i],
+			soc_info->mem_block_rw_prop[i],
 			soc_info->reserve_mem);
 
 		if (!soc_info->reg_map[i].mem_base) {
@@ -5100,7 +5136,8 @@ static int cam_soc_util_dump_dmi_ctxt_reg_range_user_buf(
 		goto end;
 	}
 	remain_len = buf_len - dump_args->offset;
-	min_len = (reg_read->num_pre_writes * 2 * sizeof(uint32_t)) +
+	min_len =  sizeof(struct cam_hw_soc_dump_header) +
+		(reg_read->num_pre_writes * 2 * sizeof(uint32_t)) +
 		(reg_read->dmi_data_read.num_values * 2 * sizeof(uint32_t)) +
 		sizeof(uint32_t);
 	if (remain_len < min_len) {

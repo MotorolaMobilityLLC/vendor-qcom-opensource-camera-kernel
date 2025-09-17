@@ -25,6 +25,7 @@
 #include "cam_common_util.h"
 #include "cam_subdev.h"
 #include "cam_mem_mgr_api.h"
+#include "cam_cpas_hw_intf.h"
 
 #define IFE_CSID_TIMEOUT                               1000
 
@@ -1447,6 +1448,7 @@ static int cam_ife_csid_hw_ver1_rx_cfg(
 	struct cam_ife_csid_ver1_hw *csid_hw,
 	struct cam_csid_hw_reserve_resource_args  *reserve)
 {
+	struct cam_ife_csid_ver1_reg_info *csid_reg;
 
 	if (csid_hw->counters.csi2_reserve_cnt) {
 		csid_hw->counters.csi2_reserve_cnt++;
@@ -1471,17 +1473,17 @@ static int cam_ife_csid_hw_ver1_rx_cfg(
 		csid_hw->rx_cfg.phy_sel = 0;
 		break;
 	case CAM_ISP_IFE_IN_RES_CPHY_TPG_0:
-		csid_hw->rx_cfg.phy_sel = 0;
-		break;
 	case CAM_ISP_IFE_IN_RES_CPHY_TPG_1:
-		csid_hw->rx_cfg.phy_sel = 1;
-		break;
 	case CAM_ISP_IFE_IN_RES_CPHY_TPG_2:
-		csid_hw->rx_cfg.phy_sel = 2;
+		csid_reg = csid_hw->core_info->csid_reg;
+		csid_hw->rx_cfg.phy_sel =
+			((reserve->in_port->res_type & 0xFF) -
+			CAM_ISP_IFE_IN_RES_CPHY_TPG_0) +
+			csid_reg->csi2_reg->phy_tpg_base_id;
 		break;
 	default:
 		csid_hw->rx_cfg.phy_sel =
-			(reserve->in_port->res_type & 0xFF) - 1;
+			(reserve->in_port->res_type & 0xFF);
 		break;
 	}
 
@@ -1775,6 +1777,7 @@ int cam_ife_csid_ver1_reserve(void *hw_priv,
 	rc = cam_ife_csid_hw_ver1_hw_cfg(csid_hw, path_cfg,
 		reserve, cid);
 	res->res_state = CAM_ISP_RESOURCE_STATE_RESERVED;
+	res->cdm_ops = reserve->cdm_ops;
 	reserve->node_res = res;
 	csid_hw->event_cb = reserve->event_cb;
 	csid_hw->token = reserve->cb_priv;
@@ -2117,6 +2120,13 @@ static int cam_ife_csid_ver1_enable_csi2(struct cam_ife_csid_ver1_hw *csid_hw)
 	/*Configure Rx cfg1*/
 	val = 1 << csi2_reg->misr_enable_shift_val;
 	val |= 1 << csi2_reg->ecc_correction_shift_en;
+
+	if (csid_hw->res_type >= CAM_ISP_IFE_IN_RES_CPHY_TPG_0 &&
+		csid_hw->res_type <= CAM_ISP_IFE_IN_RES_CPHY_TPG_2 &&
+		csid_reg->csi2_reg->need_to_sel_tpg_mux) {
+		cam_cpas_enable_tpg_mux_sel(csid_hw->res_type -
+			CAM_ISP_IFE_IN_RES_CPHY_TPG_0);
+	}
 
 	vc_full_width = cam_ife_csid_is_vc_full_width(csid_hw->cid_data);
 
@@ -3333,10 +3343,12 @@ static int cam_ife_csid_ver1_sof_irq_debug(
 		return 0;
 	}
 
-	data_idx = csid_hw->rx_cfg.phy_sel;
 	soc_info = &csid_hw->hw_info->soc_info;
 	csid_reg = (struct cam_ife_csid_ver1_reg_info *)
 			csid_hw->core_info->csid_reg;
+
+	data_idx = csid_hw->rx_cfg.phy_sel -
+		csid_reg->csi2_reg->phy_tpg_base_id;
 
 	for (i = 0; i < csid_reg->cmn_reg->num_pix; i++) {
 
@@ -3471,21 +3483,77 @@ static int cam_ife_csid_ver1_print_hbi_vbi(
 	return 0;
 }
 
+static int cam_ife_csid_ver1_get_primary_sof_timer_reg_addr(
+	struct cam_ife_csid_ver1_hw *csid_hw,
+	struct cam_ife_csid_ts_reg_addr *sof_addr)
+{
+	struct cam_hw_soc_info                       *soc_info;
+	struct cam_ife_csid_ver1_reg_info            *csid_reg;
+	uint32_t curr_0_sof_addr, curr_1_sof_addr;
+
+	if (!csid_hw || !sof_addr) {
+		CAM_ERR(CAM_ISP, "Invalid params, csid_hw is null: %s, sof_addr is null: %s",
+			CAM_IS_NULL_TO_STR(csid_hw), CAM_IS_NULL_TO_STR(sof_addr));
+		return -EINVAL;
+	}
+
+	if (sof_addr->res_id >= CAM_IFE_PIX_PATH_RES_MAX) {
+		CAM_ERR(CAM_ISP, "Invalid res-id :%u", sof_addr->res_id);
+		return -EINVAL;
+	}
+
+	soc_info = &csid_hw->hw_info->soc_info;
+
+	csid_reg = (struct cam_ife_csid_ver1_reg_info *)
+			csid_hw->core_info->csid_reg;
+
+	switch (sof_addr->res_id) {
+	case CAM_IFE_PIX_PATH_RES_IPP:
+		curr_0_sof_addr = csid_reg->ipp_reg->timestamp_curr0_sof_addr;
+		curr_1_sof_addr = csid_reg->ipp_reg->timestamp_curr1_sof_addr;
+		break;
+	case CAM_IFE_PIX_PATH_RES_PPP:
+		curr_0_sof_addr = csid_reg->ppp_reg->timestamp_curr0_sof_addr;
+		curr_1_sof_addr = csid_reg->ppp_reg->timestamp_curr1_sof_addr;
+		break;
+	case CAM_IFE_PIX_PATH_RES_RDI_0:
+	case CAM_IFE_PIX_PATH_RES_RDI_1:
+	case CAM_IFE_PIX_PATH_RES_RDI_2:
+	case CAM_IFE_PIX_PATH_RES_RDI_3:
+	case CAM_IFE_PIX_PATH_RES_RDI_4:
+		curr_0_sof_addr =
+			csid_reg->rdi_reg
+			[sof_addr->res_id]->timestamp_curr0_sof_addr;
+		curr_1_sof_addr =
+			csid_reg->rdi_reg
+			[sof_addr->res_id]->timestamp_curr1_sof_addr;
+	break;
+	default:
+		CAM_ERR(CAM_ISP, "CSID:%d invalid res %d",
+			csid_hw->hw_intf->hw_idx, sof_addr->res_id);
+		return -EINVAL;
+	}
+
+	sof_addr->curr0_ts_addr = soc_info->reg_map[0].mem_base +
+		curr_0_sof_addr;
+
+	sof_addr->curr1_ts_addr = soc_info->reg_map[0].mem_base +
+		curr_1_sof_addr;
+
+	return 0;
+}
+
 static int cam_ife_csid_ver1_get_time_stamp(
 	struct cam_ife_csid_ver1_hw  *csid_hw, void *cmd_args)
 {
 	struct cam_isp_resource_node         *res = NULL;
 	uint64_t time_lo, time_hi;
-	struct cam_hw_soc_info              *soc_info;
 	struct cam_csid_get_time_stamp_args *timestamp_args;
-	struct cam_ife_csid_ver1_reg_info *csid_reg;
-	uint32_t curr_0_sof_addr, curr_1_sof_addr;
+	struct cam_ife_csid_ts_reg_addr      sof_addr = {0};
+	int rc = 0;
 
 	timestamp_args = (struct cam_csid_get_time_stamp_args *)cmd_args;
 	res = timestamp_args->node_res;
-	csid_reg = (struct cam_ife_csid_ver1_reg_info *)
-			csid_hw->core_info->csid_reg;
-	soc_info = &csid_hw->hw_info->soc_info;
 
 	if (res->res_type != CAM_ISP_RESOURCE_PIX_PATH ||
 		res->res_id >= CAM_IFE_PIX_PATH_RES_MAX) {
@@ -3502,37 +3570,18 @@ static int cam_ife_csid_ver1_get_time_stamp(
 		return -EINVAL;
 	}
 
-	switch (res->res_id) {
-	case CAM_IFE_PIX_PATH_RES_IPP:
-		curr_0_sof_addr = csid_reg->ipp_reg->timestamp_curr0_sof_addr;
-		curr_1_sof_addr = csid_reg->ipp_reg->timestamp_curr1_sof_addr;
-		break;
-	case CAM_IFE_PIX_PATH_RES_PPP:
-		curr_0_sof_addr = csid_reg->ppp_reg->timestamp_curr0_sof_addr;
-		curr_1_sof_addr = csid_reg->ppp_reg->timestamp_curr1_sof_addr;
-		break;
-	case CAM_IFE_PIX_PATH_RES_RDI_0:
-	case CAM_IFE_PIX_PATH_RES_RDI_1:
-	case CAM_IFE_PIX_PATH_RES_RDI_2:
-	case CAM_IFE_PIX_PATH_RES_RDI_3:
-	case CAM_IFE_PIX_PATH_RES_RDI_4:
-		curr_0_sof_addr =
-			csid_reg->rdi_reg
-			[res->res_id]->timestamp_curr0_sof_addr;
-		curr_1_sof_addr =
-			csid_reg->rdi_reg
-			[res->res_id]->timestamp_curr1_sof_addr;
-	break;
-	default:
-		CAM_ERR(CAM_ISP, "CSID:%d invalid res %d",
-			csid_hw->hw_intf->hw_idx, res->res_id);
+	sof_addr.res_id = res->res_id;
+	rc = cam_ife_csid_ver1_get_primary_sof_timer_reg_addr(csid_hw, &sof_addr);
+	if (rc || !sof_addr.curr0_ts_addr || !sof_addr.curr1_ts_addr) {
+		CAM_ERR(CAM_ISP,
+			"CSID:%d failed to get sof ts addr res_id:%d rc:%d curr0_ts_addr:%pK curr1_ts_addr:%pK",
+			csid_hw->hw_intf->hw_idx, res->res_id, rc,
+			sof_addr.curr0_ts_addr, sof_addr.curr1_ts_addr);
 		return -EINVAL;
 	}
 
-	time_hi = cam_io_r_mb(soc_info->reg_map[0].mem_base +
-			curr_1_sof_addr);
-	time_lo = cam_io_r_mb(soc_info->reg_map[0].mem_base +
-			curr_0_sof_addr);
+	time_hi = cam_io_r_mb(sof_addr.curr1_ts_addr);
+	time_lo = cam_io_r_mb(sof_addr.curr0_ts_addr);
 	timestamp_args->time_stamp_val = (time_hi << 32) | time_lo;
 
 	timestamp_args->time_stamp_val = mul_u64_u32_div(
@@ -3852,6 +3901,25 @@ static int cam_ife_csid_ver1_process_cmd(void *hw_priv,
 		csid_cap->num_csid_perf_counters = csid_reg->cmn_reg->num_perf_cntrs;
 	}
 		break;
+	case CAM_ISP_HW_CMD_GET_SET_PRIM_SOF_TS_ADDR: {
+		struct cam_ife_csid_ts_reg_addr  *sof_addr_args =
+			(struct cam_ife_csid_ts_reg_addr *)cmd_args;
+
+		if (!sof_addr_args->get_addr) {
+			CAM_ERR(CAM_ISP,
+				"CSID:%d does not support set of primary SOF ts addr",
+				csid_hw->hw_intf->hw_idx);
+			rc = -EINVAL;
+		} else
+			rc = cam_ife_csid_ver1_get_primary_sof_timer_reg_addr(csid_hw,
+				sof_addr_args);
+	}
+		break;
+	case CAM_ISP_HW_CMD_GET_CHANGE_BASE:
+		rc = cam_ife_csid_get_base(&hw_info->soc_info,
+			CAM_IFE_CSID_CLC_MEM_BASE_ID,
+			cmd_args, arg_size);
+		break;
 	default:
 		CAM_ERR(CAM_ISP, "CSID:%d unsupported cmd:%d",
 			csid_hw->hw_intf->hw_idx, cmd_type);
@@ -4048,11 +4116,12 @@ static int cam_ife_csid_ver1_rx_bottom_half_handler(
 		return -EINVAL;
 	}
 
-	data_idx = csid_hw->rx_cfg.phy_sel;
 	soc_info = &csid_hw->hw_info->soc_info;
 	csid_reg = (struct cam_ife_csid_ver1_reg_info *)
 			csid_hw->core_info->csid_reg;
 	csi2_reg = csid_reg->csi2_reg;
+	data_idx = csid_hw->rx_cfg.phy_sel -
+		csid_reg->csi2_reg->phy_tpg_base_id;
 
 	irq_status = evt_payload->irq_status[CAM_IFE_CSID_IRQ_REG_RX]
 			& csi2_reg->fatal_err_mask;

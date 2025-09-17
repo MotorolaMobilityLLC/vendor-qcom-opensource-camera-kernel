@@ -330,6 +330,7 @@ struct cam_ife_csid_csi2_rx_reg_info {
 	uint32_t de_scramble_type0_cfg1_addr;
 
 	/*configurations */
+	uint32_t phy_tpg_base_id;
 	uint32_t rst_srb_all;
 	uint32_t rst_done_shift_val;
 	uint32_t irq_mask_all;
@@ -350,6 +351,7 @@ struct cam_ife_csid_csi2_rx_reg_info {
 	uint32_t dyn_sensor_switch_shift_en;
 	uint32_t rup_aup_latch_shift;
 	bool     rup_aup_latch_supported;
+	bool     need_to_sel_tpg_mux;
 	uint32_t phy_num_mask;
 	uint32_t vc_mask;
 	uint32_t wc_mask;

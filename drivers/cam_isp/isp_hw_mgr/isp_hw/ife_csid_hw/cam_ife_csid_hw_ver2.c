@@ -690,7 +690,7 @@ static int cam_ife_csid_ver2_eof_irq_enable(
 	struct cam_isp_resource_node         *res;
 	uint32_t                              i, irq_mask = 0;
 	void                                 *irq_controller;
-	int                                   irq_handle;
+	int                                   irq_handle, rc = 0;
 
 	eof_irq_enable = *((bool *)cmd_args);
 	if (csid_hw->hw_info->hw_state == CAM_HW_STATE_POWER_DOWN) {
@@ -698,7 +698,7 @@ static int cam_ife_csid_ver2_eof_irq_enable(
 			"CSID[%u] powered down unable to %s CSID EOF IRQ",
 			csid_hw->hw_intf->hw_idx,
 			(eof_irq_enable) ? "enable" : "disable");
-		return 0;
+		return rc;
 	}
 
 	csid_reg = (struct cam_ife_csid_ver2_reg_info *)csid_hw->core_info->csid_reg;
@@ -720,9 +720,6 @@ static int cam_ife_csid_ver2_eof_irq_enable(
 				irq_handle = path_data->path_cfg.irq_handle;
 				irq_controller = csid_hw->path_irq_controller[res->res_id];
 			}
-
-			cam_irq_controller_update_irq(
-				irq_controller, irq_handle, eof_irq_enable, &irq_mask);
 			break;
 		case CAM_IFE_PIX_PATH_RES_RDI_0:
 			if (!res->is_rdi_primary_res)
@@ -731,11 +728,28 @@ static int cam_ife_csid_ver2_eof_irq_enable(
 			irq_mask = path_data->reg_offsets->eof_irq_mask;
 			irq_handle = path_data->path_cfg.irq_handle;
 			irq_controller = csid_hw->path_irq_controller[res->res_id];
-			cam_irq_controller_update_irq(
-				irq_controller, irq_handle, eof_irq_enable, &irq_mask);
+			break;
+		case CAM_IFE_PIX_PATH_RES_RDI_1:
+			if (!path_data->path_cfg.is_aeb_en ||
+				!(csid_reg->cmn_reg->capabilities & CAM_IFE_CSID_CAP_MULTI_CTXT))
+				continue;
+
+			irq_mask = path_data->reg_offsets->eof_irq_mask;
+			irq_handle = path_data->path_cfg.irq_handle;
+			irq_controller = csid_hw->path_irq_controller[res->res_id];
 			break;
 		default:
 			continue;
+		}
+
+		rc = cam_irq_controller_update_irq(
+			irq_controller, irq_handle, eof_irq_enable, &irq_mask);
+		if (rc) {
+			CAM_ERR(CAM_ISP, "CSID[%u] Failed at EOF IRQ %s, res_id: %d",
+				csid_hw->hw_intf->hw_idx,
+				(eof_irq_enable) ? "enable" : "disable",
+				res->res_id);
+			return rc;
 		}
 	}
 
@@ -743,7 +757,7 @@ static int cam_ife_csid_ver2_eof_irq_enable(
 	CAM_DBG(CAM_ISP, "CSID[%u] EOF IRQ %s",
 		csid_hw->hw_intf->hw_idx, (eof_irq_enable) ? "enabled" : "disabled");
 
-	return 0;
+	return rc;
 }
 
 static int cam_ife_csid_ver2_get_evt_payload(
@@ -8879,12 +8893,12 @@ static int cam_ife_csid_ver2_irq_inject(
 	case CAM_IFE_CSID_IRQ_REG_IPP_2:
 		for (i = CAM_IFE_PIX_PATH_RES_RDI_0;
 			i < CAM_IFE_PIX_PATH_RES_MAX; i++) {
-			if (reg_idx == cam_ife_csid_convert_res_to_irq_reg(i))
+			if ((reg_idx == cam_ife_csid_convert_res_to_irq_reg(i)) &&
+				csid_reg->path_reg[i]) {
+				irq_set_addr = csid_reg->path_reg[i]->irq_set_addr;
 				break;
+			}
 		}
-
-		if (csid_reg->path_reg[i])
-			irq_set_addr = csid_reg->path_reg[i]->irq_set_addr;
 		break;
 	default:
 		CAM_WARN(CAM_ISP, "Invalid reg_unit %d", inject_params->reg_unit);
