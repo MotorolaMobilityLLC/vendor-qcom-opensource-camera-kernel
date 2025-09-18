@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/interrupt.h>
@@ -238,6 +238,13 @@ int cam_icp_soc_resources_init(struct cam_hw_soc_info *soc_info,
 	rc = cam_icp_soc_dt_properties_get(soc_info);
 	if (rc)
 		return rc;
+
+	if (soc_info->irq_count > CAM_SOC_MAX_IRQ_LINES_PER_DEV) {
+		CAM_ERR(CAM_ICP, "irq_count (%d) exceeds max allowed (%d)",
+			soc_info->irq_count,
+			CAM_SOC_MAX_IRQ_LINES_PER_DEV);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < soc_info->irq_count; i++)
 		irq_data[i] = data;

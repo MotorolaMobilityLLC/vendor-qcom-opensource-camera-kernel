@@ -20615,8 +20615,6 @@ void cam_ife_hw_mgr_deinit(void)
 	g_ife_hw_mgr.debug_cfg.dentry = NULL;
 	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.sfe_perf_counter_val);
 	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.ife_perf_counter_val);
-	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.sfe_perf_counter_val);
-	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.ife_perf_counter_val);
 	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.sfe_bus_wr_perf_counter_val);
 	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.ife_bus_wr_perf_counter_val);
 	CAM_MEM_FREE(g_ife_hw_mgr.debug_cfg.csid_perf_counter_val0);
