@@ -21,6 +21,9 @@
 #ifdef CONFIG_MOT_SM6475_MONA
 #include "include/cam_csiphy_1_2_3_hwreg_mona.h"
 #endif
+#ifdef CONFIG_MOT_SM6475_PORTOV
+#include "include/cam_csiphy_1_2_3_hwreg_portov.h"
+#endif
 #endif
 #include "include/cam_csiphy_1_2_5_hwreg.h"
 #include "include/cam_csiphy_2_0_hwreg.h"
@@ -428,6 +431,12 @@ int32_t cam_csiphy_parse_dt_info(struct platform_device *pdev,
 			csiphy_dev->ctrl_reg->csiphy_3ph_reg = csiphy_3ph_v1_2_3_reg_custom;
 			csiphy_dev->ctrl_reg->data_rates_settings_table = &data_rate_delta_table_1_2_3_custom;
 			CAM_DBG(CAM_CSIPHY,"force using custom CDR SETTING FOR CPHY.");
+		}
+#endif
+#if defined(CONFIG_MOT_SM6475_PORTOV)
+		if (soc_info->index == 2) {
+		    csiphy_dev->ctrl_reg->csiphy_2ph_reg = csiphy_2ph_v1_2_3_reg_custom;
+			CAM_DBG(CAM_CSIPHY,"force using custom reg for front camera.");
 		}
 #endif
 #endif
