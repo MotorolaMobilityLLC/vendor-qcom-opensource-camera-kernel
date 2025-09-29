@@ -32,6 +32,10 @@ atomic_t g_ois_init_finished = ATOMIC_INIT(0);
 atomic_t m_ois_init = ATOMIC_INIT(0);
 #endif
 
+#ifdef CONFIG_MOT_DRV_OIS_DEINIT
+extern void dw9784_deinit_gyro(struct camera_io_master * io_master_info);
+#endif
+
 static inline uint64_t swap_high_byte_and_low_byte(uint8_t *src,
 	uint8_t size_bytes)
 {
@@ -236,6 +240,12 @@ static int cam_ois_power_down(struct cam_ois_ctrl_t *o_ctrl)
 		CAM_ERR(CAM_OIS, "failed: o_ctrl %pK", o_ctrl);
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_MOT_DRV_OIS_DEINIT
+	if (strstr(o_ctrl->ois_name, "mot_dw9784")) {
+		dw9784_deinit_gyro(&(o_ctrl->io_master_info));
+	}
+#endif
 
 	soc_private =
 		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;

@@ -24,6 +24,11 @@
 #define DW9784_CHIP_ID             0x9784
 #define FW_VER_CURR_ADDR           0x7001
 
+#ifdef CONFIG_MOT_DRV_OIS_DEINIT
+#define DW9784_GYRO_AUX     	   0x7017
+#define DW9784_SPI           	   0x7020
+#endif
+
 #define EOK                 0
 
 #define FW_VERSION_OFFSET   10493
@@ -77,6 +82,37 @@ static void dw9784_delay_ms(uint32_t ms)
 	usleep_range(ms*1000, ms*1000+10);
 	return;
 }
+
+#ifdef CONFIG_MOT_DRV_OIS_DEINIT
+void dw9784_deinit_gyro(struct camera_io_master * io_master_info)
+{
+	uint16_t spi_reg = 0;
+	uint16_t gyro_aux_reg = 0;
+
+	dw9784_cci_read(io_master_info, DW9784_SPI, &spi_reg);
+	dw9784_cci_read(io_master_info, DW9784_GYRO_AUX, &gyro_aux_reg);
+
+	CAM_INFO(CAM_OIS, "[dw9784_deinit_gyro] spi_reg=0x%04X, gyro_aux_reg=0x%04X", spi_reg, gyro_aux_reg);
+
+	//SPI Master mode
+	if(spi_reg == 0x0000)
+	{
+		dw9784_cci_write(io_master_info, DW9784_GYRO_AUX, 0x0002);
+		dw9784_delay_ms(3);
+
+		dw9784_cci_read(io_master_info, DW9784_GYRO_AUX, &gyro_aux_reg);
+
+		if(gyro_aux_reg == 0x8002)
+		{
+			CAM_ERR(CAM_OIS, "[dw9784_deinit_gyro] Gyro deinit success, gyro_aux_reg: 0x%04X ", gyro_aux_reg);
+		}
+		else
+		{
+			CAM_ERR(CAM_OIS, "[dw9784_deinit_gyro] Gyro deinit failed, gyro_aux_reg: 0x%04X ", gyro_aux_reg);
+		}
+	}
+}
+#endif
 
 static void dw9784_ois_reset(struct camera_io_master * io_master_info)
 {
