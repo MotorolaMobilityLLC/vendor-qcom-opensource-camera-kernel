@@ -599,7 +599,11 @@ struct csiphy_reg_t datarate_241_4p5Gsps[] = {
 struct csiphy_reg_t datarate_241_5p0Gsps[] = {
 	/* AFE Settings */
 	{0x0068, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_URUS
+	{0x006C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
+#else
 	{0x006C, 0x3D, 0x00, CSIPHY_DEFAULT_PARAMS},
+#endif
 	{0x0070, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0074, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0078, 0x08, 0x00, CSIPHY_CDR_LN_SETTINGS},
