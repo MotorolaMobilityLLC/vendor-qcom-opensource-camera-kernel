@@ -34,6 +34,7 @@ atomic_t m_ois_init = ATOMIC_INIT(0);
 
 #ifdef CONFIG_MOT_DRV_OIS_DEINIT
 extern void dw9784_deinit_gyro(struct camera_io_master * io_master_info);
+extern void sem1218s_deinit_gyro(struct camera_io_master * io_master_info);
 #endif
 
 static inline uint64_t swap_high_byte_and_low_byte(uint8_t *src,
@@ -244,6 +245,8 @@ static int cam_ois_power_down(struct cam_ois_ctrl_t *o_ctrl)
 #ifdef CONFIG_MOT_DRV_OIS_DEINIT
 	if (strstr(o_ctrl->ois_name, "mot_dw9784")) {
 		dw9784_deinit_gyro(&(o_ctrl->io_master_info));
+	} else if (strstr(o_ctrl->ois_name, "sem1218")) {
+		sem1218s_deinit_gyro(&(o_ctrl->io_master_info));
 	}
 #endif
 

@@ -47,6 +47,11 @@
 #define VDDIO_1_2V (0x01)
 #endif
 
+#ifdef CONFIG_MOT_DRV_OIS_DEINIT
+#define REG_SPI_MODE (0x0603)
+#define REG_GPWR_CTRL (0x0602)
+#endif
+
 //#define SEM1218S_OIS_DEBUG
 
 static int32_t sem1218s_cci_write_u32_little_endian(struct camera_io_master * io_master_info, uint16_t reg, uint32_t val)
@@ -131,6 +136,35 @@ static void sem1218s_delay_ms(uint32_t ms)
 	usleep_range(ms*1000, ms*1000+10);
 	return;
 }
+
+#ifdef CONFIG_MOT_DRV_OIS_DEINIT
+void sem1218s_deinit_gyro(struct camera_io_master * io_master_info)
+{
+	uint8_t reg_spi_mode = 0;
+	uint8_t reg_gpwr_ctrl = 0;
+	int32_t rc = 0;
+
+	rc = sem1218s_cci_read_byte(io_master_info, REG_SPI_MODE, &reg_spi_mode);
+	if (rc < 0) {
+		CAM_ERR(CAM_OIS, "read REG_SPI_MODE failed, rc %d", rc);
+	}
+	rc = sem1218s_cci_read_byte(io_master_info, REG_GPWR_CTRL, &reg_gpwr_ctrl);
+	if (rc < 0) {
+		CAM_ERR(CAM_OIS, "read REG_GPWR_CTRL failed, rc %d", rc);
+	}
+
+	CAM_INFO(CAM_OIS, "[sem1218s_deinit_gyro] reg_spi_mode=0x%X, reg_gpwr_ctrl=0x%X", reg_spi_mode, reg_gpwr_ctrl);
+
+	//SPI Master mode
+	if(reg_spi_mode == 0x00)
+	{
+		rc = sem1218s_cci_write_byte(io_master_info, REG_GPWR_CTRL, 0x00);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "write REG_GPWR_CTRL failed, rc %d", rc);
+		}
+	}
+}
+#endif
 
 static uint32_t sem1218s_calculateCRC32(uint8_t *data, uint32_t size)
 {
