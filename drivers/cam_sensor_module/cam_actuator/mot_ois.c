@@ -41,6 +41,8 @@ typedef enum {
 typedef enum {
 	MOT_DEVICE_EQS,
 	MOT_DEVICE_VANTG,
+	MOT_DEVICE_VANTAGE,
+	MOT_DEVICE_BLANC,
 	MOT_DEVICE_NUM,
 } mot_dev_type;
 
@@ -197,10 +199,62 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 				.regulator_min_volt_uv = {1200000, 1800000, 2900000, 3200000},
 				.regulator_max_volt_uv = {1200000, 1800000, 2900000, 3200000},
 #else
-				.regulator_list = { "cam_iovdd_main", "cam_oisavdd_main", "cam_oisvdd_main"},
-				.regulator_min_volt_uv = {1200000, 2900000, 3200000},
-				.regulator_max_volt_uv = {1200000, 2900000, 3200000},
+				.regulator_list = { "cam_iovdd", "cam_oisavdd_main", "cam_oisvdd_main"},
+				.regulator_min_volt_uv = {1800000, 2900000, 3200000},
+				.regulator_max_volt_uv = {1800000, 2900000, 3200000},
 #endif
+				.eeprom_cci_addr = 0x55,
+				.af_safe_dac = 0x0008,//Please conver to 12Bit DAC, and sem1218s's regsiter is little-endian
+				.is_af_drift_supported = true,
+				.start_func = mot_ois_sem1218s_start,
+				.stop_func = mot_ois_stop,
+			},
+		},
+	},
+	//VANTAGE
+	{
+		.dev_type = MOT_DEVICE_VANTAGE,
+		.ois_num = 1,
+		.dev_name = "vantage",
+		.ois_info = {
+			{
+				.ois_name = "mot_sem1218s",
+				.ois_type = MOT_OIS_SEM1218S,
+				.cci_addr = 0x61,
+				.cci_dev = 0x0,
+				.cci_master = 0x0,
+#ifdef CONFIG_MOT_DRV_OIS_SEM1218S_DRIVER
+				.regulator_list = { "cam_iovdd_main", "pm8010_n_l4", "cam_oisavdd_main", "cam_oisvdd_main"},
+				.regulator_min_volt_uv = {1200000, 1800000, 2900000, 3200000},
+				.regulator_max_volt_uv = {1200000, 1800000, 2900000, 3200000},
+#else
+				.regulator_list = { "cam_iovdd", "cam_oisavdd_main", "cam_oisvdd_main"},
+				.regulator_min_volt_uv = {1800000, 2900000, 3200000},
+				.regulator_max_volt_uv = {1800000, 2900000, 3200000},
+#endif
+				.eeprom_cci_addr = 0x55,
+				.af_safe_dac = 0x0008,//Please conver to 12Bit DAC, and sem1218s's regsiter is little-endian
+				.is_af_drift_supported = true,
+				.start_func = mot_ois_sem1218s_start,
+				.stop_func = mot_ois_stop,
+			},
+		},
+	},
+	//BLANC
+	{
+		.dev_type = MOT_DEVICE_BLANC,
+		.ois_num = 1,
+		.dev_name = "blanc",
+		.ois_info = {
+			{
+				.ois_name = "mot_sem1218s",
+				.ois_type = MOT_OIS_SEM1218S,
+				.cci_addr = 0x61,
+				.cci_dev = 0x0,
+				.cci_master = 0x0,
+				.regulator_list = { "cam_iovdd", "aw37004_2nd_ldo4", "cam_oisvdd_main"},
+				.regulator_min_volt_uv = {1800000, 2900000, 3200000},
+				.regulator_max_volt_uv = {1800000, 2900000, 3200000},
 				.eeprom_cci_addr = 0x55,
 				.af_safe_dac = 0x0008,//Please conver to 12Bit DAC, and sem1218s's regsiter is little-endian
 				.is_af_drift_supported = true,

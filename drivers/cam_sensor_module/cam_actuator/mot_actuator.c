@@ -58,6 +58,8 @@ typedef enum {
 	MOT_DEVICE_CTWO,
 	MOT_DEVICE_LEAP,
 	MOT_DEVICE_VANTG,
+	MOT_DEVICE_VANTAGE,
+	MOT_DEVICE_BLANC,
 	MOT_DEVICE_NUM,
 } mot_dev_type;
 
@@ -241,7 +243,45 @@ static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
 				.cci_master = 0x00,
 				.has_ois = true, //main camera use OIS
 				.regulator_list = {"cam_afvdd_main", "cam_iovdd_main"}, //VAF VIO
-				.regulator_volt_uv = {2800000, 1800000},
+				.regulator_volt_uv = {3000000, 1800000},
+				.park_lens_needed = false,
+				.poweron_delay = 6,
+			},
+		},
+	},
+	{
+		.dev_type = MOT_DEVICE_VANTAGE,
+		.actuator_num = 1,
+		.dev_name = "vantage",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_AK7316,
+				.dac_pos = 0x8000, //register 01h bit2-bit7 valid
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x00,
+				.has_ois = true, //main camera use OIS
+				.regulator_list = {"cam_afvdd_main", "cam_iovdd"}, //VAF VIO
+				.regulator_volt_uv = {3000000, 1800000},
+				.park_lens_needed = false,
+				.poweron_delay = 6,
+			},
+		},
+	},
+	{
+		.dev_type = MOT_DEVICE_BLANC,
+		.actuator_num = 1,
+		.dev_name = "blanc",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_AK7316,
+				.dac_pos = 0x8000, //register 01h bit2-bit7 valid
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x00,
+				.has_ois = true, //main camera use OIS
+				.regulator_list = {"cam_afvdd_main", "cam_iovdd"}, //VAF VIO
+				.regulator_volt_uv = {3000000, 1800000},
 				.park_lens_needed = false,
 				.poweron_delay = 6,
 			},
