@@ -98,6 +98,11 @@ struct cam_clk_wrapper_client {
 	int64_t curr_clk_rate;
 };
 
+struct gpd_dev_fake {
+	struct device *dev;
+	struct list_head list_node;
+};
+
 static char supported_clk_info[256];
 
 static DEFINE_MUTEX(wrapper_lock);
@@ -3613,6 +3618,8 @@ inline int cam_soc_util_turn_off_power_domain(struct cam_hw_soc_info *soc_info)
 {
 	int ret = 0;
 	struct generic_pm_domain *power_domain;
+	struct gpd_dev_fake *gpd_dev;
+	struct device *child;
 
 	if (!soc_info || !soc_info->dev) {
 		CAM_ERR(CAM_UTIL, "%s is NULL", soc_info? "soc_info->dev": "soc_info");
@@ -3629,8 +3636,30 @@ inline int cam_soc_util_turn_off_power_domain(struct cam_hw_soc_info *soc_info)
 
 	ret = pm_runtime_put_sync(soc_info->dev);
 	if (ret < 0) {
-		CAM_ERR(CAM_UTIL, "%s: Failed to turn off the power domain: %d",
-			soc_info->dev_name, ret);
+		CAM_ERR(CAM_UTIL, "%s: Failed to turn off the power domain: %d, usage:%d state:%d",
+			soc_info->dev_name, ret,
+			atomic_read(&soc_info->dev->power.usage_count),
+			pm_runtime_active(soc_info->dev));
+		if (!list_empty(&power_domain->dev_list)) {
+			list_for_each_entry(gpd_dev, &power_domain->dev_list, list_node) {
+				child = gpd_dev->dev;
+				if (pm_runtime_active(child))
+					CAM_INFO(CAM_UTIL, "%s: Active child: %s usage_count=%d",
+						soc_info->dev_name,
+						dev_name(child),
+						atomic_read(&child->power.usage_count));
+			}
+		}
+
+		if ((ret == -EAGAIN) && pm_runtime_active(soc_info->dev)) {
+			CAM_WARN(CAM_UTIL, "%s: Try to turn off the power doamin again",
+				soc_info->dev_name);
+			ret = pm_runtime_put_sync(soc_info->dev);
+			if (ret)
+				CAM_WARN(CAM_UTIL, "%s: Failed to turn off pm again, rc:%d, usage:%d",
+					soc_info->dev_name, ret,
+					atomic_read(&soc_info->dev->power.usage_count));
+		}
 		return ret;
 	}
 
