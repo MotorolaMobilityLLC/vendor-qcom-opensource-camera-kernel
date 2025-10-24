@@ -17,6 +17,14 @@
 #define CAM_SENSOR_PIPELINE_DELAY_MASK        0xFF
 #define CAM_SENSOR_MODESWITCH_DELAY_SHIFT     8
 
+#ifdef CONFIG_MOT_READ_SENSOR_REGISTER
+uint32_t user_data   = 0x04000400;
+uint32_t CG_ratio_1  = 0x0400;
+uint32_t CG_ratio_2  = 0x0400;
+#define CG_RATIO_REG_1   0x5064
+#define CG_RATIO_REG_2   0x5066
+#endif
+
 extern struct completion *cam_sensor_get_i3c_completion(uint32_t index);
 
 static int cam_sensor_notify_v4l2_error_event(
@@ -1356,6 +1364,55 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 	return rc;
 }
 
+#ifdef CONFIG_MOT_READ_SENSOR_REGISTER
+int cam_sensor_read_sensor_register(struct cam_sensor_ctrl_t *s_ctrl, uint16_t addr, uint32_t* data)
+{
+	int rc = 0;
+	struct cam_camera_slave_info *slave_info;
+
+	slave_info = &(s_ctrl->sensordata->slave_info);
+
+	if (!slave_info || !data) {
+		CAM_ERR(CAM_SENSOR, " failed: slave_info %pK, data %pK",
+			 slave_info, data);
+		return -EINVAL;
+	}
+
+	if (s_ctrl->hw_no_ops)
+		return rc;
+
+	if (s_ctrl->io_master_info.master_type == I2C_MASTER) {
+		if (s_ctrl->probe_sensor_slave_addr != 0) {
+			CAM_DBG(CAM_SENSOR, "%s read id: 0x%x -> 0x%x", s_ctrl->sensor_name,
+				s_ctrl->io_master_info.qup_client->i2c_client->addr,
+				s_ctrl->probe_sensor_slave_addr);
+			s_ctrl->io_master_info.qup_client->i2c_client->addr =
+				s_ctrl->probe_sensor_slave_addr;
+		}
+	} else if (s_ctrl->io_master_info.master_type == CCI_MASTER) {
+		if (s_ctrl->probe_sensor_slave_addr != 0) {
+			CAM_DBG(CAM_SENSOR, "%s read id: 0x%x -> 0x%x", s_ctrl->sensor_name,
+				s_ctrl->io_master_info.cci_client->sid << 1,
+				s_ctrl->probe_sensor_slave_addr);
+			s_ctrl->io_master_info.cci_client->sid =
+				s_ctrl->probe_sensor_slave_addr >> 1;
+		}
+	}
+
+	rc = camera_io_dev_read(
+		&(s_ctrl->io_master_info),
+		addr,
+		data,
+		2,
+		2,
+		true);
+
+	CAM_INFO(CAM_SENSOR, "%s read CG_RATIO_REG 0x%x: 0x%x", s_ctrl->sensor_name, addr, *data);
+
+	return rc;
+}
+#endif
+
 int cam_sensor_stream_off(struct cam_sensor_ctrl_t *s_ctrl)
 {
 	int               rc = 0;
@@ -1580,6 +1637,25 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			cam_sensor_power_down(s_ctrl);
 			goto free_power_settings;
 		}
+
+#ifdef CONFIG_MOT_READ_SENSOR_REGISTER
+		if (0 == strcmp(s_ctrl->sensor_name, "mot_ov50t")) {
+			rc = cam_sensor_read_sensor_register(s_ctrl, CG_RATIO_REG_1, &CG_ratio_1);
+			if (rc < 0) {
+				CAM_WARN(CAM_SENSOR, "ov50t read sensor CG_ratio failed, rc %d, CG_ratio_1 %d", rc, CG_ratio_1);
+				CG_ratio_1 = 0x0400;
+			}
+
+			rc = cam_sensor_read_sensor_register(s_ctrl, CG_RATIO_REG_2, &CG_ratio_2);
+			if (rc < 0) {
+				CAM_WARN(CAM_SENSOR, "ov50t read sensor CG_ratio failed, rc %d, CG_ratio_2 %d", rc, CG_ratio_2);
+				CG_ratio_2 = 0x0400;
+			}
+
+			user_data = ((CG_ratio_1 & 0xffff) << 16) | (CG_ratio_2 & 0xffff);
+			CAM_INFO(CAM_SENSOR, "user_data = 0x%x", user_data);
+		}
+#endif
 
 		/* Match sub-device ID */
 		/*rc = cam_sensor_match_sub_device_id(s_ctrl);
@@ -2033,6 +2109,20 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 	}
 		break;
 #endif
+
+#ifdef CONFIG_MOT_READ_SENSOR_REGISTER
+	case CAM_MOT_READ_SENSOR_REGISTER: {
+		if (copy_to_user(u64_to_user_ptr(cmd->handle),
+			&user_data, sizeof(uint32_t))) {
+			CAM_ERR(CAM_SENSOR, "READ_SENSOR_REGISTER - Failed Copy to User");
+			rc = -EFAULT;
+			goto release_mutex;
+		}
+		CAM_INFO(CAM_SENSOR, "Copy to User - user_data = 0x%x", user_data);
+	}
+		break;
+#endif
+
 	default:
 		CAM_ERR(CAM_SENSOR, "%s: Invalid Opcode: %d",
 			s_ctrl->sensor_name, cmd->op_code);
