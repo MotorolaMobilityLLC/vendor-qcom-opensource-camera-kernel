@@ -574,6 +574,9 @@ struct cam_tfe_csid_hw {
 	uint32_t                            irq_debug_cnt;
 	uint32_t                            error_irq_count;
 	uint32_t                            device_enabled;
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+	uint32_t                            is_enabled;
+#endif
 	spinlock_t                          spin_lock;
 	bool                                fatal_err_detected;
 	cam_hw_mgr_event_cb_func            event_cb;
