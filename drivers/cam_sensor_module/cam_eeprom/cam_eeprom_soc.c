@@ -311,6 +311,14 @@ int cam_eeprom_parse_dt(struct cam_eeprom_ctrl_t *e_ctrl)
 		CAM_DBG(CAM_EEPROM, "slave-addr = 0x%X",
 			soc_private->i2c_info.slave_addr);
 	}
+#ifdef CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+	if (!of_property_read_bool(of_node, "aon-custom-power-support")) {
+		soc_info->aon_custom_power_supported = false;
+	} else {
+		soc_info->aon_custom_power_supported = true;
+	}
+	CAM_INFO(CAM_SENSOR, "aon-custom-power-support %d", soc_info->aon_custom_power_supported);
+#endif//CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
 
 	if (!soc_info->gpio_data) {
 		CAM_INFO(CAM_EEPROM, "No GPIO found");

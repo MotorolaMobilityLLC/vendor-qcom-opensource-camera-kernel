@@ -384,6 +384,9 @@ struct cam_hw_soc_info {
 
 	int32_t                         aggregate_clk[CAM_SOC_MAX_CLK][2];
 	uint32_t                        aggregate_clk_mask;
+#ifdef CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+	bool                            aon_custom_power_supported;
+#endif//CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
 };
 
 /**

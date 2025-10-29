@@ -1097,7 +1097,11 @@ int32_t msm_camera_fill_vreg_params(
 	num_vreg = soc_info->num_rgltr;
 
 	if ((num_vreg <= 0) || (num_vreg > CAM_SOC_MAX_REGULATOR)) {
+#ifdef CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+		if ((debug_bypass_drivers & CAM_BYPASS_RGLTR) || soc_info->aon_custom_power_supported)
+#else
 		if (debug_bypass_drivers & CAM_BYPASS_RGLTR)
+#endif//CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
 			CAM_DBG(CAM_SENSOR_UTIL, "Bypass parameter check num_vreg %d",
 				num_vreg);
 		else {
@@ -2170,7 +2174,11 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 	num_vreg = soc_info->num_rgltr;
 
 	if ((num_vreg <= 0) || (num_vreg > CAM_SOC_MAX_REGULATOR)) {
+#ifdef CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+		if ((debug_bypass_drivers & CAM_BYPASS_RGLTR) || soc_info->aon_custom_power_supported)
+#else
 		if (debug_bypass_drivers & CAM_BYPASS_RGLTR)
+#endif//CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
 			CAM_DBG(CAM_SENSOR_UTIL, "Bypass parameter check num_vreg %d",
 				num_vreg);
 		else {
@@ -2330,6 +2338,22 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 				continue;
 			}
 
+#ifdef CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+			if (soc_info->aon_custom_power_supported)
+			{
+				CAM_INFO(CAM_SENSOR_UTIL, "Bypass regulator enable, only use gpio enable power!!!");
+				rc = msm_cam_sensor_handle_reg_gpio(
+					power_setting->seq_type,
+					gpio_num_info, 1);
+				if (rc < 0) {
+					CAM_ERR(CAM_SENSOR_UTIL,
+						"Error in handling VREG GPIO");
+					goto power_up_failed;
+				}
+				break;
+			}
+#endif//CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+
 			if (power_setting->seq_val == INVALID_VREG)
 				break;
 
@@ -2472,6 +2496,17 @@ power_up_failed:
 				continue;
 			}
 
+#ifdef CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+			if (soc_info->aon_custom_power_supported)
+			{
+				CAM_INFO(CAM_SENSOR_UTIL, "Bypass regulator disable, only use gpio disable power!!!");
+				msm_cam_sensor_handle_reg_gpio(power_setting->seq_type,
+					gpio_num_info, GPIOF_OUT_INIT_LOW);
+
+				break;
+			}
+#endif//CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+
 			if (power_setting->seq_val < num_vreg) {
 				CAM_DBG(CAM_SENSOR_UTIL, "Disable Regulator");
 				vreg_idx = power_setting->seq_val;
@@ -2574,7 +2609,11 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 	num_vreg = soc_info->num_rgltr;
 
 	if ((num_vreg <= 0) || (num_vreg > CAM_SOC_MAX_REGULATOR)) {
+#ifdef CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+		if ((debug_bypass_drivers & CAM_BYPASS_RGLTR) || soc_info->aon_custom_power_supported)
+#else
 		if (debug_bypass_drivers & CAM_BYPASS_RGLTR)
+#endif//CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
 			CAM_DBG(CAM_SENSOR_UTIL, "Bypass parameter check num_vreg %d",
 				num_vreg);
 		else {
@@ -2655,6 +2694,20 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 					pd->seq_type);
 				continue;
 			}
+
+#ifdef CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+			if (soc_info->aon_custom_power_supported)
+			{
+				CAM_INFO(CAM_SENSOR_UTIL, "Bypass regulator disable, only use gpio disable power!!!");
+				ret = msm_cam_sensor_handle_reg_gpio(pd->seq_type,
+					gpio_num_info, GPIOF_OUT_INIT_LOW);
+
+				if (ret < 0)
+					CAM_ERR(CAM_SENSOR_UTIL,
+						"Error disabling VREG GPIO");
+				break;
+			}
+#endif//CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
 
 			if (pd->seq_val == INVALID_VREG)
 				break;

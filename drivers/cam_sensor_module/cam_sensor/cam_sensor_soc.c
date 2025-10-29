@@ -260,6 +260,14 @@ int32_t cam_sensor_parse_dt(struct cam_sensor_ctrl_t *s_ctrl)
 		CAM_ERR(CAM_SENSOR, "Aon registration failed, rc: %d", rc);
 		goto release_resources;
 	}
+#ifdef CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
+	if (!of_property_read_bool(soc_info->dev->of_node, "aon-custom-power-support")) {
+		soc_info->aon_custom_power_supported = false;
+	} else {
+		soc_info->aon_custom_power_supported = true;
+	}
+	CAM_INFO(CAM_SENSOR, "aon-custom-power-support %d", soc_info->aon_custom_power_supported);
+#endif//CONFIG_MOT_DRV_AON_CUSTOM_POWER_SUPPORT
 
 	if (!of_property_read_bool(of_node, "hw-no-ops"))
 		s_ctrl->hw_no_ops = false;
