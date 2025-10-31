@@ -1900,44 +1900,6 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 	}
 	break;
 #endif
-#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
-        /* This is only for bu63169 OIS AF drift */
-	case MOT_CAM_OIS_PACKET_OPCODE_AF_DRIFT:
-		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
-			rc = -EINVAL;
-			CAM_WARN(CAM_OIS,
-				"Not in right state to control OIS: %d",
-				o_ctrl->cam_ois_state);
-			return rc;
-		}
-		offset = (uint32_t *)&csl_packet->payload;
-		offset += (csl_packet->cmd_buf_offset / sizeof(uint32_t));
-		cmd_desc = (struct cam_cmd_buf_desc *)(offset);
-		i2c_reg_settings = &(o_ctrl->i2c_af_drift_data);
-		i2c_reg_settings->is_settings_valid = 1;
-		i2c_reg_settings->request_id = 0;
-		rc = cam_sensor_i2c_command_parser(&o_ctrl->io_master_info,
-			i2c_reg_settings,
-			cmd_desc, 1, NULL);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS, "OIS pkt parsing failed: %d", rc);
-			return rc;
-		}
-
-		rc = cam_ois_apply_settings(o_ctrl, i2c_reg_settings);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS, "Cannot apply mode settings");
-			return rc;
-		}
-
-		rc = delete_request(i2c_reg_settings);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS,
-				"Fail deleting Mode data: rc: %d", rc);
-			return rc;
-		}
-		break;
-#endif
 #ifdef CONFIG_MOT_DRV_OIS_AFTER_SALES_SERVICE
 	case MOT_CAM_OIS_PACKET_OPCODE_OIS_GYRO_OFFSET:
 		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
@@ -1971,43 +1933,6 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		if (rc < 0) {
 			CAM_ERR(CAM_OIS,
 				"Fail deleting gyro offset data: rc: %d", rc);
-			return rc;
-		}
-		break;
-#endif
-#ifdef CONFIG_MOT_DRV_OIS_DEINIT
-	case MOT_CAM_OIS_PACKET_OPCODE_OIS_DEINIT:
-		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
-			rc = -EINVAL;
-			CAM_WARN(CAM_OIS,
-				"Not in right state to control OIS: %d",
-				o_ctrl->cam_ois_state);
-			return rc;
-		}
-		offset = (uint32_t *)&csl_packet->payload;
-		offset += (csl_packet->cmd_buf_offset / sizeof(uint32_t));
-		cmd_desc = (struct cam_cmd_buf_desc *)(offset);
-		i2c_reg_settings = &(o_ctrl->i2c_deinit_data);
-		i2c_reg_settings->is_settings_valid = 1;
-		i2c_reg_settings->request_id = 0;
-		rc = cam_sensor_i2c_command_parser(&o_ctrl->io_master_info,
-			i2c_reg_settings,
-			cmd_desc, 1, NULL);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS, "OIS pkt parsing failed: %d", rc);
-			return rc;
-		}
-
-		rc = cam_ois_apply_settings(o_ctrl, i2c_reg_settings);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS, "Cannot apply deinit settings");
-			return rc;
-		}
-
-		rc = delete_request(i2c_reg_settings);
-		if (rc < 0) {
-			CAM_ERR(CAM_OIS,
-				"Fail deleting deinit data: rc: %d", rc);
 			return rc;
 		}
 		break;
@@ -2278,19 +2203,9 @@ void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 	if (o_ctrl->i2c_mode_data.is_settings_valid == 1)
 		delete_request(&o_ctrl->i2c_mode_data);
 
-#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
-	if (o_ctrl->i2c_af_drift_data.is_settings_valid == 1)
-		delete_request(&o_ctrl->i2c_af_drift_data);
-#endif
-
 #ifdef CONFIG_MOT_DRV_OIS_AFTER_SALES_SERVICE
 	if (o_ctrl->i2c_gyro_data.is_settings_valid == 1)
 		delete_request(&o_ctrl->i2c_gyro_data);
-#endif
-
-#ifdef CONFIG_MOT_DRV_OIS_DEINIT
-	if (o_ctrl->i2c_deinit_data.is_settings_valid == 1)
-		delete_request(&o_ctrl->i2c_deinit_data);
 #endif
 
 	if (o_ctrl->i2c_calib_data.is_settings_valid == 1)
@@ -2432,19 +2347,9 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		if (o_ctrl->i2c_mode_data.is_settings_valid == 1)
 			delete_request(&o_ctrl->i2c_mode_data);
 
-#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
-		if (o_ctrl->i2c_af_drift_data.is_settings_valid == 1)
-			delete_request(&o_ctrl->i2c_af_drift_data);
-#endif
-
 #ifdef CONFIG_MOT_DRV_OIS_AFTER_SALES_SERVICE
 		if (o_ctrl->i2c_gyro_data.is_settings_valid == 1)
 			delete_request(&o_ctrl->i2c_gyro_data);
-#endif
-
-#ifdef CONFIG_MOT_DRV_OIS_DEINIT
-		if (o_ctrl->i2c_deinit_data.is_settings_valid == 1)
-			delete_request(&o_ctrl->i2c_deinit_data);
 #endif
 
 		if (o_ctrl->i2c_calib_data.is_settings_valid == 1)
