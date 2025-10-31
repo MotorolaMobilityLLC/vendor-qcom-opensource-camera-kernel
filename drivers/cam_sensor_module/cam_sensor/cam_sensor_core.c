@@ -18,9 +18,9 @@
 #define CAM_SENSOR_MODESWITCH_DELAY_SHIFT     8
 
 #ifdef CONFIG_MOT_READ_SENSOR_REGISTER
-uint32_t user_data   = 0x04000400;
-uint32_t CG_ratio_1  = 0x0400;
-uint32_t CG_ratio_2  = 0x0400;
+uint32_t user_data   = 0x24800dc0;
+uint32_t CG_ratio_1  = 0x2480;
+uint32_t CG_ratio_2  = 0x0dc0;
 #define CG_RATIO_REG_1   0x5064
 #define CG_RATIO_REG_2   0x5066
 #endif
@@ -1643,13 +1643,13 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			rc = cam_sensor_read_sensor_register(s_ctrl, CG_RATIO_REG_1, &CG_ratio_1);
 			if (rc < 0) {
 				CAM_WARN(CAM_SENSOR, "ov50t read sensor CG_ratio failed, rc %d, CG_ratio_1 %d", rc, CG_ratio_1);
-				CG_ratio_1 = 0x0400;
+				CG_ratio_1 = 0x2480;
 			}
 
 			rc = cam_sensor_read_sensor_register(s_ctrl, CG_RATIO_REG_2, &CG_ratio_2);
 			if (rc < 0) {
 				CAM_WARN(CAM_SENSOR, "ov50t read sensor CG_ratio failed, rc %d, CG_ratio_2 %d", rc, CG_ratio_2);
-				CG_ratio_2 = 0x0400;
+				CG_ratio_2 = 0x0dc0;
 			}
 
 			user_data = ((CG_ratio_1 & 0xffff) << 16) | (CG_ratio_2 & 0xffff);
