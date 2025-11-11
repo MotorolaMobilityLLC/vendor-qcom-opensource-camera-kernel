@@ -1571,6 +1571,73 @@ int cam_sensor_set_i2c_addr_switch_reg(struct cam_sensor_ctrl_t *s_ctrl)
 }
 #endif
 
+#ifdef CONFIG_MOT_ATT_PD_WORKAROUND
+int mot_sensor_read_sensor_register(struct cam_sensor_ctrl_t *s_ctrl, uint16_t addr, uint32_t* data)
+{
+	int rc = 0;
+	struct cam_camera_slave_info *slave_info;
+
+	if (!s_ctrl) {
+		CAM_ERR(CAM_SENSOR, "Device data is NULL");
+		return -EINVAL;
+	}
+
+	slave_info = &(s_ctrl->sensordata->slave_info);
+
+	if (!slave_info || !data) {
+		CAM_ERR(CAM_SENSOR, " failed: slave_info %pK, data %pK",
+			 slave_info, data);
+		return -EINVAL;
+	}
+
+	if (s_ctrl->hw_no_ops)
+		return rc;
+
+	rc = camera_io_dev_read(
+		&(s_ctrl->io_master_info),
+		addr,
+		data,
+		CAMERA_SENSOR_I2C_TYPE_WORD,
+		CAMERA_SENSOR_I2C_TYPE_BYTE,
+		true);
+
+	if (rc < 0) {
+		CAM_ERR(CAM_SENSOR,"Failed to read register settings rc: %d", rc);
+	}
+
+	return rc;
+}
+
+int mot_sensor_write_sensor_register(struct cam_sensor_ctrl_t *s_ctrl, uint32_t addr, uint32_t data)
+{
+	int rc = 0;
+	struct cam_sensor_i2c_reg_setting wr_setting;
+	struct cam_sensor_i2c_reg_array reg_setting;
+
+	if (!s_ctrl) {
+		CAM_ERR(CAM_SENSOR, "Device data is NULL");
+		return -EINVAL;
+	}
+
+	reg_setting.reg_addr = addr;
+	reg_setting.reg_data = data;
+	reg_setting.delay = 0;
+	reg_setting.data_mask = 0;
+	wr_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD;
+	wr_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+	wr_setting.reg_setting = &reg_setting;
+	wr_setting.size = 1;
+	wr_setting.delay = 0;
+
+	rc = camera_io_dev_write(&s_ctrl->io_master_info, &wr_setting);
+	if (rc < 0) {
+		CAM_ERR(CAM_SENSOR,"Failed to write register settings rc: %d", rc);
+	}
+
+	return rc;
+}
+#endif
+
 int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 	void *arg)
 {
@@ -1820,6 +1887,47 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 				);
 			goto release_mutex;
 		}
+
+#ifdef CONFIG_MOT_ATT_PD_WORKAROUND
+		if (0 == strcmp(s_ctrl->sensor_name, "mot_imx09a")) {
+			uint32_t ATT_en_reg_addr  = 0x4333;
+			uint32_t ATT_src_reg_addr = 0xc0f4;
+			uint32_t ATT_dst_reg_addr = 0x8b20;
+			uint32_t ATT_read_enable  = 0x01;
+			uint32_t ATT_write_enable = 0x00;
+			uint16_t reg_num = 4;
+			uint32_t read_data[4];
+			uint16_t i;
+
+			CAM_INFO(CAM_SENSOR, "[ATT PD] start DCG ATT PDAF workaround!");
+			rc = mot_sensor_write_sensor_register(s_ctrl, ATT_en_reg_addr, ATT_read_enable);
+			if (rc < 0) {
+				CAM_ERR(CAM_SENSOR,"[ATT PD]Failed to write ATT_read_enable register: %d",rc);
+			}
+
+			for(i = 0; i < reg_num; i++)
+			{
+				rc = mot_sensor_read_sensor_register(s_ctrl, ATT_src_reg_addr+i, &read_data[i]);
+				if (rc < 0) {
+					CAM_ERR(CAM_SENSOR,"[ATT PD]Failed to read ATT register: %d",rc);
+				}
+				CAM_INFO(CAM_SENSOR, "[ATT PD] DCG ATT PDAF read_data[%d] = 0x%x", i, read_data[i]);
+			}
+
+			rc = mot_sensor_write_sensor_register(s_ctrl, ATT_en_reg_addr, ATT_write_enable);
+			if (rc < 0) {
+				CAM_ERR(CAM_SENSOR,"[ATT PD]Failed to write ATT_write_enable register: %d",rc);
+			}
+
+			for(i = 0; i < reg_num; i++)
+			{
+				rc = mot_sensor_write_sensor_register(s_ctrl, ATT_dst_reg_addr+i, read_data[i]);
+				if (rc < 0) {
+					CAM_ERR(CAM_SENSOR,"[ATT PD]Failed to write ATT register: %d",rc);
+				}
+			}
+		}
+#endif
 
 		s_ctrl->sensor_state = CAM_SENSOR_ACQUIRE;
 		s_ctrl->last_flush_req = 0;
