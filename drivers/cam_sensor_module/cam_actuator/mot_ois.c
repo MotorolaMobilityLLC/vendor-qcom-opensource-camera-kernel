@@ -114,6 +114,7 @@ typedef struct {
 	bool is_af_drift_supported;
 	mot_ois_ctrl_hdl start_func;
 	mot_ois_ctrl_hdl stop_func;
+	uint16_t power_delay;//ms
 } mot_ois_hw_info;
 
 typedef struct {
@@ -179,6 +180,7 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 				.is_af_drift_supported = true,
 				.start_func = mot_ois_bu63169_start,
 				.stop_func = mot_ois_stop,
+				.power_delay = 1,
 			},
 		},
 	},
@@ -208,6 +210,7 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 				.is_af_drift_supported = true,
 				.start_func = mot_ois_sem1218s_start,
 				.stop_func = mot_ois_stop,
+				.power_delay = 4,
 			},
 		},
 	},
@@ -231,6 +234,7 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 				.is_af_drift_supported = true,
 				.start_func = mot_ois_sem1218s_start,
 				.stop_func = mot_ois_stop,
+				.power_delay = 4,
 			},
 		},
 	},
@@ -254,6 +258,7 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 				.is_af_drift_supported = true,
 				.start_func = mot_ois_sem1218s_start,
 				.stop_func = mot_ois_stop,
+				.power_delay = 4,
 			},
 		},
 	},
@@ -343,8 +348,8 @@ static struct cam_sensor_i2c_reg_setting mot_vantg_ois_init_setting[] = {
 	},
 };
 static struct cam_sensor_i2c_reg_array mot_ois_lock_center_sem1218s[] = {
-	{0x0002, 0x03, 1},
 	{0x0000, 0x01, 1},
+	{0x0002, 0x03, 1},
 };
 
 static struct cam_sensor_i2c_reg_setting mot_vantg_ois_lock_center_setting[] = {
@@ -505,12 +510,17 @@ static int32_t mot_ois_power_on(struct device *dev, uint32_t index)
 {
 	int i;
 	int ret = 0;
+	uint16_t delayms;
 
+	delayms = mot_ois_dev_list[mot_device_index].ois_info[index].power_delay;
 	for (i = 0; i < REGULATOR_NUM; i++) {
 		if (mot_ois_runtime[index].regulators[i] != NULL) {
 			ret = regulator_enable(mot_ois_runtime[index].regulators[i]);
 			if(ret){
 				CAM_ERR(CAM_OIS, "power on regulators[%d] failed, ret:%d", i,ret);
+			}
+			if (delayms > 0) {
+				usleep_range(delayms*1000, (delayms+1)*1000);
 			}
 		}
 	}
@@ -534,10 +544,15 @@ static int32_t mot_ois_power_off(struct device *dev, uint32_t index)
 {
 	int i;
 	int ret = 0;
+	uint16_t delayms;
 
+	delayms = mot_ois_dev_list[mot_device_index].ois_info[index].power_delay;
 	for (i = 0; i < REGULATOR_NUM; i++) {
 		if (mot_ois_runtime[index].regulators[i] != NULL) {
 			ret = regulator_disable(mot_ois_runtime[index].regulators[i]);
+			if (delayms > 0) {
+				usleep_range(delayms*1000, (delayms+1)*1000);
+			}
 			CAM_DBG(CAM_OIS, "power off ret %d", ret);
 		}
 	}
@@ -607,6 +622,7 @@ static int32_t mot_ois_apply_settings(struct camera_io_master *io_master_info,
 	int32_t i;
 
 	for (i=0; i<item_num; i++) {
+		write_setting->delay = write_setting->reg_setting->delay;
 		ret = camera_io_dev_write(io_master_info, &write_setting[i]);
 		if (ret < 0) {
 			CAM_ERR(CAM_OIS, "apply settting failed, ret=%d!!!", ret);
