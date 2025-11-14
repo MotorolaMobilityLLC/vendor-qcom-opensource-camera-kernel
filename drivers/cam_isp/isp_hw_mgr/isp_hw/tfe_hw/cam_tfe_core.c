@@ -1028,36 +1028,6 @@ static int cam_tfe_irq_err_top_half(
 	return 0;
 }
 
-#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
-static int cam_tfe_mask_top_irq(struct cam_tfe_hw_core_info *core_info,
-	void *cmd_args, uint32_t arg_size)
-{
-	struct cam_tfe_top_priv        *top_priv;
-	void __iomem                   *mem_base;
-	uint32_t  i;
-	int rc = -EINVAL;
-
-	if (!core_info)
-		return rc;
-
-	top_priv = (struct cam_tfe_top_priv  *)core_info->top_priv;
-	mem_base = top_priv->common_data.soc_info->reg_map[0].mem_base;
-
-	spin_lock(&core_info->spin_lock);
-	for (i = 0; i < CAM_TFE_TOP_IRQ_REG_NUM; i++) {
-		/* status 1 holds frame timing irqs, so no need to mask them */
-		if (i == 1)
-			continue;
-		cam_io_w_mb(0, mem_base  +
-			core_info->tfe_hw_info->top_irq_mask[i]);
-		CAM_INFO(CAM_ISP, "TFE:%d IRQ %d masked", core_info->core_index, i);
-	}
-	spin_unlock(&core_info->spin_lock);
-
-	return 0;
-}
-#endif
-
 irqreturn_t cam_tfe_irq(int irq_num, void *data)
 {
 	struct cam_hw_info             *tfe_hw;
@@ -1066,9 +1036,6 @@ irqreturn_t cam_tfe_irq(int irq_num, void *data)
 	void __iomem                   *mem_base;
 	struct cam_tfe_irq_evt_payload  *evt_payload;
 	uint32_t  top_irq_status[CAM_TFE_TOP_IRQ_REG_NUM] = {0};
-#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
-	uint32_t  top_irq_mask[CAM_TFE_TOP_IRQ_REG_NUM] = {0};
-#endif
 	uint32_t   bus_irq_status[CAM_TFE_BUS_MAX_IRQ_REGISTERS] = {0};
 	uint32_t  i,  ccif_violation = 0, overflow_status = 0;
 	uint32_t    image_sz_violation = 0;
@@ -1090,21 +1057,9 @@ irqreturn_t cam_tfe_irq(int irq_num, void *data)
 	}
 
 	spin_lock(&core_info->spin_lock);
-#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
-	/* read status */
 	for (i = 0; i < CAM_TFE_TOP_IRQ_REG_NUM; i++)
 		top_irq_status[i] = cam_io_r(mem_base  +
 		core_info->tfe_hw_info->top_irq_status[i]);
-
-	/* read mask */
-	for (i = 0; i < CAM_TFE_TOP_IRQ_REG_NUM; i++)
-		top_irq_mask[i] = cam_io_r(mem_base  +
-			core_info->tfe_hw_info->top_irq_mask[i]);
-#else
-	for (i = 0; i < CAM_TFE_TOP_IRQ_REG_NUM; i++)
-		top_irq_status[i] = cam_io_r(mem_base  +
-		core_info->tfe_hw_info->top_irq_status[i]);
-#endif
 
 	for (i = 0; i < CAM_TFE_TOP_IRQ_REG_NUM; i++)
 		cam_io_w(top_irq_status[i], mem_base +
@@ -1116,12 +1071,6 @@ irqreturn_t cam_tfe_irq(int irq_num, void *data)
 	CAM_DBG(CAM_ISP, "TFE:%d IRQ status_0:0x%x status_1:0x%x status_2:0x%x",
 		core_info->core_index, top_irq_status[0],
 		top_irq_status[1], top_irq_status[2]);
-
-#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
-	/* bitwise AND betweem status and mask, to parse only configured IRQs */
-	for (i = 0; i < CAM_TFE_TOP_IRQ_REG_NUM; i++)
-		top_irq_status[i] = top_irq_mask[i] & top_irq_status[i];
-#endif
 
 	if (top_irq_status[0] & core_info->tfe_hw_info->bus_reg_irq_mask[0]) {
 		for (i = 0; i < CAM_TFE_BUS_MAX_IRQ_REGISTERS; i++)
@@ -3554,11 +3503,6 @@ int cam_tfe_process_cmd(void *hw_priv, uint32_t cmd_type,
 	case CAM_ISP_HW_CMD_SET_SYNC_HW_IDX:
 		rc = cam_tfe_set_sync_hw_idx(core_info, cmd_args, arg_size);
 		break;
-#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
-	case CAM_ISP_HW_CMD_MASK_IRQ_AT_STOP:
-			rc = cam_tfe_mask_top_irq(core_info, cmd_args, arg_size);
-			break;
-#endif
 	default:
 		CAM_ERR(CAM_ISP, "TFE:%d Invalid cmd type:%d",
 			core_info->core_index, cmd_type);

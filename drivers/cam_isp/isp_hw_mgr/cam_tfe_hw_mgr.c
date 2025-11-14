@@ -767,54 +767,6 @@ static int cam_tfe_mgr_csid_change_halt_mode(struct cam_tfe_hw_mgr_ctx *ctx,
 	return rc;
 }
 
-#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
-static int cam_tfe_mgr_mask_csid_tfe_irq(
-	struct cam_tfe_hw_mgr_ctx *ctx, struct list_head  *stop_list,
-	uint32_t  base_idx)
-{
-	struct cam_isp_hw_mgr_res	   *hw_mgr_res;
-	struct cam_isp_resource_node   *isp_res;
-	struct cam_isp_resource_node   *stop_res[CAM_TFE_CSID_PATH_RES_MAX];
-	struct cam_hw_intf			   *hw_intf;
-	uint32_t i, cnt, rc = 0;
-	uint32_t dummy_args;
-
-	cnt = 0;
-	list_for_each_entry(hw_mgr_res, stop_list, list) {
-		for (i = 0; i < CAM_ISP_HW_SPLIT_MAX; i++) {
-			if (!hw_mgr_res->hw_res[i] ||
-				(hw_mgr_res->hw_res[i]->res_state !=
-				CAM_ISP_RESOURCE_STATE_STREAMING))
-				continue;
-
-			isp_res = hw_mgr_res->hw_res[i];
-			if (isp_res->hw_intf->hw_idx != base_idx)
-				continue;
-			CAM_DBG(CAM_ISP, "base_idx %d res_id %d cnt %u",
-				base_idx, isp_res->res_id, cnt);
-			stop_res[cnt] = isp_res;
-			cnt++;
-		}
-	}
-
-	if (cnt) {
-		hw_intf =  stop_res[0]->hw_intf;
-		CAM_INFO(CAM_ISP, "base_idx %d res_id %d cnt %u",
-				base_idx, isp_res->res_id, cnt);
-		rc = hw_intf->hw_ops.process_cmd(
-			hw_intf->hw_priv,
-			CAM_ISP_HW_CMD_MASK_IRQ_AT_STOP,
-			&dummy_args, sizeof(dummy_args));
-		if(rc) {
-			CAM_INFO(CAM_ISP, "base_idx %d res_id %d cnt %u",
-				base_idx, isp_res->res_id, cnt);
-		}
-	}
-
-	return 0;
-}
-#endif
-
 static int cam_tfe_mgr_csid_stop_hw(
 	struct cam_tfe_hw_mgr_ctx *ctx, struct list_head  *stop_list,
 		uint32_t  base_idx, uint32_t stop_cmd)
@@ -3529,36 +3481,6 @@ static int cam_tfe_mgr_pause_hw(struct cam_tfe_hw_mgr_ctx *ctx)
 	return cam_tfe_mgr_bw_control(ctx, CAM_TFE_BW_CONTROL_EXCLUDE);
 }
 
-#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
-static int cam_tfe_mgr_mask_tfe_irq(struct cam_tfe_hw_mgr *hw_mgr,
-	uint32_t hw_idx)
-{
-	uint32_t i = 0;
-	struct cam_hw_intf             *tfe_hw_intf;
-
-	if (!hw_mgr) {
-		CAM_DBG(CAM_ISP, "Invalid arguments");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < CAM_TFE_HW_NUM_MAX; i++) {
-		if (!hw_mgr->tfe_devices[i])
-			continue;
-
-		if (hw_idx != hw_mgr->tfe_devices[i]->hw_intf->hw_idx)
-			continue;
-		CAM_INFO(CAM_ISP, "TFE (id = %d) mask", hw_idx);
-		tfe_hw_intf = hw_mgr->tfe_devices[i]->hw_intf;
-		tfe_hw_intf->hw_ops.process_cmd(tfe_hw_intf->hw_priv,
-			CAM_ISP_HW_CMD_MASK_IRQ_AT_STOP, &i, sizeof(i));
-		break;
-	}
-
-	CAM_INFO(CAM_ISP, "Masked Successfully");
-	return 0;
-}
-#endif
-
 /* entry function: stop_hw */
 static int cam_tfe_mgr_stop_hw(void *hw_mgr_priv, void *stop_hw_args)
 {
@@ -3596,35 +3518,6 @@ static int cam_tfe_mgr_stop_hw(void *hw_mgr_priv, void *stop_hw_args)
 		CAM_ERR(CAM_ISP, "number of bases are zero");
 		return -EINVAL;
 	}
-
-#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
-	/* masking irqs for csid */
-	for (i = 0; i < ctx->num_base; i++) {
-		CAM_INFO(CAM_ISP, "masking irq for CSID idx %d i %d",
-			ctx->base[i].idx, i);
-
-		rc = cam_tfe_mgr_mask_csid_tfe_irq(ctx, &ctx->res_list_tfe_csid,
-			ctx->base[i].idx);
-		if (rc) {
-			CAM_ERR(CAM_ISP, "Failed to mask CSID:%d rc: %d",
-				ctx->base[i].idx, rc);
-			//goto end;
-		}
-	}
-
-	/* masking irqs for tfe */
-	for (i = 0; i < ctx->num_base; i++) {
-		CAM_INFO(CAM_ISP, "masking irq for TFE idx %d i %d",
-			ctx->base[i].idx, i);
-
-		rc = cam_tfe_mgr_mask_tfe_irq(ctx->hw_mgr, ctx->base[i].idx);
-		if (rc) {
-			CAM_ERR(CAM_ISP, "Failed to mask TFE:%d rc: %d",
-				ctx->base[i].idx, rc);
-			//goto end;
-		}
-	}
-#endif
 
 	CAM_DBG(CAM_ISP, "Halting CSIDs");
 
