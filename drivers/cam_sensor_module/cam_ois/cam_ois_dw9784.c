@@ -104,7 +104,7 @@ void dw9784_deinit_gyro(struct camera_io_master * io_master_info)
 
 		if(gyro_aux_reg == 0x8002)
 		{
-			CAM_ERR(CAM_OIS, "[dw9784_deinit_gyro] Gyro deinit success, gyro_aux_reg: 0x%04X ", gyro_aux_reg);
+			CAM_INFO(CAM_OIS, "[dw9784_deinit_gyro] Gyro deinit success, gyro_aux_reg: 0x%04X ", gyro_aux_reg);
 		}
 		else
 		{
