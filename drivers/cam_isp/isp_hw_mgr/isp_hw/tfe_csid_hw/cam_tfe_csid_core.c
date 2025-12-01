@@ -625,7 +625,11 @@ static int cam_tfe_csid_path_reset(struct cam_tfe_csid_hw *csid_hw,
 		/* Enable path reset done interrupt */
 		val = cam_io_r_mb(soc_info->reg_map[0].mem_base +
 			csid_reg->ipp_reg->csid_pxl_irq_mask_addr);
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+		val = TFE_CSID_PATH_INFO_RST_DONE;
+#else
 		val |= TFE_CSID_PATH_INFO_RST_DONE;
+#endif
 		cam_io_w_mb(val, soc_info->reg_map[0].mem_base +
 			 csid_reg->ipp_reg->csid_pxl_irq_mask_addr);
 	} else if (res->res_id == CAM_TFE_CSID_PATH_RES_PPP) {
@@ -643,7 +647,11 @@ static int cam_tfe_csid_path_reset(struct cam_tfe_csid_hw *csid_hw,
 		/* Enable path reset done interrupt */
 		val = cam_io_r_mb(soc_info->reg_map[0].mem_base +
 			csid_reg->ppp_reg->csid_pxl_irq_mask_addr);
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+		val = TFE_CSID_PATH_INFO_RST_DONE;
+#else
 		val |= TFE_CSID_PATH_INFO_RST_DONE;
+#endif
 		cam_io_w_mb(val, soc_info->reg_map[0].mem_base +
 			 csid_reg->ppp_reg->csid_pxl_irq_mask_addr);
 	} else {
@@ -664,7 +672,11 @@ static int cam_tfe_csid_path_reset(struct cam_tfe_csid_hw *csid_hw,
 		/* Enable path reset done interrupt */
 		val = cam_io_r_mb(soc_info->reg_map[0].mem_base +
 			csid_reg->rdi_reg[id]->csid_rdi_irq_mask_addr);
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+		val = TFE_CSID_PATH_INFO_RST_DONE;
+#else
 		val |= TFE_CSID_PATH_INFO_RST_DONE;
+#endif
 		cam_io_w_mb(val, soc_info->reg_map[0].mem_base +
 			csid_reg->rdi_reg[id]->csid_rdi_irq_mask_addr);
 	}
@@ -2992,6 +3004,9 @@ static int cam_tfe_csid_start(void *hw_priv, void *start_args,
 	/* Reset sof irq debug fields */
 	csid_hw->sof_irq_triggered = false;
 	csid_hw->irq_debug_cnt = 0;
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+	csid_hw->is_enabled = 1;
+#endif
 
 	CAM_DBG(CAM_ISP, "CSID:%d res_type :%d res_id:%d",
 		csid_hw->hw_intf->hw_idx, res->res_type, res->res_id);
@@ -3087,6 +3102,9 @@ static int cam_tfe_csid_stop(void *hw_priv,
 	csid_reg = csid_hw->csid_info->csid_reg;
 	soc_info = &csid_hw->hw_info->soc_info;
 	mem_base = soc_info->reg_map[0].mem_base;
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+	csid_hw->is_enabled = 0;
+#endif
 
 	/* Disalbe cgc for all the path */
 	for (i = 0; i < csid_stop->num_res; i++) {
@@ -3679,6 +3697,41 @@ static int cam_tfe_csid_log_acquire_data(
 
 }
 
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+static int cam_tfe_csid_mask_irq(
+	struct cam_tfe_csid_hw *csid_hw, void *cmd_args)
+{
+	struct cam_hw_soc_info                         *soc_info;
+	const struct cam_tfe_csid_reg_offset           *csid_reg;
+	int i = 0;
+
+	if (!csid_hw)
+		return -EINVAL;
+
+	soc_info = &csid_hw->hw_info->soc_info;
+	csid_reg = csid_hw->csid_info->csid_reg;
+
+	cam_io_w_mb(0, soc_info->reg_map[0].mem_base +
+		csid_reg->csi2_reg->csid_csi2_rx_irq_mask_addr);
+
+	if (csid_hw->pxl_pipe_enable)
+		cam_io_w_mb(0, soc_info->reg_map[0].mem_base +
+			csid_reg->ipp_reg->csid_pxl_irq_mask_addr);
+
+	if (csid_reg->cmn_reg->num_ppp)
+		cam_io_w_mb(0, soc_info->reg_map[0].mem_base +
+			csid_reg->ppp_reg->csid_pxl_irq_mask_addr);
+
+	for (i = 0; i < csid_reg->cmn_reg->num_rdis; i++)
+		cam_io_w_mb(0, soc_info->reg_map[0].mem_base +
+			csid_reg->rdi_reg[i]->csid_rdi_irq_mask_addr);
+
+	CAM_INFO(CAM_ISP, "CSID:%d masked csid irqs", csid_hw->hw_intf->hw_idx);
+
+	return 0;
+}
+#endif
+
 static int cam_tfe_csid_process_cmd(void *hw_priv,
 	uint32_t cmd_type, void *cmd_args, uint32_t arg_size)
 {
@@ -3734,6 +3787,11 @@ static int cam_tfe_csid_process_cmd(void *hw_priv,
 	case CAM_ISP_HW_CMD_CSID_DISCARD_INIT_FRAMES:
 		rc = cam_tfe_csid_set_discard_frame_cfg(csid_hw, cmd_args);
 		break;
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+	case CAM_ISP_HW_CMD_MASK_IRQ_AT_STOP:
+		rc = cam_tfe_csid_mask_irq(csid_hw, cmd_args);
+		break;
+#endif
 	default:
 		CAM_ERR(CAM_ISP, "CSID:%d unsupported cmd:%d",
 			csid_hw->hw_intf->hw_idx, cmd_type);
@@ -3961,6 +4019,9 @@ irqreturn_t cam_tfe_csid_irq(int irq_num, void *data)
 	const struct cam_tfe_csid_common_reg_offset    *cmn_reg;
 	const struct cam_tfe_csid_csi2_rx_reg_offset   *csi2_reg;
 	uint32_t                   irq_status[TFE_CSID_IRQ_REG_MAX] = {0};
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+	uint32_t                   irq_mask[TFE_CSID_IRQ_REG_MAX] = {0};
+#endif
 	bool fatal_err_detected = false, is_error_irq = false;
 	uint32_t sof_irq_debug_en = 0, log_en = 0;
 	unsigned long flags;
@@ -3982,6 +4043,32 @@ irqreturn_t cam_tfe_csid_irq(int irq_num, void *data)
 	csi2_reg = csid_reg->csi2_reg;
 
 	/* read */
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+	irq_mask[TFE_CSID_IRQ_REG_TOP] =
+		cam_io_r_mb(soc_info->reg_map[0].mem_base +
+		csid_reg->cmn_reg->csid_top_irq_mask_addr);
+
+	irq_mask[TFE_CSID_IRQ_REG_RX] =
+		cam_io_r_mb(soc_info->reg_map[0].mem_base +
+		csid_reg->csi2_reg->csid_csi2_rx_irq_mask_addr);
+
+	if (csid_hw->pxl_pipe_enable)
+		irq_mask[TFE_CSID_IRQ_REG_IPP] =
+			cam_io_r_mb(soc_info->reg_map[0].mem_base +
+				csid_reg->ipp_reg->csid_pxl_irq_mask_addr);
+
+	if (csid_reg->cmn_reg->num_ppp)
+		irq_mask[TFE_CSID_IRQ_REG_PPP] =
+			cam_io_r_mb(soc_info->reg_map[0].mem_base +
+				csid_reg->ppp_reg->csid_pxl_irq_mask_addr);
+
+	for (i = 0; i < csid_reg->cmn_reg->num_rdis; i++)
+		irq_mask[i] =
+		cam_io_r_mb(soc_info->reg_map[0].mem_base +
+		csid_reg->rdi_reg[i]->csid_rdi_irq_mask_addr);
+
+	/* read status */
+#endif
 	irq_status[TFE_CSID_IRQ_REG_TOP] =
 		cam_io_r_mb(soc_info->reg_map[0].mem_base +
 		csid_reg->cmn_reg->csid_top_irq_status_addr);
@@ -4031,6 +4118,26 @@ irqreturn_t cam_tfe_csid_irq(int irq_num, void *data)
 	}
 	cam_io_w_mb(1, soc_info->reg_map[0].mem_base +
 		csid_reg->cmn_reg->csid_irq_cmd_addr);
+
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+	/* bitwise AND between mask and status to parse only programmed irqs */
+	irq_status[TFE_CSID_IRQ_REG_TOP] = irq_mask[TFE_CSID_IRQ_REG_TOP] &
+		irq_status[TFE_CSID_IRQ_REG_TOP];
+
+	irq_status[TFE_CSID_IRQ_REG_RX] = irq_mask[TFE_CSID_IRQ_REG_RX] &
+		irq_status[TFE_CSID_IRQ_REG_RX];
+
+	if (csid_hw->pxl_pipe_enable)
+		irq_status[TFE_CSID_IRQ_REG_IPP] = irq_mask[TFE_CSID_IRQ_REG_IPP] &
+			irq_status[TFE_CSID_IRQ_REG_IPP];
+
+	if (csid_reg->cmn_reg->num_ppp)
+		irq_status[TFE_CSID_IRQ_REG_PPP] = irq_mask[TFE_CSID_IRQ_REG_PPP] &
+			irq_status[TFE_CSID_IRQ_REG_PPP];
+
+	for (i = 0; i < csid_reg->cmn_reg->num_rdis; i++)
+		irq_status[i] = irq_mask[i] & irq_status[i];
+#endif
 
 	/* Software register reset complete*/
 	if (irq_status[TFE_CSID_IRQ_REG_TOP])
@@ -4299,9 +4406,26 @@ handle_fatal_error:
 		if ((irq_status[TFE_CSID_IRQ_REG_IPP] &
 			TFE_CSID_PATH_INFO_INPUT_EOF) &&
 			(csid_hw->csid_debug & TFE_CSID_DEBUG_ENABLE_EOF_IRQ)) {
-			CAM_INFO_RATE_LIMIT(CAM_ISP, "CSID:%d IPP EOF received",
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+			CAM_DBG(CAM_ISP, "CSID:%d IPP EOF received",
 				csid_hw->hw_intf->hw_idx);
+#else
+			CAM_INFO_RATE_LIMIT(CAM_ISP, "CSID:%d IPP EOF received",
+ 				csid_hw->hw_intf->hw_idx);
+#endif
 		}
+
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+		if (!csid_hw->is_enabled) {
+			CAM_DBG(CAM_ISP, "CSID[%u] bottom-half after stop status TOP: 0x%x RX: 0x%x IPP: 0x%x PPP: 0x%x",
+				csid_hw->hw_intf->hw_idx,
+				irq_status[TFE_CSID_IRQ_REG_TOP],
+				irq_status[TFE_CSID_IRQ_REG_RX],
+				irq_status[TFE_CSID_IRQ_REG_IPP],
+				irq_status[TFE_CSID_IRQ_REG_PPP]);
+			goto check_ppp_status;
+		}
+#endif
 
 		if (irq_status[TFE_CSID_IRQ_REG_IPP] &
 			TFE_CSID_PATH_ERROR_FIFO_OVERFLOW) {
@@ -4345,6 +4469,10 @@ handle_fatal_error:
 
 	}
 
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+check_ppp_status:
+#endif
+
 	/* read the PPP errors */
 	if (csid_reg->cmn_reg->num_ppp) {
 		/* PPP reset done bit */
@@ -4377,9 +4505,26 @@ handle_fatal_error:
 		if ((irq_status[TFE_CSID_IRQ_REG_PPP] &
 			TFE_CSID_PATH_INFO_INPUT_EOF) &&
 			(csid_hw->csid_debug & TFE_CSID_DEBUG_ENABLE_EOF_IRQ)) {
-			CAM_INFO_RATE_LIMIT(CAM_ISP, "CSID:%d PPP EOF received",
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+			CAM_DBG(CAM_ISP, "CSID:%d PPP EOF received",
 				csid_hw->hw_intf->hw_idx);
+#else
+			CAM_INFO_RATE_LIMIT(CAM_ISP, "CSID:%d PPP EOF received",
+ 				csid_hw->hw_intf->hw_idx);
+#endif
 		}
+
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+		if (!csid_hw->is_enabled) {
+			CAM_DBG(CAM_ISP, "CSID[%u] bottom-half after stop status TOP: 0x%x RX: 0x%x IPP: 0x%x PPP: 0x%x",
+				csid_hw->hw_intf->hw_idx,
+				irq_status[TFE_CSID_IRQ_REG_TOP],
+				irq_status[TFE_CSID_IRQ_REG_RX],
+				irq_status[TFE_CSID_IRQ_REG_IPP],
+				irq_status[TFE_CSID_IRQ_REG_PPP]);
+			goto check_rdi_status;
+		}
+#endif
 
 		if (irq_status[TFE_CSID_IRQ_REG_PPP] &
 			TFE_CSID_PATH_ERROR_FIFO_OVERFLOW) {
@@ -4423,6 +4568,10 @@ handle_fatal_error:
 
 	}
 
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+check_rdi_status:
+#endif
+
 	for (i = 0; i < csid_reg->cmn_reg->num_rdis; i++) {
 
 		if ((irq_status[i] &
@@ -4465,6 +4614,15 @@ handle_fatal_error:
 				"CSID:%d RDI:%d EOF received",
 				csid_hw->hw_intf->hw_idx, i);
 		}
+
+#ifdef CONFIG_QCOM_PATCH_CSID_ERROR_FIX
+		if (!csid_hw->is_enabled) {
+			CAM_DBG(CAM_ISP, "CSID[%u] bottom-half after stop status RDI:%d status:0x%x",
+				csid_hw->hw_intf->hw_idx, i,
+				irq_status[i]);
+			continue;
+		}
+#endif
 
 		if (irq_status[i] & TFE_CSID_PATH_ERROR_FIFO_OVERFLOW) {
 			/* Stop RDI path immediately */
