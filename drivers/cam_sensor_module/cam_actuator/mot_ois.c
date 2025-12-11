@@ -153,6 +153,7 @@ static int32_t mot_ois_bu63169_start(struct device *device, uint32_t index);
 static int32_t mot_ois_stop(struct device *device, uint32_t index);
 
 static int32_t mot_ois_sem1218s_start(struct device *device, uint32_t index);
+static int32_t mot_ois_dw9784_start(struct device *device, uint32_t index);
 
 static int32_t mot_device_index = 0;
 static const mot_dev_ois_info mot_ois_dev_list[] = {
@@ -162,7 +163,7 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 		.ois_num = 1,
 		.dev_name = "eqs",
 		.ois_info = {
-			{
+			[0] = {
 				.ois_name = "mot_bu63169",
 				.ois_type = MOT_OIS_BU63169,
 				.cci_addr = 0x0E,
@@ -190,7 +191,7 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 		.ois_num = 1,
 		.dev_name = "vantg",
 		.ois_info = {
-			{
+			[0] = {
 				.ois_name = "mot_sem1218s",
 				.ois_type = MOT_OIS_SEM1218S,
 				.cci_addr = 0x61,
@@ -217,10 +218,14 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 	//VANTAGE
 	{
 		.dev_type = MOT_DEVICE_VANTAGE,
+#if defined(CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION)
+		.ois_num = 2,
+#else
 		.ois_num = 1,
+#endif
 		.dev_name = "vantage",
 		.ois_info = {
-			{
+			[0] = {
 				.ois_name = "mot_sem1218s",
 				.ois_type = MOT_OIS_SEM1218S,
 				.cci_addr = 0x61,
@@ -236,15 +241,35 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 				.stop_func = mot_ois_stop,
 				.power_delay = 4,
 			},
+			[1] = {
+				.ois_name = "mot_dw9784_tele",
+				.ois_type = MOT_OIS_DW9784,
+				.cci_addr = 0x72,
+				.cci_dev = 0x0,
+				.cci_master = 0x1,
+				.regulator_list = { "cam_iovdd", "pm8010_n_l5", "cam_oisvdd_tele"},
+				.regulator_min_volt_uv = {1800000, 2800000, 2800000},
+				.regulator_max_volt_uv = {1800000, 2800000, 2800000},
+				.eeprom_cci_addr = 0x10,
+				.af_safe_dac = 0x2000,
+				.is_af_drift_supported = false,
+				.start_func = mot_ois_dw9784_start,
+				.stop_func = mot_ois_stop,
+				.power_delay = 6,
+			},
 		},
 	},
 	//BLANC
 	{
 		.dev_type = MOT_DEVICE_BLANC,
-		.ois_num = 1,
+#if defined(CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION)
+                .ois_num = 2,
+#else
+                .ois_num = 1,
+#endif
 		.dev_name = "blanc",
 		.ois_info = {
-			{
+			[0] = {
 				.ois_name = "mot_sem1218s",
 				.ois_type = MOT_OIS_SEM1218S,
 				.cci_addr = 0x61,
@@ -259,6 +284,22 @@ static const mot_dev_ois_info mot_ois_dev_list[] = {
 				.start_func = mot_ois_sem1218s_start,
 				.stop_func = mot_ois_stop,
 				.power_delay = 4,
+			},
+			[1] = {
+				.ois_name = "mot_dw9784_tele",
+				.ois_type = MOT_OIS_DW9784,
+				.cci_addr = 0x72,
+				.cci_dev = 0x0,
+				.cci_master = 0x1,
+				.regulator_list = { "cam_iovdd", "ldo4", "cam_oisvdd_tele"},
+				.regulator_min_volt_uv = {1800000, 2800000, 2800000},
+				.regulator_max_volt_uv = {1800000, 2800000, 2800000},
+				.eeprom_cci_addr = 0x10,
+				.af_safe_dac = 0x2000,
+				.is_af_drift_supported = false,
+				.start_func = mot_ois_dw9784_start,
+				.stop_func = mot_ois_stop,
+				.power_delay = 6,
 			},
 		},
 	},
@@ -339,7 +380,7 @@ static struct cam_sensor_i2c_reg_array mot_ois_init_sem1218s[] = {
 	{0x0002, 0x00, 1},
 };
 
-static struct cam_sensor_i2c_reg_setting mot_vantg_ois_init_setting[] = {
+static struct cam_sensor_i2c_reg_setting mot_sem1218s_ois_init_setting[] = {
 	{
 		.reg_setting = mot_ois_init_sem1218s,
 		.size = ARRAY_SIZE(mot_ois_init_sem1218s),
@@ -352,7 +393,7 @@ static struct cam_sensor_i2c_reg_array mot_ois_lock_center_sem1218s[] = {
 	{0x0002, 0x03, 1},
 };
 
-static struct cam_sensor_i2c_reg_setting mot_vantg_ois_lock_center_setting[] = {
+static struct cam_sensor_i2c_reg_setting mot_sem1218s_ois_lock_center_setting[] = {
 	{
 		.reg_setting = mot_ois_lock_center_sem1218s,
 		.size = ARRAY_SIZE(mot_ois_lock_center_sem1218s),
@@ -365,10 +406,53 @@ static struct cam_sensor_i2c_reg_array mot_ois_af_drift_sem1218s[] = {
 	{0x0204, 0x0000, 0},
 };
 
-static struct cam_sensor_i2c_reg_setting mot_vantg_ois_af_drift_setting[] = {
+static struct cam_sensor_i2c_reg_setting mot_sem1218s_ois_af_drift_setting[] = {
 	{
 		.reg_setting = mot_ois_af_drift_sem1218s,
 		.size = ARRAY_SIZE(mot_ois_af_drift_sem1218s),
+		.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+		.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+	}
+};
+
+/*----------------------For VANTG DW9784------------------------------*/
+static struct cam_sensor_i2c_reg_array mot_ois_init_dw9784[] = {
+	{0xD002, 0x0001, 4},
+	{0xD001, 0x0001, 25},
+	{0xEBF1, 0x56FA, 1},
+	{0x72E3, 0x0000, 1},
+};
+
+static struct cam_sensor_i2c_reg_setting mot_dw9784_ois_init_setting[] = {
+	{
+		.reg_setting = mot_ois_init_dw9784,
+		.size = ARRAY_SIZE(mot_ois_init_dw9784),
+		.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+		.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+	},
+};
+static struct cam_sensor_i2c_reg_array mot_ois_lock_center_dw9784[] = {
+	{0x7012, 0x0001, 1},
+	{0x7011, 0x0001, 1},
+};
+
+static struct cam_sensor_i2c_reg_setting mot_dw9784_ois_lock_center_setting[] = {
+	{
+		.reg_setting = mot_ois_lock_center_dw9784,
+		.size = ARRAY_SIZE(mot_ois_lock_center_dw9784),
+		.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+		.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+	}
+};
+
+static struct cam_sensor_i2c_reg_array mot_ois_af_drift_dw9784[] = {
+	{0x7070, 0x0000, 0},
+};
+
+static struct cam_sensor_i2c_reg_setting mot_dw9784_ois_af_drift_setting[] = {
+	{
+		.reg_setting = mot_ois_af_drift_dw9784,
+		.size = ARRAY_SIZE(mot_ois_af_drift_dw9784),
 		.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
 		.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
 	}
@@ -622,7 +706,7 @@ static int32_t mot_ois_apply_settings(struct camera_io_master *io_master_info,
 	int32_t i;
 
 	for (i=0; i<item_num; i++) {
-		write_setting->delay = write_setting->reg_setting->delay;
+		write_setting[i].delay = write_setting[i].reg_setting->delay;
 		ret = camera_io_dev_write(io_master_info, &write_setting[i]);
 		if (ret < 0) {
 			CAM_ERR(CAM_OIS, "apply settting failed, ret=%d!!!", ret);
@@ -822,13 +906,25 @@ static int32_t mot_ois_bu63169_apply_af_drift(uint32_t index)
 static int32_t mot_ois_sem1218s_apply_af_drift(uint32_t index)
 {
         // OIS AF drift register writing
-        mot_vantg_ois_af_drift_setting[0].reg_setting[0].reg_data = mot_ois_dev_list[mot_device_index].ois_info[index].af_safe_dac;
-        if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_vantg_ois_af_drift_setting, ARRAY_SIZE(mot_vantg_ois_af_drift_setting)) < 0) {
+        mot_sem1218s_ois_af_drift_setting[0].reg_setting[0].reg_data = mot_ois_dev_list[mot_device_index].ois_info[index].af_safe_dac;
+        if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_sem1218s_ois_af_drift_setting, ARRAY_SIZE(mot_sem1218s_ois_af_drift_setting)) < 0) {
                 CAM_ERR(CAM_OIS, "AF drift write failed.");
                 return -1;
         }
         CAM_DBG(CAM_OIS, "AF drift write success.");
         return 0;
+}
+
+static int32_t mot_ois_dw9784_apply_af_drift(uint32_t index)
+{
+	// OIS AF drift register writing
+	mot_dw9784_ois_af_drift_setting[0].reg_setting[0].reg_data = mot_ois_dev_list[mot_device_index].ois_info[index].af_safe_dac;
+	if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_dw9784_ois_af_drift_setting, ARRAY_SIZE(mot_dw9784_ois_af_drift_setting)) < 0) {
+		CAM_ERR(CAM_OIS, "AF drift write failed.");
+		return -1;
+	}
+	CAM_DBG(CAM_OIS, "AF drift write success.");
+	return 0;
 }
 
 static int32_t mot_ois_bu63169_start(struct device *device, uint32_t index)
@@ -974,13 +1070,13 @@ static int32_t mot_ois_sem1218s_start(struct device *device, uint32_t index)
 
 	//oisinitSettings
 	CAM_DBG(CAM_OIS, "OIS protection preparing for init OIS...");
-	if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_vantg_ois_init_setting, ARRAY_SIZE(mot_vantg_ois_init_setting)) < 0) {
+	if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_sem1218s_ois_init_setting, ARRAY_SIZE(mot_sem1218s_ois_init_setting)) < 0) {
 		CAM_ERR(CAM_OIS, "OIS init failed.");
 		goto error_exit;
 	}
 
 	// OIS mode setting(Lock center)
-	if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_vantg_ois_lock_center_setting, ARRAY_SIZE(mot_vantg_ois_lock_center_setting)) < 0) {
+	if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_sem1218s_ois_lock_center_setting, ARRAY_SIZE(mot_sem1218s_ois_lock_center_setting)) < 0) {
 		CAM_ERR(CAM_OIS, "OIS mode set failed.");
 		goto error_exit;
 	}
@@ -988,6 +1084,54 @@ static int32_t mot_ois_sem1218s_start(struct device *device, uint32_t index)
 
 	if (mot_ois_dev_list[mot_device_index].ois_info[index].is_af_drift_supported == true) {
 		if (mot_ois_sem1218s_apply_af_drift(index) < 0) {
+			CAM_ERR(CAM_OIS, "af drift apply failed.");
+			goto error_exit;
+		}
+		CAM_DBG(CAM_OIS, "AF drift is ready.");
+	}
+
+	return 0;
+error_exit:
+	return -1;
+}
+
+static int32_t mot_ois_dw9784_start(struct device *device, uint32_t index)
+{
+	/*
+		Key flow:
+		Power ON -> oisinitSettings -> OIS mode setting(Lock center)
+	*/
+	//Power ON
+	CAM_DBG(CAM_OIS, "OIS protection power on OIS...");
+	if (mot_ois_power_on(device, index) < 0) {
+		CAM_ERR(CAM_OIS, "Power ON OIS failed.");
+		goto error_exit;
+	}
+
+	//CCI init
+	CAM_DBG(CAM_OIS, "OIS protection init CCI...");
+	if (mot_ois_init_cci(index) < 0) {
+		CAM_ERR(CAM_OIS, "Init OIS CCI failed.");
+		goto error_exit;
+	}
+	usleep_range(10000,10010);
+
+	//oisinitSettings
+	CAM_DBG(CAM_OIS, "OIS protection preparing for init OIS...");
+	if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_dw9784_ois_init_setting, ARRAY_SIZE(mot_dw9784_ois_init_setting)) < 0) {
+		CAM_ERR(CAM_OIS, "OIS init failed.");
+		goto error_exit;
+	}
+
+	// OIS mode setting(Lock center)
+	if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_dw9784_ois_lock_center_setting, ARRAY_SIZE(mot_dw9784_ois_lock_center_setting)) < 0) {
+		CAM_ERR(CAM_OIS, "OIS mode set failed.");
+		goto error_exit;
+	}
+	CAM_DBG(CAM_OIS, "OIS protection is ready.");
+
+	if (mot_ois_dev_list[mot_device_index].ois_info[index].is_af_drift_supported == true) {
+		if (mot_ois_dw9784_apply_af_drift(index) < 0) {
 			CAM_ERR(CAM_OIS, "af drift apply failed.");
 			goto error_exit;
 		}
