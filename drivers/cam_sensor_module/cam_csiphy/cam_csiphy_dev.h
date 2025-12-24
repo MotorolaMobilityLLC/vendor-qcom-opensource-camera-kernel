@@ -211,6 +211,9 @@ struct csiphy_reg_parms_t {
 	uint32_t csiphy_reset_enter_array_size;
 	uint32_t csiphy_reset_exit_array_size;
 	uint32_t csiphy_2ph_config_array_size;
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+	uint32_t csiphy_2ph_s5kkds_config_array_size;
+#endif
 	uint32_t csiphy_2ph_clk_cfg_array_size;
 	uint32_t csiphy_3ph_config_array_size;
 	struct cam_csiphy_aon_sel_params_t *aon_sel_params;
@@ -326,6 +329,9 @@ struct csiphy_ctrl_t {
 	struct csiphy_reg_t *csiphy_lane_config_reg;
 	struct bist_reg_settings_t *csiphy_bist_reg;
 	struct csiphy_reg_t *csiphy_2ph_reg;
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+	struct csiphy_reg_t *csiphy_2ph_reg_s5kkds;
+#endif
 	struct csiphy_reg_t *csiphy_3ph_reg;
 	struct csiphy_reg_t *csiphy_2ph_clk_ln_reg;
 	uint32_t csiphy_ln_offsets[CAM_CSIPHY_MAX_DPHY_LANES + CAM_CSIPHY_MAX_CPHY_LANES + 1];

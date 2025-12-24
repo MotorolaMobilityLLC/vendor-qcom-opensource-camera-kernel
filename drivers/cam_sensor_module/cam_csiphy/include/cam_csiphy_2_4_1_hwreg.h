@@ -85,6 +85,33 @@ struct csiphy_reg_t csiphy_2ph_v2_4_1_reg[] = {
 	{0x0064, 0x7F, 0x00, CSIPHY_SKEW_CAL},
 };
 
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+struct csiphy_reg_t csiphy_2ph_v2_4_1_reg_s5kkds[] = {
+	{0x0094, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x00A0, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0090, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0098, 0x08, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0094, 0x07, 0xd1, CSIPHY_DEFAULT_PARAMS},
+	{0x0030, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0028, 0x0A, 0x00, CSIPHY_2PH_SEC_CLK_LN_SETTINGS},
+	{0x0000, 0x8C, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0038, 0xFE, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x002C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0034, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x001C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0014, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x003C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0004, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0020, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0008, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
+	{0x0010, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0094, 0xD7, 0x00, CSIPHY_SKEW_CAL},
+	{0x005C, 0x54, 0x00, CSIPHY_SKEW_CAL},
+	{0x0060, 0xFD, 0x00, CSIPHY_SKEW_CAL},
+	{0x0064, 0x7F, 0x00, CSIPHY_SKEW_CAL},
+};
+#endif
+
 struct csiphy_reg_t csiphy_2ph_v2_4_1_clk_ln_reg[] = {
 	{0x0028, 0x00, 0x00, CSIPHY_2PH_SEC_CLK_LN_SETTINGS},
 	{0x0000, 0x80, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1093,6 +1120,9 @@ struct csiphy_reg_parms_t csiphy_v2_4_1 = {
 	.csiphy_reset_enter_array_size = ARRAY_SIZE(csiphy_reset_enter_reg_2_4_1),
 	.csiphy_reset_exit_array_size = ARRAY_SIZE(csiphy_reset_exit_reg_2_4_1),
 	.csiphy_2ph_config_array_size = ARRAY_SIZE(csiphy_2ph_v2_4_1_reg),
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+	.csiphy_2ph_s5kkds_config_array_size = ARRAY_SIZE(csiphy_2ph_v2_4_1_reg_s5kkds),
+#endif
 	.csiphy_2ph_clk_cfg_array_size = ARRAY_SIZE(csiphy_2ph_v2_4_1_clk_ln_reg),
 	.csiphy_3ph_config_array_size = ARRAY_SIZE(csiphy_3ph_v2_4_1_reg),
 	.csiphy_interrupt_status_size = ARRAY_SIZE(csiphy_irq_reg_2_4_1),
@@ -1103,6 +1133,9 @@ struct csiphy_reg_parms_t csiphy_v2_4_1 = {
 struct csiphy_ctrl_t ctrl_reg_2_4_1 = {
 	.csiphy_common_reg = csiphy_common_reg_2_4_1,
 	.csiphy_2ph_reg = csiphy_2ph_v2_4_1_reg,
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+	.csiphy_2ph_reg_s5kkds = csiphy_2ph_v2_4_1_reg_s5kkds,
+#endif
 	.csiphy_2ph_clk_ln_reg = csiphy_2ph_v2_4_1_clk_ln_reg,
 	.csiphy_3ph_reg = csiphy_3ph_v2_4_1_reg,
 	.csiphy_reg = &csiphy_v2_4_1,

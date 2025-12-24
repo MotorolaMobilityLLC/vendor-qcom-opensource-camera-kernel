@@ -42,6 +42,10 @@
 #define CSIPHY_QMARGIN_DEFAULT_STR   "default"
 #define SETTLE_CNT_ADJUSTMENT_OFFSET 10
 
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+#define CAM_CSIPHY_DRIVER_0 0
+#endif
+
 struct g_csiphy_data {
 	void __iomem *base_address;
 	uint8_t is_3phase;
@@ -1802,8 +1806,17 @@ static void cam_csiphy_get_lane_settings_param(struct csiphy_device *csiphy_dev,
 		lane_settings->num_offsets = csiphy_reg->csiphy_3ph_config_array_size;
 		lane_settings->reg_array = csiphy_dev->ctrl_reg->csiphy_3ph_reg;
 	} else {
-		lane_settings->num_offsets = csiphy_reg->csiphy_2ph_config_array_size;
-		lane_settings->reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg;
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+		if (csiphy_dev->soc_info.index == CAM_CSIPHY_DRIVER_0) {
+			lane_settings->num_offsets = csiphy_reg->csiphy_2ph_s5kkds_config_array_size;
+			lane_settings->reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg_s5kkds;
+		} else {
+#endif
+			lane_settings->num_offsets = csiphy_reg->csiphy_2ph_config_array_size;
+			lane_settings->reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg;
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+		}
+#endif
 	}
 }
 
@@ -1884,8 +1897,17 @@ static int cam_csiphy_program_dphy_clk_lane(struct csiphy_device *csiphy_dev,
 	csiphy_reg = csiphy_dev->ctrl_reg->csiphy_reg;
 
 	/* First program the usual settings */
-	lane_settings.reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg;
-	lane_settings.num_offsets = csiphy_reg->csiphy_2ph_config_array_size;
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+	if (csiphy_dev->soc_info.index == CAM_CSIPHY_DRIVER_0) {
+		lane_settings.reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg_s5kkds;
+		lane_settings.num_offsets = csiphy_reg->csiphy_2ph_s5kkds_config_array_size;
+	} else {
+#endif
+		lane_settings.reg_array = csiphy_dev->ctrl_reg->csiphy_2ph_reg;
+		lane_settings.num_offsets = csiphy_reg->csiphy_2ph_config_array_size;
+#ifdef CONFIG_CAM_SENSOR_CTLE_FOR_BLANC
+	}
+#endif
 	lane_settings.lane_reg_offset = program_secondary ?
 		csiphy_dev->ctrl_reg->csiphy_ln_offsets[DPHY_DATA_LANE_POS_3] :
 		csiphy_dev->ctrl_reg->csiphy_ln_offsets[DPHY_CLOCK_LANE_POS];
