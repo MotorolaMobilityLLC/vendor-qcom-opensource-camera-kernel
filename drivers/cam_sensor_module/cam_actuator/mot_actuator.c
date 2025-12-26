@@ -347,8 +347,11 @@ static int cam_select_actuator_by_device_name(void)
 	char *str;
 	uint32_t i;
 	// TO DO: Create API for mot_actuator_get_bootarg() from mmi_info instead of copy and paste
-	if (mot_actuator_get_bootarg("androidboot.device=", &str) == 0)
+	if (mot_actuator_get_bootarg("androidboot.device=", &str) == 0) {
 		strscpy(androidboot_device, str, ANDROIDBOOT_DEVICE_MAX_LEN);
+	} else {
+		return -1;
+	}
 
 	mot_ois_select_device_by_name(str);
 
