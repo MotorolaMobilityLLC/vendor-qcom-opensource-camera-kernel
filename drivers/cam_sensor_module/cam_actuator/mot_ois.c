@@ -415,6 +415,19 @@ static struct cam_sensor_i2c_reg_setting mot_sem1218s_ois_af_drift_setting[] = {
 	}
 };
 
+static struct cam_sensor_i2c_reg_array mot_ois_gyro_deinit_sem1218s[] = {
+        {0x0602, 0x00, 1},
+};
+
+static struct cam_sensor_i2c_reg_setting mot_sem1218s_gyro_deinit_setting[] = {
+        {
+                .reg_setting = mot_ois_gyro_deinit_sem1218s,
+                .size = ARRAY_SIZE(mot_ois_gyro_deinit_sem1218s),
+                .addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+                .data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+        }
+};
+
 /*----------------------For VANTG DW9784------------------------------*/
 static struct cam_sensor_i2c_reg_array mot_ois_init_dw9784[] = {
 	{0xD002, 0x0001, 4},
@@ -456,6 +469,19 @@ static struct cam_sensor_i2c_reg_setting mot_dw9784_ois_af_drift_setting[] = {
 		.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
 		.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
 	}
+};
+
+static struct cam_sensor_i2c_reg_array mot_ois_gyro_deinit_dw9784[] = {
+        {0x7017, 0x0002, 3},
+};
+
+static struct cam_sensor_i2c_reg_setting mot_dw9784_gyro_deinit_setting[] = {
+        {
+                .reg_setting = mot_ois_gyro_deinit_dw9784,
+                .size = ARRAY_SIZE(mot_ois_gyro_deinit_dw9784),
+                .addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+                .data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+        }
 };
 
 static mot_ois_runtime_type mot_ois_runtime[MAX_OIS_NUM];
@@ -1145,6 +1171,23 @@ error_exit:
 
 static int32_t mot_ois_stop(struct device *dev, uint32_t index)
 {
+	if (0 == index) {
+		if (!strcmp("mot_sem1218s", mot_ois_runtime[index].ois_name)) {
+			if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_sem1218s_gyro_deinit_setting, ARRAY_SIZE(mot_sem1218s_gyro_deinit_setting)) < 0) {
+				CAM_ERR(CAM_OIS, "OIS deinit failed.");
+				mot_ois_release_cci(index);
+				return mot_ois_power_off(dev, index);
+			}
+		}
+	} else if (1 == index) {
+		if (!strcmp("mot_dw9784_tele", mot_ois_runtime[index].ois_name)) {
+			if (mot_ois_apply_settings(&mot_ois_runtime[index].io_master, mot_dw9784_gyro_deinit_setting, ARRAY_SIZE(mot_dw9784_gyro_deinit_setting)) < 0) {
+				CAM_ERR(CAM_OIS, "OIS deinit failed.");
+				mot_ois_release_cci(index);
+				return mot_ois_power_off(dev, index);
+			}
+		}
+	}
 	//CCI release
 	CAM_DBG(CAM_OIS, "OIS protection release CCI...");
 	mot_ois_release_cci(index);
