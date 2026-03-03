@@ -21,6 +21,11 @@
 extern atomic_t g_ois_init_finished;
 #endif
 
+#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
+atomic_t m_main_camera = ATOMIC_INIT(0);
+atomic_t m_tele_camera = ATOMIC_INIT(0);
+#endif
+
 #ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
 extern atomic_t m_ois_init;
 extern int cam_ois_write_af_drift(uint32_t dac);
@@ -796,6 +801,20 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 #endif
 
 		if (a_ctrl->cam_act_state == CAM_ACTUATOR_ACQUIRE) {
+#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
+			if (NULL != a_ctrl->io_master_info.cci_client) {
+				CAM_DBG(CAM_ACTUATOR, "cci_device 0x%x, cci_i2c_master 0x%x, cci_client->sid 0x%x",
+					a_ctrl->io_master_info.cci_client->cci_device,
+					a_ctrl->io_master_info.cci_client->cci_i2c_master,
+					a_ctrl->io_master_info.cci_client->sid);
+				if ((0x0 == a_ctrl->io_master_info.cci_client->cci_device) && (0x0 == a_ctrl->io_master_info.cci_client->cci_i2c_master)
+					&& (0xc == a_ctrl->io_master_info.cci_client->sid))
+					atomic_set(&m_main_camera, 1);
+				else if ((0x0 == a_ctrl->io_master_info.cci_client->cci_device) && (0x1 == a_ctrl->io_master_info.cci_client->cci_i2c_master)
+					&& (0x74 == a_ctrl->io_master_info.cci_client->sid))
+					atomic_set(&m_tele_camera, 1);
+			}
+#endif
 			rc = cam_actuator_power_up(a_ctrl);
 			if (rc < 0) {
 				CAM_ERR(CAM_ACTUATOR,
@@ -1108,6 +1127,20 @@ void cam_actuator_shutdown(struct cam_actuator_ctrl_t *a_ctrl)
 	power_info->power_setting_size = 0;
 	power_info->power_down_setting_size = 0;
 	a_ctrl->last_flush_req = 0;
+#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
+	if (NULL != a_ctrl->io_master_info.cci_client) {
+		CAM_DBG(CAM_ACTUATOR, "cci_device 0x%x, cci_i2c_master 0x%x, cci_client->sid 0x%x",
+			a_ctrl->io_master_info.cci_client->cci_device,
+			a_ctrl->io_master_info.cci_client->cci_i2c_master,
+			a_ctrl->io_master_info.cci_client->sid);
+		if ((0x0 == a_ctrl->io_master_info.cci_client->cci_device) && (0x0 == a_ctrl->io_master_info.cci_client->cci_i2c_master)
+			&& (0xc == a_ctrl->io_master_info.cci_client->sid))
+			atomic_set(&m_main_camera, 0);
+		else if ((0x0 == a_ctrl->io_master_info.cci_client->cci_device) && (0x1 == a_ctrl->io_master_info.cci_client->cci_i2c_master)
+			&& (0x74 == a_ctrl->io_master_info.cci_client->sid))
+			atomic_set(&m_tele_camera, 0);
+	}
+#endif
 
 	a_ctrl->cam_act_state = CAM_ACTUATOR_INIT;
 }
@@ -1256,6 +1289,20 @@ int32_t cam_actuator_driver_cmd(struct cam_actuator_ctrl_t *a_ctrl,
 		a_ctrl->bridge_intf.link_hdl = -1;
 		a_ctrl->bridge_intf.session_hdl = -1;
 		a_ctrl->last_flush_req = 0;
+#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
+		if (NULL != a_ctrl->io_master_info.cci_client) {
+			CAM_DBG(CAM_ACTUATOR, "cci_device 0x%x, cci_i2c_master 0x%x, cci_client->sid 0x%x",
+				a_ctrl->io_master_info.cci_client->cci_device,
+				a_ctrl->io_master_info.cci_client->cci_i2c_master,
+				a_ctrl->io_master_info.cci_client->sid);
+			if ((0x0 == a_ctrl->io_master_info.cci_client->cci_device) && (0x0 == a_ctrl->io_master_info.cci_client->cci_i2c_master)
+				&& (0xc == a_ctrl->io_master_info.cci_client->sid))
+				atomic_set(&m_main_camera, 0);
+			else if ((0x0 == a_ctrl->io_master_info.cci_client->cci_device) && (0x1 == a_ctrl->io_master_info.cci_client->cci_i2c_master)
+				&& (0x74 == a_ctrl->io_master_info.cci_client->sid))
+				atomic_set(&m_tele_camera, 0);
+		}
+#endif
 	}
 		break;
 	case CAM_QUERY_CAP: {
