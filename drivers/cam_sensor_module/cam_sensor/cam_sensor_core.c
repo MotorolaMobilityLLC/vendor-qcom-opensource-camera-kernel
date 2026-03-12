@@ -1496,12 +1496,46 @@ int cam_sensor_stream_off(struct cam_sensor_ctrl_t *s_ctrl)
 	if (!s_ctrl->stream_off_on_flush &&
 		s_ctrl->i2c_data.streamoff_settings.is_settings_valid &&
 		(s_ctrl->i2c_data.streamoff_settings.request_id == 0)) {
+#ifdef CONFIG_MOT_DRV_STREAMOFF_CHECK
+		if (strstr(s_ctrl->sensor_name, "s5kjns")) {
+			int poll_cnt = 20;
+			uint32_t check_val = 0xff;
+
+			while (poll_cnt-- > 0) {
+				rc = camera_io_dev_read(&(s_ctrl->io_master_info), 0x0005, &check_val,
+					CAMERA_SENSOR_I2C_TYPE_WORD, CAMERA_SENSOR_I2C_TYPE_BYTE, false);
+				if (rc == 0 && check_val != 0xff && check_val != 0x00)
+					break;
+				CAM_INFO(CAM_SENSOR, "Sensor[%s] check 0x0005 val: 0x%x", s_ctrl->sensor_name, check_val);
+				usleep_range(5000, 5100);
+			}
+
+			if (check_val != 0xff && check_val != 0x00) {
+				rc = cam_sensor_apply_settings(s_ctrl, 0,
+					CAM_SENSOR_PACKET_OPCODE_SENSOR_STREAMOFF);
+				if (rc < 0)
+					CAM_ERR(CAM_SENSOR,
+						"cannot apply streamoff settings for %s",
+						s_ctrl->sensor_name);
+			} else {
+				CAM_WARN(CAM_SENSOR, "Sensor[%s] reg 0x0005 is 0xff, skip streamoff", s_ctrl->sensor_name);
+			}
+		} else {
+			rc = cam_sensor_apply_settings(s_ctrl, 0,
+				CAM_SENSOR_PACKET_OPCODE_SENSOR_STREAMOFF);
+			if (rc < 0)
+				CAM_ERR(CAM_SENSOR,
+					"cannot apply streamoff settings for %s",
+					s_ctrl->sensor_name);
+		}
+#else
 		rc = cam_sensor_apply_settings(s_ctrl, 0,
 			CAM_SENSOR_PACKET_OPCODE_SENSOR_STREAMOFF);
 		if (rc < 0)
 			CAM_ERR(CAM_SENSOR,
 				"cannot apply streamoff settings for %s",
 				s_ctrl->sensor_name);
+#endif
 	}
 
 	cam_sensor_release_per_frame_resource(s_ctrl);
