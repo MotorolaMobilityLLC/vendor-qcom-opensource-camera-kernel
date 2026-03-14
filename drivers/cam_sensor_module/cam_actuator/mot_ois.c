@@ -20,10 +20,6 @@
 #include "cam_req_mgr_dev.h"
 #include "linux/pm_wakeup.h"
 
-#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
-extern atomic_t m_main_camera;
-extern atomic_t m_tele_camera;
-#endif
 
 #define MAX_OIS_NUM 3
 #define DEVICE_NAME_LEN 32
@@ -1219,36 +1215,6 @@ int32_t mot_ois_start_protection(struct device *device)
 		mot_ois_runtime_init(device);
 	}
 
-#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
-	CAM_DBG(CAM_OIS, "OIS start m_main_camera %d, m_tele_camera %d", m_main_camera, m_tele_camera);
-	if ((atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 1)) {
-		index = mot_get_ois_runtime_index(mot_ois_dev_list[mot_device_index].ois_info[0].ois_type, mot_ois_dev_list[mot_device_index].ois_info[0].ois_name);
-		if (mot_ois_dev_list[mot_device_index].ois_info[0].start_func) {
-			ret |= mot_ois_dev_list[mot_device_index].ois_info[0].start_func(device, index);
-			if (ret < 0) {
-				CAM_ERR(CAM_OIS, "OIS start failed!(%d)", ret);
-			}
-		}
-	} else if ((atomic_read(&m_main_camera) == 1) && (atomic_read(&m_tele_camera) == 0)) {
-		index = mot_get_ois_runtime_index(mot_ois_dev_list[mot_device_index].ois_info[1].ois_type, mot_ois_dev_list[mot_device_index].ois_info[1].ois_name);
-		if (mot_ois_dev_list[mot_device_index].ois_info[1].start_func) {
-			ret |= mot_ois_dev_list[mot_device_index].ois_info[1].start_func(device, index);
-			if (ret < 0) {
-				CAM_ERR(CAM_OIS, "OIS start failed!(%d)", ret);
-			}
-		}
-	} else if ((atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 0)) {
-		for (i=0; i<mot_ois_dev_list[mot_device_index].ois_num; i++) {
-			index = mot_get_ois_runtime_index(mot_ois_dev_list[mot_device_index].ois_info[i].ois_type, mot_ois_dev_list[mot_device_index].ois_info[i].ois_name);
-			if (mot_ois_dev_list[mot_device_index].ois_info[i].start_func) {
-				ret |= mot_ois_dev_list[mot_device_index].ois_info[i].start_func(device, index);
-				if (ret < 0) {
-					CAM_ERR(CAM_OIS, "OIS start failed!(%d)", ret);
-				}
-			}
-		}
-	}
-#else
 	for (i=0; i<mot_ois_dev_list[mot_device_index].ois_num; i++) {
 		index = mot_get_ois_runtime_index(mot_ois_dev_list[mot_device_index].ois_info[i].ois_type, mot_ois_dev_list[mot_device_index].ois_info[i].ois_name);
 		if (mot_ois_dev_list[mot_device_index].ois_info[i].start_func) {
@@ -1258,7 +1224,6 @@ int32_t mot_ois_start_protection(struct device *device)
 			}
 		}
 	}
-#endif
 	return ret;
 }
 EXPORT_SYMBOL(mot_ois_start_protection);
@@ -1283,36 +1248,6 @@ int32_t mot_ois_stop_protection(struct device *device)
 		mot_ois_runtime_init(device);
 	}
 
-#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
-	CAM_DBG(CAM_OIS, "OIS Stop m_main_camera %d, m_tele_camera %d", m_main_camera, m_tele_camera);
-	if ((atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 1)) {
-		index = mot_get_ois_runtime_index(mot_ois_dev_list[mot_device_index].ois_info[0].ois_type, mot_ois_dev_list[mot_device_index].ois_info[0].ois_name);
-		if (mot_ois_dev_list[mot_device_index].ois_info[0].stop_func) {
-			ret |= mot_ois_dev_list[mot_device_index].ois_info[0].stop_func(device, index);
-			if (ret < 0) {
-				CAM_ERR(CAM_OIS, "OIS stop failed!(%d)", ret);
-			}
-		}
-	} else if ((atomic_read(&m_main_camera) == 1) && (atomic_read(&m_tele_camera) == 0)) {
-		index = mot_get_ois_runtime_index(mot_ois_dev_list[mot_device_index].ois_info[1].ois_type, mot_ois_dev_list[mot_device_index].ois_info[1].ois_name);
-		if (mot_ois_dev_list[mot_device_index].ois_info[1].stop_func) {
-			ret |= mot_ois_dev_list[mot_device_index].ois_info[1].stop_func(device, index);
-			if (ret < 0) {
-				CAM_ERR(CAM_OIS, "OIS stop failed!(%d)", ret);
-			}
-		}
-	} else if ((atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 0)) {
-		for (i=0; i<mot_ois_dev_list[mot_device_index].ois_num; i++) {
-			index = mot_get_ois_runtime_index(mot_ois_dev_list[mot_device_index].ois_info[i].ois_type, mot_ois_dev_list[mot_device_index].ois_info[i].ois_name);
-			if (mot_ois_dev_list[mot_device_index].ois_info[i].stop_func) {
-				ret |= mot_ois_dev_list[mot_device_index].ois_info[i].stop_func(device, index);
-				if (ret < 0) {
-					CAM_ERR(CAM_OIS, "OIS stop failed!(%d)", ret);
-				}
-			}
-		}
-	}
-#else
 	for (i=0; i<mot_ois_dev_list[mot_device_index].ois_num; i++) {
 		index = mot_get_ois_runtime_index(mot_ois_dev_list[mot_device_index].ois_info[i].ois_type, mot_ois_dev_list[mot_device_index].ois_info[i].ois_name);
 		if (mot_ois_dev_list[mot_device_index].ois_info[i].stop_func) {
@@ -1322,7 +1257,6 @@ int32_t mot_ois_stop_protection(struct device *device)
 			}
 		}
 	}
-#endif
 	return ret;
 }
 EXPORT_SYMBOL(mot_ois_stop_protection);
