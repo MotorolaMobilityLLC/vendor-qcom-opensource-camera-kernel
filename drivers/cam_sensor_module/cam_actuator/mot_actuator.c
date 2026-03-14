@@ -30,11 +30,6 @@
 #include "cam_req_mgr_dev.h"
 #include "linux/pm_wakeup.h"
 
-#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
-extern atomic_t m_main_camera;
-extern atomic_t m_tele_camera;
-#endif
-
 /*=================ACTUATOR HW INFO====================*/
 #define DEVICE_NAME_LEN 32
 #define MAX_ACTUATOR_NUM 4
@@ -773,62 +768,9 @@ static int32_t mot_actuator_vib_move_lens(uint32_t index)
 
 	consumers = mot_actuator_get_consumers();
 	CAM_DBG(CAM_ACTUATOR, "consumers=%d",consumers);
-#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
-	CAM_DBG(CAM_ACTUATOR, "m_main_camera %d, m_tele_camera %d", m_main_camera, m_tele_camera);
-	if ((consumers & CLINET_CAMERA_MASK) && (atomic_read(&m_main_camera) == 1) && (atomic_read(&m_tele_camera) == 1)) {
-		/*Don't init actuator when camera on*/
-		CAM_WARN(CAM_ACTUATOR, "Camera is holding actuator,don't init actuator for vibrator,consumers=%d",consumers);
-	} else if ((consumers & CLINET_CAMERA_MASK) && (atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 1)) {
-		mot_actuator_init_runtime();
-		mot_actuator_power_on(0);
-		ret = mot_actuator_init_cci(0);
-		if (ret == 0) {
-			ret = mot_actuator_apply_settings(&mot_actuator_runtime[0].io_master, mot_actuator_get_init_settings(0));
-			if (ret == 0) {
-				CAM_WARN(CAM_ACTUATOR, "init acutator success", ret);
-				mot_actuator_state = MOT_ACTUATOR_INITED;
-				usleep_range(500,1000);
-			} else {
-				mot_actuator_release_cci(0);
-				mot_actuator_power_off(0);
-				CAM_ERR(CAM_ACTUATOR, "init acutator failed, ret=%d!!!", ret);
-			}
-		} else {
-			CAM_ERR(CAM_ACTUATOR, "init cci device failed, ret=%d!!!", ret);
-		}
-
-		if (ret != 0) {
-			CAM_ERR(CAM_ACTUATOR, "init actuator encountered error, power off now. ret=%d", ret);
-			mot_actuator_power_off(0);
-		}
-	} else if ((consumers & CLINET_CAMERA_MASK) && (atomic_read(&m_main_camera) == 1) && (atomic_read(&m_tele_camera) == 0)){
-		mot_actuator_init_runtime();
-		mot_actuator_power_on(1);
-		ret = mot_actuator_init_cci(1);
-		if (ret == 0) {
-			ret = mot_actuator_apply_settings(&mot_actuator_runtime[1].io_master, mot_actuator_get_init_settings(1));
-			if (ret == 0) {
-				CAM_WARN(CAM_ACTUATOR, "init acutator success", ret);
-				mot_actuator_state = MOT_ACTUATOR_INITED;
-				usleep_range(500,1000);
-			} else {
-				mot_actuator_release_cci(1);
-				mot_actuator_power_off(1);
-				CAM_ERR(CAM_ACTUATOR, "init acutator failed, ret=%d!!!", ret);
-			}
-		} else {
-			CAM_ERR(CAM_ACTUATOR, "init cci device failed, ret=%d!!!", ret);
-		}
-
-		if (ret != 0) {
-			CAM_ERR(CAM_ACTUATOR, "init actuator encountered error, power off now. ret=%d", ret);
-			mot_actuator_power_off(1);
-		}
-#else
 	if (consumers & CLINET_CAMERA_MASK) {
 		/*Don't init actuator when camera on*/
 		CAM_WARN(CAM_ACTUATOR, "Camera is holding actuator,don't init actuator for vibrator,consumers=%d",consumers);
-#endif
 	} else if (mot_actuator_state <= MOT_ACTUATOR_IDLE || mot_actuator_state >= MOT_ACTUATOR_RELEASED) {
 		mot_actuator_init_runtime();
 		if (0 == index) {
@@ -890,52 +832,7 @@ static int32_t mot_actuator_vib_move_lens(uint32_t index)
 			mot_actuator_get(ACTUATOR_CLIENT_VIBRATOR);
 		}
 
-#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
-		CAM_DBG(CAM_ACTUATOR, "m_main_camera %d, m_tele_camera %d", m_main_camera, m_tele_camera);
-		if ((consumers == 2) && (atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 1)) {
-			/*Just move lens when camera off and before first vibrating*/
-			/*use launch_lens to move lens step-by-step,reduce TICK noise*/
-			if (mot_dev_list[mot_device_index].actuator_info[0].launch_lens.launch_lens_needed == true) {
-				ret = mot_actuator_launch_lens(0, mot_actuator_runtime[0].safe_dac_pos);
-			} else {
-				ret = mot_actuator_move_lens_by_dac(0, mot_actuator_runtime[0].safe_dac_pos);
-				/*delay 10~12ms to wait lens move to specify location*/
-				if (mot_dev_list[mot_device_index].actuator_info[0].has_ois) {
-					mot_ois_start_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-				} else {
-					usleep_range(10000, 12000);
-				}
-			}
-			if (ret == 0) {
-				CAM_WARN(CAM_ACTUATOR, "actuator is safe now, safe_dac_pos:%d, please start vibrating.",
-					mot_actuator_runtime[0].safe_dac_pos);
-			} else {
-				CAM_ERR(CAM_ACTUATOR, "write dac failed, ret=%d!!!", ret);
-			}
-		} else if ((consumers == 2) && (atomic_read(&m_main_camera) == 1) && (atomic_read(&m_tele_camera) == 0)) {
-			/*Just move lens when camera off and before first vibrating*/
-			/*use launch_lens to move lens step-by-step,reduce TICK noise*/
-			if (mot_dev_list[mot_device_index].actuator_info[1].launch_lens.launch_lens_needed == true) {
-				ret = mot_actuator_launch_lens(1, mot_actuator_runtime[1].safe_dac_pos);
-			}else {
-				ret = mot_actuator_move_lens_by_dac(1, mot_actuator_runtime[1].safe_dac_pos);
-				/*delay 10~12ms to wait lens move to specify location*/
-				if (mot_dev_list[mot_device_index].actuator_info[1].has_ois) {
-					mot_ois_start_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-				} else {
-					usleep_range(10000, 12000);
-				}
-			}
-			if (ret == 0) {
-				CAM_WARN(CAM_ACTUATOR, "actuator is safe now, safe_dac_pos:%d, please start vibrating.",
-					mot_actuator_runtime[1].safe_dac_pos);
-			} else {
-				CAM_ERR(CAM_ACTUATOR, "write dac failed, ret=%d!!!", ret);
-			}
-		} else if ((consumers == 0) && (atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 0)) {
-#else
 		if (consumers == 0) {
-#endif
 			/*Just move lens when camera off and before first vibrating*/
 			/*use launch_lens to move lens step-by-step,reduce TICK noise*/
 			if (0 == index) {
@@ -1320,68 +1217,6 @@ void mot_actuator_handle_exile(void)
 		actuatorUsers = mot_actuator_put(ACTUATOR_CLIENT_VIBRATOR);
 		start = ktime_get();
 		if (mot_actuator_state >= MOT_ACTUATOR_INITED && mot_actuator_state < MOT_ACTUATOR_RELEASED) {
-#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
-			if (((consumers & (~CLINET_VIBRATOR_MASK)) == 2) && (atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 1)) {
-				//Only reset lens when there's no other user holding actuator.
-				CAM_DBG(CAM_ACTUATOR, "reset main_lens_now");
-				ret = mot_actuator_reset_lens(0);
-				if (ret < 0 ) {
-					CAM_ERR(CAM_ACTUATOR, "main reset Lens encounter CCI error");
-				}
-				mot_actuator_power_off(0);
-				mot_actuator_release_cci(0);
-				if (mot_dev_list[mot_device_index].actuator_info[0].has_ois)
-					mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-			} else if (((consumers & (~CLINET_VIBRATOR_MASK)) == 2) && (atomic_read(&m_main_camera) == 1) && (atomic_read(&m_tele_camera) == 0)) {
-				//Only reset lens when there's no other user holding actuator.
-				CAM_DBG(CAM_ACTUATOR, "reset tele_lens_now");
-				ret = mot_actuator_reset_lens(1);
-				if (ret < 0 ) {
-					CAM_ERR(CAM_ACTUATOR, "tele reset Lens encounter CCI error");
-				}
-				mot_actuator_power_off(1);
-				mot_actuator_release_cci(1);
-				if (mot_dev_list[mot_device_index].actuator_info[1].has_ois)
-					mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-			} else if ((consumers & (~CLINET_VIBRATOR_MASK)) == 0) {
-				//Only reset lens when there's no other user holding actuator.
-				CAM_DBG(CAM_ACTUATOR, "reset _lens_now");
-				if (1 == mot_dev_list[mot_device_index].actuator_num) {
-					ret = mot_actuator_reset_lens(0);
-					if (ret < 0 ) {
-						CAM_ERR(CAM_ACTUATOR, "reset Lens encounter CCI error");
-					}
-				} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-					for (int i = 0; i < mot_dev_list[mot_device_index].actuator_num; i++) {
-						ret = mot_actuator_reset_lens(i);
-						if (ret < 0 ) {
-							CAM_ERR(CAM_ACTUATOR, "reset Lens encounter CCI error, break now.");
-							break;
-						}
-					}
-				}
-				if (1 == mot_dev_list[mot_device_index].actuator_num) {
-					mot_actuator_power_off(0);
-				} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-					for (int i = 0; i < mot_dev_list[mot_device_index].actuator_num; i++)
-						mot_actuator_power_off(i);
-				}
-				if (1 == mot_dev_list[mot_device_index].actuator_num) {
-					mot_actuator_release_cci(0);
-				} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-					for (int i = 0; i < mot_dev_list[mot_device_index].actuator_num; i++)
-						mot_actuator_release_cci(i);
-				}
-				if (1 == mot_dev_list[mot_device_index].actuator_num) {
-					if (mot_dev_list[mot_device_index].actuator_info[0].has_ois)
-						mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-				} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-					if (mot_dev_list[mot_device_index].actuator_info[0].has_ois || mot_dev_list[mot_device_index].actuator_info[1].has_ois) {
-						mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-					}
-				}
-			}
-#else
 			if ((consumers & (~CLINET_VIBRATOR_MASK)) == 0) {
 				//Only reset lens when there's no other user holding actuator.
 				CAM_DBG(CAM_ACTUATOR, "reset _lens_now");
@@ -1417,7 +1252,6 @@ void mot_actuator_handle_exile(void)
 					mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
 				}
 			}
-#endif
 		}
 		mot_actuator_state = MOT_ACTUATOR_RELEASED;
 		end = ktime_get();
@@ -1442,49 +1276,6 @@ static void mot_actuator_delayed_process(struct work_struct *work)
 		actuatorUsers = mot_actuator_put(ACTUATOR_CLIENT_VIBRATOR);
 	}
 	if (mot_actuator_state >= MOT_ACTUATOR_INITED && mot_actuator_state < MOT_ACTUATOR_RELEASED) {
-#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
-		if (((consumers & (~CLINET_VIBRATOR_MASK)) == 2) && (atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 1)) {
-			mot_actuator_park_lens(0);
-			mot_actuator_power_off(0);
-			mot_actuator_release_cci(0);
-			if (mot_dev_list[mot_device_index].actuator_info[0].has_ois)
-				mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-		} else if (((consumers & (~CLINET_VIBRATOR_MASK)) == 2) && (atomic_read(&m_main_camera) == 1) && (atomic_read(&m_tele_camera) == 0)) {
-			mot_actuator_park_lens(1);
-			mot_actuator_power_off(1);
-			mot_actuator_release_cci(1);
-			if (mot_dev_list[mot_device_index].actuator_info[1].has_ois)
-				mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-		} else if ((consumers & (~CLINET_VIBRATOR_MASK)) == 0) {
-			//Only park lens when there's no other user holding actuator.
-			if (1 == mot_dev_list[mot_device_index].actuator_num) {
-				mot_actuator_park_lens(0);
-			} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-				for (int i = 0; i < mot_dev_list[mot_device_index].actuator_num; i++)
-					mot_actuator_park_lens(i);
-			}
-			if (1 == mot_dev_list[mot_device_index].actuator_num) {
-				mot_actuator_power_off(0);
-			} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-				for (int i = 0; i < mot_dev_list[mot_device_index].actuator_num; i++)
-					mot_actuator_power_off(i);
-			}
-			if (1 == mot_dev_list[mot_device_index].actuator_num) {
-				mot_actuator_release_cci(0);
-			} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-				for (int i = 0; i < mot_dev_list[mot_device_index].actuator_num; i++)
-					mot_actuator_release_cci(i);
-			}
-			if (1 == mot_dev_list[mot_device_index].actuator_num) {
-				if (mot_dev_list[mot_device_index].actuator_info[0].has_ois)
-					mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-			} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-				if (mot_dev_list[mot_device_index].actuator_info[0].has_ois || mot_dev_list[mot_device_index].actuator_info[1].has_ois) {
-					mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-				}
-			}
-		}
-#else
 		if ((consumers & (~CLINET_VIBRATOR_MASK)) == 0) {
 			//Only park lens when there's no other user holding actuator.
 			if (1 == mot_dev_list[mot_device_index].actuator_num) {
@@ -1514,7 +1305,6 @@ static void mot_actuator_delayed_process(struct work_struct *work)
 				mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
 			}
 		}
-#endif
 	}
 	mot_actuator_state = MOT_ACTUATOR_RELEASED;
 	mot_actuator_delay = 0;
@@ -1822,40 +1612,6 @@ static void mot_actuator_platform_shutdown(struct platform_device *pdev)
 		actuatorUsers = mot_actuator_put(ACTUATOR_CLIENT_VIBRATOR);
 		start = ktime_get();
 		if (mot_actuator_state >= MOT_ACTUATOR_INITED && mot_actuator_state < MOT_ACTUATOR_RELEASED) {
-#ifdef CONFIG_MOT_DRV_SHAKE_LENS_PROTECTION
-			if ((atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 1)) {
-				mot_actuator_power_off(0);
-				mot_actuator_release_cci(0);
-				if (mot_dev_list[mot_device_index].actuator_info[0].has_ois)
-					mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-			} else if ((atomic_read(&m_main_camera) == 1) && (atomic_read(&m_tele_camera) == 0)) {
-				mot_actuator_power_off(1);
-				mot_actuator_release_cci(1);
-				if (mot_dev_list[mot_device_index].actuator_info[1].has_ois)
-					mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-			} else if ((atomic_read(&m_main_camera) == 0) && (atomic_read(&m_tele_camera) == 0)) {
-				if (1 == mot_dev_list[mot_device_index].actuator_num) {
-					mot_actuator_power_off(0);
-				} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-					for (int i = 0; i < mot_dev_list[mot_device_index].actuator_num; i++)
-						mot_actuator_power_off(i);
-				}
-				if (1 == mot_dev_list[mot_device_index].actuator_num) {
-					mot_actuator_release_cci(0);
-				} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-					for (int i = 0; i < mot_dev_list[mot_device_index].actuator_num; i++)
-						mot_actuator_release_cci(i);
-				}
-				if (1 == mot_dev_list[mot_device_index].actuator_num) {
-					if (mot_dev_list[mot_device_index].actuator_info[0].has_ois)
-						mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-				} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
-					if (mot_dev_list[mot_device_index].actuator_info[0].has_ois || mot_dev_list[mot_device_index].actuator_info[1].has_ois) {
-						mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
-					}
-				}
-			}
-#else
 			if (1 == mot_dev_list[mot_device_index].actuator_num) {
 				mot_actuator_power_off(0);
 			} else if (2 == mot_dev_list[mot_device_index].actuator_num) {
@@ -1876,7 +1632,6 @@ static void mot_actuator_platform_shutdown(struct platform_device *pdev)
 					mot_ois_stop_protection(&mot_actuator_fctrl.v4l2_dev_str.pdev->dev);
 				}
 			}
-#endif
 		}
 		mot_actuator_state = MOT_ACTUATOR_RELEASED;
 		end = ktime_get();
