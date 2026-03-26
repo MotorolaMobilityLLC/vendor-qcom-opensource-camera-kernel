@@ -155,7 +155,7 @@ struct cam_ois_ctrl_t {
 	struct list_head read_buf_list;
 	struct mutex read_buf_lock;
 
-#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 	bool af_drift_supported;
 #endif
 };

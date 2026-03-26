@@ -28,7 +28,7 @@ extern int32_t sem1218s_fw_update(struct cam_ois_ctrl_t *o_ctrl, const struct fi
 atomic_t g_ois_init_finished = ATOMIC_INIT(0);
 #endif
 
-#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 atomic_t m_ois_init = ATOMIC_INIT(0);
 #endif
 
@@ -272,7 +272,7 @@ static int cam_ois_power_down(struct cam_ois_ctrl_t *o_ctrl)
 	}
 #endif
 
-#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 	// TODO: deal with one of dual OIS  need apply af drift
 	if (o_ctrl->af_drift_supported == true) {
 		atomic_set(&m_ois_init, 0);
@@ -1742,7 +1742,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		}
 #endif
 
-#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 		if (o_ctrl->af_drift_supported == true) {
 			atomic_set(&m_ois_init, 1);
 		}

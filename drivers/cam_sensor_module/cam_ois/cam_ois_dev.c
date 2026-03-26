@@ -23,7 +23,7 @@ struct completion *cam_ois_get_i3c_completion(uint32_t index)
 	return &g_i3c_ois_data[index].probe_complete;
 }
 
-#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 static struct cam_ois_ctrl_t * g_o_ctrl = NULL;
 
 int cam_ois_write_af_drift(uint32_t dac)
@@ -486,7 +486,7 @@ static int cam_ois_component_bind(struct device *dev,
 	CAM_GET_TIMESTAMP_DIFF_IN_MICRO(ts_start, ts_end, microsec);
 	cam_record_bind_latency(pdev->name, microsec);
 
-#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 	if (o_ctrl->af_drift_supported == true)
 	{
 		g_o_ctrl = o_ctrl;

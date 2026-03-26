@@ -131,7 +131,7 @@ struct cam_actuator_ctrl_t {
 #ifdef CONFIG_MOT_DRV_OIS_AF_USE_SAME_IC
 	bool af_ois_use_same_ic;
 #endif
-#ifdef CONFIG_MOT_DRV_DONGWOON_OIS_AF_DRIFT
+#ifdef CONFIG_MOT_DRV_OIS_AF_DRIFT
 	bool af_drift_supported;
 #endif
 #ifdef CONFIG_MOT_DRV_AF_NOISE_ELIMINATION
