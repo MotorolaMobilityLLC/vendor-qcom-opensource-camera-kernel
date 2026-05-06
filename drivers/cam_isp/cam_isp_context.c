@@ -3611,8 +3611,7 @@ static int __cam_isp_ctx_reg_upd_in_epoch_bubble_state(
 		if (!atomic_read(&ctx_isp->last_applied_default))
 			atomic_set(&ctx_isp->unserved_rup, 1);
 		CAM_WARN_RATE_LIMIT(CAM_ISP,
-			"ctx:%u Unexpected regupdate in activated Substate[%s] for frame_id:%lld",
-			"last_applied_default:%d, unserved_rup:%d",
+			"ctx:%u Unexpected regupdate in activated Substate[%s] for frame_id:%lld last_applied_default:%d, unserved_rup:%d",
 			ctx_isp->base->ctx_id,
 			__cam_isp_ctx_substate_val_to_type(
 			ctx_isp->substate_activated),
